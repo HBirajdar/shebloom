@@ -1,0 +1,57 @@
+{
+  "name": "shebloom",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Women's Health & Wellness Platform",
+  "license": "MIT",
+  "author": "SheBloom Team",
+  "workspaces": [
+    "src/client",
+    "src/server"
+  ],
+  "scripts": {
+    "dev": "concurrently -n client,server -c cyan,magenta \"npm run dev -w src/client\" \"npm run dev -w src/server\"",
+    "build": "npm run build -w src/client && npm run build -w src/server",
+    "start": "npm run start -w src/server",
+    "test": "npm run test -w src/client && npm run test -w src/server",
+    "test:coverage": "npm run test:coverage -w src/client && npm run test:coverage -w src/server",
+    "lint": "eslint 'src/**/*.{ts,tsx}' --fix",
+    "lint:check": "eslint 'src/**/*.{ts,tsx}'",
+    "format": "prettier --write 'src/**/*.{ts,tsx,json,css}'",
+    "format:check": "prettier --check 'src/**/*.{ts,tsx,json,css}'",
+    "typecheck": "npm run typecheck -w src/client && npm run typecheck -w src/server",
+    "db:migrate": "npm run db:migrate -w src/server",
+    "db:seed": "npm run db:seed -w src/server",
+    "db:studio": "npm run db:studio -w src/server",
+    "docker:dev": "docker compose up -d",
+    "docker:prod": "docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build",
+    "docker:down": "docker compose down",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.8.0",
+    "@typescript-eslint/parser": "^7.8.0",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.34.1",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.2",
+    "prettier": "^3.2.5",
+    "typescript": "^5.4.5"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css,md}": [
+      "prettier --write"
+    ]
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}

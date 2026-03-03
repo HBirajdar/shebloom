@@ -1,0 +1,103 @@
+version: '3.9'
+
+services:
+  # ─── PostgreSQL Database ─────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: shebloom-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: shebloom_db
+      POSTGRES_USER: shebloom
+      POSTGRES_PASSWORD: shebloom_secret
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U shebloom -d shebloom_db']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - shebloom-network
+
+  # ─── Redis Cache ─────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: shebloom-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - shebloom-network
+
+  # ─── Backend API Server ──────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.server
+    container_name: shebloom-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: postgresql://shebloom:shebloom_secret@postgres:5432/shebloom_db?schema=public
+      REDIS_URL: redis://redis:6379
+    ports:
+      - '${APP_PORT:-8000}:8000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./src/server:/app/src/server
+      - /app/src/server/node_modules
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/api/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - shebloom-network
+
+  # ─── Frontend Dev Server ─────────────────────────────
+  client:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.client
+    container_name: shebloom-client
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://localhost:8000
+    ports:
+      - '${CLIENT_PORT:-3000}:3000'
+    depends_on:
+      - api
+    volumes:
+      - ./src/client:/app/src/client
+      - /app/src/client/node_modules
+    networks:
+      - shebloom-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  shebloom-network:
+    driver: bridge

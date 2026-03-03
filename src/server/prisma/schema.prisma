@@ -1,0 +1,483 @@
+// ──────────────────────────────────────────────────────
+// SheBloom Database Schema (Prisma + PostgreSQL)
+// ──────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS ──────────────────────────────────────────
+
+enum Role {
+  USER
+  DOCTOR
+  ADMIN
+}
+
+enum AuthProvider {
+  EMAIL
+  PHONE
+  GOOGLE
+  APPLE
+}
+
+enum CyclePhase {
+  MENSTRUAL
+  FOLLICULAR
+  OVULATION
+  LUTEAL
+}
+
+enum MoodLevel {
+  GREAT
+  GOOD
+  OKAY
+  LOW
+  BAD
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum ArticleStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+enum Language {
+  ENGLISH
+  HINDI
+  TAMIL
+  KANNADA
+  TELUGU
+  MARATHI
+  BENGALI
+  GUJARATI
+}
+
+// ─── USER ───────────────────────────────────────────
+
+model User {
+  id              String       @id @default(cuid())
+  email           String?      @unique
+  phone           String?      @unique
+  passwordHash    String?
+  fullName        String
+  avatarUrl       String?
+  dateOfBirth     DateTime?
+  role            Role         @default(USER)
+  authProvider    AuthProvider  @default(EMAIL)
+  isVerified      Boolean      @default(false)
+  isActive        Boolean      @default(true)
+  language        Language     @default(ENGLISH)
+  timezone        String       @default("Asia/Kolkata")
+  fcmToken        String?      // Firebase Cloud Messaging
+  lastLoginAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relations
+  profile         UserProfile?
+  cycles          Cycle[]
+  moodLogs        MoodLog[]
+  symptomLogs     SymptomLog[]
+  pregnancies     Pregnancy[]
+  appointments    Appointment[]
+  articleBookmarks ArticleBookmark[]
+  waterLogs       WaterLog[]
+  notifications   Notification[]
+  refreshTokens   RefreshToken[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([role])
+  @@map("users")
+}
+
+model UserProfile {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  cycleLength         Int      @default(28)
+  periodLength        Int      @default(5)
+  lastPeriodDate      DateTime?
+  primaryGoal         String?    // track_periods, pregnancy, wellness, fertility
+  interests           String[]   // Array of interest tags
+  height              Float?     // cm
+  weight              Float?     // kg
+  bloodGroup          String?
+  medicalConditions   String[]
+  allergies           String[]
+  isPregnant          Boolean  @default(false)
+  pregnancyWeek       Int?
+  contraceptiveMethod String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model RefreshToken {
+  id          String   @id @default(cuid())
+  userId      String
+  token       String   @unique
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  isRevoked   Boolean  @default(false)
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ─── CYCLE TRACKING ─────────────────────────────────
+
+model Cycle {
+  id              String     @id @default(cuid())
+  userId          String
+  startDate       DateTime
+  endDate         DateTime?
+  cycleLength     Int?
+  periodLength    Int?
+  ovulationDate   DateTime?
+  fertileStart    DateTime?
+  fertileEnd      DateTime?
+  isPredicted     Boolean    @default(false)
+  notes           String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startDate])
+  @@map("cycles")
+}
+
+model MoodLog {
+  id        String   @id @default(cuid())
+  userId    String
+  mood      MoodLevel
+  notes     String?
+  logDate   DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, logDate])
+  @@map("mood_logs")
+}
+
+model SymptomLog {
+  id        String   @id @default(cuid())
+  userId    String
+  symptoms  String[]  // Array of symptom names
+  severity  Int?      @default(5) // 1-10 scale
+  notes     String?
+  logDate   DateTime  @default(now())
+  createdAt DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, logDate])
+  @@map("symptom_logs")
+}
+
+model WaterLog {
+  id        String   @id @default(cuid())
+  userId    String
+  glasses   Int      @default(0)
+  targetGlasses Int  @default(8)
+  logDate   DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, logDate])
+  @@map("water_logs")
+}
+
+// ─── PREGNANCY ──────────────────────────────────────
+
+model Pregnancy {
+  id                String              @id @default(cuid())
+  userId            String
+  dueDate           DateTime
+  conceptionDate    DateTime?
+  currentWeek       Int                 @default(1)
+  isActive          Boolean             @default(true)
+  notes             String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  checklistItems    PregnancyChecklist[]
+
+  @@index([userId])
+  @@map("pregnancies")
+}
+
+model PregnancyChecklist {
+  id            String    @id @default(cuid())
+  pregnancyId   String
+  week          Int
+  title         String
+  description   String?
+  isCompleted   Boolean   @default(false)
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  pregnancy     Pregnancy @relation(fields: [pregnancyId], references: [id], onDelete: Cascade)
+
+  @@index([pregnancyId, week])
+  @@map("pregnancy_checklists")
+}
+
+// ─── DOCTORS ────────────────────────────────────────
+
+model Doctor {
+  id                String        @id @default(cuid())
+  userId            String?       @unique
+  fullName          String
+  specialization    String
+  qualifications    String[]
+  experienceYears   Int
+  hospitalName      String?
+  hospitalId        String?
+  consultationFee   Float
+  rating            Float         @default(0)
+  totalReviews      Int           @default(0)
+  languages         Language[]
+  tags              String[]
+  bio               String?
+  avatarUrl         String?
+  isAvailable       Boolean       @default(true)
+  isVerified        Boolean       @default(false)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  hospital          Hospital?     @relation(fields: [hospitalId], references: [id])
+  appointments      Appointment[]
+  articles          Article[]
+  reviews           DoctorReview[]
+  availableSlots    DoctorSlot[]
+
+  @@index([specialization])
+  @@index([rating])
+  @@index([consultationFee])
+  @@map("doctors")
+}
+
+model DoctorSlot {
+  id          String   @id @default(cuid())
+  doctorId    String
+  dayOfWeek   Int      // 0=Sun, 6=Sat
+  startTime   String   // "09:00"
+  endTime     String   // "17:00"
+  isActive    Boolean  @default(true)
+
+  doctor      Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@map("doctor_slots")
+}
+
+model DoctorReview {
+  id        String   @id @default(cuid())
+  doctorId  String
+  userId    String
+  rating    Float
+  comment   String?
+  createdAt DateTime @default(now())
+
+  doctor    Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId])
+  @@map("doctor_reviews")
+}
+
+model Appointment {
+  id              String            @id @default(cuid())
+  userId          String
+  doctorId        String
+  scheduledAt     DateTime
+  duration        Int               @default(30) // minutes
+  status          AppointmentStatus @default(PENDING)
+  type            String            @default("consultation") // consultation, follow_up, emergency
+  notes           String?
+  meetingLink     String?
+  paymentId       String?
+  amountPaid      Float?
+  cancellationReason String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  doctor          Doctor            @relation(fields: [doctorId], references: [id])
+
+  @@index([userId])
+  @@index([doctorId])
+  @@index([scheduledAt])
+  @@map("appointments")
+}
+
+// ─── HOSPITALS ──────────────────────────────────────
+
+model Hospital {
+  id              String   @id @default(cuid())
+  name            String
+  address         String
+  city            String
+  state           String
+  pincode         String
+  latitude        Float?
+  longitude       Float?
+  phone           String?
+  email           String?
+  website         String?
+  rating          Float    @default(0)
+  totalBeds       Int?
+  hasEmergency    Boolean  @default(false)
+  category        String?  // budget, mid_range, premium
+  accreditation   String[] // NABH, JCI, etc.
+  specialties     String[]
+  imageUrls       String[]
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  doctors         Doctor[]
+  prices          HospitalPrice[]
+
+  @@index([city])
+  @@index([rating])
+  @@map("hospitals")
+}
+
+model HospitalPrice {
+  id            String   @id @default(cuid())
+  hospitalId    String
+  serviceName   String   // "Consultation", "Normal Delivery", "C-Section", "Health Check-up"
+  minPrice      Float
+  maxPrice      Float?
+  currency      String   @default("INR")
+  lastUpdated   DateTime @default(now())
+
+  hospital      Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+
+  @@index([hospitalId])
+  @@map("hospital_prices")
+}
+
+// ─── ARTICLES ───────────────────────────────────────
+
+model Article {
+  id              String          @id @default(cuid())
+  doctorId        String?
+  title           String
+  slug            String          @unique
+  content         String
+  excerpt         String?
+  category        String          // periods, pregnancy, pcod, wellness, nutrition, mental_health
+  tags            String[]
+  coverImageUrl   String?
+  readTimeMinutes Int             @default(5)
+  status          ArticleStatus   @default(DRAFT)
+  viewCount       Int             @default(0)
+  likeCount       Int             @default(0)
+  isFeatured      Boolean         @default(false)
+  publishedAt     DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  doctor          Doctor?         @relation(fields: [doctorId], references: [id])
+  bookmarks       ArticleBookmark[]
+
+  @@index([category])
+  @@index([status])
+  @@index([slug])
+  @@map("articles")
+}
+
+model ArticleBookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  articleId String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, articleId])
+  @@map("article_bookmarks")
+}
+
+// ─── NOTIFICATIONS ──────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  type      String   // period_reminder, appointment, article, wellness_tip
+  data      Json?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+// ─── WELLNESS ───────────────────────────────────────
+
+model WellnessActivity {
+  id              String   @id @default(cuid())
+  title           String
+  description     String?
+  category        String   // meditation, yoga, stress_management, breathing
+  durationMinutes Int
+  difficulty      String   @default("beginner") // beginner, intermediate, advanced
+  cyclePhases     CyclePhase[] // recommended during these phases
+  imageUrl        String?
+  audioUrl        String?
+  videoUrl        String?
+  instructions    Json?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  @@index([category])
+  @@map("wellness_activities")
+}
+
+// ─── AUDIT LOG ──────────────────────────────────────
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  action      String   // login, logout, data_access, data_update, data_delete
+  resource    String   // user, cycle, appointment, etc.
+  resourceId  String?
+  ipAddress   String?
+  userAgent   String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
