@@ -133,7 +133,7 @@ const defaultRecipes: DIYRecipe[] = [
 ];
 
 const defaultDoctors: DoctorListing[] = [
-  { id: 'd_chief', name: 'Dr. SheBloom', specialization: 'Ayurveda & Women\'s Health', experience: 10, rating: 4.9, reviews: 847,
+  { id: 'd_chief', name: 'Dr. Shruti', specialization: 'Ayurveda & Women\'s Health', experience: 10, rating: 4.9, reviews: 847,
     fee: 200, feeFreeForPoor: true, tags: ['PCOD Expert', 'Fertility', 'Pregnancy Care', 'Hair & Skin'],
     languages: ['Hindi', 'English', 'Marathi', 'Kannada'], qualification: 'BAMS, MD (Ayurveda)',
     about: 'Passionate about genuine Ayurvedic healthcare for every woman. Each product is handcrafted with love. Free consultations for those who cannot afford.',
