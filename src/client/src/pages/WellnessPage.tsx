@@ -47,7 +47,7 @@ export default function WellnessPage() {
             </div>
             <div className="px-4 py-3 flex justify-between items-center">
               <span className="text-xs text-gray-500">{w.dur}</span>
-              <button className="px-5 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg text-xs font-bold">Start</button>
+              <button onClick={() => alert(`Starting ${w.name}...\n\nTimer: ${w.dur}\n\nThis feature will include guided audio and animations in the next update!`)} className="px-5 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg text-xs font-bold active:scale-95 transition-transform cursor-pointer">Start</button>
             </div>
           </div>
         ))}

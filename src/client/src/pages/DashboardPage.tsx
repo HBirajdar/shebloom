@@ -46,7 +46,7 @@ export default function DashboardPage() {
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-rose-400 to-pink-400 flex items-center justify-center text-white font-bold text-sm">{user?.fullName?.charAt(0) || 'S'}</div>
           <div><p className="text-xs text-gray-400">Hello</p><p className="text-sm font-bold text-gray-900">{user?.fullName || 'User'}</p></div>
         </div>
-        <button className="relative w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center"><span>&#128276;</span><div className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full" /></button>
+        <button onClick={() => nav('/appointments')} className="relative w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center"><span>&#128276;</span><div className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full" /></button>
       </div>
 
       <div className="px-5 pt-5 space-y-5">

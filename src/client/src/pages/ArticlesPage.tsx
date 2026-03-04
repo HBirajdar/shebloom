@@ -19,15 +19,16 @@ export default function ArticlesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <div className="sticky top-0 z-10 bg-white px-5 py-4 border-b border-gray-100">
+      <div className="sticky top-0 z-10 bg-white px-5 py-4 border-b border-gray-100 flex items-center gap-3">
+        <button onClick={() => nav('/dashboard')}>&#8592;</button>
         <h1 className="text-lg font-bold">Articles</h1>
       </div>
       <div className="px-5 pt-4 space-y-4">
-        <div className="bg-gradient-to-r from-rose-500 to-pink-600 rounded-2xl p-5 text-white">
+        <button onClick={() => nav('/articles/1')} className="w-full text-left bg-gradient-to-r from-rose-500 to-pink-600 rounded-2xl p-5 text-white">
           <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full">Featured</span>
           <h3 className="font-bold text-lg mt-2 leading-tight">{articles[0].title}</h3>
           <p className="text-xs opacity-80 mt-1">{articles[0].by} &middot; {articles[0].time} read</p>
-        </div>
+        </button>
 
         <div className="flex gap-2 overflow-x-auto pb-1">
           {cats.map(c => (

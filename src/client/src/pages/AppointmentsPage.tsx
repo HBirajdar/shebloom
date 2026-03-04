@@ -58,7 +58,7 @@ export default function AppointmentsPage() {
               <span className="text-sm font-bold text-emerald-600">&#8377;{a.amt}</span>
             </div>
             {(a.status === 'Confirmed' || a.status === 'Pending') && (
-              <button className="mt-3 w-full py-2 border border-red-200 text-red-500 rounded-xl text-xs font-semibold">Cancel Appointment</button>
+              <button onClick={() => alert(`Appointment with ${a.doc} cancelled.`)} className="mt-3 w-full py-2 border border-red-200 text-red-500 rounded-xl text-xs font-semibold active:bg-red-50 cursor-pointer">Cancel Appointment</button>
             )}
           </div>
         ))}

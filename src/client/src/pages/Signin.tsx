@@ -15,11 +15,12 @@ export default function AuthPage() {
   const [otp, setOtp] = useState('');
   const [sent, setSent] = useState(false);
   const [ld, setLd] = useState(false);
+  const [err, setErr] = useState('');
 
   const go = async (p: Promise<any>, to: string) => {
-    setLd(true);
+    setLd(true); setErr('');
     try { const r = await p; sa(r.data.data.user, r.data.data.accessToken, r.data.data.refreshToken); nav(to); }
-    catch { /* handle error */ }
+    catch (e: any) { setErr(e?.response?.data?.error || e?.message || 'Something went wrong. Please try again.'); }
     setLd(false);
   };
 
@@ -53,11 +54,13 @@ export default function AuthPage() {
             </div>
             {sent && <input value={otp} onChange={e => setOtp(e.target.value.slice(0, 4))} placeholder="Enter OTP" maxLength={4} className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 text-sm text-center tracking-widest outline-none" />}
             <button disabled={ld} onClick={async () => {
-              if (!sent) { setLd(true); try { await authAPI.sendOtp(ph); setSent(true); } catch {} setLd(false); }
+              setErr('');
+              if (!sent) { setLd(true); try { await authAPI.sendOtp(ph); setSent(true); } catch (e: any) { setErr(e?.response?.data?.error || 'Failed to send OTP'); } setLd(false); }
               else go(authAPI.verifyOtp(ph, otp), '/dashboard');
             }} className="w-full py-3.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-xl font-bold disabled:opacity-50">
               {ld ? 'Wait...' : sent ? 'Verify OTP' : 'Send OTP'}
             </button>
+            {err && <p className="text-red-500 text-xs text-center bg-red-50 p-2 rounded-lg">{err}</p>}
           </div>
         ) : (
           <div className="space-y-3">
@@ -65,11 +68,13 @@ export default function AuthPage() {
             <input value={em} onChange={e => setEm(e.target.value)} placeholder="Email" type="email" className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 text-sm outline-none" />
             <input value={pw} onChange={e => setPw(e.target.value)} placeholder="Password" type="password" className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 text-sm outline-none" />
             <button disabled={ld} onClick={() => {
+              setErr('');
               if (tab === 'signup') go(authAPI.register({ fullName: nm, email: em, password: pw }), '/setup');
               else go(authAPI.login({ email: em, password: pw }), '/dashboard');
             }} className="w-full py-3.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-xl font-bold disabled:opacity-50">
               {ld ? 'Wait...' : tab === 'login' ? 'Sign In' : 'Create Account'}
             </button>
+            {err && <p className="text-red-500 text-xs text-center bg-red-50 p-2 rounded-lg">{err}</p>}
           </div>
         )}
 
@@ -78,8 +83,8 @@ export default function AuthPage() {
           <div className="relative flex justify-center"><span className="bg-white px-3 text-xs text-gray-400">or</span></div>
         </div>
         <div className="flex gap-3">
-          <button className="flex-1 py-2.5 border-2 border-gray-100 rounded-xl text-sm font-semibold text-gray-600">Google</button>
-          <button className="flex-1 py-2.5 border-2 border-gray-100 rounded-xl text-sm font-semibold text-gray-600">Apple</button>
+          <button onClick={() => alert('Google Sign-In: To enable, set up Google OAuth in Google Cloud Console and add GOOGLE_CLIENT_ID to your environment.')} className="flex-1 py-2.5 border-2 border-gray-100 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 active:scale-95 transition-all cursor-pointer">Google</button>
+          <button onClick={() => alert('Apple Sign-In coming soon!')} className="flex-1 py-2.5 border-2 border-gray-100 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 active:scale-95 transition-all cursor-pointer">Apple</button>
         </div>
       </div>
       <p className="text-center text-[11px] text-gray-400 mt-6">By continuing, you agree to our Terms and Privacy Policy</p>
