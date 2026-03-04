@@ -13,6 +13,38 @@ const catOpts: { k: ProductCategory; l: string }[] = [
   { k: 'body_lotion', l: 'Lotion' }, { k: 'body_wash', l: 'Body Wash' }, { k: 'hair_treatment', l: 'Treatment' }, { k: 'supplement', l: 'Supplement' },
 ];
 
+// Standalone form components (outside render to prevent re-mount)
+const FormField = ({ label, value, onChange, placeholder, multiline }: { label: string; value: string; onChange: (v: string) => void; placeholder: string; multiline?: boolean }) => (
+  <div>
+    <label className="text-[9px] font-bold text-gray-500 uppercase">{label}</label>
+    {multiline ? (
+      <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+        className="w-full mt-0.5 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-emerald-400 focus:outline-none resize-none" rows={3} />
+    ) : (
+      <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+        className="w-full mt-0.5 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-emerald-400 focus:outline-none" />
+    )}
+  </div>
+);
+const FormNumField = ({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) => (
+  <div>
+    <label className="text-[9px] font-bold text-gray-500 uppercase">{label}</label>
+    <input type="number" value={value || ''} onChange={e => onChange(+e.target.value)}
+      className="w-full mt-0.5 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-emerald-400 focus:outline-none" />
+  </div>
+);
+const FormTargetPicker = ({ value, onChange, opts }: { value: TargetAudience[]; onChange: (v: TargetAudience[]) => void; opts: { k: TargetAudience; l: string }[] }) => (
+  <div>
+    <label className="text-[9px] font-bold text-gray-500 uppercase">Visible To</label>
+    <div className="flex flex-wrap gap-1 mt-1">
+      {opts.map(t => (
+        <button key={t.k} onClick={() => onChange(value.includes(t.k) ? value.filter(x => x !== t.k) : [...value, t.k])}
+          className={'px-2 py-1 rounded-lg text-[9px] font-bold ' + (value.includes(t.k) ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500')}>{t.l}</button>
+      ))}
+    </div>
+  </div>
+);
+
 export default function AdminPage() {
   const nav = useNavigate();
   const store = useAyurvedaStore();
@@ -152,43 +184,6 @@ export default function AdminPage() {
     { id: 'callbacks', icon: '\u{1F4DE}', label: 'Callbacks' },
     { id: 'settings', icon: '\u2699\uFE0F', label: 'Security' },
   ];
-
-  // Field helper
-  const Field = ({ label, value, onChange, placeholder, multiline }: { label: string; value: string; onChange: (v: string) => void; placeholder: string; multiline?: boolean }) => (
-    <div>
-      <label className="text-[9px] font-bold text-gray-500 uppercase">{label}</label>
-      {multiline ? (
-        <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-          className="w-full mt-0.5 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-emerald-400 focus:outline-none resize-none" rows={3} />
-      ) : (
-        <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-          className="w-full mt-0.5 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-emerald-400 focus:outline-none" />
-      )}
-    </div>
-  );
-
-  const NumField = ({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) => (
-    <div>
-      <label className="text-[9px] font-bold text-gray-500 uppercase">{label}</label>
-      <input type="number" value={value || ''} onChange={e => onChange(+e.target.value)}
-        className="w-full mt-0.5 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-emerald-400 focus:outline-none" />
-    </div>
-  );
-
-  const TargetPicker = ({ value, onChange }: { value: TargetAudience[]; onChange: (v: TargetAudience[]) => void }) => (
-    <div>
-      <label className="text-[9px] font-bold text-gray-500 uppercase">Visible To</label>
-      <div className="flex flex-wrap gap-1 mt-1">
-        {targetOpts.map(t => (
-          <button key={t.k} onClick={() => onChange(value.includes(t.k) ? value.filter(x => x !== t.k) : [...value, t.k])}
-            className={'px-2 py-1 rounded-lg text-[9px] font-bold ' + (value.includes(t.k) ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500')}>{t.l}</button>
-        ))}
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="min-h-screen pb-8" style={{ backgroundColor: '#F8FAFC' }}>
       {/* Header */}
       <div className="sticky top-0 z-20 bg-slate-800 text-white">
         <div className="px-5 py-3 flex items-center justify-between">
@@ -329,43 +324,43 @@ export default function AdminPage() {
         {/* ADD PRODUCT */}
         {tab === 'add_product' && (<>
           <div className="flex items-center gap-2 mb-1"><button onClick={() => setTab('products')} className="text-gray-400 text-sm">{'\u2190'}</button><h3 className="text-sm font-extrabold">New Product</h3></div>
-          <Field label="Name *" value={np.name} onChange={v => setNp({...np, name: v})} placeholder="Bhringraj Hair Oil" />
-          <Field label="Description *" value={np.description} onChange={v => setNp({...np, description: v})} placeholder="Product description..." multiline />
-          <div className="grid grid-cols-2 gap-2"><NumField label="Price *" value={np.price} onChange={v => setNp({...np, price: v})} /><NumField label="Sale Price" value={np.discountPrice} onChange={v => setNp({...np, discountPrice: v})} /></div>
-          <div className="grid grid-cols-2 gap-2"><Field label="Size" value={np.size} onChange={v => setNp({...np, size: v})} placeholder="200ml" /><Field label="Emoji" value={np.emoji} onChange={v => setNp({...np, emoji: v})} placeholder="\u{1F33F}" /></div>
-          <Field label="Ingredients (comma-sep)" value={np.ingredients} onChange={v => setNp({...np, ingredients: v})} placeholder="Bhringraj, Amla..." multiline />
-          <Field label="Benefits (comma-sep)" value={np.benefits} onChange={v => setNp({...np, benefits: v})} placeholder="Reduces hairfall..." multiline />
-          <Field label="How to Use" value={np.howToUse} onChange={v => setNp({...np, howToUse: v})} placeholder="Instructions..." multiline />
-          <Field label="Doctor Note" value={np.doctorNote} onChange={v => setNp({...np, doctorNote: v})} placeholder="Personal recommendation..." multiline />
+          <FormField label="Name *" value={np.name} onChange={v => setNp({...np, name: v})} placeholder="Bhringraj Hair Oil" />
+          <FormField label="Description *" value={np.description} onChange={v => setNp({...np, description: v})} placeholder="Product description..." multiline />
+          <div className="grid grid-cols-2 gap-2"><FormNumField label="Price *" value={np.price} onChange={v => setNp({...np, price: v})} /><FormNumField label="Sale Price" value={np.discountPrice} onChange={v => setNp({...np, discountPrice: v})} /></div>
+          <div className="grid grid-cols-2 gap-2"><FormField label="Size" value={np.size} onChange={v => setNp({...np, size: v})} placeholder="200ml" /><FormField label="Emoji" value={np.emoji} onChange={v => setNp({...np, emoji: v})} placeholder="\u{1F33F}" /></div>
+          <FormField label="Ingredients (comma-sep)" value={np.ingredients} onChange={v => setNp({...np, ingredients: v})} placeholder="Bhringraj, Amla..." multiline />
+          <FormField label="Benefits (comma-sep)" value={np.benefits} onChange={v => setNp({...np, benefits: v})} placeholder="Reduces hairfall..." multiline />
+          <FormField label="How to Use" value={np.howToUse} onChange={v => setNp({...np, howToUse: v})} placeholder="Instructions..." multiline />
+          <FormField label="Doctor Note" value={np.doctorNote} onChange={v => setNp({...np, doctorNote: v})} placeholder="Personal recommendation..." multiline />
           <div><label className="text-[9px] font-bold text-gray-500 uppercase">Category</label>
             <div className="flex flex-wrap gap-1 mt-1">{catOpts.map(c => (<button key={c.k} onClick={() => setNp({...np, category: c.k})} className={'px-2 py-1 rounded-lg text-[9px] font-bold ' + (np.category === c.k ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500')}>{c.l}</button>))}</div></div>
-          <TargetPicker value={np.targetAudience} onChange={v => setNp({...np, targetAudience: v})} />
+          <FormTargetPicker opts={targetOpts} value={np.targetAudience} onChange={v => setNp({...np, targetAudience: v})} />
           <button onClick={handleAddProduct} className="w-full py-3 rounded-2xl text-white font-bold text-sm active:scale-95" style={{background:'linear-gradient(135deg,#059669,#10B981)'}}>Add as Draft</button>
         </>)}
 
         {/* ADD ARTICLE */}
         {tab === 'add_article' && (<>
           <div className="flex items-center gap-2 mb-1"><button onClick={() => setTab('articles')} className="text-gray-400 text-sm">{'\u2190'}</button><h3 className="text-sm font-extrabold">Write Article</h3></div>
-          <Field label="Title *" value={na.title} onChange={v => setNa({...na, title: v})} placeholder="Understanding PCOD..." />
+          <FormField label="Title *" value={na.title} onChange={v => setNa({...na, title: v})} placeholder="Understanding PCOD..." />
           <div className="grid grid-cols-2 gap-2">
-            <Field label="Category" value={na.category} onChange={v => setNa({...na, category: v})} placeholder="PCOD, Wellness..." />
-            <Field label="Read Time" value={na.readTime} onChange={v => setNa({...na, readTime: v})} placeholder="5 min" />
+            <FormField label="Category" value={na.category} onChange={v => setNa({...na, category: v})} placeholder="PCOD, Wellness..." />
+            <FormField label="Read Time" value={na.readTime} onChange={v => setNa({...na, readTime: v})} placeholder="5 min" />
           </div>
-          <Field label="Content *" value={na.content} onChange={v => setNa({...na, content: v})} placeholder="Write your article..." multiline />
-          <TargetPicker value={na.targetAudience} onChange={v => setNa({...na, targetAudience: v})} />
+          <FormField label="Content *" value={na.content} onChange={v => setNa({...na, content: v})} placeholder="Write your article..." multiline />
+          <FormTargetPicker opts={targetOpts} value={na.targetAudience} onChange={v => setNa({...na, targetAudience: v})} />
           <button onClick={handleAddArticle} className="w-full py-3 rounded-2xl text-white font-bold text-sm active:scale-95" style={{background:'linear-gradient(135deg,#2563EB,#3B82F6)'}}>Save as Draft</button>
         </>)}
 
         {/* ADD DOCTOR */}
         {tab === 'add_doctor' && (<>
           <div className="flex items-center gap-2 mb-1"><button onClick={() => setTab('doctors')} className="text-gray-400 text-sm">{'\u2190'}</button><h3 className="text-sm font-extrabold">Add Doctor</h3></div>
-          <Field label="Full Name *" value={nd.name} onChange={v => setNd({...nd, name: v})} placeholder="Dr. Priya Sharma" />
-          <Field label="Specialization" value={nd.specialization} onChange={v => setNd({...nd, specialization: v})} placeholder="Gynecologist" />
-          <Field label="Qualification" value={nd.qualification} onChange={v => setNd({...nd, qualification: v})} placeholder="MBBS, MS" />
-          <div className="grid grid-cols-2 gap-2"><NumField label="Experience (yrs)" value={nd.experience} onChange={v => setNd({...nd, experience: v})} /><NumField label="Fee" value={nd.fee} onChange={v => setNd({...nd, fee: v})} /></div>
-          <Field label="Tags (comma-sep)" value={nd.tags} onChange={v => setNd({...nd, tags: v})} placeholder="PCOD, IVF..." />
-          <Field label="Languages (comma-sep)" value={nd.languages} onChange={v => setNd({...nd, languages: v})} placeholder="English, Hindi..." />
-          <Field label="About" value={nd.about} onChange={v => setNd({...nd, about: v})} placeholder="Brief description..." multiline />
+          <FormField label="Full Name *" value={nd.name} onChange={v => setNd({...nd, name: v})} placeholder="Dr. Priya Sharma" />
+          <FormField label="Specialization" value={nd.specialization} onChange={v => setNd({...nd, specialization: v})} placeholder="Gynecologist" />
+          <FormField label="Qualification" value={nd.qualification} onChange={v => setNd({...nd, qualification: v})} placeholder="MBBS, MS" />
+          <div className="grid grid-cols-2 gap-2"><FormNumField label="Experience (yrs)" value={nd.experience} onChange={v => setNd({...nd, experience: v})} /><FormNumField label="Fee" value={nd.fee} onChange={v => setNd({...nd, fee: v})} /></div>
+          <FormField label="Tags (comma-sep)" value={nd.tags} onChange={v => setNd({...nd, tags: v})} placeholder="PCOD, IVF..." />
+          <FormField label="Languages (comma-sep)" value={nd.languages} onChange={v => setNd({...nd, languages: v})} placeholder="English, Hindi..." />
+          <FormField label="About" value={nd.about} onChange={v => setNd({...nd, about: v})} placeholder="Brief description..." multiline />
           <button onClick={handleAddDoctor} className="w-full py-3 rounded-2xl text-white font-bold text-sm active:scale-95" style={{background:'linear-gradient(135deg,#7C3AED,#8B5CF6)'}}>Add Doctor</button>
         </>)}
 

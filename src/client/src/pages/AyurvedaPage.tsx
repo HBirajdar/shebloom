@@ -22,7 +22,7 @@ const Stars = ({ r }: { r: number }) => (
 
 export default function AyurvedaPage() {
   const nav = useNavigate();
-  const { products, recipes, doctors, isAdminUnlocked } = useAyurvedaStore();
+  const { products, recipes, doctors, isAdminUnlocked, getChiefDoctor } = useAyurvedaStore();
   const { goal } = useCycleStore();
   const user = useAuthStore(s => s.user);
   const [view, setView] = useState<'shop' | 'diy' | 'doctor'>('shop');
@@ -38,7 +38,7 @@ export default function AyurvedaPage() {
   const [cbMessage, setCbMessage] = useState('');
   const [cbSent, setCbSent] = useState(false);
 
-  const chief = doctors.find(d => d.isChief);
+  const chief = getChiefDoctor();
   const visibleProducts = useMemo(() => {
     return products.filter(p => p.isPublished)
       .filter(p => p.targetAudience.includes('all') || p.targetAudience.includes(goal as any))
@@ -203,7 +203,7 @@ export default function AyurvedaPage() {
         </>)}
 
         {/* ═══ DOCTOR ═══ */}
-        {view === 'doctor' && chief && (<>
+        {view === 'doctor' && (<>
           <div className="bg-white rounded-3xl p-5 shadow-sm text-center">
             <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-4xl text-white font-bold shadow-lg">{chief.name.charAt(0)}</div>
             <span className="inline-block mt-3 text-[9px] font-bold bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full">{'\u{1F451}'} Chief Doctor</span>

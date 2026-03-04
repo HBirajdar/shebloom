@@ -6,13 +6,13 @@ const CATS = ['All', 'Ayurveda', 'Gynecologist', 'Obstetrician', 'Fertility', 'D
 
 export default function DoctorsPage() {
   const nav = useNavigate();
-  const { doctors } = useAyurvedaStore();
+  const { doctors, getChiefDoctor } = useAyurvedaStore();
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('All');
   const [sel, setSel] = useState<any>(null);
 
   const published = doctors.filter(d => d.isPublished);
-  const chief = published.find(d => d.isChief);
+  const chief = getChiefDoctor();
   const others = published.filter(d => !d.isChief);
 
   const filtered = others.filter(d => {
