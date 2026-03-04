@@ -1,155 +1,206 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const weekData: Record<number, { size: string; sizeEmoji: string; length: string; weight: string; baby: string[]; mom: string[]; tips: string[]; trimester: number }> = {
-  4: { size: 'Poppy Seed', sizeEmoji: '\u{1F33E}', length: '0.1 cm', weight: '<1g', trimester: 1,
-    baby: ['Embryo implants in uterus', 'Neural tube forming', 'Heart begins to form'],
-    mom: ['Missed period', 'Fatigue and tenderness', 'Possible nausea starting'],
-    tips: ['Start prenatal vitamins with folic acid', 'Avoid alcohol and smoking', 'Schedule your first prenatal visit'] },
-  8: { size: 'Raspberry', sizeEmoji: '\u{1FAD0}', length: '1.6 cm', weight: '1g', trimester: 1,
-    baby: ['Fingers and toes forming', 'Heart beating at 150-170 bpm', 'Eyelids beginning to form'],
-    mom: ['Morning sickness peaks', 'Frequent urination', 'Heightened sense of smell'],
-    tips: ['Eat small frequent meals for nausea', 'Stay hydrated', 'Get plenty of rest'] },
-  12: { size: 'Lime', sizeEmoji: '\u{1F34B}', length: '5.4 cm', weight: '14g', trimester: 1,
-    baby: ['Reflexes developing', 'Fingernails growing', 'Vocal cords forming'],
-    mom: ['Nausea may start improving', 'Slight baby bump visible', 'Energy levels increasing'],
-    tips: ['First trimester screening tests', 'Start gentle exercise routine', 'Begin moisturizing belly skin'] },
-  16: { size: 'Avocado', sizeEmoji: '\u{1F951}', length: '11.6 cm', weight: '100g', trimester: 2,
-    baby: ['Facial expressions forming', 'Can hear sounds', 'Skeleton hardening'],
-    mom: ['Baby bump growing', 'May feel first flutters', 'Round ligament pain possible'],
-    tips: ['Schedule anomaly scan (18-20 weeks)', 'Stay active with prenatal yoga', 'Eat calcium-rich foods'] },
-  20: { size: 'Banana', sizeEmoji: '\u{1F34C}', length: '16.5 cm', weight: '300g', trimester: 2,
-    baby: ['Can swallow amniotic fluid', 'Developing sleep cycles', 'Vernix coating skin'],
-    mom: ['Feeling regular kicks', 'Possible back pain', 'Skin changes (linea nigra)'],
-    tips: ['Halfway there! Celebrate', 'Anomaly scan this week', 'Start sleeping on your side'] },
-  24: { size: 'Corn Cob', sizeEmoji: '\u{1F33D}', length: '30 cm', weight: '600g', trimester: 2,
-    baby: ['Lungs developing surfactant', 'Face fully formed', 'Responding to touch and sound'],
-    mom: ['Braxton Hicks may start', 'Swelling in feet/ankles', 'Glucose screening test due'],
-    tips: ['Take glucose tolerance test', 'Elevate feet when resting', 'Practice relaxation techniques'] },
-  28: { size: 'Eggplant', sizeEmoji: '\u{1F346}', length: '37.5 cm', weight: '1kg', trimester: 3,
-    baby: ['Eyes can open and close', 'Brain developing rapidly', 'Can recognize your voice'],
-    mom: ['Third trimester begins', 'Shortness of breath', 'Trouble sleeping'],
-    tips: ['Start counting kicks daily', 'Prepare hospital bag', 'Discuss birth plan with doctor'] },
-  32: { size: 'Coconut', sizeEmoji: '\u{1F965}', length: '42 cm', weight: '1.7kg', trimester: 3,
-    baby: ['Practicing breathing movements', 'Bones hardening (skull stays soft)', 'Developing immune system'],
-    mom: ['Frequent bathroom trips', 'Heartburn and indigestion', 'Nesting instinct may kick in'],
-    tips: ['Finalize birth plan', 'Take childbirth classes', 'Install car seat'] },
-  36: { size: 'Honeydew Melon', sizeEmoji: '\u{1F348}', length: '47 cm', weight: '2.6kg', trimester: 3,
-    baby: ['Head may engage in pelvis', 'Lungs nearly mature', 'Gaining 30g per day'],
-    mom: ['Increased pelvic pressure', 'Difficulty sleeping', 'Braxton Hicks more frequent'],
-    tips: ['Pack hospital bag now', 'Know signs of labor', 'Rest as much as possible'] },
-  40: { size: 'Watermelon', sizeEmoji: '\u{1F349}', length: '51 cm', weight: '3.4kg', trimester: 3,
-    baby: ['Fully developed and ready!', 'Chest and head have same circumference', 'Lungs ready to breathe'],
-    mom: ['Cervix may be dilating', 'Contractions may start', 'Extreme nesting urge'],
-    tips: ['Baby can arrive any day!', 'Stay calm and relaxed', 'Call doctor if water breaks'] },
+// ─── Comprehensive Week Data ────────────────────
+const weekData: Record<number, { size: string; emoji: string; len: string; wt: string; tri: number; baby: string[]; mom: string[]; tips: string[]; nutrition: string[]; exercise: string[] }> = {
+  4: { size: 'Poppy Seed', emoji: '\u{1F33E}', len: '0.1 cm', wt: '<1g', tri: 1,
+    baby: ['Embryo implants in uterus wall', 'Neural tube beginning to form', 'Tiny heart starts to develop', 'Amniotic sac forming around embryo'],
+    mom: ['Missed period \u2014 first sign!', 'Fatigue and breast tenderness', 'Possible light spotting (implantation)', 'Heightened sense of smell'],
+    tips: ['Start prenatal vitamins with 400\u00B5g folic acid', 'Avoid alcohol, smoking & raw fish', 'Schedule your first prenatal appointment', 'Begin tracking symptoms in a journal'],
+    nutrition: ['Folic acid (leafy greens, fortified cereals)', 'Iron (red meat, spinach, lentils)', 'Stay hydrated \u2014 8\u201310 glasses/day', 'Small frequent meals if nauseated'],
+    exercise: ['Walking 20\u201330 min daily', 'Gentle yoga & stretching', 'Avoid contact sports', 'Listen to your body \u2014 rest when tired'] },
+  8: { size: 'Raspberry', emoji: '\u{1FAD0}', len: '1.6 cm', wt: '1g', tri: 1,
+    baby: ['All major organs forming', 'Tiny fingers and toes appear', 'Heart beats at 150\u2013170 BPM', 'Eyelids starting to fuse shut'],
+    mom: ['Morning sickness at its peak', 'Frequent urination begins', 'Breast size increasing', 'Extreme fatigue is normal'],
+    tips: ['Eat small meals every 2\u20133 hours', 'Ginger tea helps with nausea', 'Get 8\u20139 hours of sleep', 'First ultrasound may happen now'],
+    nutrition: ['Vitamin B6 helps nausea (bananas, nuts)', 'Protein at every meal', 'Avoid unpasteurized dairy', 'Calcium-rich foods (yogurt, cheese)'],
+    exercise: ['Prenatal swimming', 'Light pilates', 'Kegel exercises \u2014 start now!', 'Avoid lying flat on your back'] },
+  12: { size: 'Lime', emoji: '\u{1F34B}', len: '5.4 cm', wt: '14g', tri: 1,
+    baby: ['Reflexes developing \u2014 can kick!', 'Fingernails and toenails growing', 'Vocal cords beginning to form', 'Kidneys start producing urine'],
+    mom: ['Nausea often starts improving', 'Energy returning gradually', 'Slight baby bump may show', 'Skin may glow or break out'],
+    tips: ['First trimester screening (NT scan)', 'Share news with close family', 'Start moisturizing belly daily', 'Begin researching birthing classes'],
+    nutrition: ['Omega-3 fatty acids (salmon, walnuts)', 'Fiber-rich foods prevent constipation', 'Vitamin D (sunlight, fortified milk)', 'Limit caffeine to 200mg/day'],
+    exercise: ['Prenatal yoga classes', 'Stationary cycling', 'Arm exercises with light weights', 'Pelvic floor exercises'] },
+  16: { size: 'Avocado', emoji: '\u{1F951}', len: '11.6 cm', wt: '100g', tri: 2,
+    baby: ['Can make facial expressions!', 'Bones hardening (ossifying)', 'Can hear your heartbeat', 'Eyebrows and eyelashes growing'],
+    mom: ['Baby bump clearly visible', 'May feel first flutters ("quickening")', 'Round ligament pain possible', 'Nasal congestion is common'],
+    tips: ['Schedule anomaly scan (18\u201320 weeks)', 'Start sleeping on your left side', 'Plan a babymoon trip', 'Begin thinking about baby names'],
+    nutrition: ['Increase protein intake to 75g/day', 'Calcium: 1000mg/day (dairy, tofu)', 'Vitamin C (oranges, bell peppers)', 'Iron supplements if prescribed'],
+    exercise: ['Swimming is excellent now', 'Prenatal dance classes', 'Walking 30\u201345 min daily', 'Avoid high-altitude exercise'] },
+  20: { size: 'Banana', emoji: '\u{1F34C}', len: '16.5 cm', wt: '300g', tri: 2,
+    baby: ['Developing sleep/wake cycles', 'Can swallow amniotic fluid', 'Vernix (waxy coating) on skin', 'Gender visible on ultrasound'],
+    mom: ['Regular kicks felt daily', 'Skin stretching \u2014 possible itching', 'Linea nigra may appear', 'Hair and nails growing faster'],
+    tips: ['HALFWAY THERE! Celebrate! \u{1F389}', 'Anatomy scan this week', 'Start a kick count journal', 'Research childbirth education classes'],
+    nutrition: ['DHA supplement for brain development', 'Zinc (pumpkin seeds, chickpeas)', 'Magnesium (dark chocolate, avocado)', 'Drink 3 liters of water daily'],
+    exercise: ['Aqua aerobics', 'Modified yoga poses', 'Gentle back stretches', 'Avoid exercises lying flat on back'] },
+  24: { size: 'Corn Cob', emoji: '\u{1F33D}', len: '30 cm', wt: '600g', tri: 2,
+    baby: ['Lungs developing surfactant', 'Face fully formed', 'Responds to your voice', 'Taste buds are functional'],
+    mom: ['Braxton Hicks may start', 'Swelling in feet and ankles', 'Glucose screening test due', 'Back pain increasing'],
+    tips: ['Take glucose tolerance test', 'Elevate feet when resting', 'Practice relaxation techniques', 'Start planning the nursery'],
+    nutrition: ['Monitor sugar intake for GD test', 'Potassium (bananas, sweet potatoes)', 'Fiber to prevent hemorrhoids', 'Small meals to reduce heartburn'],
+    exercise: ['Prenatal pilates', 'Side-lying exercises', 'Shoulder and neck stretches', 'Pelvic tilts for back pain'] },
+  28: { size: 'Eggplant', emoji: '\u{1F346}', len: '37.5 cm', wt: '1 kg', tri: 3,
+    baby: ['Eyes can open and close', 'Brain developing rapidly', 'Can dream (REM sleep!)', 'Responds to light through belly'],
+    mom: ['Third trimester begins!', 'Shortness of breath', 'Trouble sleeping at night', 'Frequent Braxton Hicks'],
+    tips: ['Start counting kicks daily (10 in 2hrs)', 'Prepare your hospital bag', 'Discuss birth plan with doctor', 'Take a hospital tour'],
+    nutrition: ['Increase calorie intake by 450/day', 'Vitamin K (broccoli, kale)', 'Evening primrose oil (after 36w)', 'Probiotic foods for gut health'],
+    exercise: ['Gentle walking only', 'Birthing ball exercises', 'Deep breathing practice', 'Perineal massage preparation'] },
+  32: { size: 'Coconut', emoji: '\u{1F965}', len: '42 cm', wt: '1.7 kg', tri: 3,
+    baby: ['Practicing breathing movements', 'Bones hardening (skull stays soft)', 'All five senses are functional', 'Gaining ~250g per week'],
+    mom: ['Frequent bathroom trips', 'Heartburn and indigestion', 'Nesting instinct kicks in', 'Difficulty finding comfortable sleep position'],
+    tips: ['Finalize birth plan', 'Install car seat', 'Wash baby clothes & bedding', 'Practice labor breathing exercises'],
+    nutrition: ['Dates (6/day from 36w helps labor)', 'Red raspberry leaf tea', 'High-protein snacks', 'Limit salty foods for swelling'],
+    exercise: ['Squats for labor preparation', 'Cat-cow stretches', 'Ankle circles for swelling', 'Visualization & meditation'] },
+  36: { size: 'Honeydew', emoji: '\u{1F348}', len: '47 cm', wt: '2.6 kg', tri: 3,
+    baby: ['Head may engage in pelvis', 'Lungs nearly mature', 'Fat layer developing', 'Gaining 30g every day'],
+    mom: ['Increased pelvic pressure', 'Lightning crotch pain', '"Dropping" \u2014 baby moves lower', 'Cervix may start softening'],
+    tips: ['Hospital bag should be packed', 'Know the signs of labor', 'Group B strep test this week', 'Rest as much as possible'],
+    nutrition: ['Energy-boosting snacks for labor', 'Continue prenatal vitamins', 'Hydration is critical', 'Complex carbs for sustained energy'],
+    exercise: ['Walking to encourage engagement', 'Hip circles on birthing ball', 'Relaxation exercises', 'Partner massage techniques'] },
+  40: { size: 'Watermelon', emoji: '\u{1F349}', len: '51 cm', wt: '3.4 kg', tri: 3,
+    baby: ['Fully developed!', 'Lungs ready for first breath', 'Immune system boosted by antibodies', 'Average 51cm long, 3.4kg'],
+    mom: ['Cervix dilating', 'Mucus plug may pass', 'Extreme nesting urge', 'Contractions may begin anytime'],
+    tips: ['Baby can arrive any day!', 'Time contractions (5-1-1 rule)', 'Stay calm \u2014 you are ready', 'Call doctor when water breaks'],
+    nutrition: ['Light, easily digestible meals', 'Energy bars for early labor', 'Coconut water for electrolytes', 'Honey for quick energy'],
+    exercise: ['Walking to induce labor naturally', 'Nipple stimulation (with doctor OK)', 'Stair climbing', 'Gentle bouncing on birth ball'] },
 };
 
 const weeks = Object.keys(weekData).map(Number);
-const trimesterNames = ['', '1st Trimester', '2nd Trimester', '3rd Trimester'];
-const trimesterWeeks = ['', 'Weeks 1\u201312', 'Weeks 13\u201326', 'Weeks 27\u201340'];
+const triNames = ['', '1st Trimester', '2nd Trimester', '3rd Trimester'];
+const triColors = ['', 'text-emerald-600 bg-emerald-50', 'text-blue-600 bg-blue-50', 'text-purple-600 bg-purple-50'];
+
+// ─── Baby Growth SVG ─────────────────────────────
+const GrowthBar = ({ week }: { week: number }) => {
+  const pct = (week / 40) * 100;
+  const milestones = [
+    { w: 12, l: '1st Tri', c: '#10B981' },
+    { w: 26, l: '2nd Tri', c: '#3B82F6' },
+    { w: 40, l: '3rd Tri', c: '#8B5CF6' },
+  ];
+  return (
+    <div>
+      <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden">
+        <div className="h-full rounded-full transition-all duration-700 bg-gradient-to-r from-emerald-400 via-blue-400 to-purple-500" style={{ width: pct + '%' }} />
+        {milestones.map(m => (
+          <div key={m.w} className="absolute top-0 h-full w-0.5 bg-white/50" style={{ left: (m.w / 40 * 100) + '%' }} />
+        ))}
+      </div>
+      <div className="flex justify-between mt-1">
+        {milestones.map(m => (
+          <span key={m.w} className="text-[8px] font-bold" style={{ color: m.c }}>{m.l}</span>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export default function PregnancyPage() {
   const nav = useNavigate();
   const [week, setWeek] = useState(16);
-  const [tab, setTab] = useState<'baby' | 'mom' | 'tips'>('baby');
+  const [tab, setTab] = useState<'baby' | 'mom' | 'tips' | 'nutrition' | 'exercise'>('baby');
   const [done, setDone] = useState<Record<number, boolean[]>>({});
 
-  const data = weekData[week] || weekData[16];
+  const d = weekData[week] || weekData[16];
   const pct = Math.round((week / 40) * 100);
   const daysLeft = (40 - week) * 7;
   const dueDate = new Date();
   dueDate.setDate(dueDate.getDate() + daysLeft);
 
-  const toggleCheck = (wi: number, ci: number) => {
-    const cur = done[wi] || data.tips.map(() => false);
+  const toggleCheck = (ci: number) => {
+    const cur = done[week] || d.tips.map(() => false);
     const next = [...cur];
     next[ci] = !next[ci];
-    setDone({ ...done, [wi]: next });
+    setDone({ ...done, [week]: next });
   };
 
-  const checks = done[week] || data.tips.map(() => false);
+  const checks = done[week] || d.tips.map(() => false);
+  const tabContent: Record<string, { items: string[]; color: string; icon: string }> = {
+    baby: { items: d.baby, color: 'purple', icon: '\u{1F476}' },
+    mom: { items: d.mom, color: 'pink', icon: '\u{1F930}' },
+    tips: { items: d.tips, color: 'emerald', icon: '\u{1F4A1}' },
+    nutrition: { items: d.nutrition, color: 'amber', icon: '\u{1F957}' },
+    exercise: { items: d.exercise, color: 'blue', icon: '\u{1F3CB}\uFE0F' },
+  };
+
+  const cur = tabContent[tab];
 
   return (
     <div className="min-h-screen bg-gray-50 pb-10">
-      <div className="sticky top-0 z-10 bg-white px-5 py-4 flex items-center gap-3 border-b border-gray-100">
-        <button onClick={() => nav('/dashboard')} className="text-xl">{'\u2190'}</button>
-        <h1 className="text-lg font-bold">Pregnancy Tracker</h1>
+      <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-md px-5 py-3 flex items-center gap-3 border-b border-gray-100">
+        <button onClick={() => nav('/dashboard')} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm active:scale-90">{'\u2190'}</button>
+        <h1 className="text-lg font-bold flex-1">Pregnancy Tracker</h1>
+        <span className={'text-[10px] font-bold px-2 py-1 rounded-full ' + triColors[d.tri]}>{triNames[d.tri]}</span>
       </div>
 
       <div className="px-5 pt-5 space-y-4">
-        {/* Week Hero Card */}
-        <div className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-3xl p-5 text-white">
-          <div className="flex items-center justify-between">
+        {/* Hero Card */}
+        <div className="bg-gradient-to-br from-purple-600 via-pink-500 to-rose-500 rounded-3xl p-5 text-white overflow-hidden relative">
+          <div className="absolute -right-6 -top-6 w-32 h-32 bg-white/5 rounded-full" />
+          <div className="absolute -right-2 -bottom-8 w-24 h-24 bg-white/5 rounded-full" />
+          <div className="flex items-start justify-between relative z-10">
             <div>
-              <p className="text-white/70 text-xs uppercase tracking-wider">Week</p>
-              <p className="text-5xl font-extrabold">{week}</p>
-              <p className="text-white/70 text-xs mt-1">of 40 \u2022 {trimesterNames[data.trimester]}</p>
+              <p className="text-white/60 text-[10px] uppercase tracking-widest font-bold">Week</p>
+              <p className="text-5xl font-extrabold leading-none mt-1">{week}</p>
+              <p className="text-white/60 text-xs mt-1">of 40 weeks</p>
             </div>
             <div className="text-center">
-              <span className="text-5xl">{data.sizeEmoji}</span>
-              <p className="text-xs text-white/80 mt-1">{data.size}</p>
+              <span className="text-6xl block">{d.emoji}</span>
+              <p className="text-xs text-white/80 mt-1 font-medium">{d.size}</p>
             </div>
           </div>
-          <div className="mt-4">
-            <div className="flex justify-between text-xs text-white/70 mb-1">
-              <span>{pct}% complete</span>
-              <span>{daysLeft} days left</span>
-            </div>
-            <div className="w-full bg-white/20 rounded-full h-2.5">
-              <div className="bg-white h-2.5 rounded-full transition-all" style={{ width: pct + '%' }} />
-            </div>
+          <div className="mt-4 relative z-10">
+            <GrowthBar week={week} />
           </div>
-          <div className="flex gap-3 mt-4">
-            <div className="bg-white/15 rounded-xl px-3 py-2 text-xs flex-1 text-center">
-              <p className="text-white/60">Length</p><p className="font-bold">{data.length}</p>
-            </div>
-            <div className="bg-white/15 rounded-xl px-3 py-2 text-xs flex-1 text-center">
-              <p className="text-white/60">Weight</p><p className="font-bold">{data.weight}</p>
-            </div>
-            <div className="bg-white/15 rounded-xl px-3 py-2 text-xs flex-1 text-center">
-              <p className="text-white/60">Due Date</p><p className="font-bold">{dueDate.toLocaleDateString('en', { month: 'short', day: 'numeric' })}</p>
-            </div>
+          <div className="flex gap-2 mt-4 relative z-10">
+            {[
+              { l: 'Length', v: d.len },
+              { l: 'Weight', v: d.wt },
+              { l: 'Due Date', v: dueDate.toLocaleDateString('en', { month: 'short', day: 'numeric' }) },
+              { l: 'Left', v: daysLeft + 'd' },
+            ].map(s => (
+              <div key={s.l} className="bg-white/15 rounded-xl px-2 py-2 text-center flex-1">
+                <p className="text-[8px] text-white/60 uppercase">{s.l}</p>
+                <p className="text-xs font-extrabold">{s.v}</p>
+              </div>
+            ))}
           </div>
         </div>
 
         {/* Week Selector */}
         <div className="bg-white rounded-2xl p-4 shadow-sm">
-          <h3 className="text-xs font-bold text-gray-400 uppercase mb-3">Select Week</h3>
-          <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-bold text-gray-400 uppercase">Select Week</h3>
+            <span className="text-xs text-gray-500">{pct}% complete</span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
             {weeks.map(w => (
               <button key={w} onClick={() => setWeek(w)}
-                className={'flex-shrink-0 w-11 h-11 rounded-full text-xs font-bold transition-all active:scale-90 ' +
-                  (w === week ? 'bg-purple-500 text-white shadow-lg' :
-                   w <= week ? 'bg-purple-100 text-purple-600' : 'bg-gray-100 text-gray-400')}>
+                className={'flex-shrink-0 w-12 h-12 rounded-2xl text-xs font-bold transition-all active:scale-90 flex flex-col items-center justify-center ' +
+                  (w === week ? 'bg-purple-500 text-white shadow-lg shadow-purple-200' :
+                  w < week ? 'bg-purple-50 text-purple-400' : 'bg-gray-50 text-gray-400')}>
                 {w}
+                <span className="text-[7px] font-normal">{w <= 12 ? 'T1' : w <= 26 ? 'T2' : 'T3'}</span>
               </button>
-            ))}
-          </div>
-          <div className="flex justify-between mt-2">
-            {[1, 2, 3].map(t => (
-              <span key={t} className={'text-[10px] font-semibold ' + (data.trimester === t ? 'text-purple-600' : 'text-gray-300')}>
-                {trimesterWeeks[t]}
-              </span>
             ))}
           </div>
         </div>
 
-        {/* Baby / Mom / Tips Tabs */}
+        {/* Content Tabs */}
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-          <div className="flex border-b border-gray-100">
-            {([['baby', '\u{1F476} Baby'], ['mom', '\u{1F930} You'], ['tips', '\u{1F4CB} Tips']] as const).map(([key, label]) => (
+          <div className="flex overflow-x-auto border-b border-gray-100">
+            {([['baby', '\u{1F476} Baby'], ['mom', '\u{1F930} You'], ['tips', '\u{1F4A1} Tips'], ['nutrition', '\u{1F957} Food'], ['exercise', '\u{1F3CB}\uFE0F Move']] as const).map(([key, label]) => (
               <button key={key} onClick={() => setTab(key)}
-                className={'flex-1 py-3 text-xs font-bold transition-colors ' + (tab === key ? 'text-purple-600 border-b-2 border-purple-500' : 'text-gray-400')}>
+                className={'flex-shrink-0 px-4 py-3 text-[10px] font-bold whitespace-nowrap transition-all ' + (tab === key ? 'text-purple-600 border-b-2 border-purple-500 bg-purple-50/50' : 'text-gray-400')}>
                 {label}
               </button>
             ))}
           </div>
           <div className="p-4 space-y-3">
-            {(tab === 'baby' ? data.baby : tab === 'mom' ? data.mom : data.tips).map((item, i) => (
+            {cur.items.map((item, i) => (
               <div key={i} className="flex items-start gap-3">
-                <div className={'w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs ' +
-                  (tab === 'baby' ? 'bg-purple-100 text-purple-500' : tab === 'mom' ? 'bg-pink-100 text-pink-500' : 'bg-emerald-100 text-emerald-500')}>
-                  {tab === 'tips' ? (i + 1) : '\u2022'}
+                <div className={'w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-white ' +
+                  (cur.color === 'purple' ? 'bg-purple-400' : cur.color === 'pink' ? 'bg-pink-400' : cur.color === 'emerald' ? 'bg-emerald-400' : cur.color === 'amber' ? 'bg-amber-400' : 'bg-blue-400')}>
+                  {i + 1}
                 </div>
                 <p className="text-sm text-gray-700 leading-relaxed">{item}</p>
               </div>
@@ -159,41 +210,48 @@ export default function PregnancyPage() {
 
         {/* Weekly Checklist */}
         <div className="bg-white rounded-2xl p-4 shadow-sm">
-          <h3 className="text-sm font-bold text-gray-800 mb-3">{'\u2705'} Week {week} Checklist</h3>
-          {data.tips.map((tip, i) => (
-            <button key={i} onClick={() => toggleCheck(week, i)} className="flex items-center gap-3 w-full py-2.5 border-b border-gray-50 last:border-0">
-              <div className={'w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs transition-colors ' +
-                (checks[i] ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-gray-300')}>
-                {checks[i] && '\u2713'}
-              </div>
-              <span className={'text-sm flex-1 text-left ' + (checks[i] ? 'text-gray-400 line-through' : 'text-gray-700')}>{tip}</span>
-            </button>
-          ))}
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-gray-800">{'\u2705'} Week {week} Checklist</h3>
+            <span className="text-[10px] text-gray-400">{checks.filter(Boolean).length}/{checks.length} done</span>
+          </div>
+          <div className="space-y-1">
+            {d.tips.map((tip, i) => (
+              <button key={i} onClick={() => toggleCheck(i)} className="flex items-center gap-3 w-full py-2.5 px-1 rounded-xl transition-colors active:bg-gray-50">
+                <div className={'w-6 h-6 rounded-lg border-2 flex items-center justify-center text-[10px] transition-all flex-shrink-0 ' +
+                  (checks[i] ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-gray-300')}>
+                  {checks[i] && '\u2713'}
+                </div>
+                <span className={'text-sm flex-1 text-left ' + (checks[i] ? 'text-gray-400 line-through' : 'text-gray-700')}>{tip}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Upcoming Appointments Reminder */}
+        {/* Appointments */}
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4">
           <h3 className="text-sm font-bold text-blue-800 mb-2">{'\u{1F4C5}'} Key Appointments</h3>
           <div className="space-y-2 text-xs text-blue-700">
             {week < 12 && <p>{'\u2022'} First prenatal visit & dating scan (8\u201312 weeks)</p>}
-            {week < 14 && <p>{'\u2022'} First trimester screening (11\u201314 weeks)</p>}
-            {week < 20 && <p>{'\u2022'} Anomaly scan / anatomy ultrasound (18\u201322 weeks)</p>}
-            {week < 28 && <p>{'\u2022'} Glucose tolerance test (24\u201328 weeks)</p>}
-            {week >= 28 && week < 36 && <p>{'\u2022'} Bi-weekly checkups begin</p>}
+            {week < 14 && <p>{'\u2022'} First trimester screening / NT scan (11\u201314 weeks)</p>}
+            {week >= 12 && week < 22 && <p>{'\u2022'} Anatomy scan / anomaly ultrasound (18\u201322 weeks)</p>}
+            {week >= 20 && week < 28 && <p>{'\u2022'} Glucose tolerance test (24\u201328 weeks)</p>}
+            {week >= 28 && week < 36 && <p>{'\u2022'} Bi-weekly checkups + growth scan</p>}
+            {week >= 35 && week < 38 && <p>{'\u2022'} Group B Streptococcus test (35\u201337 weeks)</p>}
             {week >= 36 && <p>{'\u2022'} Weekly checkups until delivery</p>}
-            <button onClick={() => nav('/doctors')} className="text-blue-600 font-bold underline mt-1">Find a Doctor {'\u2192'}</button>
+            <button onClick={() => nav('/doctors')} className="text-blue-600 font-bold underline mt-1 block">Find a Doctor {'\u2192'}</button>
           </div>
         </div>
 
         {/* Emergency Signs */}
-        <div className="bg-red-50 rounded-2xl p-4">
-          <h3 className="text-sm font-bold text-red-700 mb-2">{'\u26A0\uFE0F'} When to Call Your Doctor</h3>
-          <div className="text-xs text-red-600 space-y-1">
-            <p>{'\u2022'} Heavy bleeding or fluid leakage</p>
-            <p>{'\u2022'} Severe abdominal pain or cramping</p>
+        <div className="bg-red-50 rounded-2xl p-4 border border-red-100">
+          <h3 className="text-sm font-bold text-red-700 mb-2">{'\u26A0\uFE0F'} Call Your Doctor If...</h3>
+          <div className="text-xs text-red-600 space-y-1.5">
+            <p>{'\u2022'} Heavy bleeding or fluid leaking</p>
+            <p>{'\u2022'} Severe abdominal pain / cramping</p>
             <p>{'\u2022'} High fever (above 100.4\u00B0F / 38\u00B0C)</p>
             <p>{'\u2022'} Severe headache or vision changes</p>
-            <p>{'\u2022'} Reduced or no baby movements (after 28 weeks)</p>
+            {week >= 28 && <p>{'\u2022'} Baby not moving for 2+ hours</p>}
+            {week >= 37 && <p>{'\u2022'} Regular contractions before 37 weeks</p>}
           </div>
         </div>
       </div>
