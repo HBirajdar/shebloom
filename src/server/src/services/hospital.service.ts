@@ -17,7 +17,7 @@ export class HospitalService {
     return { hospitals, pagination: { page: Number(page), total } };
   }
   async getById(id: string) {
-    return prisma.hospital.findUnique({ where: { id }, include: { prices: true, doctors: { where: { isActive: true }, take: 10 } } });
+    return prisma.hospital.findUnique({ where: { id }, include: { prices: true, doctors: { where: { isAvailable: true }, take: 10 } } });
   }
   async comparePrices(service: string, city: string) {
     return prisma.hospitalPrice.findMany({

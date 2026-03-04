@@ -9,8 +9,8 @@ interface RegisterInput { fullName: string; email?: string; password?: string; p
 
 export class AuthService {
   private generateTokens(userId: string, role: string) {
-    const accessToken = jwt.sign({ userId, role }, process.env.JWT_SECRET!, { expiresIn: process.env.JWT_EXPIRY || '15m' });
-    const refreshToken = jwt.sign({ userId, role, type: 'refresh' }, process.env.JWT_REFRESH_SECRET!, { expiresIn: process.env.JWT_REFRESH_EXPIRY || '7d' });
+    const accessToken = jwt.sign({ userId, role }, process.env.JWT_SECRET!, { expiresIn: process.env.JWT_EXPIRY || '15m' } as any);
+    const refreshToken = jwt.sign({ userId, role, type: 'refresh' }, process.env.JWT_REFRESH_SECRET!, { expiresIn: process.env.JWT_REFRESH_EXPIRY || '7d' } as any);
     return { accessToken, refreshToken };
   }
 
@@ -83,7 +83,7 @@ export class AuthService {
   async forgotPassword(email: string) {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return;
-    const token = jwt.sign({ userId: user.id, type: 'reset' }, process.env.JWT_SECRET!, { expiresIn: '1h' });
+    const token = jwt.sign({ userId: user.id, type: 'reset' }, process.env.JWT_SECRET!, { expiresIn: '1h' } as any);
     await cacheSet(`reset:${user.id}`, token, 3600);
     logger.info(`Password reset for: ${email}`);
   }

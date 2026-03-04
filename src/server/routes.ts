@@ -120,7 +120,7 @@ const doctorRouter = Router();
 doctorRouter.get('/', async (req, res, next) => {
   try {
     const { specialization, city, minRating, maxFee, page = '1', limit = '20', search } = req.query;
-    const where: any = { isActive: true, isVerified: true };
+    const where: any = { isAvailable: true, isVerified: true };
     if (specialization) where.specialization = { contains: specialization as string, mode: 'insensitive' };
     if (minRating) where.rating = { gte: parseFloat(minRating as string) };
     if (maxFee) where.consultationFee = { lte: parseFloat(maxFee as string) };
@@ -195,7 +195,7 @@ hospitalRouter.get('/:id', async (req, res, next) => {
       where: { id: req.params.id },
       include: {
         prices: true,
-        doctors: { where: { isActive: true }, take: 10 },
+        doctors: { where: { isAvailable: true }, take: 10 },
       },
     });
     if (!hospital) return res.status(404).json({ error: 'Hospital not found' });

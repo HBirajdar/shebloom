@@ -3,7 +3,7 @@ import prisma from '../config/database';
 export class DoctorService {
   async search(params: any) {
     const { specialization, minRating, maxFee, search, page = 1, limit = 20 } = params;
-    const where: any = { isActive: true, isVerified: true };
+    const where: any = { isAvailable: true, isVerified: true };
     if (specialization) where.specialization = { contains: specialization, mode: 'insensitive' };
     if (minRating) where.rating = { gte: parseFloat(minRating) };
     if (maxFee) where.consultationFee = { lte: parseFloat(maxFee) };
