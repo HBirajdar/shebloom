@@ -8,7 +8,7 @@ import { logger } from './config/logger';
 import { connectDatabase } from './config/database';
 import { connectRedis } from './config/redis';
 
-const PORT = process.env.APP_PORT || 8000;
+const PORT = process.env.PORT || process.env.APP_PORT || 8000;
 
 async function bootstrap() {
   try {

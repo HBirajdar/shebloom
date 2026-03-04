@@ -32,7 +32,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <div className="bg-gradient-to-r from-rose-500 to-pink-500 px-5 pt-10 pb-14 text-white text-center">
+      <div className="bg-gradient-to-r from-rose-500 to-pink-500 px-5 pt-10 pb-14 text-white text-center relative">
         <button onClick={() => nav('/dashboard')} className="absolute left-4 top-4 text-white/80 text-2xl">&#8249;</button>
         <div className="w-20 h-20 mx-auto rounded-full bg-white/20 flex items-center justify-center text-3xl font-bold border-2 border-white/30 mb-3">
           {user?.fullName?.charAt(0) || 'U'}

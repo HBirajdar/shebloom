@@ -53,7 +53,7 @@ export default function PregnancyPage() {
           {checks.map((c, i) => (
             <button key={i} onClick={() => toggle(i)} className="flex items-center gap-3 w-full py-2.5 border-b border-gray-50 last:border-0">
               <div className={'w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs ' + (done[i] ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-gray-300')}>
-                {done[i] && '&#10003;'}
+                {done[i] && '✓'}
               </div>
               <span className={'text-sm ' + (done[i] ? 'text-gray-400 line-through' : 'text-gray-700')}>{c}</span>
             </button>

@@ -8,7 +8,11 @@ export class UserService {
     });
   }
   async updateUser(userId: string, data: any) {
-    return prisma.user.update({ where: { id: userId }, data });
+    // Whitelist allowed fields to prevent mass assignment (e.g. role escalation)
+    const allowed: Record<string, any> = {};
+    const safe = ['fullName', 'avatarUrl', 'dateOfBirth', 'language', 'timezone'];
+    for (const k of safe) { if (data[k] !== undefined) allowed[k] = data[k]; }
+    return prisma.user.update({ where: { id: userId }, data: allowed });
   }
   async updateProfile(userId: string, data: any) {
     return prisma.userProfile.update({ where: { userId }, data });

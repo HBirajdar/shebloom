@@ -20,7 +20,7 @@ export default function DoctorsPage() {
   const [sel, setSel] = useState<any>(null);
 
   useEffect(() => {
-    doctorAPI.search({}).then(r => { if (r.data.data?.length) setDocs(r.data.data); }).catch(() => {});
+    doctorAPI.search({}).then(r => { if (r.data.doctors?.length) setDocs(r.data.doctors); else if (r.data.data?.length) setDocs(r.data.data); }).catch(() => {});
   }, []);
 
   const filtered = docs.filter(d => {

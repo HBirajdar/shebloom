@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useCycleStore } from '../stores/cycleStore';
 import { cycleAPI, moodAPI } from '../services/api';
+import toast from 'react-hot-toast';
 
 const moods = [
   { key: 'GREAT', emoji: '&#128525;', label: 'Great' },
@@ -80,8 +81,7 @@ export default function DashboardPage() {
         <div className="bg-white rounded-2xl p-4 shadow-sm">
           <h3 className="text-sm font-bold text-gray-800 mb-3">How are you feeling?</h3>
           <div className="flex justify-between">
-            {moods.map(m=><button key={m.key} onClick={()=>{setMood(m.key);moodAPI.log({mood:m.key}).catch(()=>{});}} className={'flex flex-col items-center gap-1 px-2 py-2 rounded-xl '+(mood===m.key?'bg-rose-50 scale-110':'')}>
-              <span className="text-2xl" dangerouslySetInnerHTML={{__html:m.emoji}}/><span className="text-[10px] text-gray-500">{m.label}</span>
+            {moods.map(m=><button key={m.key} onClick={()=>{setMood(m.key);moodAPI.log({mood:m.key}).then(()=>toast.success('Mood logged!')).catch(()=>toast.error('Failed to log mood'));}} className={'flex flex-col items-center gap-1 px-2 py-2 rounded-xl transition-all '+(mood===m.key?'bg-rose-50 scale-110':'hover:bg-gray-50')}>              <span className="text-2xl" dangerouslySetInnerHTML={{__html:m.emoji}}/><span className="text-[10px] text-gray-500">{m.label}</span>
             </button>)}
           </div>
         </div>

@@ -47,19 +47,27 @@ export class AuthService {
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
     await cacheSet(`otp:${phone}`, otp, 300);
     if (process.env.NODE_ENV === 'production' && process.env.TWILIO_ACCOUNT_SID) {
-      const twilio = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-      await twilio.messages.create({ body: `Your SheBloom code: ${otp}`, from: process.env.TWILIO_PHONE_NUMBER, to: `+91${phone}` });
-    } else { logger.info(`[DEV] OTP for ${phone}: ${otp}`); }
+      try {
+        const twilio = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+        await twilio.messages.create({ body: `Your SheBloom code: ${otp}`, from: process.env.TWILIO_PHONE_NUMBER, to: `+91${phone}` });
+        logger.info(`OTP sent to +91${phone}`);
+      } catch (err: any) {
+        logger.error(`Twilio error for ${phone}: ${err.message}`);
+        throw new AppError('Failed to send OTP. Please try again.', 500);
+      }
+    } else {
+      logger.info(`[DEV] OTP for ${phone}: ${otp}`);
+    }
   }
 
   async verifyOtp(phone: string, otp: string) {
     const stored = await cacheGet(`otp:${phone}`);
     if (!stored || stored !== otp) throw new AppError('Invalid or expired OTP', 400);
     await cacheDel(`otp:${phone}`);
-    let user = await prisma.user.findUnique({ where: { phone }, select: { id: true, fullName: true, phone: true, role: true } });
+    let user = await prisma.user.findUnique({ where: { phone }, select: { id: true, fullName: true, email: true, phone: true, role: true } });
     const isNew = !user;
     if (!user) {
-      user = await prisma.user.create({ data: { phone, fullName: 'User', authProvider: 'PHONE', isVerified: true, profile: { create: {} } }, select: { id: true, fullName: true, phone: true, role: true } });
+      user = await prisma.user.create({ data: { phone, fullName: 'User', authProvider: 'PHONE', isVerified: true, profile: { create: {} } }, select: { id: true, fullName: true, email: true, phone: true, role: true } });
     } else { await prisma.user.update({ where: { id: user.id }, data: { isVerified: true, lastLoginAt: new Date() } }); }
     const tokens = this.generateTokens(user.id, user.role);
     await prisma.refreshToken.create({ data: { userId: user.id, token: tokens.refreshToken, expiresAt: new Date(Date.now() + 7*24*60*60*1000) } });
