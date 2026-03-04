@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCycleStore } from '../stores/cycleStore';
+import type { UserGoal } from '../stores/cycleStore';
 import { cycleAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -81,7 +82,7 @@ const SYMPTOM_CATS: { cat: string; emoji: string; items: { n: string; e: string 
 const CycleWheel = ({ cycleDay, cycleLength, periodLength, phase }: {
   cycleDay: number; cycleLength: number; periodLength: number; phase: string;
 }) => {
-  const cx = 130, cy = 130, r = 100, sw = 20;
+  const cx = 130, cy = 130, r = 98, sw = 24;
   const ov = cycleLength - 14;
   const fS = Math.max(1, ov - 5), fE = Math.min(cycleLength, ov + 1);
   const phaseCol = PHASES[phase]?.color || '#E11D48';
@@ -109,7 +110,7 @@ const CycleWheel = ({ cycleDay, cycleLength, periodLength, phase }: {
     <div className="relative" style={{ width: 260, height: 260, margin: '0 auto' }}>
       <svg viewBox="0 0 260 260" className="w-full h-full">
         <defs>
-          <linearGradient id="periodG" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#E11D48" /><stop offset="100%" stopColor="#FB7185" /></linearGradient>
+          <linearGradient id="periodG" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#BE123C" /><stop offset="100%" stopColor="#FB7185" /></linearGradient>
           <linearGradient id="follicG" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#10B981" /><stop offset="100%" stopColor="#6EE7B7" /></linearGradient>
           <linearGradient id="fertileG" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#7C3AED" /><stop offset="100%" stopColor="#A78BFA" /></linearGradient>
           <linearGradient id="lutealG" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#D97706" /><stop offset="100%" stopColor="#FCD34D" /></linearGradient>
@@ -120,9 +121,9 @@ const CycleWheel = ({ cycleDay, cycleLength, periodLength, phase }: {
         <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F1F5F9" strokeWidth={sw} />
         {/* Phase arcs */}
         <path d={arcPath(1, periodLength)} fill="none" stroke="url(#periodG)" strokeWidth={sw} strokeLinecap="round" />
-        {periodLength + 1 < fS && <path d={arcPath(periodLength + 1, fS - 1)} fill="none" stroke="url(#follicG)" strokeWidth={sw} strokeLinecap="round" opacity="0.7" />}
+        {periodLength + 1 < fS && <path d={arcPath(periodLength + 1, fS - 1)} fill="none" stroke="url(#follicG)" strokeWidth={sw} strokeLinecap="round" opacity="0.8" />}
         <path d={arcPath(fS, fE)} fill="none" stroke="url(#fertileG)" strokeWidth={sw} strokeLinecap="round" />
-        {fE + 1 <= cycleLength && <path d={arcPath(fE + 1, cycleLength)} fill="none" stroke="url(#lutealG)" strokeWidth={sw} strokeLinecap="round" opacity="0.7" />}
+        {fE + 1 <= cycleLength && <path d={arcPath(fE + 1, cycleLength)} fill="none" stroke="url(#lutealG)" strokeWidth={sw} strokeLinecap="round" opacity="0.8" />}
         {/* Tick marks for each day */}
         {Array.from({ length: cycleLength }).map((_, i) => {
           const a = ((i + 0.5) / cycleLength) * 360 - 90;
@@ -206,7 +207,7 @@ const HormoneCurve = ({ cycleLength, cycleDay, periodLength }: { cycleLength: nu
       {/* Progesterone curve */}
       <path d={makePath(progesterone)} fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeDasharray="4,2" />
       {/* LH surge */}
-      <path d={makePath(lh)} fill="none" stroke="#7C3AED" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
+      <path d={makePath(lh)} fill="none" stroke="#7C3AED" strokeWidth="1.5" strokeLinecap="round" opacity="0.75" />
       {/* Current day line */}
       <line x1={curX} y1={pad} x2={curX} y2={h - pad} stroke="#1F2937" strokeWidth="1.5" strokeDasharray="2,2" opacity="0.4" />
       <circle cx={curX} cy={toY(estrogen(cycleDay))} r="3" fill="#EC4899" stroke="white" strokeWidth="1.5" />
@@ -281,7 +282,7 @@ const ConceptionGauge = ({ chance, label }: { chance: number; label: string }) =
 // ═══════════════════════════════════════════════════
 export default function TrackerPage() {
   const nav = useNavigate();
-  const { cycleDay, phase, periodLength, cycleLength, daysUntilPeriod } = useCycleStore();
+  const { cycleDay, phase, periodLength, cycleLength, daysUntilPeriod, goal } = useCycleStore();
   const setCycle = useCycleStore(s => s.setCycleData);
   const now = new Date();
 
@@ -354,10 +355,15 @@ export default function TrackerPage() {
     }
   };
 
-  const tabs = [
+  const tabs = goal === 'fertility' ? [
+    { id: 'today' as const, label: 'Today', icon: '\u{1F3AF}' },
+    { id: 'fertility' as const, label: 'Fertility', icon: '\u{1F495}' },
+    { id: 'calendar' as const, label: 'Calendar', icon: '\u{1F4C5}' },
+    { id: 'log' as const, label: 'Log', icon: '\u{1F4DD}' },
+  ] : [
     { id: 'today' as const, label: 'Today', icon: '\u{1F3AF}' },
     { id: 'calendar' as const, label: 'Calendar', icon: '\u{1F4C5}' },
-    { id: 'fertility' as const, label: 'Fertility', icon: '\u{1F495}' },
+    { id: 'fertility' as const, label: 'Insights', icon: '\u{1F4CA}' },
     { id: 'log' as const, label: 'Log', icon: '\u{1F4DD}' },
   ];
 

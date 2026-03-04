@@ -134,33 +134,45 @@ export default function PregnancyPage() {
 
       <div className="px-5 pt-5 space-y-4">
         {/* Hero Card */}
-        <div className="bg-gradient-to-br from-purple-600 via-pink-500 to-rose-500 rounded-3xl p-5 text-white overflow-hidden relative">
-          <div className="absolute -right-6 -top-6 w-32 h-32 bg-white/5 rounded-full" />
-          <div className="absolute -right-2 -bottom-8 w-24 h-24 bg-white/5 rounded-full" />
+        <div className="bg-gradient-to-br from-purple-700 via-purple-600 to-fuchsia-600 rounded-3xl p-5 text-white overflow-hidden relative">
+          <div className="absolute -right-6 -top-6 w-32 h-32 bg-white/10 rounded-full" />
+          <div className="absolute -right-2 -bottom-8 w-24 h-24 bg-white/10 rounded-full" />
           <div className="flex items-start justify-between relative z-10">
             <div>
-              <p className="text-white/60 text-[10px] uppercase tracking-widest font-bold">Week</p>
-              <p className="text-5xl font-extrabold leading-none mt-1">{week}</p>
-              <p className="text-white/60 text-xs mt-1">of 40 weeks</p>
+              <p className="text-white text-[10px] uppercase tracking-widest font-bold drop-shadow-sm">Week</p>
+              <p className="text-5xl font-extrabold leading-none mt-1 drop-shadow-sm">{week}</p>
+              <p className="text-white text-sm mt-1 font-medium drop-shadow-sm">of 40 weeks</p>
             </div>
-            <div className="text-center">
-              <span className="text-6xl block">{d.emoji}</span>
-              <p className="text-xs text-white/80 mt-1 font-medium">{d.size}</p>
+            <div className="text-center bg-white/15 rounded-2xl p-3 backdrop-blur-sm">
+              <span className="text-5xl block">{d.emoji}</span>
+              <p className="text-[11px] text-white mt-1 font-bold">{d.size}</p>
             </div>
           </div>
+          {/* Progress bar - high contrast */}
           <div className="mt-4 relative z-10">
-            <GrowthBar week={week} />
+            <div className="flex justify-between text-[10px] font-bold text-white mb-1">
+              <span>{pct}% complete</span>
+              <span>{daysLeft} days left</span>
+            </div>
+            <div className="w-full bg-white/20 rounded-full h-3">
+              <div className="bg-white h-3 rounded-full transition-all shadow-sm" style={{ width: pct + '%' }} />
+            </div>
+            <div className="flex justify-between mt-1">
+              <span className="text-[9px] text-white/80 font-medium">1st Tri</span>
+              <span className="text-[9px] text-white/80 font-medium">2nd Tri</span>
+              <span className="text-[9px] text-white/80 font-medium">3rd Tri</span>
+            </div>
           </div>
-          <div className="flex gap-2 mt-4 relative z-10">
+          <div className="flex gap-2 mt-3 relative z-10">
             {[
               { l: 'Length', v: d.len },
               { l: 'Weight', v: d.wt },
               { l: 'Due Date', v: dueDate.toLocaleDateString('en', { month: 'short', day: 'numeric' }) },
               { l: 'Left', v: daysLeft + 'd' },
             ].map(s => (
-              <div key={s.l} className="bg-white/15 rounded-xl px-2 py-2 text-center flex-1">
-                <p className="text-[8px] text-white/60 uppercase">{s.l}</p>
-                <p className="text-xs font-extrabold">{s.v}</p>
+              <div key={s.l} className="bg-white/20 rounded-xl px-2 py-2.5 text-center flex-1 backdrop-blur-sm">
+                <p className="text-[9px] text-white/90 font-medium uppercase">{s.l}</p>
+                <p className="text-sm font-extrabold text-white">{s.v}</p>
               </div>
             ))}
           </div>
