@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCMSStore } from '../stores/cmsStore';
+import { useAyurvedaStore } from '../stores/ayurvedaStore';
 import { useCycleStore } from '../stores/cycleStore';
-import type { ProductCategory, Product, DIYRecipe } from '../stores/cmsStore';
+import type { ProductCategory, AyurvedaProduct, DIYRecipe } from '../stores/ayurvedaStore';
 
 const catLabels: Record<ProductCategory | 'all', { emoji: string; label: string }> = {
   all: { emoji: '\u{1F33F}', label: 'All' },
@@ -26,12 +26,12 @@ const StarRating = ({ rating }: { rating: number }) => (
 
 export default function AyurvedaPage() {
   const nav = useNavigate();
-  const { products, recipes, doctors } = useCMSStore();
+  const { products, recipes, doctors } = useAyurvedaStore();
   const doctor = doctors.find(d => d.isChief) || doctors[0];
   const { goal } = useCycleStore();
   const [view, setView] = useState<'shop' | 'diy' | 'doctor'>('shop');
   const [cat, setCat] = useState<ProductCategory | 'all'>('all');
-  const [selProduct, setSelProduct] = useState<Product | null>(null);
+  const [selProduct, setSelProduct] = useState<AyurvedaProduct | null>(null);
   const [selRecipe, setSelRecipe] = useState<DIYRecipe | null>(null);
 
   // Smart filtering - show products relevant to user's goal
@@ -129,7 +129,7 @@ export default function AyurvedaPage() {
             </div>
           )}
 
-          {/* Product Grid */}
+          {/* AyurvedaProduct Grid */}
           <div>
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
               {cat === 'all' ? 'All Products' : catLabels[cat].label} ({visibleProducts.length})

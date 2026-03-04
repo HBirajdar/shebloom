@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCMSStore } from '../stores/cmsStore';
+import { useAyurvedaStore } from '../stores/ayurvedaStore';
 
 const CATS = ['All', 'Ayurveda', 'Gynecologist', 'Obstetrician', 'Fertility', 'Dermatologist', 'Nutritionist'];
 
 export default function DoctorsPage() {
   const nav = useNavigate();
-  const { doctors } = useCMSStore();
+  const { doctors } = useAyurvedaStore();
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('All');
   const [sel, setSel] = useState<any>(null);

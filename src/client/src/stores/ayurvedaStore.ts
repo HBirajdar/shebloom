@@ -185,11 +185,11 @@ interface StoreState {
 export const useAyurvedaStore = create<StoreState>()(
   persist(
     (set, get) => ({
-      adminPin: '271828',
+      adminPin: 'SheBloom@2024#Admin',
       isAdminUnlocked: false,
       unlockAdmin: (pin) => { if (pin === get().adminPin) { set({ isAdminUnlocked: true }); return true; } return false; },
       lockAdmin: () => set({ isAdminUnlocked: false }),
-      changePin: (oldPin, newPin) => { if (oldPin === get().adminPin && newPin.length >= 4) { set({ adminPin: newPin }); return true; } return false; },
+      changePin: (oldPin, newPin) => { if (oldPin === get().adminPin && newPin.length >= 8) { set({ adminPin: newPin }); return true; } return false; },
       products: defaultProducts, articles: defaultArticles, recipes: defaultRecipes, doctors: defaultDoctors,
       addProduct: (p) => set((s) => ({ products: [...s.products, p] })),
       updateProduct: (id, data) => set((s) => ({ products: s.products.map(p => p.id === id ? { ...p, ...data } : p) })),

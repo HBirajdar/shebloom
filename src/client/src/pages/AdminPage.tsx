@@ -1,408 +1,419 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCMSStore } from '../stores/cmsStore';
-import type { Product, Article, Doctor, TargetAudience, ProductCategory, ArticleCategory } from '../stores/cmsStore';
+import { useAyurvedaStore } from '../stores/ayurvedaStore';
+import type { AyurvedaProduct, Article, TargetAudience, ProductCategory, DoctorListing } from '../stores/ayurvedaStore';
 import toast from 'react-hot-toast';
 
-const targetLabels: Record<TargetAudience, string> = { all: '\u{1F310} All', periods: '\u{1F33A} Periods', fertility: '\u{1F495} TTC', pregnancy: '\u{1F930} Pregnancy', wellness: '\u{1F9D8} Wellness' };
-const catLabels: Record<ProductCategory, string> = { hair_oil: 'Hair Oil', body_lotion: 'Lotion', face_wash: 'Face Wash', body_wash: 'Body Wash', hair_treatment: 'Treatment', supplement: 'Supplement', skincare: 'Skincare' };
-const artCats: ArticleCategory[] = ['Periods', 'Pregnancy', 'PCOD', 'Wellness', 'Nutrition', 'Mental Health', 'Fertility', 'Ayurveda', 'Skin & Hair'];
+const targetOpts: { k: TargetAudience; l: string }[] = [
+  { k: 'all', l: '\u{1F310} All' }, { k: 'periods', l: '\u{1F33A} Periods' },
+  { k: 'fertility', l: '\u{1F495} TTC' }, { k: 'pregnancy', l: '\u{1F930} Pregnancy' }, { k: 'wellness', l: '\u{1F9D8} Wellness' },
+];
+const catOpts: { k: ProductCategory; l: string }[] = [
+  { k: 'hair_oil', l: 'Hair Oil' }, { k: 'skincare', l: 'Skincare' }, { k: 'face_wash', l: 'Face Wash' },
+  { k: 'body_lotion', l: 'Lotion' }, { k: 'body_wash', l: 'Body Wash' }, { k: 'hair_treatment', l: 'Treatment' }, { k: 'supplement', l: 'Supplement' },
+];
 
 export default function AdminPage() {
   const nav = useNavigate();
-  const cms = useCMSStore();
-  const [pin, setPin] = useState('');
-  const [pinError, setPinError] = useState(false);
-  const [tab, setTab] = useState<'overview' | 'products' | 'articles' | 'doctors' | 'recipes' | 'addProduct' | 'addArticle' | 'addDoctor'>('overview');
-  const [confirmDel, setConfirmDel] = useState<{ type: string; id: string } | null>(null);
+  const store = useAyurvedaStore();
+  const { isAdminUnlocked, unlockAdmin, lockAdmin, changePin,
+    products, articles, doctors, recipes,
+    togglePublish, toggleFeatured, deleteProduct, addProduct,
+    toggleArticlePublish, toggleArticleFeatured, deleteArticle, addArticle,
+    addDoctor, updateDoctor, deleteDoctor, toggleDoctorPublish } = store;
 
-  // Product form
-  const emptyProduct = { name: '', category: 'hair_oil' as ProductCategory, price: 0, discountPrice: 0, description: '', ingredients: '', benefits: '', howToUse: '', size: '', emoji: '\u{1F33F}', target: ['all'] as TargetAudience[], doctorNote: '', preparationMethod: '' };
-  const [pf, setPf] = useState(emptyProduct);
+  const [password, setPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [passError, setPassError] = useState('');
+  const [tab, setTab] = useState<'overview' | 'products' | 'articles' | 'doctors' | 'add_product' | 'add_article' | 'add_doctor' | 'settings'>('overview');
+  const [confirmDel, setConfirmDel] = useState<{ id: string; type: string } | null>(null);
 
-  // Article form
-  const emptyArticle = { title: '', category: 'Periods' as ArticleCategory, summary: '', content: '', emoji: '\u{1F4DD}', readTime: '5 min', target: ['all'] as TargetAudience[] };
-  const [af, setAf] = useState(emptyArticle);
+  // Form states
+  const [np, setNp] = useState({ name: '', category: 'hair_oil' as ProductCategory, price: 0, discountPrice: 0, description: '', ingredients: '', benefits: '', howToUse: '', size: '', emoji: '\u{1F33F}', targetAudience: ['all'] as TargetAudience[], doctorNote: '', preparationMethod: '' });
+  const [na, setNa] = useState({ title: '', content: '', category: '', readTime: '5 min', emoji: '\u{1F4DD}', targetAudience: ['all'] as TargetAudience[] });
+  const [nd, setNd] = useState({ name: '', specialization: '', experience: 0, fee: 0, qualification: '', about: '', tags: '', languages: '' });
+  const [oldPin, setOldPin] = useState('');
+  const [newPin, setNewPin] = useState('');
 
-  // Doctor form
-  const emptyDoc = { name: '', title: '', qualification: '', experience: '', specialization: '', about: '', consultationFee: '', languages: '', emoji: '\u{1F469}\u200D\u2695\uFE0F' };
-  const [df, setDf] = useState(emptyDoc);
+  // ═══════════════════════════════════════════════
+  // PASSWORD LOGIN SCREEN
+  // ═══════════════════════════════════════════════
+  if (!isAdminUnlocked) {
+    const tryLogin = () => {
+      if (unlockAdmin(password)) {
+        toast.success('Welcome, Admin!');
+        setPassword('');
+        setPassError('');
+      } else {
+        setPassError('Incorrect password. Access denied.');
+        setPassword('');
+      }
+    };
 
-  // ─── PIN Login Screen ──────────────────────────
-  if (!cms.isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'linear-gradient(180deg, #ECFDF5 0%, #FAFAF9 100%)' }}>
-        <div className="bg-white rounded-3xl p-6 shadow-lg text-center max-w-xs w-full">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-emerald-100 flex items-center justify-center text-3xl mb-4">{'\u{1F512}'}</div>
-          <h2 className="text-lg font-extrabold text-gray-900">Admin Access</h2>
-          <p className="text-xs text-gray-400 mt-1 mb-5">Enter your 4-digit PIN to manage SheBloom</p>
+      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'linear-gradient(180deg, #0F172A 0%, #1E293B 100%)' }}>
+        <div className="bg-white rounded-3xl p-8 shadow-2xl text-center max-w-sm w-full">
+          <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center text-3xl text-white shadow-lg mb-5">
+            {'\u{1F6E1}\uFE0F'}
+          </div>
+          <h2 className="text-xl font-extrabold text-gray-900">Admin Console</h2>
+          <p className="text-xs text-gray-400 mt-1 mb-6">Authorized personnel only</p>
 
-          {/* PIN Display */}
-          <div className="flex justify-center gap-3 mb-5">
-            {[0, 1, 2, 3].map(i => (
-              <div key={i} className={'w-12 h-14 rounded-xl border-2 flex items-center justify-center text-xl font-extrabold transition-all ' +
-                (pin.length > i ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-300')}>
-                {pin.length > i ? '\u2022' : ''}
-              </div>
-            ))}
+          <div className="relative mb-4">
+            <input
+              type={showPass ? 'text' : 'password'}
+              value={password}
+              onChange={e => { setPassword(e.target.value); setPassError(''); }}
+              onKeyDown={e => { if (e.key === 'Enter' && password) tryLogin(); }}
+              placeholder="Enter admin password"
+              className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl text-sm font-medium focus:border-slate-500 focus:outline-none transition-colors pr-12"
+              autoFocus
+            />
+            <button onClick={() => setShowPass(!showPass)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
+              {showPass ? '\u{1F441}\uFE0F' : '\u{1F441}\uFE0F\u200D\u{1F5E8}\uFE0F'}
+            </button>
           </div>
 
-          {pinError && <p className="text-xs text-red-500 font-bold mb-3">{'\u26A0\uFE0F'} Wrong PIN. Try again.</p>}
+          {passError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+              <p className="text-xs text-red-600 font-bold">{'\u26D4'} {passError}</p>
+            </div>
+          )}
 
-          {/* Number Pad */}
-          <div className="grid grid-cols-3 gap-2 max-w-[220px] mx-auto">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, null, 0, 'del'].map((n, i) => (
-              n === null ? <div key={i} /> :
-              <button key={i}
-                onClick={() => {
-                  if (n === 'del') { setPin(pin.slice(0, -1)); setPinError(false); return; }
-                  const next = pin + n;
-                  if (next.length <= 4) setPin(next);
-                  if (next.length === 4) {
-                    if (cms.loginAdmin(next)) { toast.success('Welcome, Admin!'); }
-                    else { setPinError(true); setTimeout(() => setPin(''), 300); }
-                  }
-                }}
-                className="w-full h-12 rounded-xl bg-gray-50 text-lg font-bold text-gray-800 active:bg-gray-200 active:scale-95 transition-all">
-                {n === 'del' ? '\u232B' : n}
-              </button>
-            ))}
+          <button onClick={tryLogin} disabled={!password}
+            className="w-full py-3.5 rounded-2xl text-white font-bold text-sm disabled:opacity-40 active:scale-95 transition-transform"
+            style={{ background: 'linear-gradient(135deg, #1E293B, #334155)' }}>
+            {'\u{1F513}'} Authenticate
+          </button>
+
+          <button onClick={() => nav('/profile')} className="mt-4 text-xs text-gray-400 font-bold">
+            {'\u2190'} Back to Profile
+          </button>
+
+          <div className="mt-6 pt-4 border-t border-gray-100">
+            <p className="text-[9px] text-gray-300">This panel is restricted. Unauthorized access attempts are logged.</p>
           </div>
-
-          <button onClick={() => nav('/dashboard')} className="mt-5 text-xs text-gray-400 font-bold">Back to App</button>
         </div>
       </div>
     );
   }
 
-  // ─── Helper Functions ──────────────────────────
-  const toggleTarget = (arr: TargetAudience[], t: TargetAudience) => arr.includes(t) ? arr.filter(x => x !== t) : [...arr, t];
+  // ═══════════════════════════════════════════════
+  // ADMIN CMS DASHBOARD
+  // ═══════════════════════════════════════════════
+  const pubProducts = products.filter(p => p.isPublished).length;
+  const pubArticles = articles.filter(a => a.isPublished).length;
+  const pubDoctors = doctors.filter(d => d.isPublished).length;
 
-  const saveProduct = () => {
-    if (!pf.name || !pf.description || pf.price <= 0) { toast.error('Fill required fields'); return; }
-    cms.addProduct({
-      id: 'p_' + Date.now(), name: pf.name, category: pf.category, price: pf.price,
-      discountPrice: pf.discountPrice > 0 ? pf.discountPrice : undefined,
-      description: pf.description, size: pf.size, emoji: pf.emoji,
-      ingredients: pf.ingredients.split('\n').filter(Boolean),
-      benefits: pf.benefits.split('\n').filter(Boolean),
-      howToUse: pf.howToUse, rating: 5.0, reviews: 0, inStock: true,
-      isPublished: false, isFeatured: false, targetAudience: pf.target, tags: [],
-      preparationMethod: pf.preparationMethod || undefined,
-      doctorNote: pf.doctorNote || undefined, createdAt: new Date().toISOString().split('T')[0],
+  const handleAddProduct = () => {
+    if (!np.name || np.price <= 0) { toast.error('Name and price required'); return; }
+    addProduct({
+      id: 'p_' + Date.now(), ...np,
+      discountPrice: np.discountPrice > 0 ? np.discountPrice : undefined,
+      ingredients: np.ingredients.split(',').map(s => s.trim()).filter(Boolean),
+      benefits: np.benefits.split(',').map(s => s.trim()).filter(Boolean),
+      rating: 5.0, reviews: 0, inStock: true, isPublished: false, isFeatured: false, tags: [],
+      preparationMethod: np.preparationMethod || undefined, doctorNote: np.doctorNote || undefined,
+      createdAt: new Date().toISOString().split('T')[0],
     });
-    toast.success('Product added (Draft)!');
-    setPf(emptyProduct);
+    toast.success('Product added as draft!');
+    setNp({ name: '', category: 'hair_oil', price: 0, discountPrice: 0, description: '', ingredients: '', benefits: '', howToUse: '', size: '', emoji: '\u{1F33F}', targetAudience: ['all'], doctorNote: '', preparationMethod: '' });
     setTab('products');
   };
 
-  const saveArticle = () => {
-    if (!af.title || !af.content) { toast.error('Fill required fields'); return; }
-    const chief = cms.doctors.find(d => d.isChief);
-    cms.addArticle({
-      id: 'a_' + Date.now(), title: af.title, category: af.category,
-      summary: af.summary, content: af.content, emoji: af.emoji,
-      author: chief?.name || 'Dr. SheBloom', readTime: af.readTime,
-      isPublished: false, isFeatured: false, targetAudience: af.target,
-      createdAt: new Date().toISOString().split('T')[0],
-    });
-    toast.success('Article added (Draft)!');
-    setAf(emptyArticle);
+  const handleAddArticle = () => {
+    if (!na.title || !na.content) { toast.error('Title and content required'); return; }
+    addArticle({ id: 'a_' + Date.now(), ...na, author: 'chief', isPublished: false, isFeatured: false, createdAt: new Date().toISOString().split('T')[0] });
+    toast.success('Article saved as draft!');
+    setNa({ title: '', content: '', category: '', readTime: '5 min', emoji: '\u{1F4DD}', targetAudience: ['all'] });
     setTab('articles');
   };
 
-  const saveDoctor = () => {
-    if (!df.name || !df.qualification) { toast.error('Fill required fields'); return; }
-    cms.addDoctor({
-      id: 'doc_' + Date.now(), name: df.name, title: df.title,
-      qualification: df.qualification, experience: df.experience,
-      specialization: df.specialization.split(',').map(s => s.trim()).filter(Boolean),
-      about: df.about, consultationFee: df.consultationFee,
-      freeForPoor: false, rating: 5.0, reviews: 0, emoji: df.emoji,
-      languages: df.languages.split(',').map(s => s.trim()).filter(Boolean),
-      isChief: false, isPublished: false,
+  const handleAddDoctor = () => {
+    if (!nd.name) { toast.error('Name required'); return; }
+    addDoctor({
+      id: 'd_' + Date.now(), name: nd.name, specialization: nd.specialization, experience: nd.experience,
+      rating: 5.0, reviews: 0, fee: nd.fee, feeFreeForPoor: false, qualification: nd.qualification,
+      tags: nd.tags.split(',').map(s => s.trim()).filter(Boolean),
+      languages: nd.languages.split(',').map(s => s.trim()).filter(Boolean),
+      about: nd.about, isChief: false, isPublished: false,
     });
-    toast.success('Doctor added (Draft)!');
-    setDf(emptyDoc);
+    toast.success('Doctor added!');
+    setNd({ name: '', specialization: '', experience: 0, fee: 0, qualification: '', about: '', tags: '', languages: '' });
     setTab('doctors');
   };
 
-  const doDelete = () => {
-    if (!confirmDel) return;
-    if (confirmDel.type === 'product') cms.deleteProduct(confirmDel.id);
-    if (confirmDel.type === 'article') cms.deleteArticle(confirmDel.id);
-    if (confirmDel.type === 'doctor') cms.deleteDoctor(confirmDel.id);
-    setConfirmDel(null);
-    toast.success('Deleted');
-  };
+  const tabs: { id: typeof tab; icon: string; label: string }[] = [
+    { id: 'overview', icon: '\u{1F4CA}', label: 'Home' },
+    { id: 'products', icon: '\u{1F4E6}', label: 'Products' },
+    { id: 'articles', icon: '\u{1F4DD}', label: 'Articles' },
+    { id: 'doctors', icon: '\u{1F469}\u200D\u2695\uFE0F', label: 'Doctors' },
+    { id: 'settings', icon: '\u2699\uFE0F', label: 'Security' },
+  ];
 
-  const stats = {
-    products: cms.products.length, pubProducts: cms.products.filter(p => p.isPublished).length,
-    articles: cms.articles.length, pubArticles: cms.articles.filter(a => a.isPublished).length,
-    doctors: cms.doctors.length, pubDoctors: cms.doctors.filter(d => d.isPublished).length,
-    recipes: cms.recipes.length,
-  };
-
-  // Input helper
-  const Input = ({ label, value, onChange, multiline, placeholder }: { label: string; value: string; onChange: (v: string) => void; multiline?: boolean; placeholder?: string }) => (
+  // Field helper
+  const Field = ({ label, value, onChange, placeholder, multiline }: { label: string; value: string; onChange: (v: string) => void; placeholder: string; multiline?: boolean }) => (
     <div>
-      <label className="text-[10px] font-bold text-gray-500 uppercase">{label}</label>
+      <label className="text-[9px] font-bold text-gray-500 uppercase">{label}</label>
       {multiline ? (
         <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-          className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-emerald-400 focus:outline-none resize-none" rows={3} />
+          className="w-full mt-0.5 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-emerald-400 focus:outline-none resize-none" rows={3} />
       ) : (
         <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-          className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-emerald-400 focus:outline-none" />
+          className="w-full mt-0.5 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-emerald-400 focus:outline-none" />
       )}
     </div>
   );
 
+  const NumField = ({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) => (
+    <div>
+      <label className="text-[9px] font-bold text-gray-500 uppercase">{label}</label>
+      <input type="number" value={value || ''} onChange={e => onChange(+e.target.value)}
+        className="w-full mt-0.5 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-emerald-400 focus:outline-none" />
+    </div>
+  );
+
+  const TargetPicker = ({ value, onChange }: { value: TargetAudience[]; onChange: (v: TargetAudience[]) => void }) => (
+    <div>
+      <label className="text-[9px] font-bold text-gray-500 uppercase">Visible To</label>
+      <div className="flex flex-wrap gap-1 mt-1">
+        {targetOpts.map(t => (
+          <button key={t.k} onClick={() => onChange(value.includes(t.k) ? value.filter(x => x !== t.k) : [...value, t.k])}
+            className={'px-2 py-1 rounded-lg text-[9px] font-bold ' + (value.includes(t.k) ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500')}>{t.l}</button>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen pb-8" style={{ backgroundColor: '#FAFAF9' }}>
+    <div className="min-h-screen pb-8" style={{ backgroundColor: '#F8FAFC' }}>
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-white border-b border-gray-100">
+      <div className="sticky top-0 z-20 bg-slate-800 text-white">
         <div className="px-5 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <button onClick={() => nav('/dashboard')} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-sm active:scale-90">{'\u2190'}</button>
-            <div>
-              <h1 className="text-base font-extrabold text-gray-900">{'\u{1F6E1}\uFE0F'} Admin CMS</h1>
-              <p className="text-[9px] text-emerald-600 font-bold">Manage Everything</p>
-            </div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-sm font-extrabold">{'\u{1F6E1}\uFE0F'} SheBloom Admin</h1>
           </div>
-          <button onClick={() => { cms.logoutAdmin(); nav('/dashboard'); }} className="text-[10px] text-red-500 font-bold bg-red-50 px-3 py-1.5 rounded-full active:scale-95">{'\u{1F512}'} Lock</button>
+          <button onClick={() => { lockAdmin(); nav('/profile'); }} className="text-[10px] font-bold bg-white/10 px-3 py-1.5 rounded-full active:scale-95">
+            {'\u{1F512}'} Lock & Exit
+          </button>
         </div>
-        {/* Tab Bar */}
         <div className="px-3 pb-2 flex gap-1 overflow-x-auto">
-          {([
-            ['overview', '\u{1F4CA}'], ['products', '\u{1F4E6}'], ['articles', '\u{1F4DD}'], ['doctors', '\u{1F469}\u200D\u2695\uFE0F'], ['recipes', '\u{1F52C}'],
-          ] as const).map(([k, e]) => (
-            <button key={k} onClick={() => setTab(k)}
-              className={'px-3 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap ' + (tab === k || (tab.startsWith('add') && tab.includes(k.slice(0, -1))) ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-500')}>
-              {e} {k.charAt(0).toUpperCase() + k.slice(1)}
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={'px-2.5 py-1.5 rounded-lg text-[9px] font-bold whitespace-nowrap transition-all ' + (tab === t.id ? 'bg-white text-slate-800' : 'text-white/60')}>
+              {t.icon} {t.label}
             </button>
           ))}
         </div>
       </div>
 
       <div className="px-5 pt-4 space-y-3">
-        {/* ═══ OVERVIEW ═══ */}
+
+        {/* OVERVIEW */}
         {tab === 'overview' && (<>
           <div className="grid grid-cols-2 gap-2.5">
             {[
-              { l: 'Products', n: stats.products, pub: stats.pubProducts, c: '#059669', bg: '#ECFDF5' },
-              { l: 'Articles', n: stats.articles, pub: stats.pubArticles, c: '#2563EB', bg: '#EFF6FF' },
-              { l: 'Doctors', n: stats.doctors, pub: stats.pubDoctors, c: '#7C3AED', bg: '#F5F3FF' },
-              { l: 'Recipes', n: stats.recipes, pub: stats.recipes, c: '#D97706', bg: '#FFFBEB' },
+              { l: 'Products', v: products.length, p: pubProducts, c: '#059669', bg: '#ECFDF5' },
+              { l: 'Articles', v: articles.length, p: pubArticles, c: '#2563EB', bg: '#EFF6FF' },
+              { l: 'Doctors', v: doctors.length, p: pubDoctors, c: '#7C3AED', bg: '#F5F3FF' },
+              { l: 'Recipes', v: recipes.length, p: recipes.filter(r => r.isPublished).length, c: '#D97706', bg: '#FFFBEB' },
             ].map(s => (
-              <div key={s.l} className="rounded-2xl p-4 text-center" style={{ backgroundColor: s.bg }}>
-                <p className="text-2xl font-extrabold" style={{ color: s.c }}>{s.n}</p>
-                <p className="text-[10px] font-bold" style={{ color: s.c }}>{s.l}</p>
-                <p className="text-[9px] text-gray-400">{s.pub} published</p>
+              <div key={s.l} className="rounded-2xl p-4" style={{ backgroundColor: s.bg }}>
+                <p className="text-[10px] font-bold uppercase" style={{ color: s.c }}>{s.l}</p>
+                <p className="text-2xl font-extrabold text-gray-900 mt-1">{s.v}</p>
+                <p className="text-[9px] text-gray-500">{s.p} live</p>
               </div>
             ))}
           </div>
-
-          <h3 className="text-xs font-bold text-gray-400 uppercase mt-4">Quick Actions</h3>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="bg-white rounded-2xl p-4 shadow-sm">
+            <h3 className="text-xs font-bold text-gray-800 mb-2">Quick Actions</h3>
             {[
-              { l: 'Add Product', t: 'addProduct' as const, e: '\u{1F4E6}', c: '#059669' },
-              { l: 'Write Article', t: 'addArticle' as const, e: '\u{1F4DD}', c: '#2563EB' },
-              { l: 'Add Doctor', t: 'addDoctor' as const, e: '\u{1F469}\u200D\u2695\uFE0F', c: '#7C3AED' },
+              { l: 'Add Product', t: 'add_product' as typeof tab, e: '\u{1F4E6}', c: 'bg-emerald-50 text-emerald-700' },
+              { l: 'Write Article', t: 'add_article' as typeof tab, e: '\u{1F4DD}', c: 'bg-blue-50 text-blue-700' },
+              { l: 'Add Doctor', t: 'add_doctor' as typeof tab, e: '\u{1F469}\u200D\u2695\uFE0F', c: 'bg-purple-50 text-purple-700' },
             ].map(a => (
-              <button key={a.l} onClick={() => setTab(a.t)}
-                className="bg-white rounded-2xl p-3 shadow-sm text-center active:scale-95 transition-transform">
-                <span className="text-2xl block">{a.e}</span>
-                <p className="text-[10px] font-bold mt-1" style={{ color: a.c }}>{a.l}</p>
+              <button key={a.l} onClick={() => setTab(a.t)} className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 active:bg-gray-100 transition-colors mt-1.5">
+                <span className={'w-8 h-8 rounded-lg flex items-center justify-center text-sm ' + a.c}>{a.e}</span>
+                <span className="text-xs font-bold text-gray-700 flex-1 text-left">{a.l}</span>
+                <span className="text-gray-300">{'\u203A'}</span>
               </button>
             ))}
           </div>
-
-          {/* Chief Doctor Card */}
-          {(() => {
-            const chief = cms.doctors.find(d => d.isChief);
-            return chief ? (
-              <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl p-4 border border-emerald-100">
-                <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-wider">Chief Doctor</p>
-                <p className="text-sm font-extrabold text-gray-900 mt-0.5">{chief.name}</p>
-                <p className="text-[10px] text-gray-500">{chief.title} \u2022 {chief.qualification}</p>
-              </div>
-            ) : null;
-          })()}
         </>)}
 
-        {/* ═══ PRODUCTS LIST ═══ */}
+        {/* PRODUCTS LIST */}
         {tab === 'products' && (<>
           <div className="flex justify-between items-center">
-            <p className="text-xs text-gray-500">{stats.products} products \u2022 {stats.pubProducts} live</p>
-            <button onClick={() => setTab('addProduct')} className="text-[10px] font-bold text-white bg-emerald-600 px-3 py-1.5 rounded-full active:scale-95">{'\u2795'} Add</button>
+            <h3 className="text-sm font-extrabold">{'\u{1F4E6}'} Products ({products.length})</h3>
+            <button onClick={() => setTab('add_product')} className="text-[10px] font-bold text-white bg-emerald-600 px-3 py-1.5 rounded-full active:scale-95">+ Add</button>
           </div>
-          {cms.products.map(p => (
+          {products.map(p => (
             <div key={p.id} className="bg-white rounded-2xl p-3 shadow-sm">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{p.emoji}</span>
+              <div className="flex items-center gap-2.5">
+                <span className="text-xl">{p.emoji}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-gray-800 truncate">{p.name}</p>
-                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                    <span className={'text-[8px] font-bold px-1.5 py-0.5 rounded-full ' + (p.isPublished ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500')}>{p.isPublished ? 'LIVE' : 'DRAFT'}</span>
-                    {p.isFeatured && <span className="text-[8px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{'\u2605'}</span>}
-                    <span className="text-[8px] text-gray-400">{'\u20B9'}{p.discountPrice || p.price}</span>
-                    {p.targetAudience.filter(t => t !== 'all').map(t => <span key={t} className="text-[7px] bg-blue-50 text-blue-600 px-1 py-0.5 rounded">{t}</span>)}
+                  <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                    <span className={'text-[7px] font-bold px-1.5 py-0.5 rounded-full ' + (p.isPublished ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600')}>{p.isPublished ? '\u2713 LIVE' : 'DRAFT'}</span>
+                    {p.isFeatured && <span className="text-[7px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{'\u2605'} FEATURED</span>}
+                    <span className="text-[7px] text-gray-400">{'\u20B9'}{p.discountPrice || p.price}</span>
                   </div>
                 </div>
               </div>
               <div className="flex gap-1.5 mt-2 border-t border-gray-50 pt-2">
-                <button onClick={() => cms.toggleProductPublish(p.id)} className={'flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 ' + (p.isPublished ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600')}>{p.isPublished ? 'Unpublish' : 'Publish'}</button>
-                <button onClick={() => cms.toggleProductFeatured(p.id)} className={'flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 ' + (p.isFeatured ? 'bg-amber-50 text-amber-600' : 'bg-gray-50 text-gray-500')}>{p.isFeatured ? 'Unfeature' : 'Feature'}</button>
-                <button onClick={() => setConfirmDel({ type: 'product', id: p.id })} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-500 text-[9px] font-bold active:scale-95">{'\u{1F5D1}'}</button>
+                <button onClick={() => togglePublish(p.id)} className={'flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 ' + (p.isPublished ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600')}>{p.isPublished ? 'Unpublish' : 'Publish'}</button>
+                <button onClick={() => toggleFeatured(p.id)} className={'flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 ' + (p.isFeatured ? 'bg-amber-50 text-amber-600' : 'bg-gray-50 text-gray-500')}>{p.isFeatured ? 'Unfeature' : 'Feature'}</button>
+                <button onClick={() => setConfirmDel({ id: p.id, type: 'product' })} className="px-2.5 py-1.5 rounded-lg bg-red-50 text-red-400 text-[9px] font-bold active:scale-95">{'\u{1F5D1}'}</button>
               </div>
             </div>
           ))}
         </>)}
 
-        {/* ═══ ARTICLES LIST ═══ */}
+        {/* ARTICLES LIST */}
         {tab === 'articles' && (<>
           <div className="flex justify-between items-center">
-            <p className="text-xs text-gray-500">{stats.articles} articles \u2022 {stats.pubArticles} live</p>
-            <button onClick={() => setTab('addArticle')} className="text-[10px] font-bold text-white bg-blue-600 px-3 py-1.5 rounded-full active:scale-95">{'\u2795'} Write</button>
+            <h3 className="text-sm font-extrabold">{'\u{1F4DD}'} Articles ({articles.length})</h3>
+            <button onClick={() => setTab('add_article')} className="text-[10px] font-bold text-white bg-blue-600 px-3 py-1.5 rounded-full active:scale-95">+ Write</button>
           </div>
-          {cms.articles.map(a => (
+          {articles.map(a => (
             <div key={a.id} className="bg-white rounded-2xl p-3 shadow-sm">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
                 <span className="text-xl">{a.emoji}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-gray-800 truncate">{a.title}</p>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className={'text-[8px] font-bold px-1.5 py-0.5 rounded-full ' + (a.isPublished ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500')}>{a.isPublished ? 'LIVE' : 'DRAFT'}</span>
-                    {a.isFeatured && <span className="text-[8px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{'\u2605'}</span>}
-                    <span className="text-[8px] text-gray-400">{a.category} \u2022 {a.readTime}</span>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className={'text-[7px] font-bold px-1.5 py-0.5 rounded-full ' + (a.isPublished ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600')}>{a.isPublished ? '\u2713 LIVE' : 'DRAFT'}</span>
+                    {a.isFeatured && <span className="text-[7px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{'\u2605'}</span>}
+                    <span className="text-[7px] text-gray-400">{a.category} \u2022 {a.readTime}</span>
                   </div>
                 </div>
               </div>
               <div className="flex gap-1.5 mt-2 border-t border-gray-50 pt-2">
-                <button onClick={() => cms.toggleArticlePublish(a.id)} className={'flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 ' + (a.isPublished ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600')}>{a.isPublished ? 'Unpublish' : 'Publish'}</button>
-                <button onClick={() => cms.toggleArticleFeatured(a.id)} className={'flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 ' + (a.isFeatured ? 'bg-amber-50 text-amber-600' : 'bg-gray-50 text-gray-500')}>{a.isFeatured ? 'Unfeature' : 'Feature'}</button>
-                <button onClick={() => setConfirmDel({ type: 'article', id: a.id })} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-500 text-[9px] font-bold active:scale-95">{'\u{1F5D1}'}</button>
+                <button onClick={() => toggleArticlePublish(a.id)} className={'flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 ' + (a.isPublished ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600')}>{a.isPublished ? 'Unpublish' : 'Publish'}</button>
+                <button onClick={() => toggleArticleFeatured(a.id)} className={'flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 ' + (a.isFeatured ? 'bg-amber-50 text-amber-600' : 'bg-gray-50 text-gray-500')}>{a.isFeatured ? 'Unfeature' : 'Feature'}</button>
+                <button onClick={() => setConfirmDel({ id: a.id, type: 'article' })} className="px-2.5 py-1.5 rounded-lg bg-red-50 text-red-400 text-[9px] font-bold active:scale-95">{'\u{1F5D1}'}</button>
               </div>
             </div>
           ))}
         </>)}
 
-        {/* ═══ DOCTORS LIST ═══ */}
+        {/* DOCTORS LIST */}
         {tab === 'doctors' && (<>
           <div className="flex justify-between items-center">
-            <p className="text-xs text-gray-500">{stats.doctors} doctors \u2022 {stats.pubDoctors} published</p>
-            <button onClick={() => setTab('addDoctor')} className="text-[10px] font-bold text-white bg-purple-600 px-3 py-1.5 rounded-full active:scale-95">{'\u2795'} Add</button>
+            <h3 className="text-sm font-extrabold">{'\u{1F469}\u200D\u2695\uFE0F'} Doctors ({doctors.length})</h3>
+            <button onClick={() => setTab('add_doctor')} className="text-[10px] font-bold text-white bg-purple-600 px-3 py-1.5 rounded-full active:scale-95">+ Add</button>
           </div>
-          {cms.doctors.map(d => (
+          {doctors.map(d => (
             <div key={d.id} className={'bg-white rounded-2xl p-3 shadow-sm ' + (d.isChief ? 'ring-2 ring-emerald-300' : '')}>
-              <div className="flex items-center gap-3">
-                <div className={'w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold text-white ' + (d.isChief ? 'bg-gradient-to-br from-emerald-500 to-teal-500' : 'bg-gray-300')}>
-                  {d.name.charAt(0)}
-                </div>
+              <div className="flex items-center gap-2.5">
+                <div className={'w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm ' + (d.isChief ? 'bg-gradient-to-br from-emerald-500 to-teal-600' : 'bg-gradient-to-br from-rose-400 to-pink-500')}>{d.name.charAt(0)}</div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
                     <p className="text-xs font-bold text-gray-800 truncate">{d.name}</p>
-                    {d.isChief && <span className="text-[8px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">CHIEF</span>}
+                    {d.isChief && <span className="text-[7px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">{'\u{1F451}'} CHIEF</span>}
                   </div>
-                  <p className="text-[10px] text-gray-500 truncate">{d.title} \u2022 {d.qualification}</p>
+                  <p className="text-[9px] text-gray-500">{d.specialization}</p>
+                  <span className={'text-[7px] font-bold px-1.5 py-0.5 rounded-full ' + (d.isPublished ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600')}>{d.isPublished ? 'VISIBLE' : 'HIDDEN'}</span>
                 </div>
               </div>
               <div className="flex gap-1.5 mt-2 border-t border-gray-50 pt-2">
-                <button onClick={() => cms.toggleDoctorPublish(d.id)} className={'flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 ' + (d.isPublished ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600')}>{d.isPublished ? 'Hide' : 'Show'}</button>
-                <button onClick={() => { cms.setChiefDoctor(d.id); toast.success(d.name + ' is now Chief Doctor!'); }} className={'flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 ' + (d.isChief ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-50 text-gray-500')}>{d.isChief ? '\u{1F451} Chief' : 'Make Chief'}</button>
-                {!d.isChief && <button onClick={() => setConfirmDel({ type: 'doctor', id: d.id })} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-500 text-[9px] font-bold active:scale-95">{'\u{1F5D1}'}</button>}
+                <button onClick={() => toggleDoctorPublish(d.id)} className={'flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 ' + (d.isPublished ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600')}>{d.isPublished ? 'Hide' : 'Show'}</button>
+                {!d.isChief && <button onClick={() => setConfirmDel({ id: d.id, type: 'doctor' })} className="px-2.5 py-1.5 rounded-lg bg-red-50 text-red-400 text-[9px] font-bold active:scale-95">{'\u{1F5D1}'}</button>}
               </div>
             </div>
           ))}
         </>)}
 
-        {/* ═══ RECIPES LIST ═══ */}
-        {tab === 'recipes' && (<>
-          <p className="text-xs text-gray-500">{stats.recipes} recipes</p>
-          {cms.recipes.map(r => (
-            <div key={r.id} className="bg-white rounded-2xl p-3 shadow-sm flex items-center gap-3">
-              <span className="text-2xl">{r.emoji}</span>
-              <div className="flex-1">
-                <p className="text-xs font-bold text-gray-800">{r.title}</p>
-                <span className={'text-[8px] font-bold px-1.5 py-0.5 rounded-full ' + (r.isPublished ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500')}>{r.isPublished ? 'LIVE' : 'DRAFT'}</span>
-              </div>
-              <button onClick={() => cms.toggleRecipePublish(r.id)} className="text-[9px] font-bold text-emerald-600 active:scale-95">{r.isPublished ? 'Hide' : 'Show'}</button>
-            </div>
-          ))}
+        {/* ADD PRODUCT */}
+        {tab === 'add_product' && (<>
+          <div className="flex items-center gap-2 mb-1"><button onClick={() => setTab('products')} className="text-gray-400 text-sm">{'\u2190'}</button><h3 className="text-sm font-extrabold">New Product</h3></div>
+          <Field label="Name *" value={np.name} onChange={v => setNp({...np, name: v})} placeholder="Bhringraj Hair Oil" />
+          <Field label="Description *" value={np.description} onChange={v => setNp({...np, description: v})} placeholder="Product description..." multiline />
+          <div className="grid grid-cols-2 gap-2"><NumField label="Price *" value={np.price} onChange={v => setNp({...np, price: v})} /><NumField label="Sale Price" value={np.discountPrice} onChange={v => setNp({...np, discountPrice: v})} /></div>
+          <div className="grid grid-cols-2 gap-2"><Field label="Size" value={np.size} onChange={v => setNp({...np, size: v})} placeholder="200ml" /><Field label="Emoji" value={np.emoji} onChange={v => setNp({...np, emoji: v})} placeholder="\u{1F33F}" /></div>
+          <Field label="Ingredients (comma-sep)" value={np.ingredients} onChange={v => setNp({...np, ingredients: v})} placeholder="Bhringraj, Amla..." multiline />
+          <Field label="Benefits (comma-sep)" value={np.benefits} onChange={v => setNp({...np, benefits: v})} placeholder="Reduces hairfall..." multiline />
+          <Field label="How to Use" value={np.howToUse} onChange={v => setNp({...np, howToUse: v})} placeholder="Instructions..." multiline />
+          <Field label="Doctor Note" value={np.doctorNote} onChange={v => setNp({...np, doctorNote: v})} placeholder="Personal recommendation..." multiline />
+          <div><label className="text-[9px] font-bold text-gray-500 uppercase">Category</label>
+            <div className="flex flex-wrap gap-1 mt-1">{catOpts.map(c => (<button key={c.k} onClick={() => setNp({...np, category: c.k})} className={'px-2 py-1 rounded-lg text-[9px] font-bold ' + (np.category === c.k ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500')}>{c.l}</button>))}</div></div>
+          <TargetPicker value={np.targetAudience} onChange={v => setNp({...np, targetAudience: v})} />
+          <button onClick={handleAddProduct} className="w-full py-3 rounded-2xl text-white font-bold text-sm active:scale-95" style={{background:'linear-gradient(135deg,#059669,#10B981)'}}>Add as Draft</button>
         </>)}
 
-        {/* ═══ ADD PRODUCT FORM ═══ */}
-        {tab === 'addProduct' && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between"><h3 className="text-sm font-extrabold text-gray-900">{'\u{1F4E6}'} New Product</h3><button onClick={() => setTab('products')} className="text-[10px] text-gray-400 font-bold">{'\u2715'} Cancel</button></div>
-            <Input label="Name *" value={pf.name} onChange={v => setPf({ ...pf, name: v })} placeholder="e.g. Bhringraj Hair Oil" />
-            <Input label="Description *" value={pf.description} onChange={v => setPf({ ...pf, description: v })} multiline placeholder="Product description..." />
-            <div className="grid grid-cols-3 gap-2">
-              <div><label className="text-[10px] font-bold text-gray-500">Price *</label><input type="number" value={pf.price || ''} onChange={e => setPf({ ...pf, price: +e.target.value })} className="w-full mt-1 px-2 py-2 border border-gray-200 rounded-xl text-xs" /></div>
-              <div><label className="text-[10px] font-bold text-gray-500">Offer Price</label><input type="number" value={pf.discountPrice || ''} onChange={e => setPf({ ...pf, discountPrice: +e.target.value })} className="w-full mt-1 px-2 py-2 border border-gray-200 rounded-xl text-xs" /></div>
-              <div><label className="text-[10px] font-bold text-gray-500">Size</label><input value={pf.size} onChange={e => setPf({ ...pf, size: e.target.value })} className="w-full mt-1 px-2 py-2 border border-gray-200 rounded-xl text-xs" placeholder="200ml" /></div>
-            </div>
-            <Input label="Emoji" value={pf.emoji} onChange={v => setPf({ ...pf, emoji: v })} placeholder="\u{1F33F}" />
-            <Input label="Ingredients (one per line)" value={pf.ingredients} onChange={v => setPf({ ...pf, ingredients: v })} multiline placeholder="Bhringraj\nAmla\nCoconut Oil" />
-            <Input label="Benefits (one per line)" value={pf.benefits} onChange={v => setPf({ ...pf, benefits: v })} multiline placeholder="Reduces hairfall\nPromotes growth" />
-            <Input label="How to Use" value={pf.howToUse} onChange={v => setPf({ ...pf, howToUse: v })} multiline placeholder="Application instructions..." />
-            <Input label="Doctor's Note" value={pf.doctorNote} onChange={v => setPf({ ...pf, doctorNote: v })} multiline placeholder="Personal recommendation..." />
-            <div><label className="text-[10px] font-bold text-gray-500 uppercase">Category</label>
-              <div className="flex flex-wrap gap-1.5 mt-1">{(Object.entries(catLabels) as [ProductCategory, string][]).map(([k, v]) => (<button key={k} onClick={() => setPf({ ...pf, category: k })} className={'px-2.5 py-1.5 rounded-full text-[10px] font-bold ' + (pf.category === k ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500')}>{v}</button>))}</div>
-            </div>
-            <div><label className="text-[10px] font-bold text-gray-500 uppercase">Show to</label>
-              <div className="flex flex-wrap gap-1.5 mt-1">{(Object.entries(targetLabels) as [TargetAudience, string][]).map(([k, v]) => (<button key={k} onClick={() => setPf({ ...pf, target: toggleTarget(pf.target, k) })} className={'px-2.5 py-1.5 rounded-full text-[10px] font-bold ' + (pf.target.includes(k) ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500')}>{v}</button>))}</div>
-            </div>
-            <button onClick={saveProduct} className="w-full py-3.5 rounded-2xl text-white font-bold text-sm active:scale-95" style={{ background: 'linear-gradient(135deg, #059669, #10B981)' }}>Add Product (as Draft)</button>
+        {/* ADD ARTICLE */}
+        {tab === 'add_article' && (<>
+          <div className="flex items-center gap-2 mb-1"><button onClick={() => setTab('articles')} className="text-gray-400 text-sm">{'\u2190'}</button><h3 className="text-sm font-extrabold">Write Article</h3></div>
+          <Field label="Title *" value={na.title} onChange={v => setNa({...na, title: v})} placeholder="Understanding PCOD..." />
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Category" value={na.category} onChange={v => setNa({...na, category: v})} placeholder="PCOD, Wellness..." />
+            <Field label="Read Time" value={na.readTime} onChange={v => setNa({...na, readTime: v})} placeholder="5 min" />
           </div>
-        )}
+          <Field label="Content *" value={na.content} onChange={v => setNa({...na, content: v})} placeholder="Write your article..." multiline />
+          <TargetPicker value={na.targetAudience} onChange={v => setNa({...na, targetAudience: v})} />
+          <button onClick={handleAddArticle} className="w-full py-3 rounded-2xl text-white font-bold text-sm active:scale-95" style={{background:'linear-gradient(135deg,#2563EB,#3B82F6)'}}>Save as Draft</button>
+        </>)}
 
-        {/* ═══ ADD ARTICLE FORM ═══ */}
-        {tab === 'addArticle' && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between"><h3 className="text-sm font-extrabold text-gray-900">{'\u{1F4DD}'} New Article</h3><button onClick={() => setTab('articles')} className="text-[10px] text-gray-400 font-bold">{'\u2715'} Cancel</button></div>
-            <Input label="Title *" value={af.title} onChange={v => setAf({ ...af, title: v })} placeholder="Article title..." />
-            <Input label="Summary" value={af.summary} onChange={v => setAf({ ...af, summary: v })} multiline placeholder="Brief summary for card..." />
-            <Input label="Full Content *" value={af.content} onChange={v => setAf({ ...af, content: v })} multiline placeholder="Write your article here... Use \u2022 for bullet points" />
-            <Input label="Emoji" value={af.emoji} onChange={v => setAf({ ...af, emoji: v })} placeholder="\u{1F4DD}" />
-            <Input label="Read Time" value={af.readTime} onChange={v => setAf({ ...af, readTime: v })} placeholder="5 min" />
-            <div><label className="text-[10px] font-bold text-gray-500 uppercase">Category</label>
-              <div className="flex flex-wrap gap-1.5 mt-1">{artCats.map(c => (<button key={c} onClick={() => setAf({ ...af, category: c })} className={'px-2.5 py-1.5 rounded-full text-[10px] font-bold ' + (af.category === c ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500')}>{c}</button>))}</div>
-            </div>
-            <div><label className="text-[10px] font-bold text-gray-500 uppercase">Show to</label>
-              <div className="flex flex-wrap gap-1.5 mt-1">{(Object.entries(targetLabels) as [TargetAudience, string][]).map(([k, v]) => (<button key={k} onClick={() => setAf({ ...af, target: toggleTarget(af.target, k) })} className={'px-2.5 py-1.5 rounded-full text-[10px] font-bold ' + (af.target.includes(k) ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500')}>{v}</button>))}</div>
-            </div>
-            <button onClick={saveArticle} className="w-full py-3.5 rounded-2xl text-white font-bold text-sm active:scale-95" style={{ background: 'linear-gradient(135deg, #2563EB, #3B82F6)' }}>Publish Article (as Draft)</button>
-          </div>
-        )}
+        {/* ADD DOCTOR */}
+        {tab === 'add_doctor' && (<>
+          <div className="flex items-center gap-2 mb-1"><button onClick={() => setTab('doctors')} className="text-gray-400 text-sm">{'\u2190'}</button><h3 className="text-sm font-extrabold">Add Doctor</h3></div>
+          <Field label="Full Name *" value={nd.name} onChange={v => setNd({...nd, name: v})} placeholder="Dr. Priya Sharma" />
+          <Field label="Specialization" value={nd.specialization} onChange={v => setNd({...nd, specialization: v})} placeholder="Gynecologist" />
+          <Field label="Qualification" value={nd.qualification} onChange={v => setNd({...nd, qualification: v})} placeholder="MBBS, MS" />
+          <div className="grid grid-cols-2 gap-2"><NumField label="Experience (yrs)" value={nd.experience} onChange={v => setNd({...nd, experience: v})} /><NumField label="Fee" value={nd.fee} onChange={v => setNd({...nd, fee: v})} /></div>
+          <Field label="Tags (comma-sep)" value={nd.tags} onChange={v => setNd({...nd, tags: v})} placeholder="PCOD, IVF..." />
+          <Field label="Languages (comma-sep)" value={nd.languages} onChange={v => setNd({...nd, languages: v})} placeholder="English, Hindi..." />
+          <Field label="About" value={nd.about} onChange={v => setNd({...nd, about: v})} placeholder="Brief description..." multiline />
+          <button onClick={handleAddDoctor} className="w-full py-3 rounded-2xl text-white font-bold text-sm active:scale-95" style={{background:'linear-gradient(135deg,#7C3AED,#8B5CF6)'}}>Add Doctor</button>
+        </>)}
 
-        {/* ═══ ADD DOCTOR FORM ═══ */}
-        {tab === 'addDoctor' && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between"><h3 className="text-sm font-extrabold text-gray-900">{'\u{1F469}\u200D\u2695\uFE0F'} New Doctor</h3><button onClick={() => setTab('doctors')} className="text-[10px] text-gray-400 font-bold">{'\u2715'} Cancel</button></div>
-            <Input label="Full Name *" value={df.name} onChange={v => setDf({ ...df, name: v })} placeholder="Dr. Full Name" />
-            <Input label="Title" value={df.title} onChange={v => setDf({ ...df, title: v })} placeholder="Senior Gynecologist" />
-            <Input label="Qualification *" value={df.qualification} onChange={v => setDf({ ...df, qualification: v })} placeholder="MBBS, MD (OB-GYN)" />
-            <Input label="Experience" value={df.experience} onChange={v => setDf({ ...df, experience: v })} placeholder="10+ years" />
-            <Input label="Specializations (comma-separated)" value={df.specialization} onChange={v => setDf({ ...df, specialization: v })} placeholder="PCOD, Fertility, Pregnancy" />
-            <Input label="About" value={df.about} onChange={v => setDf({ ...df, about: v })} multiline placeholder="Doctor's bio..." />
-            <Input label="Consultation Fee" value={df.consultationFee} onChange={v => setDf({ ...df, consultationFee: v })} placeholder="\u20B9500" />
-            <Input label="Languages (comma-separated)" value={df.languages} onChange={v => setDf({ ...df, languages: v })} placeholder="English, Hindi" />
-            <button onClick={saveDoctor} className="w-full py-3.5 rounded-2xl text-white font-bold text-sm active:scale-95" style={{ background: 'linear-gradient(135deg, #7C3AED, #8B5CF6)' }}>Add Doctor (as Draft)</button>
+        {/* SECURITY SETTINGS */}
+        {tab === 'settings' && (<>
+          <h3 className="text-sm font-extrabold">{'\u{1F512}'} Security Settings</h3>
+          <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+            <h4 className="text-xs font-bold text-gray-700">Change Password</h4>
+            <div className="relative">
+              <input type="password" value={oldPin} onChange={e => setOldPin(e.target.value)} placeholder="Current password"
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-xs focus:border-slate-400 focus:outline-none" />
+            </div>
+            <div className="relative">
+              <input type="password" value={newPin} onChange={e => setNewPin(e.target.value)} placeholder="New password (min 8 characters)"
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-xs focus:border-slate-400 focus:outline-none" />
+            </div>
+            {newPin && newPin.length < 8 && <p className="text-[9px] text-red-500">Password must be at least 8 characters</p>}
+            <button onClick={() => {
+              if (changePin(oldPin, newPin)) { toast.success('Password changed!'); setOldPin(''); setNewPin(''); }
+              else toast.error('Wrong current password or new one too short');
+            }} className="w-full py-2.5 rounded-xl bg-slate-800 text-white font-bold text-xs active:scale-95">Update Password</button>
           </div>
-        )}
+          <div className="bg-red-50 rounded-2xl p-4 border border-red-100">
+            <h4 className="text-xs font-bold text-red-700">{'\u26A0\uFE0F'} Security Notice</h4>
+            <p className="text-[10px] text-red-600 mt-1">Default password: <strong>SheBloom@2024#Admin</strong></p>
+            <p className="text-[10px] text-red-600">Change it immediately after first login. Never share with untrusted people.</p>
+          </div>
+          <div className="bg-slate-50 rounded-2xl p-4">
+            <h4 className="text-xs font-bold text-slate-700">How to Access Admin</h4>
+            <p className="text-[10px] text-slate-600 mt-1">Go to Profile {'\u2192'} scroll to bottom {'\u2192'} tap "SheBloom v1.0.0" five times {'\u2192'} enter password. Only people who know this method can access admin.</p>
+          </div>
+        </>)}
       </div>
 
-      {/* Delete Confirm */}
+      {/* Delete confirmation */}
       {confirmDel && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-6" onClick={() => setConfirmDel(null)}>
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-6" onClick={() => setConfirmDel(null)}>
           <div className="bg-white rounded-2xl p-5 text-center max-w-xs" onClick={e => e.stopPropagation()}>
             <span className="text-3xl">{'\u26A0\uFE0F'}</span>
             <h3 className="text-sm font-extrabold mt-2">Delete {confirmDel.type}?</h3>
-            <p className="text-xs text-gray-500 mt-1">This cannot be undone.</p>
+            <p className="text-[10px] text-gray-500 mt-1">This action cannot be undone.</p>
             <div className="flex gap-2 mt-4">
-              <button onClick={() => setConfirmDel(null)} className="flex-1 py-2.5 bg-gray-100 rounded-xl text-xs font-bold">Cancel</button>
-              <button onClick={doDelete} className="flex-1 py-2.5 bg-red-500 rounded-xl text-xs font-bold text-white">Delete</button>
+              <button onClick={() => setConfirmDel(null)} className="flex-1 py-2.5 bg-gray-100 rounded-xl text-xs font-bold text-gray-600">Cancel</button>
+              <button onClick={() => {
+                if (confirmDel.type === 'product') deleteProduct(confirmDel.id);
+                if (confirmDel.type === 'article') deleteArticle(confirmDel.id);
+                if (confirmDel.type === 'doctor') deleteDoctor(confirmDel.id);
+                setConfirmDel(null); toast.success('Deleted');
+              }} className="flex-1 py-2.5 bg-red-500 rounded-xl text-xs font-bold text-white">Delete</button>
             </div>
           </div>
         </div>

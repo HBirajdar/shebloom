@@ -1,11 +1,11 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCMSStore } from '../stores/cmsStore';
+import { useAyurvedaStore } from '../stores/ayurvedaStore';
 import { useCycleStore } from '../stores/cycleStore';
 
 export default function ArticlesPage() {
   const nav = useNavigate();
-  const { articles, doctors } = useCMSStore();
+  const { articles, doctors } = useAyurvedaStore();
   const { goal } = useCycleStore();
   const [cat, setCat] = useState('All');
   const [selArticle, setSelArticle] = useState<any>(null);

@@ -16,9 +16,6 @@ const sections = [
     { i: '\u{1F4CB}', l: 'Health Records', action: 'records' },
     { i: '\u{1F512}', l: 'Privacy', action: 'privacy' },
   ]},
-  { title: 'Admin', items: [
-    { i: '\u{1F6E1}\uFE0F', l: 'Admin Panel', action: 'admin' },
-  ]},
   { title: 'Support', items: [
     { i: '\u2753', l: 'Help Center', action: 'help' },
     { i: '\u2B50', l: 'Rate Us', action: 'rate' },
@@ -37,6 +34,17 @@ export default function ProfilePage() {
   const [dob, setDob] = useState('');
   const [saving, setSaving] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
+  const [secretTaps, setSecretTaps] = useState(0);
+  const [showAdminHint, setShowAdminHint] = useState(false);
+
+  const handleSecretTap = () => {
+    const next = secretTaps + 1;
+    setSecretTaps(next);
+    if (next >= 5) {
+      setShowAdminHint(true);
+      setSecretTaps(0);
+    }
+  };
 
   const logout = () => { clear(); nav('/auth'); };
 
@@ -121,7 +129,30 @@ export default function ProfilePage() {
         <button onClick={() => setShowLogout(true)} className="w-full py-4 bg-white border-2 border-rose-200 text-rose-600 rounded-2xl font-bold text-sm active:scale-95 transition-transform">
           Sign Out
         </button>
+
+        {/* Secret admin access - tap version 5 times */}
+        <div className="text-center py-4">
+          <button onClick={handleSecretTap} className="text-[10px] text-gray-300 select-none">
+            SheBloom v1.0.0
+          </button>
+          {secretTaps > 0 && secretTaps < 5 && <p className="text-[8px] text-gray-200 mt-0.5">{5 - secretTaps} more</p>}
+        </div>
       </div>
+
+      {/* Admin access popup - only shows after 5 secret taps */}
+      {showAdminHint && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-6" onClick={() => setShowAdminHint(false)}>
+          <div className="bg-white w-full max-w-[340px] rounded-3xl p-6 text-center" onClick={e => e.stopPropagation()}>
+            <p className="text-4xl mb-3">{'\u{1F6E1}\uFE0F'}</p>
+            <h3 className="text-lg font-bold text-gray-900">Admin Access</h3>
+            <p className="text-xs text-gray-500 mt-1">Enter admin panel? You will need your password.</p>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setShowAdminHint(false)} className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-semibold text-sm">Cancel</button>
+              <button onClick={() => { setShowAdminHint(false); nav('/admin'); }} className="flex-1 py-3 bg-emerald-500 text-white rounded-xl font-semibold text-sm active:scale-95">Enter</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Profile Modal */}
       {showEdit && (
