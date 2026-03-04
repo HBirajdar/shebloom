@@ -126,12 +126,6 @@ export default function DashboardPage() {
     cycleAPI.predict().then(r => { if (r.data.data?.cycleDay) set(r.data.data); }).catch(() => {});
   }, []);
 
-  useEffect(() => {
-    if (tab === 'wellness') { nav('/wellness'); setTab('home'); }
-    if (tab === 'articles') { nav('/articles'); setTab('home'); }
-    if (tab === 'profile') { nav('/profile'); setTab('home'); }
-  }, [tab]);
-
   const logMood = (key: string) => {
     setMood(key);
     moodAPI.log({ mood: key }).then(() => toast.success('Mood logged!')).catch(() => {});
@@ -320,6 +314,23 @@ export default function DashboardPage() {
           ))}
         </div>
 
+        {/* Quick Actions - Row 2 (New Features) */}
+        <div className="grid grid-cols-4 gap-2.5">
+          {[
+            { l: 'Community', p: '/community', bg: '#FDF2F8', e: '\u{1F4AC}', c: '#DB2777' },
+            { l: 'Programs', p: '/programs', bg: '#F5F3FF', e: '\u{1F3AF}', c: '#7C3AED' },
+            { l: 'Self Care', p: '/selfcare', bg: '#FEF3C7', e: '\u{1F9D8}', c: '#D97706' },
+            { l: 'Articles', p: '/articles', bg: '#FFF7ED', e: '\u{1F4F0}', c: '#EA580C' },
+          ].map(a => (
+            <button key={a.l} onClick={() => nav(a.p)} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-sm" style={{ backgroundColor: a.bg }}>
+                {a.e}
+              </div>
+              <span className="text-[10px] font-bold" style={{ color: a.c }}>{a.l}</span>
+            </button>
+          ))}
+        </div>
+
         {/* ─── Insights Card (Goal-Specific) ─── */}
         {goal === 'fertility' && isFertile && (
           <div className="bg-gradient-to-r from-purple-600 to-pink-500 rounded-2xl p-4 text-white relative overflow-hidden">
@@ -436,18 +447,19 @@ export default function DashboardPage() {
       )}
 
       {/* ─── Bottom Nav ─── */}
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white/95 backdrop-blur-lg border-t border-gray-100 px-2 py-2 flex justify-around z-30">
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white/95 backdrop-blur-lg border-t border-gray-100 px-1 py-1.5 flex justify-around z-30">
         {[
-          { id: 'home', e: '\u{1F3E0}', l: 'Home' },
-          { id: 'wellness', e: '\u{1F33F}', l: 'Wellness' },
-          { id: 'articles', e: '\u{1F4F0}', l: 'Articles' },
-          { id: 'profile', e: '\u{1F464}', l: 'Profile' },
+          { id: 'home', e: '\u{1F3E0}', l: 'Home', p: '' },
+          { id: 'community', e: '\u{1F4AC}', l: 'Community', p: '/community' },
+          { id: 'programs', e: '\u{1F3AF}', l: 'Programs', p: '/programs' },
+          { id: 'selfcare', e: '\u{1F9D8}', l: 'Self Care', p: '/selfcare' },
+          { id: 'profile', e: '\u{1F464}', l: 'Profile', p: '/profile' },
         ].map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={'flex flex-col items-center gap-0.5 px-4 py-1 rounded-xl transition-all ' + (tab === t.id ? '' : 'text-gray-400')}
+          <button key={t.id} onClick={() => { if (t.p) nav(t.p); else setTab('home'); }}
+            className={'flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition-all ' + (tab === t.id ? '' : 'text-gray-400')}
             style={tab === t.id ? { color: theme.color } : {}}>
-            <span className="text-xl">{t.e}</span>
-            <span className="text-[9px] font-bold">{t.l}</span>
+            <span className="text-lg">{t.e}</span>
+            <span className="text-[8px] font-bold">{t.l}</span>
           </button>
         ))}
       </div>
