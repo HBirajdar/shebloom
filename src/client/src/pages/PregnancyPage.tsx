@@ -5,18 +5,18 @@ import { useNavigate } from 'react-router-dom';
 const weekData: Record<number, { size: string; emoji: string; len: string; wt: string; tri: number; baby: string[]; mom: string[]; tips: string[]; nutrition: string[]; exercise: string[] }> = {
   4: { size: 'Poppy Seed', emoji: '\u{1F33E}', len: '0.1 cm', wt: '<1g', tri: 1,
     baby: ['Embryo implants in uterus wall', 'Neural tube beginning to form', 'Tiny heart starts to develop', 'Amniotic sac forming around embryo'],
-    mom: ['Missed period \u2014 first sign!', 'Fatigue and breast tenderness', 'Possible light spotting (implantation)', 'Heightened sense of smell'],
+    mom: ['Missed period — first sign!', 'Fatigue and breast tenderness', 'Possible light spotting (implantation)', 'Heightened sense of smell'],
     tips: ['Start prenatal vitamins with 400\u00B5g folic acid', 'Avoid alcohol, smoking & raw fish', 'Schedule your first prenatal appointment', 'Begin tracking symptoms in a journal'],
-    nutrition: ['Folic acid (leafy greens, fortified cereals)', 'Iron (red meat, spinach, lentils)', 'Stay hydrated \u2014 8\u201310 glasses/day', 'Small frequent meals if nauseated'],
-    exercise: ['Walking 20\u201330 min daily', 'Gentle yoga & stretching', 'Avoid contact sports', 'Listen to your body \u2014 rest when tired'] },
+    nutrition: ['Folic acid (leafy greens, fortified cereals)', 'Iron (red meat, spinach, lentils)', 'Stay hydrated — 8–10 glasses/day', 'Small frequent meals if nauseated'],
+    exercise: ['Walking 20–30 min daily', 'Gentle yoga & stretching', 'Avoid contact sports', 'Listen to your body — rest when tired'] },
   8: { size: 'Raspberry', emoji: '\u{1FAD0}', len: '1.6 cm', wt: '1g', tri: 1,
-    baby: ['All major organs forming', 'Tiny fingers and toes appear', 'Heart beats at 150\u2013170 BPM', 'Eyelids starting to fuse shut'],
+    baby: ['All major organs forming', 'Tiny fingers and toes appear', 'Heart beats at 150–170 BPM', 'Eyelids starting to fuse shut'],
     mom: ['Morning sickness at its peak', 'Frequent urination begins', 'Breast size increasing', 'Extreme fatigue is normal'],
-    tips: ['Eat small meals every 2\u20133 hours', 'Ginger tea helps with nausea', 'Get 8\u20139 hours of sleep', 'First ultrasound may happen now'],
+    tips: ['Eat small meals every 2–3 hours', 'Ginger tea helps with nausea', 'Get 8–9 hours of sleep', 'First ultrasound may happen now'],
     nutrition: ['Vitamin B6 helps nausea (bananas, nuts)', 'Protein at every meal', 'Avoid unpasteurized dairy', 'Calcium-rich foods (yogurt, cheese)'],
-    exercise: ['Prenatal swimming', 'Light pilates', 'Kegel exercises \u2014 start now!', 'Avoid lying flat on your back'] },
+    exercise: ['Prenatal swimming', 'Light pilates', 'Kegel exercises — start now!', 'Avoid lying flat on your back'] },
   12: { size: 'Lime', emoji: '\u{1F34B}', len: '5.4 cm', wt: '14g', tri: 1,
-    baby: ['Reflexes developing \u2014 can kick!', 'Fingernails and toenails growing', 'Vocal cords beginning to form', 'Kidneys start producing urine'],
+    baby: ['Reflexes developing — can kick!', 'Fingernails and toenails growing', 'Vocal cords beginning to form', 'Kidneys start producing urine'],
     mom: ['Nausea often starts improving', 'Energy returning gradually', 'Slight baby bump may show', 'Skin may glow or break out'],
     tips: ['First trimester screening (NT scan)', 'Share news with close family', 'Start moisturizing belly daily', 'Begin researching birthing classes'],
     nutrition: ['Omega-3 fatty acids (salmon, walnuts)', 'Fiber-rich foods prevent constipation', 'Vitamin D (sunlight, fortified milk)', 'Limit caffeine to 200mg/day'],
@@ -24,12 +24,12 @@ const weekData: Record<number, { size: string; emoji: string; len: string; wt: s
   16: { size: 'Avocado', emoji: '\u{1F951}', len: '11.6 cm', wt: '100g', tri: 2,
     baby: ['Can make facial expressions!', 'Bones hardening (ossifying)', 'Can hear your heartbeat', 'Eyebrows and eyelashes growing'],
     mom: ['Baby bump clearly visible', 'May feel first flutters ("quickening")', 'Round ligament pain possible', 'Nasal congestion is common'],
-    tips: ['Schedule anomaly scan (18\u201320 weeks)', 'Start sleeping on your left side', 'Plan a babymoon trip', 'Begin thinking about baby names'],
+    tips: ['Schedule anomaly scan (18–20 weeks)', 'Start sleeping on your left side', 'Plan a babymoon trip', 'Begin thinking about baby names'],
     nutrition: ['Increase protein intake to 75g/day', 'Calcium: 1000mg/day (dairy, tofu)', 'Vitamin C (oranges, bell peppers)', 'Iron supplements if prescribed'],
-    exercise: ['Swimming is excellent now', 'Prenatal dance classes', 'Walking 30\u201345 min daily', 'Avoid high-altitude exercise'] },
+    exercise: ['Swimming is excellent now', 'Prenatal dance classes', 'Walking 30–45 min daily', 'Avoid high-altitude exercise'] },
   20: { size: 'Banana', emoji: '\u{1F34C}', len: '16.5 cm', wt: '300g', tri: 2,
     baby: ['Developing sleep/wake cycles', 'Can swallow amniotic fluid', 'Vernix (waxy coating) on skin', 'Gender visible on ultrasound'],
-    mom: ['Regular kicks felt daily', 'Skin stretching \u2014 possible itching', 'Linea nigra may appear', 'Hair and nails growing faster'],
+    mom: ['Regular kicks felt daily', 'Skin stretching — possible itching', 'Linea nigra may appear', 'Hair and nails growing faster'],
     tips: ['HALFWAY THERE! Celebrate! \u{1F389}', 'Anatomy scan this week', 'Start a kick count journal', 'Research childbirth education classes'],
     nutrition: ['DHA supplement for brain development', 'Zinc (pumpkin seeds, chickpeas)', 'Magnesium (dark chocolate, avocado)', 'Drink 3 liters of water daily'],
     exercise: ['Aqua aerobics', 'Modified yoga poses', 'Gentle back stretches', 'Avoid exercises lying flat on back'] },
@@ -53,14 +53,14 @@ const weekData: Record<number, { size: string; emoji: string; len: string; wt: s
     exercise: ['Squats for labor preparation', 'Cat-cow stretches', 'Ankle circles for swelling', 'Visualization & meditation'] },
   36: { size: 'Honeydew', emoji: '\u{1F348}', len: '47 cm', wt: '2.6 kg', tri: 3,
     baby: ['Head may engage in pelvis', 'Lungs nearly mature', 'Fat layer developing', 'Gaining 30g every day'],
-    mom: ['Increased pelvic pressure', 'Lightning crotch pain', '"Dropping" \u2014 baby moves lower', 'Cervix may start softening'],
+    mom: ['Increased pelvic pressure', 'Lightning crotch pain', '"Dropping" — baby moves lower', 'Cervix may start softening'],
     tips: ['Hospital bag should be packed', 'Know the signs of labor', 'Group B strep test this week', 'Rest as much as possible'],
     nutrition: ['Energy-boosting snacks for labor', 'Continue prenatal vitamins', 'Hydration is critical', 'Complex carbs for sustained energy'],
     exercise: ['Walking to encourage engagement', 'Hip circles on birthing ball', 'Relaxation exercises', 'Partner massage techniques'] },
   40: { size: 'Watermelon', emoji: '\u{1F349}', len: '51 cm', wt: '3.4 kg', tri: 3,
     baby: ['Fully developed!', 'Lungs ready for first breath', 'Immune system boosted by antibodies', 'Average 51cm long, 3.4kg'],
     mom: ['Cervix dilating', 'Mucus plug may pass', 'Extreme nesting urge', 'Contractions may begin anytime'],
-    tips: ['Baby can arrive any day!', 'Time contractions (5-1-1 rule)', 'Stay calm \u2014 you are ready', 'Call doctor when water breaks'],
+    tips: ['Baby can arrive any day!', 'Time contractions (5-1-1 rule)', 'Stay calm — you are ready', 'Call doctor when water breaks'],
     nutrition: ['Light, easily digestible meals', 'Energy bars for early labor', 'Coconut water for electrolytes', 'Honey for quick energy'],
     exercise: ['Walking to induce labor naturally', 'Nipple stimulation (with doctor OK)', 'Stair climbing', 'Gentle bouncing on birth ball'] },
 };
@@ -243,12 +243,12 @@ export default function PregnancyPage() {
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4">
           <h3 className="text-sm font-bold text-blue-800 mb-2">{'\u{1F4C5}'} Key Appointments</h3>
           <div className="space-y-2 text-xs text-blue-700">
-            {week < 12 && <p>{'\u2022'} First prenatal visit & dating scan (8\u201312 weeks)</p>}
-            {week < 14 && <p>{'\u2022'} First trimester screening / NT scan (11\u201314 weeks)</p>}
-            {week >= 12 && week < 22 && <p>{'\u2022'} Anatomy scan / anomaly ultrasound (18\u201322 weeks)</p>}
-            {week >= 20 && week < 28 && <p>{'\u2022'} Glucose tolerance test (24\u201328 weeks)</p>}
+            {week < 12 && <p>{'\u2022'} First prenatal visit & dating scan (8–12 weeks)</p>}
+            {week < 14 && <p>{'\u2022'} First trimester screening / NT scan (11–14 weeks)</p>}
+            {week >= 12 && week < 22 && <p>{'\u2022'} Anatomy scan / anomaly ultrasound (18–22 weeks)</p>}
+            {week >= 20 && week < 28 && <p>{'\u2022'} Glucose tolerance test (24–28 weeks)</p>}
             {week >= 28 && week < 36 && <p>{'\u2022'} Bi-weekly checkups + growth scan</p>}
-            {week >= 35 && week < 38 && <p>{'\u2022'} Group B Streptococcus test (35\u201337 weeks)</p>}
+            {week >= 35 && week < 38 && <p>{'\u2022'} Group B Streptococcus test (35–37 weeks)</p>}
             {week >= 36 && <p>{'\u2022'} Weekly checkups until delivery</p>}
             <button onClick={() => nav('/doctors')} className="text-blue-600 font-bold underline mt-1 block">Find a Doctor {'\u2192'}</button>
           </div>
@@ -260,7 +260,7 @@ export default function PregnancyPage() {
           <div className="text-xs text-red-600 space-y-1.5">
             <p>{'\u2022'} Heavy bleeding or fluid leaking</p>
             <p>{'\u2022'} Severe abdominal pain / cramping</p>
-            <p>{'\u2022'} High fever (above 100.4\u00B0F / 38\u00B0C)</p>
+            <p>{'\u2022'} High fever (above 100.4°F / 38°C)</p>
             <p>{'\u2022'} Severe headache or vision changes</p>
             {week >= 28 && <p>{'\u2022'} Baby not moving for 2+ hours</p>}
             {week >= 37 && <p>{'\u2022'} Regular contractions before 37 weeks</p>}

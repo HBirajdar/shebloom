@@ -25,7 +25,7 @@ export default function AdminPage() {
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [passError, setPassError] = useState('');
-  const [tab, setTab] = useState<'overview' | 'products' | 'articles' | 'doctors' | 'add_product' | 'add_article' | 'add_doctor' | 'settings'>('overview');
+  const [tab, setTab] = useState<'overview' | 'products' | 'articles' | 'doctors' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'settings'>('overview');
   const [confirmDel, setConfirmDel] = useState<{ id: string; type: string } | null>(null);
 
   // Form states
@@ -149,6 +149,7 @@ export default function AdminPage() {
     { id: 'products', icon: '\u{1F4E6}', label: 'Products' },
     { id: 'articles', icon: '\u{1F4DD}', label: 'Articles' },
     { id: 'doctors', icon: '\u{1F469}\u200D\u2695\uFE0F', label: 'Doctors' },
+    { id: 'callbacks', icon: '\u{1F4DE}', label: 'Callbacks' },
     { id: 'settings', icon: '\u2699\uFE0F', label: 'Security' },
   ];
 
@@ -217,7 +218,7 @@ export default function AdminPage() {
               { l: 'Products', v: products.length, p: pubProducts, c: '#059669', bg: '#ECFDF5' },
               { l: 'Articles', v: articles.length, p: pubArticles, c: '#2563EB', bg: '#EFF6FF' },
               { l: 'Doctors', v: doctors.length, p: pubDoctors, c: '#7C3AED', bg: '#F5F3FF' },
-              { l: 'Recipes', v: recipes.length, p: recipes.filter(r => r.isPublished).length, c: '#D97706', bg: '#FFFBEB' },
+              { l: 'Callbacks', v: (JSON.parse(localStorage.getItem('sb_callbacks') || '[]')).length, p: (JSON.parse(localStorage.getItem('sb_callbacks') || '[]')).filter((c: any) => c.status === 'pending').length, c: '#EA580C', bg: '#FFF7ED' },
             ].map(s => (
               <div key={s.l} className="rounded-2xl p-4" style={{ backgroundColor: s.bg }}>
                 <p className="text-[10px] font-bold uppercase" style={{ color: s.c }}>{s.l}</p>
@@ -285,7 +286,7 @@ export default function AdminPage() {
                   <div className="flex items-center gap-1 mt-0.5">
                     <span className={'text-[7px] font-bold px-1.5 py-0.5 rounded-full ' + (a.isPublished ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600')}>{a.isPublished ? '\u2713 LIVE' : 'DRAFT'}</span>
                     {a.isFeatured && <span className="text-[7px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{'\u2605'}</span>}
-                    <span className="text-[7px] text-gray-400">{a.category} \u2022 {a.readTime}</span>
+                    <span className="text-[7px] text-gray-400">{a.category} • {a.readTime}</span>
                   </div>
                 </div>
               </div>
@@ -368,7 +369,58 @@ export default function AdminPage() {
           <button onClick={handleAddDoctor} className="w-full py-3 rounded-2xl text-white font-bold text-sm active:scale-95" style={{background:'linear-gradient(135deg,#7C3AED,#8B5CF6)'}}>Add Doctor</button>
         </>)}
 
-        {/* SECURITY SETTINGS */}
+        {/* CALLBACKS */}
+        {tab === 'callbacks' && (() => {
+          const cbs = JSON.parse(localStorage.getItem('sb_callbacks') || '[]') as any[];
+          const pending = cbs.filter((c: any) => c.status === 'pending');
+          const handled = cbs.filter((c: any) => c.status !== 'pending');
+          const markDone = (id: string) => {
+            const updated = cbs.map((c: any) => c.id === id ? { ...c, status: 'done' } : c);
+            localStorage.setItem('sb_callbacks', JSON.stringify(updated));
+            toast.success('Marked as done');
+            // Force re-render
+            setTab('overview'); setTimeout(() => setTab('callbacks'), 50);
+          };
+          return (<>
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-extrabold">{'\u{1F4DE}'} Callback Requests</h3>
+              <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-full">{pending.length} pending</span>
+            </div>
+            {pending.length === 0 && handled.length === 0 && (
+              <div className="text-center py-10"><span className="text-4xl">{'\u{1F4ED}'}</span><p className="text-sm text-gray-400 mt-2">No callback requests yet</p></div>
+            )}
+            {pending.map((c: any) => (
+              <div key={c.id} className="bg-white rounded-2xl p-4 shadow-sm border-l-4 border-orange-400">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-extrabold text-gray-900">{c.userName}</p>
+                    <a href={'tel:' + c.userPhone} className="text-xs font-bold text-emerald-600 underline">{'\u{1F4F1}'} {c.userPhone}</a>
+                  </div>
+                  <span className="text-[8px] font-bold bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">PENDING</span>
+                </div>
+                {c.productName && <p className="text-[10px] text-gray-500 mt-1">{'\u{1F4E6}'} Product: <strong>{c.productName}</strong></p>}
+                {c.message && <p className="text-[10px] text-gray-600 mt-1 bg-gray-50 rounded-lg p-2 italic">"{c.message}"</p>}
+                <p className="text-[9px] text-gray-400 mt-1">{new Date(c.timestamp).toLocaleString()}</p>
+                <div className="flex gap-2 mt-3">
+                  <a href={'tel:' + c.userPhone} className="flex-1 py-2 rounded-xl bg-emerald-500 text-white text-xs font-bold text-center active:scale-95">{'\u{1F4DE}'} Call Now</a>
+                  <button onClick={() => markDone(c.id)} className="flex-1 py-2 rounded-xl bg-gray-100 text-gray-600 text-xs font-bold active:scale-95">{'\u2713'} Mark Done</button>
+                </div>
+              </div>
+            ))}
+            {handled.length > 0 && (<>
+              <h4 className="text-xs font-bold text-gray-400 uppercase mt-4">Completed ({handled.length})</h4>
+              {handled.map((c: any) => (
+                <div key={c.id} className="bg-gray-50 rounded-2xl p-3 opacity-60">
+                  <p className="text-xs font-bold text-gray-700">{c.userName} — {c.userPhone}</p>
+                  {c.productName && <p className="text-[9px] text-gray-500">{c.productName}</p>}
+                  <p className="text-[8px] text-gray-400">{new Date(c.timestamp).toLocaleString()}</p>
+                </div>
+              ))}
+            </>)}
+          </>);
+        })()}
+
+        {/* SECURITY SETTINGS (real) */}
         {tab === 'settings' && (<>
           <h3 className="text-sm font-extrabold">{'\u{1F512}'} Security Settings</h3>
           <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">

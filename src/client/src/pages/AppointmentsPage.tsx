@@ -95,7 +95,7 @@ export default function AppointmentsPage() {
                       <p className="text-sm font-extrabold text-gray-800">{chief.name}</p>
                       <span className="text-[7px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">{'\u{1F451}'} CHIEF</span>
                     </div>
-                    <p className="text-[10px] text-gray-500">{chief.specialization} \u2022 {chief.experience} yrs</p>
+                    <p className="text-[10px] text-gray-500">{chief.specialization} • {chief.experience} yrs</p>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-[10px] text-amber-500 font-bold">{'\u2605'} {chief.rating}</span>
                       <span className="text-[10px] text-emerald-600 font-bold">{'\u20B9'}{chief.fee}</span>
@@ -112,7 +112,7 @@ export default function AppointmentsPage() {
                   <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold text-sm">{d.name.charAt(0)}</div>
                   <div className="flex-1">
                     <p className="text-xs font-bold text-gray-800">{d.name}</p>
-                    <p className="text-[10px] text-gray-500">{d.specialization} \u2022 {d.experience} yrs \u2022 {'\u20B9'}{d.fee}</p>
+                    <p className="text-[10px] text-gray-500">{d.specialization} • {d.experience} yrs • {'\u20B9'}{d.fee}</p>
                   </div>
                 </div>
               </button>

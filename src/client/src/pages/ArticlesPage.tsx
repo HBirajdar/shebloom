@@ -36,7 +36,7 @@ export default function ArticlesPage() {
             <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/10 rounded-full" />
             <span className="text-[9px] bg-white/20 px-2 py-0.5 rounded-full font-bold">{'\u{1F31F}'} Featured</span>
             <h3 className="font-extrabold text-lg mt-2 leading-tight">{featured[0].title}</h3>
-            <p className="text-xs text-white/70 mt-1">{chief ? chief.name : featured[0].author} \u2022 {featured[0].readTime} read</p>
+            <p className="text-xs text-white/70 mt-1">{chief ? chief.name : featured[0].author} • {featured[0].readTime} read</p>
           </button>
         )}
 
@@ -57,7 +57,7 @@ export default function ArticlesPage() {
             <div className="flex-1 min-w-0">
               <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600">{a.category}</span>
               <h4 className="text-sm font-bold text-gray-800 mt-1 leading-tight line-clamp-2">{a.title}</h4>
-              <p className="text-[10px] text-gray-400 mt-1">{chief && a.author === 'chief' ? chief.name : a.author} \u2022 {a.readTime}</p>
+              <p className="text-[10px] text-gray-400 mt-1">{chief && a.author === 'chief' ? chief.name : a.author} • {a.readTime}</p>
             </div>
           </button>
         ))}

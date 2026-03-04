@@ -237,7 +237,7 @@ export default function DashboardPage() {
               ) : daysToOv > 0 && daysToOv <= 7 ? (
                 <div className="mt-3 bg-white/15 rounded-xl p-3 backdrop-blur-sm">
                   <p className="text-xs font-bold">{'\u{1F4C5}'} Fertile window in {fertStart - cycleDay} day{fertStart - cycleDay > 1 ? 's' : ''}</p>
-                  <p className="text-[10px] text-white/70 mt-0.5">Ovulation expected Day {ovDay}. Best days: {ovDay - 2}\u2013{ovDay}.</p>
+                  <p className="text-[10px] text-white/70 mt-0.5">Ovulation expected Day {ovDay}. Best days: {ovDay - 2}–{ovDay}.</p>
                 </div>
               ) : (
                 <p className="mt-3 text-xs text-white/70">{theme.msg}</p>
@@ -253,7 +253,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="bg-white/15 rounded-xl px-3 py-2 text-center flex-1">
                   <p className="text-[8px] text-white/50 uppercase">Fertile</p>
-                  <p className="text-sm font-extrabold">Day {fertStart}\u2013{fertEnd}</p>
+                  <p className="text-sm font-extrabold">Day {fertStart}–{fertEnd}</p>
                 </div>
               </div>
             </div>
@@ -268,7 +268,7 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-white/60 text-[10px] uppercase tracking-widest font-bold">Pregnancy</p>
                   <p className="text-5xl font-extrabold mt-1">Week {pregnancyWeek}</p>
-                  <p className="text-white/70 text-xs mt-1">of 40 \u2022 {Math.round((pregnancyWeek / 40) * 100)}% complete</p>
+                  <p className="text-white/70 text-xs mt-1">of 40 • {Math.round((pregnancyWeek / 40) * 100)}% complete</p>
                 </div>
                 <PregnancyRing week={pregnancyWeek} />
               </div>
@@ -326,7 +326,7 @@ export default function DashboardPage() {
             <div className="absolute -right-6 -top-6 w-20 h-20 bg-white/10 rounded-full" />
             <h3 className="text-sm font-extrabold mb-1">{'\u{1F48E}'} Conception Window Active</h3>
             <p className="text-[11px] text-white/80 leading-relaxed">
-              {isOvToday ? 'Today is ovulation day \u2014 your egg lives only 12\u201324 hours. Peak chance!' : 
+              {isOvToday ? 'Today is ovulation day — your egg lives only 12–24 hours. Peak chance!' : 
               `Ovulation in ${daysToOv} day${daysToOv > 1 ? 's' : ''}. Sperm can live up to 5 days, so intercourse now has a ${conception.pct}% chance.`}
             </p>
             <button onClick={() => nav('/tracker')} className="mt-2 bg-white/20 px-4 py-2 rounded-xl text-[10px] font-bold active:scale-95 transition-transform">
@@ -339,9 +339,9 @@ export default function DashboardPage() {
           <div className="bg-gradient-to-r from-violet-50 to-pink-50 rounded-2xl p-4 border border-violet-100">
             <h3 className="text-sm font-bold text-purple-800 mb-2">{'\u{1F4CB}'} This Week</h3>
             <p className="text-xs text-gray-600 leading-relaxed">
-              {pregnancyWeek <= 12 ? 'First trimester \u2014 your baby\'s organs are forming. Take prenatal vitamins daily and rest when tired.' :
-               pregnancyWeek <= 26 ? 'Second trimester \u2014 you may start feeling kicks! Energy levels improve. Stay active with gentle exercise.' :
-               'Third trimester \u2014 almost there! Pack your hospital bag and practice breathing exercises.'}
+              {pregnancyWeek <= 12 ? 'First trimester — your baby\'s organs are forming. Take prenatal vitamins daily and rest when tired.' :
+               pregnancyWeek <= 26 ? 'Second trimester — you may start feeling kicks! Energy levels improve. Stay active with gentle exercise.' :
+               'Third trimester — almost there! Pack your hospital bag and practice breathing exercises.'}
             </p>
             <button onClick={() => nav('/pregnancy')} className="mt-2 text-purple-600 text-xs font-bold">See full details {'\u2192'}</button>
           </div>
@@ -405,11 +405,11 @@ export default function DashboardPage() {
           <h3 className="text-xs font-bold text-gray-800 mb-2">{'\u{1F4A1}'} Daily Tip</h3>
           <p className="text-[11px] text-gray-600 leading-relaxed">
             {phase === 'menstrual' && goal !== 'pregnancy' && 'During your period, your body loses iron. Include leafy greens, lentils, and red meat in your diet. Dark chocolate (70%+) is also a great source of magnesium!'}
-            {phase === 'follicular' && 'Your body is preparing for ovulation. This is when estrogen starts climbing \u2014 you\'ll notice better skin, more energy, and sharper thinking. Best time to meal prep healthy options!'}
-            {phase === 'ovulation' && goal === 'fertility' && 'Track your cervical mucus: clear, stretchy mucus that resembles raw egg whites indicates peak fertility. Basal body temperature rises 0.2\u00B0C after ovulation.'}
+            {phase === 'follicular' && 'Your body is preparing for ovulation. This is when estrogen starts climbing — you\'ll notice better skin, more energy, and sharper thinking. Best time to meal prep healthy options!'}
+            {phase === 'ovulation' && goal === 'fertility' && 'Track your cervical mucus: clear, stretchy mucus that resembles raw egg whites indicates peak fertility. Basal body temperature rises 0.2°C after ovulation.'}
             {phase === 'ovulation' && goal !== 'fertility' && 'You\'re at your social best! Estrogen peaks make you more verbal, confident, and radiant. Great day for important meetings or conversations.'}
-            {phase === 'luteal' && 'Progesterone is dominant now. Cravings are real \u2014 opt for complex carbs (sweet potatoes, oats) over simple sugars. Magnesium-rich foods like almonds and bananas reduce bloating.'}
-            {goal === 'pregnancy' && 'Stay consistent with prenatal vitamins. Your baby needs 600\u00B5g of folate daily. Also ensure you\'re getting enough Vitamin D \u2014 15 minutes of morning sunlight helps!'}
+            {phase === 'luteal' && 'Progesterone is dominant now. Cravings are real — opt for complex carbs (sweet potatoes, oats) over simple sugars. Magnesium-rich foods like almonds and bananas reduce bloating.'}
+            {goal === 'pregnancy' && 'Stay consistent with prenatal vitamins. Your baby needs 600\u00B5g of folate daily. Also ensure you\'re getting enough Vitamin D — 15 minutes of morning sunlight helps!'}
           </p>
         </div>
       </div>

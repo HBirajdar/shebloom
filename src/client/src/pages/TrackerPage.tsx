@@ -22,7 +22,7 @@ const PHASES: Record<string, {
     color: '#E11D48', gradient: 'linear-gradient(135deg, #E11D48, #F43F5E)',
     bgLight: '#FFF1F2', emoji: '\u{1FA78}',
     title: 'Menstrual', subtitle: 'Period Days',
-    desc: 'Your body sheds the uterine lining. Hormones are at their lowest \u2014 rest and nourish yourself.',
+    desc: 'Your body sheds the uterine lining. Hormones are at their lowest — rest and nourish yourself.',
     tips: ['Apply warm compress for cramps', 'Eat iron-rich foods (spinach, dates)', 'Gentle walks help circulation', 'Track flow: light, medium, or heavy'],
     hormones: 'Estrogen & progesterone at lowest point'
   },
@@ -39,7 +39,7 @@ const PHASES: Record<string, {
     bgLight: '#F5F3FF', emoji: '\u{2728}',
     title: 'Ovulation', subtitle: 'Peak Fertility',
     desc: 'The egg is released! Peak estrogen gives you confidence, glow, and highest fertility.',
-    tips: ['Peak fertility \u2014 highest conception chance', 'Check cervical mucus (egg-white texture)', 'You may feel a mild pelvic twinge', 'Libido naturally peaks now'],
+    tips: ['Peak fertility — highest conception chance', 'Check cervical mucus (egg-white texture)', 'You may feel a mild pelvic twinge', 'Libido naturally peaks now'],
     hormones: 'Estrogen peaks, LH surge triggers release'
   },
   luteal: {
@@ -47,7 +47,7 @@ const PHASES: Record<string, {
     bgLight: '#FFFBEB', emoji: '\u{1F343}',
     title: 'Luteal', subtitle: 'Winding Down',
     desc: 'Progesterone rises to support possible implantation. PMS symptoms may gradually appear.',
-    tips: ['Magnesium helps with mood & bloating', 'Complex carbs stabilize blood sugar', 'Extra sleep \u2014 your body needs it', 'Reduce salt to minimize water retention'],
+    tips: ['Magnesium helps with mood & bloating', 'Complex carbs stabilize blood sugar', 'Extra sleep — your body needs it', 'Reduce salt to minimize water retention'],
     hormones: 'Progesterone dominant, estrogen secondary'
   },
 };
@@ -661,11 +661,11 @@ export default function TrackerPage() {
             <h3 className="text-xs font-bold text-gray-800 mb-3">{'\u{1F4C5}'} Cycle Timeline</h3>
             <div className="space-y-0">
               {[
-                { emoji: '\u{1FA78}', label: 'Period', range: `Day 1\u2013${periodLength}`, done: cycleDay > periodLength },
-                { emoji: '\u{1F331}', label: 'Follicular Phase', range: `Day ${periodLength + 1}\u2013${fertStart - 1}`, done: cycleDay >= fertStart },
-                { emoji: '\u{1F48E}', label: 'Fertile Window', range: `Day ${fertStart}\u2013${fertEnd}`, done: cycleDay > fertEnd },
+                { emoji: '\u{1FA78}', label: 'Period', range: `Day 1–${periodLength}`, done: cycleDay > periodLength },
+                { emoji: '\u{1F331}', label: 'Follicular Phase', range: `Day ${periodLength + 1}–${fertStart - 1}`, done: cycleDay >= fertStart },
+                { emoji: '\u{1F48E}', label: 'Fertile Window', range: `Day ${fertStart}–${fertEnd}`, done: cycleDay > fertEnd },
                 { emoji: '\u2728', label: 'Ovulation', range: `Day ${ovDay}`, done: cycleDay > ovDay },
-                { emoji: '\u{1F343}', label: 'Luteal Phase', range: `Day ${fertEnd + 1}\u2013${cycleLength}`, done: false },
+                { emoji: '\u{1F343}', label: 'Luteal Phase', range: `Day ${fertEnd + 1}–${cycleLength}`, done: false },
                 { emoji: '\u{1F4C5}', label: 'Next Period', range: `in ${daysUntilPeriod} days`, done: false },
               ].map((item, i) => {
                 const isNow = (
@@ -699,10 +699,10 @@ export default function TrackerPage() {
             <div className="space-y-3">
               {[
                 { q: 'How long can sperm survive?', a: 'Sperm can live up to 5 days inside the reproductive tract. That\'s why having intercourse BEFORE ovulation gives excellent chances.' },
-                { q: 'How long does the egg live?', a: 'After release, the egg survives only 12\u201324 hours. This is why timing around ovulation is critical.' },
+                { q: 'How long does the egg live?', a: 'After release, the egg survives only 12–24 hours. This is why timing around ovulation is critical.' },
                 { q: 'What about cervical mucus?', a: 'Clear, stretchy, egg-white cervical mucus (EWCM) indicates peak fertility. This mucus helps sperm travel to the egg.' },
                 { q: 'When to take a pregnancy test?', a: 'Wait until your period is at least 1 day late (about 15 days post-ovulation) for the most accurate result.' },
-                { q: 'Signs of implantation?', a: 'Light spotting, mild cramping, breast tenderness 6\u201312 days after ovulation could indicate implantation.' },
+                { q: 'Signs of implantation?', a: 'Light spotting, mild cramping, breast tenderness 6–12 days after ovulation could indicate implantation.' },
               ].map((item, i) => (
                 <details key={i} className="group bg-white rounded-xl">
                   <summary className="text-[11px] font-bold text-gray-700 cursor-pointer p-3 flex items-center justify-between">
@@ -731,7 +731,7 @@ export default function TrackerPage() {
             </button>
             <div className="p-4 rounded-2xl bg-white border-2 border-gray-200 text-center">
               <span className="text-2xl block">{PHASES[phase]?.emoji || '\u{1FA78}'}</span>
-              <p className="text-xs font-bold text-gray-700 mt-1">Day {cycleDay} \u2022 {PHASES[phase]?.title}</p>
+              <p className="text-xs font-bold text-gray-700 mt-1">Day {cycleDay} • {PHASES[phase]?.title}</p>
             </div>
           </div>
 
@@ -824,7 +824,7 @@ export default function TrackerPage() {
               </div>
             ))}
             <div className="bg-purple-50 rounded-xl p-3 text-center">
-              <p className="text-xs text-purple-700 font-bold">{'\u{1F52E}'} Predicted: Ovulation Day {tmpCycle - 14} \u2022 Fertile Days {tmpCycle - 19}\u2013{tmpCycle - 13}</p>
+              <p className="text-xs text-purple-700 font-bold">{'\u{1F52E}'} Predicted: Ovulation Day {tmpCycle - 14} • Fertile Days {tmpCycle - 19}–{tmpCycle - 13}</p>
             </div>
             <button onClick={saveCycleSettings} className="w-full py-3.5 rounded-2xl text-white font-bold active:scale-95 transition-transform" style={{ background: 'linear-gradient(135deg, #E11D48, #EC4899)' }}>
               Save Settings
@@ -850,10 +850,10 @@ export default function TrackerPage() {
               <h4 className="font-extrabold text-gray-800 text-sm">Your Cycle at a Glance</h4>
               {[
                 { l: 'Cycle Length', v: cycleLength + ' days' },
-                { l: 'Period', v: `Day 1\u2013${periodLength}` },
-                { l: 'Fertile Window', v: `Day ${fertStart}\u2013${fertEnd}` },
+                { l: 'Period', v: `Day 1–${periodLength}` },
+                { l: 'Fertile Window', v: `Day ${fertStart}–${fertEnd}` },
                 { l: 'Ovulation', v: `Day ${ovDay}` },
-                { l: 'Best Days to Try', v: `Day ${ovDay - 2}\u2013${ovDay}` },
+                { l: 'Best Days to Try', v: `Day ${ovDay - 2}–${ovDay}` },
                 { l: 'Next Period', v: `in ${daysUntilPeriod} days` },
               ].map(r => (
                 <div key={r.l} className="flex justify-between py-1.5 border-b border-gray-100">
@@ -865,11 +865,11 @@ export default function TrackerPage() {
 
             <div className="mt-4 bg-emerald-50 rounded-2xl p-4 text-xs text-emerald-800 space-y-1.5">
               <h4 className="font-extrabold text-sm">{'\u{1F4A1}'} Tips for Conceiving</h4>
-              <p>{'\u2022'} Have intercourse every 1\u20132 days during your fertile window</p>
+              <p>{'\u2022'} Have intercourse every 1–2 days during your fertile window</p>
               <p>{'\u2022'} The day before ovulation has the highest success rate</p>
-              <p>{'\u2022'} Lie still for 10\u201315 minutes afterward</p>
+              <p>{'\u2022'} Lie still for 10–15 minutes afterward</p>
               <p>{'\u2022'} Both partners: take folic acid & eat whole foods</p>
-              <p>{'\u2022'} Reduce stress \u2014 it can delay ovulation</p>
+              <p>{'\u2022'} Reduce stress — it can delay ovulation</p>
               <p>{'\u2022'} Avoid lubricants that harm sperm motility</p>
               <p>{'\u2022'} Track cervical mucus for extra accuracy</p>
             </div>

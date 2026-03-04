@@ -45,8 +45,8 @@ export default function DoctorsPage() {
                     {chief.feeFreeForPoor && <p className="text-[9px] bg-white/20 px-2 py-0.5 rounded-full font-bold">{'\u2764\uFE0F'} Free for needy</p>}
                   </div>
                   <h2 className="text-lg font-extrabold mt-1">{chief.name}</h2>
-                  <p className="text-xs text-white/80">{chief.specialization} \u2022 {chief.qualification}</p>
-                  <p className="text-xs text-white/70 mt-0.5">{chief.experience} years experience \u2022 {'\u2605'} {chief.rating}</p>
+                  <p className="text-xs text-white/80">{chief.specialization} • {chief.qualification}</p>
+                  <p className="text-xs text-white/70 mt-0.5">{chief.experience} years experience • {'\u2605'} {chief.rating}</p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-1.5 mt-3 relative z-10">
@@ -83,7 +83,7 @@ export default function DoctorsPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-gray-800 text-sm">{d.name}</p>
-                <p className="text-[10px] text-gray-500">{d.specialization} \u2022 {d.experience} yrs \u2022 {d.qualification}</p>
+                <p className="text-[10px] text-gray-500">{d.specialization} • {d.experience} yrs • {d.qualification}</p>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-xs text-amber-500 font-bold">{'\u2605'} {d.rating}</span>
                   <span className="text-[10px] text-gray-400">({d.reviews} reviews)</span>
@@ -111,7 +111,7 @@ export default function DoctorsPage() {
               <div className={'w-20 h-20 mx-auto rounded-2xl flex items-center justify-center text-white font-extrabold text-2xl mb-3 shadow-lg ' + (sel.isChief ? 'bg-gradient-to-br from-emerald-500 to-teal-600' : 'bg-gradient-to-br from-rose-400 to-pink-500')}>
                 {sel.name.charAt(0)}
               </div>
-              {sel.isChief && <span className="text-[9px] font-bold bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full">{'\u{1F451}'} Chief Doctor \u2022 SheBloom</span>}
+              {sel.isChief && <span className="text-[9px] font-bold bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full">{'\u{1F451}'} Chief Doctor • SheBloom</span>}
               <h3 className="font-extrabold text-xl mt-2">{sel.name}</h3>
               <p className="text-sm text-gray-500">{sel.specialization}</p>
               <p className="text-xs text-gray-400">{sel.qualification}</p>

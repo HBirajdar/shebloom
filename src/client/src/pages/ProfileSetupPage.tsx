@@ -95,7 +95,7 @@ export default function ProfileSetupPage() {
               </div>
             ))}
             <div className="bg-purple-50 rounded-xl p-3">
-              <p className="text-xs text-purple-700 font-bold">{'\u{1F52E}'} Ovulation around Day {ovDay} \u2022 Fertile Days {ovDay - 5}\u2013{ovDay + 1}</p>
+              <p className="text-xs text-purple-700 font-bold">{'\u{1F52E}'} Ovulation around Day {ovDay} • Fertile Days {ovDay - 5}–{ovDay + 1}</p>
             </div>
           </div>
         </div>
