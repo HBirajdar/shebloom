@@ -5,290 +5,208 @@ export type ProductCategory = 'hair_oil' | 'body_lotion' | 'face_wash' | 'body_w
 export type TargetAudience = 'all' | 'periods' | 'fertility' | 'pregnancy' | 'wellness';
 
 export interface AyurvedaProduct {
-  id: string;
-  name: string;
-  category: ProductCategory;
-  price: number;
-  discountPrice?: number;
-  description: string;
-  ingredients: string[];
-  benefits: string[];
-  howToUse: string;
-  size: string;
-  emoji: string;
-  rating: number;
-  reviews: number;
-  inStock: boolean;
-  isPublished: boolean;
-  isFeatured: boolean;
-  targetAudience: TargetAudience[];
-  tags: string[];
-  preparationMethod?: string;
-  doctorNote?: string;
-  createdAt: string;
+  id: string; name: string; category: ProductCategory;
+  price: number; discountPrice?: number; description: string;
+  ingredients: string[]; benefits: string[]; howToUse: string;
+  size: string; emoji: string; rating: number; reviews: number;
+  inStock: boolean; isPublished: boolean; isFeatured: boolean;
+  targetAudience: TargetAudience[]; tags: string[];
+  preparationMethod?: string; doctorNote?: string; createdAt: string;
+}
+
+export interface Article {
+  id: string; title: string; content: string; category: string;
+  author: string; readTime: string; emoji: string;
+  isPublished: boolean; isFeatured: boolean;
+  targetAudience: TargetAudience[]; createdAt: string;
 }
 
 export interface DIYRecipe {
-  id: string;
-  title: string;
-  emoji: string;
-  description: string;
-  ingredients: { name: string; amount: string }[];
-  steps: string[];
-  benefits: string[];
-  targetAudience: TargetAudience[];
-  isPublished: boolean;
-  prepTime: string;
-  difficulty: 'Easy' | 'Medium' | 'Advanced';
+  id: string; title: string; emoji: string; description: string;
+  ingredients: { name: string; amount: string }[]; steps: string[];
+  benefits: string[]; targetAudience: TargetAudience[];
+  isPublished: boolean; prepTime: string; difficulty: 'Easy' | 'Medium' | 'Advanced';
 }
 
-export interface DoctorProfile {
-  name: string;
-  title: string;
-  qualification: string;
-  experience: string;
-  specialization: string[];
-  about: string;
-  philosophy: string;
-  consultationFee: string;
-  freeForPoor: boolean;
-  phone?: string;
-  languages: string[];
+export interface DoctorListing {
+  id: string; name: string; specialization: string; experience: number;
+  rating: number; reviews: number; fee: number; feeFreeForPoor: boolean;
+  tags: string[]; languages: string[]; about: string;
+  isChief: boolean; isPublished: boolean; phone?: string; qualification: string;
 }
 
-// ─── Default Products ────────────────────────────
+// ─── Default Data ────────────────────────────────
 const defaultProducts: AyurvedaProduct[] = [
-  {
-    id: 'p1', name: 'Bhringraj Hair Growth Oil', category: 'hair_oil',
-    price: 450, discountPrice: 349, size: '200ml', emoji: '\u{1F33F}',
-    description: 'Handcrafted Ayurvedic hair oil with Bhringraj, Amla, and Brahmi. Cold-pressed with coconut oil base. Made fresh in small batches for maximum potency.',
-    ingredients: ['Bhringraj (Eclipta alba)', 'Amla (Indian Gooseberry)', 'Brahmi', 'Virgin Coconut Oil', 'Curry Leaves', 'Fenugreek Seeds', 'Hibiscus Petals', 'Neem Leaves'],
-    benefits: ['Reduces hair fall by 60% in 3 months', 'Promotes new hair growth', 'Prevents premature greying', 'Strengthens hair roots', 'Conditions scalp naturally'],
-    howToUse: 'Warm slightly and massage into scalp for 10 minutes. Leave overnight or minimum 2 hours. Wash with mild shampoo. Use 2-3 times per week for best results.',
+  { id: 'p1', name: 'Bhringraj Hair Growth Oil', category: 'hair_oil', price: 450, discountPrice: 349, size: '200ml', emoji: '\u{1F33F}',
+    description: 'Handcrafted Ayurvedic hair oil with Bhringraj, Amla, and Brahmi. Cold-pressed with coconut oil base. Made fresh in small batches.',
+    ingredients: ['Bhringraj (Eclipta alba)', 'Amla (Indian Gooseberry)', 'Brahmi', 'Virgin Coconut Oil', 'Curry Leaves', 'Fenugreek Seeds', 'Hibiscus Petals'],
+    benefits: ['Reduces hair fall by 60% in 3 months', 'Promotes new hair growth', 'Prevents premature greying', 'Strengthens hair roots'],
+    howToUse: 'Warm slightly, massage into scalp 10 min. Leave overnight or 2+ hours. Wash with mild shampoo. Use 2-3x/week.',
     rating: 4.8, reviews: 127, inStock: true, isPublished: true, isFeatured: true,
     targetAudience: ['all'], tags: ['bestseller', 'handmade'],
-    preparationMethod: 'Each batch is slow-cooked for 72 hours using traditional Ayurvedic "Taila Paka" method. No preservatives, no chemicals.',
-    doctorNote: 'I personally source each herb from organic farms in Kerala. This oil follows the same formulation used in traditional Ayurvedic clinics for centuries.',
-    createdAt: '2024-01-15',
-  },
-  {
-    id: 'p2', name: 'Kumkumadi Night Face Oil', category: 'skincare',
-    price: 650, discountPrice: 499, size: '30ml', emoji: '\u2728',
-    description: 'Premium Kumkumadi Tailam for radiant skin. Contains 16 potent herbs including Saffron. Reduces dark spots, pigmentation, and gives a natural glow.',
-    ingredients: ['Saffron (Kumkuma)', 'Sandalwood', 'Manjistha', 'Licorice Root', 'Lotus Petals', 'Vetiver', 'Indian Madder', 'Sesame Oil Base'],
-    benefits: ['Fades dark spots & pigmentation', 'Natural glow in 2 weeks', 'Anti-aging properties', 'Evens skin tone', 'Reduces acne scars'],
-    howToUse: 'Apply 4-5 drops on cleansed face at night. Massage in upward circular motions for 2 minutes. Leave overnight.',
+    preparationMethod: 'Slow-cooked 72 hours using traditional Ayurvedic "Taila Paka" method. No preservatives.',
+    doctorNote: 'I personally source each herb from organic farms in Kerala. This follows formulations used in traditional clinics for centuries.',
+    createdAt: '2024-01-15' },
+  { id: 'p2', name: 'Kumkumadi Night Face Oil', category: 'skincare', price: 650, discountPrice: 499, size: '30ml', emoji: '\u2728',
+    description: 'Premium Kumkumadi Tailam with 16 herbs including real Saffron. Reduces dark spots and gives natural glow.',
+    ingredients: ['Saffron (Kumkuma)', 'Sandalwood', 'Manjistha', 'Licorice Root', 'Lotus Petals', 'Sesame Oil Base'],
+    benefits: ['Fades dark spots & pigmentation', 'Natural glow in 2 weeks', 'Anti-aging', 'Evens skin tone'],
+    howToUse: 'Apply 4-5 drops on cleansed face at night. Massage upward 2 min. Leave overnight.',
     rating: 4.9, reviews: 89, inStock: true, isPublished: true, isFeatured: true,
-    targetAudience: ['all'], tags: ['premium', 'handmade'],
-    doctorNote: 'Kumkumadi is the gold standard of Ayurvedic skincare. Our saffron is sourced from Kashmir — each bottle uses 0.5g of real saffron strands.',
-    createdAt: '2024-02-10',
-  },
-  {
-    id: 'p3', name: 'Neem & Tulsi Face Wash', category: 'face_wash',
-    price: 280, discountPrice: 220, size: '150ml', emoji: '\u{1F33B}',
-    description: 'Gentle, sulfate-free face wash with Neem and Tulsi. Controls acne, removes impurities without stripping natural oils. Safe for sensitive skin.',
-    ingredients: ['Neem Extract', 'Tulsi (Holy Basil)', 'Aloe Vera Gel', 'Turmeric', 'Rose Water', 'Honey', 'Glycerin (Plant-based)'],
-    benefits: ['Controls acne & pimples', 'Anti-bacterial properties', 'Gentle deep cleansing', 'Does not dry skin', 'Reduces inflammation'],
-    howToUse: 'Wet face, take coin-sized amount, massage gently for 60 seconds. Rinse with water. Use twice daily.',
+    targetAudience: ['all'], tags: ['premium'], createdAt: '2024-02-10',
+    doctorNote: 'Our saffron is sourced from Kashmir \u2014 each bottle uses 0.5g of real saffron strands.' },
+  { id: 'p3', name: 'Neem & Tulsi Face Wash', category: 'face_wash', price: 280, discountPrice: 220, size: '150ml', emoji: '\u{1F33B}',
+    description: 'Gentle, sulfate-free face wash. Controls acne without stripping natural oils.',
+    ingredients: ['Neem Extract', 'Tulsi (Holy Basil)', 'Aloe Vera', 'Turmeric', 'Rose Water', 'Honey'],
+    benefits: ['Controls acne', 'Anti-bacterial', 'Gentle cleansing', 'Does not dry skin'],
+    howToUse: 'Wet face, massage coin-sized amount 60 sec. Rinse. Use twice daily.',
     rating: 4.7, reviews: 203, inStock: true, isPublished: true, isFeatured: false,
-    targetAudience: ['all'], tags: ['bestseller'], createdAt: '2024-01-20',
-  },
-  {
-    id: 'p4', name: 'Shatavari Body Lotion', category: 'body_lotion',
-    price: 380, discountPrice: 299, size: '200ml', emoji: '\u{1F338}',
-    description: 'Deeply moisturizing body lotion enriched with Shatavari — the queen of herbs for women. Nourishes skin and balances hormones through topical absorption.',
-    ingredients: ['Shatavari Extract', 'Shea Butter', 'Almond Oil', 'Rose Extract', 'Vitamin E', 'Aloe Vera', 'Jojoba Oil'],
-    benefits: ['Deep 24-hour moisturization', 'Hormonal balance support', 'Reduces stretch marks', 'Anti-aging nutrients', 'Pleasant natural fragrance'],
-    howToUse: 'Apply generously on damp skin after shower. Focus on dry areas. Safe during pregnancy.',
+    targetAudience: ['all'], tags: ['bestseller'], createdAt: '2024-01-20' },
+  { id: 'p4', name: 'Shatavari Body Lotion', category: 'body_lotion', price: 380, discountPrice: 299, size: '200ml', emoji: '\u{1F338}',
+    description: 'Deeply moisturizing with Shatavari \u2014 queen of herbs for women. Reduces stretch marks.',
+    ingredients: ['Shatavari Extract', 'Shea Butter', 'Almond Oil', 'Rose Extract', 'Vitamin E', 'Aloe Vera'],
+    benefits: ['24-hour moisturization', 'Hormonal balance support', 'Reduces stretch marks', 'Anti-aging'],
+    howToUse: 'Apply on damp skin after shower. Safe during pregnancy.',
     rating: 4.6, reviews: 156, inStock: true, isPublished: true, isFeatured: false,
-    targetAudience: ['all', 'pregnancy'], tags: ['pregnancy-safe'],
-    doctorNote: 'Shatavari is especially beneficial during pregnancy and post-partum. This lotion is 100% safe for expecting mothers.',
-    createdAt: '2024-03-05',
-  },
-  {
-    id: 'p5', name: 'Triphala & Shikakai Body Wash', category: 'body_wash',
-    price: 320, discountPrice: 249, size: '250ml', emoji: '\u{1F4A7}',
-    description: 'Gentle sulfate-free body wash with Triphala and Shikakai. Cleanses without chemicals, maintains skin pH, and leaves skin soft.',
-    ingredients: ['Triphala (Amla, Haritaki, Bibhitaki)', 'Shikakai', 'Coconut Milk', 'Neem', 'Turmeric', 'Natural Saponins'],
-    benefits: ['Chemical-free cleansing', 'Maintains natural skin pH', 'Anti-fungal properties', 'Softens and smoothens skin', 'Eco-friendly formula'],
-    howToUse: 'Use on wet skin with loofah or hands. Lather gently and rinse. Safe for daily use.',
-    rating: 4.5, reviews: 98, inStock: true, isPublished: true, isFeatured: false,
-    targetAudience: ['all'], tags: ['eco-friendly'], createdAt: '2024-04-12',
-  },
-  {
-    id: 'p6', name: 'Hairfall Rescue Treatment Kit', category: 'hair_treatment',
-    price: 1200, discountPrice: 899, size: 'Complete Kit', emoji: '\u{1F489}',
-    description: 'Complete 90-day Ayurvedic hairfall treatment. Includes medicated oil, herbal powder, and dietary supplement. Clinically observed results.',
-    ingredients: ['Bhringraj Oil (100ml)', 'Herbal Hair Pack Powder (150g)', 'Ashwagandha + Biotin Capsules (90)', 'Scalp Massage Comb'],
-    benefits: ['Comprehensive 90-day treatment', 'Reduces hairfall by up to 70%', 'Strengthens from root to tip', 'Includes diet plan', 'Doctor consultation included'],
-    howToUse: 'Follow the 90-day protocol card included in kit. Oil 3x/week, hair pack 2x/week, capsule daily after meals.',
+    targetAudience: ['all', 'pregnancy'], tags: ['pregnancy-safe'], createdAt: '2024-03-05',
+    doctorNote: 'Shatavari is especially beneficial during pregnancy. 100% safe for expecting mothers.' },
+  { id: 'p5', name: 'Hairfall Rescue Kit (90-Day)', category: 'hair_treatment', price: 1200, discountPrice: 899, size: 'Complete Kit', emoji: '\u{1F489}',
+    description: 'Complete 90-day treatment: medicated oil + herbal powder + supplements. Doctor consultation included.',
+    ingredients: ['Bhringraj Oil (100ml)', 'Herbal Hair Pack (150g)', 'Ashwagandha+Biotin Capsules (90)', 'Scalp Massage Comb'],
+    benefits: ['Reduces hairfall up to 70%', 'Strengthens root to tip', 'Includes diet plan', 'Doctor consultation included'],
+    howToUse: 'Follow 90-day protocol card. Oil 3x/week, hair pack 2x/week, capsule daily.',
     rating: 4.9, reviews: 67, inStock: true, isPublished: true, isFeatured: true,
-    targetAudience: ['all'], tags: ['bestseller', 'treatment'],
-    doctorNote: 'This is my signature treatment protocol. I have personally seen 200+ patients recover from severe hairfall using this exact combination. Results visible from week 4.',
-    createdAt: '2024-05-01',
-  },
-  {
-    id: 'p7', name: 'Fertility Support Tonic', category: 'supplement',
-    price: 550, discountPrice: 449, size: '500ml (30-day)', emoji: '\u{1F33A}',
-    description: 'Traditional Ayurvedic fertility tonic with Shatavari, Ashwagandha, and Lodhra. Supports reproductive health and hormonal balance naturally.',
-    ingredients: ['Shatavari', 'Ashwagandha', 'Lodhra', 'Dashmool', 'Jatamansi', 'Guduchi', 'Honey', 'Ghee Base'],
-    benefits: ['Supports fertility naturally', 'Regulates menstrual cycle', 'Reduces PCOD symptoms', 'Balances hormones', 'Boosts energy & vitality'],
-    howToUse: 'Take 15ml twice daily with warm milk, 30 minutes before meals. Continue for minimum 3 months for best results.',
+    targetAudience: ['all'], tags: ['bestseller', 'treatment'], createdAt: '2024-05-01',
+    doctorNote: 'My signature protocol. 200+ patients recovered from severe hairfall. Results from week 4.' },
+  { id: 'p6', name: 'Fertility Support Tonic', category: 'supplement', price: 550, discountPrice: 449, size: '500ml', emoji: '\u{1F33A}',
+    description: 'Traditional fertility tonic with Shatavari, Ashwagandha, Lodhra. Supports reproductive health.',
+    ingredients: ['Shatavari', 'Ashwagandha', 'Lodhra', 'Dashmool', 'Guduchi', 'Honey', 'Ghee Base'],
+    benefits: ['Supports fertility', 'Regulates cycles', 'Reduces PCOD symptoms', 'Balances hormones'],
+    howToUse: '15ml twice daily with warm milk, 30 min before meals. Continue 3+ months.',
     rating: 4.7, reviews: 45, inStock: true, isPublished: true, isFeatured: true,
-    targetAudience: ['fertility', 'periods'], tags: ['fertility', 'tonic'],
-    doctorNote: 'This formulation follows the classical "Shatavari Ghrita" with modern adaptations. Especially effective for women with irregular cycles or PCOD.',
-    createdAt: '2024-06-15',
-  },
-  {
-    id: 'p8', name: 'Prenatal Glow Cream', category: 'skincare',
-    price: 480, discountPrice: 399, size: '100g', emoji: '\u{1F930}',
-    description: 'Safe, chemical-free moisturizer specially formulated for pregnancy. Prevents stretch marks and keeps skin supple during all trimesters.',
-    ingredients: ['Shea Butter', 'Cocoa Butter', 'Almond Oil', 'Vitamin E', 'Saffron', 'Sandalwood', 'Manjistha'],
-    benefits: ['Prevents stretch marks', '100% pregnancy-safe', 'Deep nourishment', 'Reduces itching', 'Natural fragrance'],
-    howToUse: 'Apply on belly, breasts, thighs twice daily. Massage in circular motions. Safe from first trimester.',
+    targetAudience: ['fertility', 'periods'], tags: ['fertility'], createdAt: '2024-06-15',
+    doctorNote: 'Classical "Shatavari Ghrita" with modern adaptations. Effective for irregular cycles or PCOD.' },
+  { id: 'p7', name: 'Prenatal Glow Cream', category: 'skincare', price: 480, discountPrice: 399, size: '100g', emoji: '\u{1F930}',
+    description: 'Chemical-free moisturizer for pregnancy. Prevents stretch marks across all trimesters.',
+    ingredients: ['Shea Butter', 'Cocoa Butter', 'Almond Oil', 'Vitamin E', 'Saffron', 'Sandalwood'],
+    benefits: ['Prevents stretch marks', '100% pregnancy-safe', 'Deep nourishment', 'Reduces itching'],
+    howToUse: 'Apply on belly, breasts, thighs twice daily. Safe from first trimester.',
     rating: 4.8, reviews: 112, inStock: true, isPublished: true, isFeatured: false,
-    targetAudience: ['pregnancy'], tags: ['pregnancy-safe', 'premium'],
-    doctorNote: 'Every ingredient is verified pregnancy-safe. I recommend this to all my expecting patients from week 12 onwards.',
-    createdAt: '2024-07-01',
-  },
+    targetAudience: ['pregnancy'], tags: ['pregnancy-safe'], createdAt: '2024-07-01',
+    doctorNote: 'Every ingredient is pregnancy-safe. I recommend this from week 12 onwards.' },
+];
+
+const defaultArticles: Article[] = [
+  { id: 'a1', title: 'Understanding PCOD: Complete Ayurvedic Guide', content: 'PCOD (Polycystic Ovarian Disease) affects 1 in 5 women in India. In Ayurveda, it is linked to Kapha and Pitta imbalance...',
+    category: 'PCOD', author: 'chief', readTime: '8 min', emoji: '\u{1F33F}', isPublished: true, isFeatured: true, targetAudience: ['all'], createdAt: '2024-08-01' },
+  { id: 'a2', title: '5 Ayurvedic Remedies for Period Pain', content: 'Menstrual cramps are caused by prostaglandins. Ayurveda offers natural alternatives...',
+    category: 'Periods', author: 'chief', readTime: '5 min', emoji: '\u{1FA78}', isPublished: true, isFeatured: false, targetAudience: ['periods'], createdAt: '2024-08-05' },
+  { id: 'a3', title: 'Fertility Boosting Foods in Ayurveda', content: 'Shatavari, Ashwagandha, and specific dietary practices can improve fertility naturally...',
+    category: 'Fertility', author: 'chief', readTime: '7 min', emoji: '\u{1F495}', isPublished: true, isFeatured: true, targetAudience: ['fertility'], createdAt: '2024-08-10' },
+  { id: 'a4', title: 'Pregnancy Nutrition: Trimester-wise Guide', content: 'Each trimester has different nutritional needs. First trimester focuses on folic acid...',
+    category: 'Pregnancy', author: 'chief', readTime: '10 min', emoji: '\u{1F930}', isPublished: true, isFeatured: false, targetAudience: ['pregnancy'], createdAt: '2024-08-15' },
+  { id: 'a5', title: 'Hair Fall? Try These Ayurvedic Solutions', content: 'Hair fall in women is often linked to iron deficiency, hormonal imbalance, or stress...',
+    category: 'Hair Care', author: 'chief', readTime: '6 min', emoji: '\u{1F33F}', isPublished: true, isFeatured: false, targetAudience: ['all'], createdAt: '2024-08-20' },
+  { id: 'a6', title: 'Yoga Poses for Menstrual Relief', content: 'Gentle yoga during periods can reduce cramps and improve mood...',
+    category: 'Wellness', author: 'chief', readTime: '5 min', emoji: '\u{1F9D8}', isPublished: true, isFeatured: false, targetAudience: ['all'], createdAt: '2024-09-01' },
+  { id: 'a7', title: 'Hormonal Imbalance: 7 Warning Signs', content: 'Irregular periods, weight gain, fatigue, acne, and mood swings can all indicate hormonal issues...',
+    category: 'Health', author: 'chief', readTime: '7 min', emoji: '\u{1F4CB}', isPublished: true, isFeatured: true, targetAudience: ['all'], createdAt: '2024-09-10' },
 ];
 
 const defaultRecipes: DIYRecipe[] = [
-  {
-    id: 'r1', title: 'Anti-Hairfall Hair Mask', emoji: '\u{1F33F}',
-    description: 'Powerful Ayurvedic hair mask you can make at home to stop hairfall naturally.',
-    ingredients: [
-      { name: 'Fenugreek seeds (soaked overnight)', amount: '2 tbsp' },
-      { name: 'Curd / Yogurt', amount: '3 tbsp' },
-      { name: 'Curry leaves (ground)', amount: '10-12 leaves' },
-      { name: 'Coconut oil', amount: '1 tbsp' },
-      { name: 'Amla powder', amount: '1 tsp' },
-    ],
-    steps: [
-      'Soak fenugreek seeds overnight in water',
-      'Grind into a smooth paste with curry leaves',
-      'Mix in curd, coconut oil, and amla powder',
-      'Apply on scalp and hair from root to tip',
-      'Leave for 45 minutes, then wash with mild shampoo',
-      'Use twice a week for 2 months for visible results',
-    ],
-    benefits: ['Strengthens hair roots', 'Reduces hairfall significantly', 'Adds volume and shine', 'Conditions naturally'],
-    targetAudience: ['all'], isPublished: true, prepTime: '15 min + 45 min', difficulty: 'Easy',
-  },
-  {
-    id: 'r2', title: 'Glowing Skin Ubtan', emoji: '\u2728',
-    description: 'Traditional Indian ubtan for bridal-like glow. Chemical-free and suitable for all skin types.',
-    ingredients: [
-      { name: 'Besan (Gram flour)', amount: '3 tbsp' },
-      { name: 'Turmeric powder', amount: '1/2 tsp' },
-      { name: 'Raw milk', amount: '2 tbsp' },
-      { name: 'Honey', amount: '1 tsp' },
-      { name: 'Saffron strands (soaked in milk)', amount: '4-5 strands' },
-      { name: 'Rose water', amount: '1 tsp' },
-    ],
-    steps: [
-      'Soak saffron in warm milk for 10 minutes',
-      'Mix besan and turmeric in a bowl',
-      'Add saffron milk, honey, and rose water',
-      'Make a smooth paste (not too thick)',
-      'Apply on face and neck in upward strokes',
-      'Let dry for 20 minutes, scrub off gently with water',
-    ],
-    benefits: ['Instant glow', 'Removes tan', 'Exfoliates dead skin', 'Evens skin tone'],
-    targetAudience: ['all'], isPublished: true, prepTime: '10 min + 20 min', difficulty: 'Easy',
-  },
-  {
-    id: 'r3', title: 'Fertility Boosting Drink', emoji: '\u{1F33A}',
-    description: 'Ancient Ayurvedic drink that supports reproductive health. Best taken during follicular phase.',
-    ingredients: [
-      { name: 'Shatavari powder', amount: '1 tsp' },
-      { name: 'Warm milk (A2 cow milk preferred)', amount: '1 glass' },
-      { name: 'Ashwagandha powder', amount: '1/2 tsp' },
-      { name: 'Ghee (clarified butter)', amount: '1 tsp' },
-      { name: 'Honey', amount: '1 tsp' },
-      { name: 'Cardamom powder', amount: '1 pinch' },
-    ],
-    steps: [
-      'Warm the milk (do not boil)',
-      'Add Shatavari and Ashwagandha powder',
-      'Stir in ghee and cardamom',
-      'Let it cool slightly, then add honey',
-      'Drink before bedtime, daily for 3 months',
-      'Best during Days 5-14 of your cycle (follicular phase)',
-    ],
-    benefits: ['Supports ovulation', 'Balances hormones', 'Improves egg quality', 'Reduces stress'],
-    targetAudience: ['fertility'], isPublished: true, prepTime: '5 min', difficulty: 'Easy',
-  },
-  {
-    id: 'r4', title: 'Period Pain Relief Oil', emoji: '\u{1FA78}',
-    description: 'Warm this oil and massage on lower abdomen for natural period cramp relief.',
-    ingredients: [
-      { name: 'Sesame oil', amount: '50ml' },
-      { name: 'Ajwain (Carom seeds)', amount: '1 tbsp' },
-      { name: 'Ginger (grated)', amount: '1 inch piece' },
-      { name: 'Garlic cloves', amount: '2' },
-      { name: 'Castor oil', amount: '1 tsp' },
-    ],
-    steps: [
-      'Heat sesame oil on low flame',
-      'Add ajwain, ginger, and garlic',
-      'Cook on low for 10 minutes until golden',
-      'Strain and add castor oil',
-      'Store in glass bottle (lasts 3 months)',
-      'Warm slightly before use, massage on lower abdomen clockwise',
-    ],
-    benefits: ['Relieves menstrual cramps', 'Improves blood circulation', 'Reduces bloating', 'Calms muscles naturally'],
-    targetAudience: ['periods'], isPublished: true, prepTime: '15 min', difficulty: 'Easy',
-  },
+  { id: 'r1', title: 'Anti-Hairfall Hair Mask', emoji: '\u{1F33F}', description: 'Powerful mask to stop hairfall naturally.',
+    ingredients: [{ name: 'Fenugreek seeds (soaked overnight)', amount: '2 tbsp' }, { name: 'Curd / Yogurt', amount: '3 tbsp' }, { name: 'Curry leaves (ground)', amount: '10-12' }, { name: 'Coconut oil', amount: '1 tbsp' }, { name: 'Amla powder', amount: '1 tsp' }],
+    steps: ['Soak fenugreek overnight', 'Grind into paste with curry leaves', 'Mix in curd, oil, amla', 'Apply scalp to tip', 'Leave 45 min, wash with mild shampoo', 'Use 2x/week for 2 months'],
+    benefits: ['Strengthens roots', 'Reduces hairfall', 'Adds shine'], targetAudience: ['all'], isPublished: true, prepTime: '15 min + 45 min', difficulty: 'Easy' },
+  { id: 'r2', title: 'Glowing Skin Ubtan', emoji: '\u2728', description: 'Traditional Indian ubtan for bridal glow.',
+    ingredients: [{ name: 'Besan (Gram flour)', amount: '3 tbsp' }, { name: 'Turmeric', amount: '1/2 tsp' }, { name: 'Raw milk', amount: '2 tbsp' }, { name: 'Honey', amount: '1 tsp' }, { name: 'Saffron strands', amount: '4-5' }],
+    steps: ['Soak saffron in warm milk 10 min', 'Mix besan + turmeric', 'Add saffron milk + honey', 'Apply on face + neck', 'Dry 20 min, scrub off gently'],
+    benefits: ['Instant glow', 'Removes tan', 'Exfoliates', 'Evens tone'], targetAudience: ['all'], isPublished: true, prepTime: '10 min + 20 min', difficulty: 'Easy' },
+  { id: 'r3', title: 'Fertility Boosting Drink', emoji: '\u{1F33A}', description: 'Ancient Ayurvedic drink for reproductive health.',
+    ingredients: [{ name: 'Shatavari powder', amount: '1 tsp' }, { name: 'Warm A2 milk', amount: '1 glass' }, { name: 'Ashwagandha powder', amount: '1/2 tsp' }, { name: 'Ghee', amount: '1 tsp' }, { name: 'Honey', amount: '1 tsp' }],
+    steps: ['Warm milk (don\'t boil)', 'Add Shatavari + Ashwagandha', 'Stir in ghee', 'Cool slightly, add honey', 'Drink before bed, daily 3 months'],
+    benefits: ['Supports ovulation', 'Balances hormones', 'Improves egg quality'], targetAudience: ['fertility'], isPublished: true, prepTime: '5 min', difficulty: 'Easy' },
+  { id: 'r4', title: 'Period Pain Relief Oil', emoji: '\u{1FA78}', description: 'Massage oil for natural cramp relief.',
+    ingredients: [{ name: 'Sesame oil', amount: '50ml' }, { name: 'Ajwain (Carom seeds)', amount: '1 tbsp' }, { name: 'Ginger (grated)', amount: '1 inch' }, { name: 'Garlic cloves', amount: '2' }],
+    steps: ['Heat sesame oil on low', 'Add ajwain, ginger, garlic', 'Cook low 10 min till golden', 'Strain, store in glass bottle', 'Warm before use, massage lower abdomen clockwise'],
+    benefits: ['Relieves cramps', 'Improves circulation', 'Reduces bloating'], targetAudience: ['periods'], isPublished: true, prepTime: '15 min', difficulty: 'Easy' },
 ];
 
-const defaultDoctor: DoctorProfile = {
-  name: 'Dr. SheBloom',
-  title: 'Chief Ayurveda Physician',
-  qualification: 'BAMS, MD (Ayurveda)',
-  experience: '10+ years',
-  specialization: ['Women\'s Health', 'PCOD/PCOS', 'Fertility', 'Hair & Skin', 'Pregnancy Care', 'Hormonal Balance'],
-  about: 'Passionate about making genuine Ayurvedic healthcare accessible to every woman. Each product is handcrafted with love, using herbs sourced directly from organic farms. For patients who cannot afford treatment, consultations are completely free.',
-  philosophy: 'I believe in treating the root cause, not just symptoms. Every woman deserves access to pure, chemical-free wellness solutions — regardless of her financial situation.',
-  consultationFee: '\u20B9200 (Free for those in need)',
-  freeForPoor: true,
-  languages: ['Hindi', 'English', 'Marathi', 'Kannada'],
-};
+const defaultDoctors: DoctorListing[] = [
+  { id: 'd_chief', name: 'Dr. SheBloom', specialization: 'Ayurveda & Women\'s Health', experience: 10, rating: 4.9, reviews: 847,
+    fee: 200, feeFreeForPoor: true, tags: ['PCOD Expert', 'Fertility', 'Pregnancy Care', 'Hair & Skin'],
+    languages: ['Hindi', 'English', 'Marathi', 'Kannada'], qualification: 'BAMS, MD (Ayurveda)',
+    about: 'Passionate about genuine Ayurvedic healthcare for every woman. Each product is handcrafted with love. Free consultations for those who cannot afford.',
+    isChief: true, isPublished: true },
+  { id: 'd2', name: 'Dr. Priya Sharma', specialization: 'Gynecologist', experience: 12, rating: 4.9, reviews: 847,
+    fee: 300, feeFreeForPoor: false, tags: ['PCOD Expert'], languages: ['English', 'Hindi'], qualification: 'MBBS, MS (OBG)',
+    about: 'Specializes in PCOD management and menstrual disorders.', isChief: false, isPublished: true },
+  { id: 'd3', name: 'Dr. Anita Desai', specialization: 'Obstetrician', experience: 18, rating: 4.8, reviews: 1203,
+    fee: 500, feeFreeForPoor: false, tags: ['High Risk Pregnancy'], languages: ['English'], qualification: 'MBBS, DGO, DNB',
+    about: 'Expert in high-risk pregnancies with 18 years of experience.', isChief: false, isPublished: true },
+  { id: 'd4', name: 'Dr. Meera Nair', specialization: 'Fertility Specialist', experience: 15, rating: 4.9, reviews: 632,
+    fee: 450, feeFreeForPoor: false, tags: ['IVF', 'IUI'], languages: ['English', 'Tamil'], qualification: 'MBBS, MS, Fellowship in Reproductive Medicine',
+    about: 'Fertility expert helping couples achieve their dream of parenthood.', isChief: false, isPublished: true },
+];
 
-interface AyurvedaState {
+interface StoreState {
+  // Admin
+  adminPin: string;
+  isAdminUnlocked: boolean;
+  unlockAdmin: (pin: string) => boolean;
+  lockAdmin: () => void;
+  changePin: (oldPin: string, newPin: string) => boolean;
+  // Products
   products: AyurvedaProduct[];
-  recipes: DIYRecipe[];
-  doctor: DoctorProfile;
-  isAdmin: boolean;
-  setAdmin: (v: boolean) => void;
   addProduct: (p: AyurvedaProduct) => void;
   updateProduct: (id: string, data: Partial<AyurvedaProduct>) => void;
   deleteProduct: (id: string) => void;
   togglePublish: (id: string) => void;
   toggleFeatured: (id: string) => void;
+  // Articles
+  articles: Article[];
+  addArticle: (a: Article) => void;
+  updateArticle: (id: string, data: Partial<Article>) => void;
+  deleteArticle: (id: string) => void;
+  toggleArticlePublish: (id: string) => void;
+  toggleArticleFeatured: (id: string) => void;
+  // Recipes
+  recipes: DIYRecipe[];
   addRecipe: (r: DIYRecipe) => void;
-  updateRecipe: (id: string, data: Partial<DIYRecipe>) => void;
   deleteRecipe: (id: string) => void;
-  updateDoctor: (data: Partial<DoctorProfile>) => void;
+  // Doctors
+  doctors: DoctorListing[];
+  addDoctor: (d: DoctorListing) => void;
+  updateDoctor: (id: string, data: Partial<DoctorListing>) => void;
+  deleteDoctor: (id: string) => void;
+  toggleDoctorPublish: (id: string) => void;
 }
 
-export const useAyurvedaStore = create<AyurvedaState>()(
+export const useAyurvedaStore = create<StoreState>()(
   persist(
-    (set) => ({
-      products: defaultProducts,
-      recipes: defaultRecipes,
-      doctor: defaultDoctor,
-      isAdmin: false,
-      setAdmin: (isAdmin) => set({ isAdmin }),
+    (set, get) => ({
+      adminPin: '271828',
+      isAdminUnlocked: false,
+      unlockAdmin: (pin) => { if (pin === get().adminPin) { set({ isAdminUnlocked: true }); return true; } return false; },
+      lockAdmin: () => set({ isAdminUnlocked: false }),
+      changePin: (oldPin, newPin) => { if (oldPin === get().adminPin && newPin.length >= 4) { set({ adminPin: newPin }); return true; } return false; },
+      products: defaultProducts, articles: defaultArticles, recipes: defaultRecipes, doctors: defaultDoctors,
       addProduct: (p) => set((s) => ({ products: [...s.products, p] })),
       updateProduct: (id, data) => set((s) => ({ products: s.products.map(p => p.id === id ? { ...p, ...data } : p) })),
       deleteProduct: (id) => set((s) => ({ products: s.products.filter(p => p.id !== id) })),
       togglePublish: (id) => set((s) => ({ products: s.products.map(p => p.id === id ? { ...p, isPublished: !p.isPublished } : p) })),
       toggleFeatured: (id) => set((s) => ({ products: s.products.map(p => p.id === id ? { ...p, isFeatured: !p.isFeatured } : p) })),
+      addArticle: (a) => set((s) => ({ articles: [...s.articles, a] })),
+      updateArticle: (id, data) => set((s) => ({ articles: s.articles.map(a => a.id === id ? { ...a, ...data } : a) })),
+      deleteArticle: (id) => set((s) => ({ articles: s.articles.filter(a => a.id !== id) })),
+      toggleArticlePublish: (id) => set((s) => ({ articles: s.articles.map(a => a.id === id ? { ...a, isPublished: !a.isPublished } : a) })),
+      toggleArticleFeatured: (id) => set((s) => ({ articles: s.articles.map(a => a.id === id ? { ...a, isFeatured: !a.isFeatured } : a) })),
       addRecipe: (r) => set((s) => ({ recipes: [...s.recipes, r] })),
-      updateRecipe: (id, data) => set((s) => ({ recipes: s.recipes.map(r => r.id === id ? { ...r, ...data } : r) })),
       deleteRecipe: (id) => set((s) => ({ recipes: s.recipes.filter(r => r.id !== id) })),
-      updateDoctor: (data) => set((s) => ({ doctor: { ...s.doctor, ...data } })),
+      addDoctor: (d) => set((s) => ({ doctors: [...s.doctors, d] })),
+      updateDoctor: (id, data) => set((s) => ({ doctors: s.doctors.map(d => d.id === id ? { ...d, ...data } : d) })),
+      deleteDoctor: (id) => set((s) => ({ doctors: s.doctors.filter(d => d.id !== id && d.isChief !== true) })),
+      toggleDoctorPublish: (id) => set((s) => ({ doctors: s.doctors.map(d => d.id === id ? { ...d, isPublished: !d.isPublished } : d) })),
     }),
     { name: 'shebloom-ayurveda' }
   )
