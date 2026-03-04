@@ -1,9 +1,11 @@
 import axios from 'axios';
 
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// In production, VITE_API_URL MUST be set at build time in Railway
+// Example: VITE_API_URL=https://shebloom-production.up.railway.app
+const BASE = import.meta.env.VITE_API_URL || '';
 
 export const api = axios.create({
-  baseURL: BASE + '/api/v1',
+  baseURL: BASE ? BASE + '/api/v1' : '/api/v1',
   timeout: 15000,
   headers: { 'Content-Type': 'application/json' },
 });
@@ -23,7 +25,8 @@ api.interceptors.response.use(
       const rt = localStorage.getItem('sb_refresh');
       if (rt) {
         try {
-          const resp = await axios.post(BASE + '/api/v1/auth/refresh', { refreshToken: rt });
+          const refreshUrl = (BASE ? BASE + '/api/v1' : '/api/v1') + '/auth/refresh';
+          const resp = await axios.post(refreshUrl, { refreshToken: rt });
           localStorage.setItem('sb_token', resp.data.data.accessToken);
           localStorage.setItem('sb_refresh', resp.data.data.refreshToken);
           req.headers.Authorization = 'Bearer ' + resp.data.data.accessToken;

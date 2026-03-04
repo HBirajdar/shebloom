@@ -15,6 +15,16 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
-    sourcemap: true,
+    outDir: 'dist',
+    sourcemap: false,
+    minify: 'esbuild',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          state: ['zustand', '@tanstack/react-query', 'axios'],
+        },
+      },
+    },
   },
 });

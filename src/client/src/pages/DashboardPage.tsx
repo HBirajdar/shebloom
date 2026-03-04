@@ -40,17 +40,34 @@ export default function DashboardPage() {
     if (tab === 'profile') nav('/profile');
   }, [tab]);
 
+  const logMood = (key: string) => {
+    setMood(key);
+    moodAPI.log({ mood: key })
+      .then(() => toast.success('Mood logged!'))
+      .catch(() => toast.error('Failed to log mood'));
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
+      {/* Header */}
       <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md px-5 py-4 flex items-center justify-between border-b border-gray-100">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-rose-400 to-pink-400 flex items-center justify-center text-white font-bold text-sm">{user?.fullName?.charAt(0) || 'S'}</div>
-          <div><p className="text-xs text-gray-400">Hello</p><p className="text-sm font-bold text-gray-900">{user?.fullName || 'User'}</p></div>
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-rose-400 to-pink-400 flex items-center justify-center text-white font-bold text-sm">
+            {user?.fullName?.charAt(0) || 'S'}
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Hello</p>
+            <p className="text-sm font-bold text-gray-900">{user?.fullName || 'User'}</p>
+          </div>
         </div>
-        <button onClick={() => nav('/appointments')} className="relative w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center"><span>&#128276;</span><div className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full" /></button>
+        <button onClick={() => nav('/appointments')} className="relative w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+          <span>&#128276;</span>
+          <div className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full" />
+        </button>
       </div>
 
       <div className="px-5 pt-5 space-y-5">
+        {/* Cycle Card */}
         <div className={'rounded-3xl p-5 text-white bg-gradient-to-br ' + (phaseGrad[phase] || 'from-rose-400 to-pink-400')}>
           <div className="flex justify-between items-center">
             <div>
@@ -64,42 +81,88 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mt-4 flex gap-3">
-            <div className="bg-white/20 rounded-xl px-3 py-2 text-xs"><span className="block text-white/70">Next period</span><span className="font-bold">{daysUntilPeriod} days</span></div>
-            <div className="bg-white/20 rounded-xl px-3 py-2 text-xs"><span className="block text-white/70">Cycle</span><span className="font-bold">{cycleLength} days</span></div>
+            <div className="bg-white/20 rounded-xl px-3 py-2 text-xs">
+              <span className="block text-white/70">Next period</span>
+              <span className="font-bold">{daysUntilPeriod} days</span>
+            </div>
+            <div className="bg-white/20 rounded-xl px-3 py-2 text-xs">
+              <span className="block text-white/70">Cycle</span>
+              <span className="font-bold">{cycleLength} days</span>
+            </div>
           </div>
         </div>
 
+        {/* Quick Actions */}
         <div className="grid grid-cols-4 gap-3">
-          {[{l:'Tracker',p:'/tracker',c:'bg-rose-50',i:'&#128197;'},{l:'Pregnancy',p:'/pregnancy',c:'bg-purple-50',i:'&#129328;'},{l:'Doctors',p:'/doctors',c:'bg-blue-50',i:'&#128105;'},{l:'Hospitals',p:'/hospitals',c:'bg-green-50',i:'&#127973;'}].map(a=>
-            <button key={a.l} onClick={()=>nav(a.p)} className="flex flex-col items-center gap-1">
-              <div className={'w-14 h-14 rounded-2xl flex items-center justify-center text-2xl '+a.c}><span dangerouslySetInnerHTML={{__html:a.i}}/></div>
+          {[
+            { l: 'Tracker', p: '/tracker', c: 'bg-rose-50', i: '&#128197;' },
+            { l: 'Pregnancy', p: '/pregnancy', c: 'bg-purple-50', i: '&#129328;' },
+            { l: 'Doctors', p: '/doctors', c: 'bg-blue-50', i: '&#128105;' },
+            { l: 'Hospitals', p: '/hospitals', c: 'bg-green-50', i: '&#127973;' },
+          ].map(a => (
+            <button key={a.l} onClick={() => nav(a.p)} className="flex flex-col items-center gap-1">
+              <div className={'w-14 h-14 rounded-2xl flex items-center justify-center text-2xl ' + a.c}>
+                <span dangerouslySetInnerHTML={{ __html: a.i }} />
+              </div>
               <span className="text-[10px] font-medium text-gray-500">{a.l}</span>
             </button>
-          )}
+          ))}
         </div>
 
+        {/* Mood Logger */}
         <div className="bg-white rounded-2xl p-4 shadow-sm">
           <h3 className="text-sm font-bold text-gray-800 mb-3">How are you feeling?</h3>
           <div className="flex justify-between">
-            {moods.map(m=><button key={m.key} onClick={()=>{setMood(m.key);moodAPI.log({mood:m.key}).then(()=>toast.success('Mood logged!')).catch(()=>toast.error('Failed to log mood'));}} className={'flex flex-col items-center gap-1 px-2 py-2 rounded-xl transition-all '+(mood===m.key?'bg-rose-50 scale-110':'hover:bg-gray-50')}>              <span className="text-2xl" dangerouslySetInnerHTML={{__html:m.emoji}}/><span className="text-[10px] text-gray-500">{m.label}</span>
-            </button>)}
+            {moods.map(m => (
+              <button
+                key={m.key}
+                onClick={() => logMood(m.key)}
+                className={'flex flex-col items-center gap-1 px-2 py-2 rounded-xl transition-all ' + (mood === m.key ? 'bg-rose-50 scale-110' : 'hover:bg-gray-50')}
+              >
+                <span className="text-2xl" dangerouslySetInnerHTML={{ __html: m.emoji }} />
+                <span className="text-[10px] text-gray-500">{m.label}</span>
+              </button>
+            ))}
           </div>
         </div>
 
+        {/* Water Intake */}
         <div className="bg-white rounded-2xl p-4 shadow-sm">
-          <div className="flex justify-between mb-3"><h3 className="text-sm font-bold text-gray-800">Water Intake</h3><span className="text-xs text-blue-500 font-semibold">{water}/8</span></div>
+          <div className="flex justify-between mb-3">
+            <h3 className="text-sm font-bold text-gray-800">Water Intake</h3>
+            <span className="text-xs text-blue-500 font-semibold">{water}/8</span>
+          </div>
           <div className="flex gap-2 flex-wrap">
-            {Array.from({length:8}).map((_,i)=><button key={i} onClick={()=>setWater(i<water?i:i+1)} className={'w-9 h-9 rounded-lg flex items-center justify-center text-sm '+(i<water?'bg-blue-100 text-blue-600':'bg-gray-100 text-gray-400')}>&#128167;</button>)}
+            {Array.from({ length: 8 }).map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setWater(i < water ? i : i + 1)}
+                className={'w-9 h-9 rounded-lg flex items-center justify-center text-sm ' + (i < water ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400')}
+              >
+                &#128167;
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
+      {/* Bottom Navigation */}
       <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-100 px-2 py-2 flex justify-around z-30">
-        {[{id:'home',i:'&#127968;',l:'Home'},{id:'wellness',i:'&#127807;',l:'Wellness'},{id:'articles',i:'&#128240;',l:'Articles'},{id:'profile',i:'&#128100;',l:'Profile'}].map(t=>
-          <button key={t.id} onClick={()=>setTab(t.id)} className={'flex flex-col items-center gap-0.5 px-4 py-1 '+(tab===t.id?'text-rose-600':'text-gray-400')}>
-            <span className="text-xl" dangerouslySetInnerHTML={{__html:t.i}}/><span className="text-[10px] font-medium">{t.l}</span>
+        {[
+          { id: 'home', i: '&#127968;', l: 'Home' },
+          { id: 'wellness', i: '&#127807;', l: 'Wellness' },
+          { id: 'articles', i: '&#128240;', l: 'Articles' },
+          { id: 'profile', i: '&#128100;', l: 'Profile' },
+        ].map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={'flex flex-col items-center gap-0.5 px-4 py-1 ' + (tab === t.id ? 'text-rose-600' : 'text-gray-400')}
+          >
+            <span className="text-xl" dangerouslySetInnerHTML={{ __html: t.i }} />
+            <span className="text-[10px] font-medium">{t.l}</span>
           </button>
-        )}
+        ))}
       </div>
     </div>
   );
