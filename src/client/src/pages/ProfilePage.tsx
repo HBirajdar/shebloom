@@ -11,10 +11,13 @@ const sections = [
     { i: '\u{1F504}', l: 'Cycle Settings', action: 'cycle' },
   ]},
   { title: 'Health', items: [
-    { i: '\u{1F4CA}', l: 'My Reports', action: 'reports' },
+    { i: '\u{1F33F}', l: 'Ayurveda Shop', action: 'ayurveda' },
     { i: '\u{1F469}\u200D\u2695\uFE0F', l: 'My Doctors', action: 'doctors' },
     { i: '\u{1F4CB}', l: 'Health Records', action: 'records' },
     { i: '\u{1F512}', l: 'Privacy', action: 'privacy' },
+  ]},
+  { title: 'Admin', items: [
+    { i: '\u{1F6E1}\uFE0F', l: 'Admin Panel', action: 'admin' },
   ]},
   { title: 'Support', items: [
     { i: '\u2753', l: 'Help Center', action: 'help' },
@@ -70,10 +73,11 @@ export default function ProfilePage() {
       case 'edit': setShowEdit(true); break;
       case 'notif': toast('Notification settings coming soon!'); break;
       case 'cycle': nav('/tracker'); break;
-      case 'reports': toast('Reports coming soon!'); break;
+      case 'ayurveda': nav('/ayurveda'); break;
       case 'doctors': nav('/doctors'); break;
       case 'records': toast('Health records coming soon!'); break;
       case 'privacy': toast('Privacy settings coming soon!'); break;
+      case 'admin': nav('/admin'); break;
       case 'help': toast('Help center coming soon!'); break;
       case 'rate': toast.success('Thank you for using SheBloom!'); break;
       case 'share':

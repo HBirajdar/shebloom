@@ -297,17 +297,17 @@ export default function DashboardPage() {
         <div className="grid grid-cols-4 gap-2.5">
           {(goal === 'periods' || goal === 'wellness' ? [
             { l: 'Tracker', p: '/tracker', bg: '#FFF1F2', e: '\u{1F4C5}', c: '#E11D48' },
-            { l: 'Wellness', p: '/wellness', bg: '#ECFDF5', e: '\u{1F9D8}', c: '#059669' },
+            { l: 'Ayurveda', p: '/ayurveda', bg: '#ECFDF5', e: '\u{1F33F}', c: '#059669' },
             { l: 'Doctors', p: '/doctors', bg: '#EFF6FF', e: '\u{1F469}\u200D\u2695\uFE0F', c: '#2563EB' },
             { l: 'Articles', p: '/articles', bg: '#FFF7ED', e: '\u{1F4F0}', c: '#EA580C' },
           ] : goal === 'fertility' ? [
             { l: 'Tracker', p: '/tracker', bg: '#F5F3FF', e: '\u{1F495}', c: '#7C3AED' },
-            { l: 'Ovulation', p: '/tracker', bg: '#FDF4FF', e: '\u2728', c: '#A855F7' },
+            { l: 'Ayurveda', p: '/ayurveda', bg: '#ECFDF5', e: '\u{1F33F}', c: '#059669' },
             { l: 'Doctors', p: '/doctors', bg: '#EFF6FF', e: '\u{1F469}\u200D\u2695\uFE0F', c: '#2563EB' },
             { l: 'Articles', p: '/articles', bg: '#FFF7ED', e: '\u{1F4F0}', c: '#EA580C' },
           ] : [
             { l: 'Pregnancy', p: '/pregnancy', bg: '#F5F3FF', e: '\u{1F930}', c: '#7C3AED' },
-            { l: 'Wellness', p: '/wellness', bg: '#ECFDF5', e: '\u{1F9D8}', c: '#059669' },
+            { l: 'Ayurveda', p: '/ayurveda', bg: '#ECFDF5', e: '\u{1F33F}', c: '#059669' },
             { l: 'Doctors', p: '/doctors', bg: '#EFF6FF', e: '\u{1F469}\u200D\u2695\uFE0F', c: '#2563EB' },
             { l: 'Hospitals', p: '/hospitals', bg: '#FFF1F2', e: '\u{1F3E5}', c: '#E11D48' },
           ]).map(a => (

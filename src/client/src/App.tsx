@@ -16,6 +16,8 @@ const ArticlesPage = lazy(() => import('./pages/ArticlesPage'));
 const ArticleDetailPage = lazy(() => import('./pages/ArticleDetailPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const AppointmentsPage = lazy(() => import('./pages/AppointmentsPage'));
+const AyurvedaPage = lazy(() => import('./pages/AyurvedaPage'));
+const AdminPage = lazy(() => import('./pages/AdminPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 // Loading spinner
@@ -57,6 +59,8 @@ export default function App() {
           <Route path="/articles/:slug" element={<ProtectedRoute><ArticleDetailPage /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/appointments" element={<ProtectedRoute><AppointmentsPage /></ProtectedRoute>} />
+          <Route path="/ayurveda" element={<ProtectedRoute><AyurvedaPage /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
 
           {/* 404 */}
           <Route path="*" element={<NotFoundPage />} />
