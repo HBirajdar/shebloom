@@ -26,6 +26,7 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(0);
 
   const parseErr = (e: any): string => {
     if (!e?.response) return 'Cannot reach server. Check your internet or try again in a moment.';
@@ -53,6 +54,16 @@ export default function AuthPage() {
     setLoading(false);
   };
 
+  const startResendCountdown = () => {
+    setResendCountdown(60);
+    const timer = setInterval(() => {
+      setResendCountdown(prev => {
+        if (prev <= 1) { clearInterval(timer); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
   const handleSendOtp = async () => {
     if (ph.length !== 10) { setErr('Enter a valid 10-digit phone number'); return; }
     // Basic Indian mobile check (must start with 6-9)
@@ -63,6 +74,21 @@ export default function AuthPage() {
       setOtpSent(true);
       setSmsSent(r.data.smsSent);
       if (r.data.debugOtp) setDebugOtp(r.data.debugOtp);
+      startResendCountdown();
+    } catch (e: any) {
+      setErr(parseErr(e));
+    }
+    setLoading(false);
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCountdown > 0 || loading) return;
+    setLoading(true); setErr(''); setDebugOtp(''); setSmsSent(false);
+    try {
+      const r = await authAPI.sendOtp(ph);
+      setSmsSent(r.data.smsSent);
+      if (r.data.debugOtp) setDebugOtp(r.data.debugOtp);
+      startResendCountdown();
     } catch (e: any) {
       setErr(parseErr(e));
     }
@@ -206,10 +232,17 @@ export default function AuthPage() {
                   className="w-full py-4 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-2xl font-bold text-sm disabled:opacity-60 active:scale-95 transition-all shadow-md shadow-rose-200">
                   {loading ? '⏳ Verifying...' : 'Verify OTP →'}
                 </button>
-                <button onClick={() => { setOtpSent(false); setOtp(''); setDebugOtp(''); setErr(''); }}
-                  className="w-full py-2.5 text-gray-400 text-xs font-medium active:scale-95 transition-transform">
-                  ← Change number
-                </button>
+                <div className="flex items-center justify-between">
+                  <button onClick={() => { setOtpSent(false); setOtp(''); setDebugOtp(''); setErr(''); setResendCountdown(0); }}
+                    className="py-2.5 text-gray-400 text-xs font-medium active:scale-95 transition-transform">
+                    ← Change number
+                  </button>
+                  <button disabled={resendCountdown > 0 || loading} onClick={handleResendOtp}
+                    className="py-2.5 text-xs font-semibold transition-all active:scale-95 disabled:opacity-50"
+                    style={{ color: resendCountdown > 0 ? '#9CA3AF' : '#F43F5E' }}>
+                    {resendCountdown > 0 ? `Resend in ${resendCountdown}s` : 'Resend OTP'}
+                  </button>
+                </div>
               </div>
             )}
 

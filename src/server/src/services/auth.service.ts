@@ -26,6 +26,15 @@ function otpGet(key: string): string | null {
 
 function otpDel(key: string) { otpStore.delete(key); }
 
+// Strip +91 / 91 prefix and validate → always store/lookup as 10 digits
+function normalizePhone(raw: string): string {
+  const digits = raw.replace(/^\+?91/, '').replace(/\D/g, '');
+  if (digits.length !== 10 || !/^[6-9]/.test(digits)) {
+    throw new AppError('Enter a valid 10-digit Indian mobile number (6-9 start)', 400);
+  }
+  return digits;
+}
+
 export class AuthService {
   private generateTokens(userId: string, role: string) {
     const accessToken = jwt.sign({ userId, role }, process.env.JWT_SECRET!, { expiresIn: process.env.JWT_EXPIRY || '15m' } as any);
@@ -63,48 +72,56 @@ export class AuthService {
   }
 
   async sendOtp(phone: string): Promise<{ smsSent: boolean; debugOtp?: string }> {
+    const normalized = normalizePhone(phone);
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
-    await cacheSet(`otp:${phone}`, otp, 300);
-    otpSet(`otp:${phone}`, otp, 300);
-    await prisma.otpStore.deleteMany({ where: { phone } }).catch(() => {});
-    await prisma.otpStore.create({ data: { phone, otp, expiresAt } }).catch(() => {});
+    // Store in all three layers: Redis → in-memory → DB
+    await cacheSet(`otp:${normalized}`, otp, 300);
+    otpSet(`otp:${normalized}`, otp, 300);
+    await prisma.otpStore.deleteMany({ where: { phone: normalized } }).catch(() => {});
+    await prisma.otpStore.create({ data: { phone: normalized, otp, expiresAt } }).catch(() => {});
     console.log('============================');
-    console.log(`OTP for ${phone}: ${otp}`);
+    console.log(`[OTP] Sending to: ${normalized}, OTP: ${otp}`);
     console.log('============================');
     const twilioReady = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER);
     if (twilioReady) {
       try {
         const twilio = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-        await twilio.messages.create({ body: `Your SheBloom OTP: ${otp}. Valid for 5 minutes.`, from: process.env.TWILIO_PHONE_NUMBER, to: `+91${phone}` });
-        logger.info(`OTP sent via Twilio to +91${phone}`);
+        await twilio.messages.create({ body: `Your SheBloom OTP: ${otp}. Valid for 5 minutes.`, from: process.env.TWILIO_PHONE_NUMBER, to: `+91${normalized}` });
+        logger.info(`OTP sent via Twilio to +91${normalized}`);
         return { smsSent: true };
       } catch (err: any) {
-        logger.error(`Twilio send failed for ${phone}: ${err.message}`);
+        logger.error(`Twilio send failed for ${normalized}: ${err.message}`);
       }
     }
-    // SMS not sent — return OTP in response so users can still log in without SMS
-    logger.info(`[NO-SMS] OTP for +91${phone}: ${otp}`);
+    logger.info(`[NO-SMS] OTP for +91${normalized}: ${otp}`);
     return { smsSent: false, debugOtp: otp };
   }
 
   async verifyOtp(phone: string, otp: string) {
-    // Try Redis first → in-memory → DB
-    let stored = await cacheGet<string>(`otp:${phone}`);
-    if (!stored) stored = otpGet(`otp:${phone}`);
+    const normalized = normalizePhone(phone);
+    // Try Redis → in-memory → DB (in that priority order)
+    let stored = await cacheGet<string>(`otp:${normalized}`);
+    if (!stored) stored = otpGet(`otp:${normalized}`);
     if (!stored) {
-      // DB fallback
-      const dbOtp = await prisma.otpStore.findFirst({ where: { phone, expiresAt: { gt: new Date() } }, orderBy: { createdAt: 'desc' } }).catch(() => null);
-      if (dbOtp) stored = dbOtp.otp;
+      // DB fallback — look up without expiry filter so we can give the right error
+      const dbOtp = await prisma.otpStore.findFirst({ where: { phone: normalized }, orderBy: { createdAt: 'desc' } }).catch(() => null);
+      if (dbOtp) {
+        if (dbOtp.expiresAt < new Date()) throw new AppError('OTP has expired. Please request a new one.', 400);
+        stored = dbOtp.otp;
+      }
     }
-    if (!stored || stored !== otp) throw new AppError('Invalid or expired OTP', 400);
-    await cacheDel(`otp:${phone}`);
-    otpDel(`otp:${phone}`);
-    await prisma.otpStore.deleteMany({ where: { phone } }).catch(() => {});
-    let user = await prisma.user.findUnique({ where: { phone }, select: { id: true, fullName: true, email: true, phone: true, role: true } });
+    if (!stored) throw new AppError('OTP not found. Please request a new one.', 400);
+    if (stored !== otp) throw new AppError('Incorrect OTP. Please try again.', 400);
+    // Clear used OTP from all stores
+    await cacheDel(`otp:${normalized}`);
+    otpDel(`otp:${normalized}`);
+    await prisma.otpStore.deleteMany({ where: { phone: normalized } }).catch(() => {});
+    // Find or create user
+    let user = await prisma.user.findUnique({ where: { phone: normalized }, select: { id: true, fullName: true, email: true, phone: true, role: true } });
     const isNew = !user;
     if (!user) {
-      user = await prisma.user.create({ data: { phone, fullName: 'User', authProvider: 'PHONE', isVerified: true, profile: { create: {} } }, select: { id: true, fullName: true, email: true, phone: true, role: true } });
+      user = await prisma.user.create({ data: { phone: normalized, fullName: 'User', authProvider: 'PHONE', isVerified: true, profile: { create: {} } }, select: { id: true, fullName: true, email: true, phone: true, role: true } });
     } else { await prisma.user.update({ where: { id: user.id }, data: { isVerified: true, lastLoginAt: new Date() } }); }
     const tokens = this.generateTokens(user.id, user.role);
     await prisma.refreshToken.create({ data: { userId: user.id, token: tokens.refreshToken, expiresAt: new Date(Date.now() + 7*24*60*60*1000) } });

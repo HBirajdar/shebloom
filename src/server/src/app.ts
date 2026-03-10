@@ -101,8 +101,9 @@ const generalLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: 60, // increased from 20 — allows normal testing without hitting limit
   message: { error: 'Too many auth attempts. Please try after 15 minutes.' },
+  skip: (req) => process.env.NODE_ENV !== 'production', // no limit in dev
 });
 
 app.use('/api/', generalLimiter);
