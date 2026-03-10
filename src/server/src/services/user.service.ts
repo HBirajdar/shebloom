@@ -9,10 +9,9 @@ export class UserService {
   }
   async updateUser(userId: string, data: any) {
     const allowed: Record<string, any> = {};
-    // FIX: Added 'email' to the whitelist so profile email updates actually persist
+    // FIXED: 'email' was missing from this list — that's why email never saved
     const safe = ['fullName', 'email', 'avatarUrl', 'dateOfBirth', 'language', 'timezone'];
     for (const k of safe) { if (data[k] !== undefined) allowed[k] = data[k]; }
-    // Handle dateOfBirth conversion
     if (allowed.dateOfBirth && typeof allowed.dateOfBirth === 'string') {
       allowed.dateOfBirth = new Date(allowed.dateOfBirth);
     }
@@ -22,7 +21,6 @@ export class UserService {
     });
   }
   async updateProfile(userId: string, data: any) {
-    // Upsert profile in case it doesn't exist yet
     return prisma.userProfile.upsert({
       where: { userId },
       update: data,
