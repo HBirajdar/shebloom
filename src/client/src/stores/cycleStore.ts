@@ -12,6 +12,8 @@ interface CycleState {
   goal: UserGoal;
   pregnancyWeek: number;
   lastPeriodDate: string;
+  // Bug D fix: track whether real API data has been loaded
+  hasRealData: boolean;
   setCycleData: (data: Partial<CycleState>) => void;
   setGoal: (goal: UserGoal) => void;
 }
@@ -19,14 +21,16 @@ interface CycleState {
 export const useCycleStore = create<CycleState>()(
   persist(
     (set) => ({
-      cycleDay: 14,
-      phase: 'ovulation',
-      daysUntilPeriod: 14,
+      // Bug D fix: default to 0/null-equivalent so we never show Day 14 / ovulation
+      cycleDay: 1,
+      phase: 'follicular',
+      daysUntilPeriod: 0,
       cycleLength: 28,
       periodLength: 5,
       goal: 'periods',
       pregnancyWeek: 16,
       lastPeriodDate: '',
+      hasRealData: false,
       setCycleData: (data) => set(data),
       setGoal: (goal) => set({ goal }),
     }),
@@ -41,6 +45,7 @@ export const useCycleStore = create<CycleState>()(
         goal: state.goal,
         pregnancyWeek: state.pregnancyWeek,
         lastPeriodDate: state.lastPeriodDate,
+        hasRealData: state.hasRealData,
       }),
     }
   )

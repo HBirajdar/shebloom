@@ -2,17 +2,17 @@ import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCycleStore } from '../stores/cycleStore';
 import type { UserGoal } from '../stores/cycleStore';
+// Bug A+C fix: import usePeriodEvents to load past events AND predictions
+import { usePeriodEvents } from '../hooks/usePeriodEvents';
 import { cycleAPI, userAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
 /* ═══════════════════════════════════════════════════
    SHEBLOOM PREMIUM CYCLE TRACKER
-   Inspired by Flo, Clue, Ovia — but uniquely ours
    ═══════════════════════════════════════════════════ */
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-// ─── Phase Database ──────────────────────────────
 const PHASES: Record<string, {
   color: string; gradient: string; bgLight: string;
   emoji: string; title: string; subtitle: string;
@@ -52,7 +52,6 @@ const PHASES: Record<string, {
   },
 };
 
-// ─── Symptom Categories ──────────────────────────
 const SYMPTOM_CATS: { cat: string; emoji: string; items: { n: string; e: string }[] }[] = [
   { cat: 'Flow', emoji: '\u{1FA78}', items: [
     { n: 'Light Flow', e: '\u{1F4A7}' }, { n: 'Medium Flow', e: '\u{1F4A7}\u{1F4A7}' },
@@ -74,10 +73,6 @@ const SYMPTOM_CATS: { cat: string; emoji: string; items: { n: string; e: string 
     { n: 'Creamy CM', e: '\u{1F95B}' }, { n: 'Intercourse', e: '\u{1F495}' }]},
 ];
 
-// ═══════════════════════════════════════════════════
-// SVG COMPONENTS
-// ═══════════════════════════════════════════════════
-
 // ─── Premium Radial Cycle Wheel ──────────────────
 const CycleWheel = ({ cycleDay, cycleLength, periodLength, phase }: {
   cycleDay: number; cycleLength: number; periodLength: number; phase: string;
@@ -96,12 +91,10 @@ const CycleWheel = ({ cycleDay, cycleLength, periodLength, phase }: {
     return `M ${x1} ${y1} A ${r} ${r} 0 ${eA - sA > 180 ? 1 : 0} 1 ${x2} ${y2}`;
   };
 
-  // Current day position
   const dayA = ((cycleDay - 0.5) / cycleLength) * 360 - 90;
   const dR = (dayA * Math.PI) / 180;
   const dx = cx + r * Math.cos(dR), dy = cy + r * Math.sin(dR);
 
-  // Ovulation position
   const ovA = ((ov - 0.5) / cycleLength) * 360 - 90;
   const ovR = (ovA * Math.PI) / 180;
   const ovx = cx + r * Math.cos(ovR), ovy = cy + r * Math.sin(ovR);
@@ -117,14 +110,11 @@ const CycleWheel = ({ cycleDay, cycleLength, periodLength, phase }: {
           <filter id="glow"><feGaussianBlur stdDeviation="3" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
           <filter id="softShadow"><feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.15" /></filter>
         </defs>
-        {/* Background track */}
         <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F1F5F9" strokeWidth={sw} />
-        {/* Phase arcs */}
         <path d={arcPath(1, periodLength)} fill="none" stroke="url(#periodG)" strokeWidth={sw} strokeLinecap="round" />
         {periodLength + 1 < fS && <path d={arcPath(periodLength + 1, fS - 1)} fill="none" stroke="url(#follicG)" strokeWidth={sw} strokeLinecap="round" opacity="0.8" />}
         <path d={arcPath(fS, fE)} fill="none" stroke="url(#fertileG)" strokeWidth={sw} strokeLinecap="round" />
         {fE + 1 <= cycleLength && <path d={arcPath(fE + 1, cycleLength)} fill="none" stroke="url(#lutealG)" strokeWidth={sw} strokeLinecap="round" opacity="0.8" />}
-        {/* Tick marks for each day */}
         {Array.from({ length: cycleLength }).map((_, i) => {
           const a = ((i + 0.5) / cycleLength) * 360 - 90;
           const rad = (a * Math.PI) / 180;
@@ -132,17 +122,14 @@ const CycleWheel = ({ cycleDay, cycleLength, periodLength, phase }: {
           return <line key={i} x1={cx + inner * Math.cos(rad)} y1={cy + inner * Math.sin(rad)}
             x2={cx + outer * Math.cos(rad)} y2={cy + outer * Math.sin(rad)} stroke="white" strokeWidth="0.8" opacity="0.5" />;
         })}
-        {/* Ovulation diamond */}
         <g filter="url(#glow)">
           <polygon points={`${ovx},${ovy - 6} ${ovx + 5},${ovy} ${ovx},${ovy + 6} ${ovx - 5},${ovy}`} fill="#7C3AED" stroke="white" strokeWidth="1.5" />
         </g>
-        {/* Current day marker */}
         <g filter="url(#glow)">
           <circle cx={dx} cy={dy} r={15} fill="white" stroke={phaseCol} strokeWidth="3" />
           <text x={dx} y={dy + 1} textAnchor="middle" dominantBaseline="central" fill={phaseCol} fontSize="10" fontWeight="800">{cycleDay}</text>
         </g>
       </svg>
-      {/* Center content */}
       <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ pointerEvents: 'none' }}>
         <span className="text-3xl">{PHASES[phase]?.emoji || '\u{1FA78}'}</span>
         <span className="text-[22px] font-extrabold text-gray-900 mt-0.5 leading-none">Day {cycleDay}</span>
@@ -157,7 +144,6 @@ const HormoneCurve = ({ cycleLength, cycleDay, periodLength }: { cycleLength: nu
   const w = 320, h = 80, pad = 10;
   const ov = cycleLength - 14;
 
-  // Estrogen curve: low during period, rises in follicular, peaks at ovulation, dips, minor peak in luteal
   const estrogen = (d: number) => {
     const x = d / cycleLength;
     if (x < periodLength / cycleLength) return 15 + x * 80;
@@ -166,14 +152,12 @@ const HormoneCurve = ({ cycleLength, cycleDay, periodLength }: { cycleLength: nu
     return 25 + Math.sin(((d - ov) / (cycleLength - ov)) * Math.PI) * 20;
   };
 
-  // Progesterone: flat until ovulation, then rises and falls
   const progesterone = (d: number) => {
     if (d <= ov) return 10;
     const t = (d - ov) / (cycleLength - ov);
     return 10 + Math.sin(t * Math.PI) * 55;
   };
 
-  // LH surge near ovulation
   const lh = (d: number) => {
     const diff = Math.abs(d - ov);
     if (diff > 2) return 5;
@@ -194,21 +178,14 @@ const HormoneCurve = ({ cycleLength, cycleDay, periodLength }: { cycleLength: nu
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: 80 }}>
       <defs>
         <linearGradient id="estrogenFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#EC4899" stopOpacity="0.2" /><stop offset="100%" stopColor="#EC4899" stopOpacity="0" /></linearGradient>
-        <linearGradient id="progFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#F59E0B" stopOpacity="0.15" /><stop offset="100%" stopColor="#F59E0B" stopOpacity="0" /></linearGradient>
       </defs>
-      {/* Grid lines */}
       {[0.25, 0.5, 0.75].map(y => (
         <line key={y} x1={pad} y1={h * y} x2={w - pad} y2={h * y} stroke="#E5E7EB" strokeWidth="0.5" strokeDasharray="3,3" />
       ))}
-      {/* Fertile zone highlight */}
       <rect x={toX(ov - 5)} y={pad} width={toX(ov + 1) - toX(ov - 5)} height={h - 2 * pad} fill="#7C3AED" opacity="0.06" rx="4" />
-      {/* Estrogen curve */}
       <path d={makePath(estrogen)} fill="none" stroke="#EC4899" strokeWidth="2" strokeLinecap="round" />
-      {/* Progesterone curve */}
       <path d={makePath(progesterone)} fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeDasharray="4,2" />
-      {/* LH surge */}
       <path d={makePath(lh)} fill="none" stroke="#7C3AED" strokeWidth="1.5" strokeLinecap="round" opacity="0.75" />
-      {/* Current day line */}
       <line x1={curX} y1={pad} x2={curX} y2={h - pad} stroke="#1F2937" strokeWidth="1.5" strokeDasharray="2,2" opacity="0.4" />
       <circle cx={curX} cy={toY(estrogen(cycleDay))} r="3" fill="#EC4899" stroke="white" strokeWidth="1.5" />
       <circle cx={curX} cy={toY(progesterone(cycleDay))} r="3" fill="#F59E0B" stroke="white" strokeWidth="1.5" />
@@ -258,7 +235,7 @@ const FertilityHeatmap = ({ cycleDay, cycleLength }: { cycleDay: number; cycleLe
 // ─── Conception Gauge ────────────────────────────
 const ConceptionGauge = ({ chance, label }: { chance: number; label: string }) => {
   const r = 50, sw = 10;
-  const circ = Math.PI * r; // half circle
+  const circ = Math.PI * r;
   const offset = circ * (1 - chance / 100);
   const gaugeColor = chance > 25 ? '#7C3AED' : chance > 10 ? '#A78BFA' : chance > 0 ? '#DDD6FE' : '#E5E7EB';
 
@@ -286,6 +263,9 @@ export default function TrackerPage() {
   const setCycle = useCycleStore(s => s.setCycleData);
   const now = new Date();
 
+  // Bug A+C fix: use usePeriodEvents to load past events AND predictions on mount
+  const { events, addEvent, loading: eventsLoading } = usePeriodEvents();
+
   // State
   const [view, setView] = useState<'today' | 'calendar' | 'fertility' | 'log'>('today');
   const [mo, setMo] = useState(now.getMonth());
@@ -296,27 +276,24 @@ export default function TrackerPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [showConceive, setShowConceive] = useState(false);
   const [showLogPeriod, setShowLogPeriod] = useState(false);
-  const [periodStartDate, setPeriodStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [tmpCycle, setTmpCycle] = useState(cycleLength);
   const [tmpPeriod, setTmpPeriod] = useState(periodLength);
   const [loggedIntercourse, setLoggedIntercourse] = useState<number[]>([]);
 
-  // FIX: Fetch real predictions from backend on mount
-  useEffect(() => {
-    cycleAPI.predict().then(r => {
-      const d = r.data.data;
-      if (d && d.cycleDay) {
-        setCycle({ cycleDay: d.cycleDay, phase: d.phase, daysUntilPeriod: d.daysUntilPeriod, cycleLength: d.cycleLength, periodLength: d.periodLength });
-      }
-    }).catch(() => {});
-  }, []);
+  // Full log period modal state (Bug C fix)
+  const [periodStartDate, setPeriodStartDate] = useState(now.toISOString().split('T')[0]);
+  const [periodEndDate, setPeriodEndDate] = useState('');
+  const [flowIntensity, setFlowIntensity] = useState<'Light' | 'Medium' | 'Heavy' | ''>('');
+  const [painLevel, setPainLevel] = useState(0);
+  const [periodMood, setPeriodMood] = useState('');
+  const [periodSymptoms, setPeriodSymptoms] = useState<string[]>([]);
+  const [periodNotes, setPeriodNotes] = useState('');
 
   const fd = new Date(yr, mo, 1).getDay();
   const dim = new Date(yr, mo + 1, 0).getDate();
   const td = now.getDate();
   const isCurMo = mo === now.getMonth() && yr === now.getFullYear();
 
-  // Fertility calculations
   const ovDay = cycleLength - 14;
   const fertStart = Math.max(1, ovDay - 5);
   const fertEnd = Math.min(cycleLength, ovDay + 1);
@@ -334,7 +311,18 @@ export default function TrackerPage() {
     return { pct: 1, label: 'Minimal' };
   }, [cycleDay, ovDay]);
 
-  const curPhase = PHASES[phase] || PHASES.menstrual;
+  const curPhase = PHASES[phase] || PHASES.follicular;
+
+  // Bug C fix: check if a calendar date is a logged period day
+  const getCalDateStr = (d: number) => new Date(yr, mo, d).toISOString().split('T')[0];
+  const isLoggedPeriodDay = (d: number): boolean => {
+    const dateStr = getCalDateStr(d);
+    return events.some((e: any) => {
+      const start = e.startDate || '';
+      const end = e.endDate || e.startDate || '';
+      return dateStr >= start && dateStr <= end;
+    });
+  };
 
   const getDayPhase = (d: number) => {
     if (!isCurMo) return 'none';
@@ -353,33 +341,46 @@ export default function TrackerPage() {
     catch { toast.error('Failed to save'); }
   };
 
-  // FIX: Save cycle settings to BACKEND so they persist
   const saveCycleSettings = async () => {
     setCycle({ cycleLength: tmpCycle, periodLength: tmpPeriod });
     try {
       await userAPI.updateProfile({ cycleLength: tmpCycle, periodLength: tmpPeriod });
-    } catch { /* local update still works */ }
+    } catch {}
     setShowSettings(false);
     toast.success('Settings updated!');
   };
 
-  // FIX: Log period start date to backend - THIS IS THE CRITICAL MISSING PIECE
-  const logPeriodStart = async () => {
-    if (!periodStartDate) { toast.error('Select a date'); return; }
-    try {
-      await cycleAPI.log({ startDate: periodStartDate });
-      toast.success('Period logged! Predictions will update.');
+  // Bug C fix: full period save using addEvent from hook
+  const handleSavePeriod = async () => {
+    if (!periodStartDate) { toast.error('Select a start date'); return; }
+    const notesStr = [
+      flowIntensity ? `Flow: ${flowIntensity}` : '',
+      painLevel > 0 ? `Pain: ${painLevel}/5` : '',
+      periodMood ? `Mood: ${periodMood}` : '',
+      periodSymptoms.length > 0 ? `Symptoms: ${periodSymptoms.join(', ')}` : '',
+      periodNotes,
+    ].filter(Boolean).join(' | ');
+
+    const result = await addEvent({
+      startDate: periodStartDate,
+      endDate: periodEndDate || undefined,
+      notes: notesStr || undefined,
+    });
+
+    if (result) {
       setShowLogPeriod(false);
-      // Refetch predictions with new data
-      const res = await cycleAPI.predict();
-      const d = res.data.data;
-      if (d && d.cycleDay) {
-        setCycle({ cycleDay: d.cycleDay, phase: d.phase, daysUntilPeriod: d.daysUntilPeriod, cycleLength: d.cycleLength, periodLength: d.periodLength });
-      }
-    } catch {
-      toast.error('Failed to log period');
+      // Reset modal state
+      setPeriodEndDate('');
+      setFlowIntensity('');
+      setPainLevel(0);
+      setPeriodMood('');
+      setPeriodSymptoms([]);
+      setPeriodNotes('');
     }
   };
+
+  const togglePeriodSymptom = (s: string) =>
+    setPeriodSymptoms(p => p.includes(s) ? p.filter(x => x !== s) : [...p, s]);
 
   const logIntercourse = () => {
     if (loggedIntercourse.includes(cycleDay)) {
@@ -410,7 +411,9 @@ export default function TrackerPage() {
           <button onClick={() => nav('/dashboard')} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-sm active:scale-90 transition-transform">{'\u2190'}</button>
           <div>
             <h1 className="text-base font-extrabold text-gray-900">Cycle Tracker</h1>
-            <p className="text-[10px] text-gray-400 -mt-0.5">Day {cycleDay} of {cycleLength}</p>
+            <p className="text-[10px] text-gray-400 -mt-0.5">
+              {eventsLoading ? 'Loading...' : events.length > 0 ? `${events.length} period${events.length > 1 ? 's' : ''} logged • Day ${cycleDay}` : 'Day ' + cycleDay + ' of ' + cycleLength}
+            </p>
           </div>
         </div>
         <button onClick={() => setShowSettings(true)} className="px-3 py-1.5 rounded-full text-[10px] font-bold active:scale-95 transition-transform" style={{ backgroundColor: curPhase.bgLight, color: curPhase.color }}>
@@ -436,105 +439,128 @@ export default function TrackerPage() {
             TODAY TAB
            ═══════════════════════════════════════ */}
         {view === 'today' && (<>
-          {/* Cycle Wheel Hero */}
-          <div className="bg-white rounded-3xl p-4 shadow-sm overflow-hidden relative">
-            <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full opacity-5" style={{ background: curPhase.gradient }} />
-            <CycleWheel cycleDay={cycleDay} cycleLength={cycleLength} periodLength={periodLength} phase={phase} />
-
-            {/* Phase legend under wheel */}
-            <div className="flex justify-center gap-3 mt-2">
-              {[
-                { c: '#E11D48', l: 'Period' }, { c: '#10B981', l: 'Follicular' },
-                { c: '#7C3AED', l: 'Fertile' }, { c: '#D97706', l: 'Luteal' },
-              ].map(p => (
-                <div key={p.l} className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.c }} />
-                  <span className="text-[9px] text-gray-500 font-medium">{p.l}</span>
-                </div>
-              ))}
+          {/* Loading skeleton */}
+          {eventsLoading && (
+            <div className="bg-white rounded-3xl p-4 shadow-sm animate-pulse">
+              <div className="w-64 h-64 mx-auto rounded-full bg-gray-100" />
             </div>
-          </div>
+          )}
 
-          {/* LOG PERIOD BUTTON - Critical for real data */}
-          <button onClick={() => setShowLogPeriod(true)}
-            className="w-full py-3.5 rounded-2xl font-bold text-sm active:scale-95 transition-transform text-white" style={{ background: 'linear-gradient(135deg, #E11D48, #F43F5E)' }}>
-            {'\u{1FA78}'} Log Period Start Date
-          </button>
-
-          {/* Hormone Curves */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs font-bold text-gray-800">Hormone Levels</h3>
-              <div className="flex gap-3">
-                {[{ c: '#EC4899', l: 'Estrogen' }, { c: '#F59E0B', l: 'Progesterone' }, { c: '#7C3AED', l: 'LH' }].map(h => (
-                  <div key={h.l} className="flex items-center gap-1">
-                    <span className="w-2 h-0.5 rounded" style={{ backgroundColor: h.c }} />
-                    <span className="text-[8px] text-gray-400">{h.l}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <HormoneCurve cycleLength={cycleLength} cycleDay={cycleDay} periodLength={periodLength} />
-            <p className="text-[10px] text-gray-400 mt-1 text-center">{curPhase.hormones}</p>
-          </div>
-
-          {/* Stats Grid */}
-          <div className="grid grid-cols-3 gap-2.5">
-            <div className="bg-white rounded-2xl p-3 shadow-sm text-center">
-              <p className="text-[9px] text-gray-400 font-medium uppercase">Next Period</p>
-              <p className="text-xl font-extrabold text-rose-600 mt-0.5">{daysUntilPeriod}d</p>
-            </div>
-            <div className="bg-white rounded-2xl p-3 shadow-sm text-center">
-              <p className="text-[9px] text-gray-400 font-medium uppercase">Ovulation</p>
-              <p className="text-xl font-extrabold text-purple-600 mt-0.5">{daysToOv > 0 ? daysToOv + 'd' : isOvToday ? '\u2605' : '\u2713'}</p>
-            </div>
-            <button onClick={() => setShowConceive(true)} className="rounded-2xl p-3 shadow-sm text-center active:scale-95 transition-transform" style={{ background: curPhase.gradient }}>
-              <p className="text-[9px] text-white/70 font-medium uppercase">Conceive</p>
-              <p className="text-xl font-extrabold text-white mt-0.5">{conception.pct}%</p>
-            </button>
-          </div>
-
-          {/* Fertility Alert */}
-          {isFertile && (
-            <div className="rounded-2xl p-4 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #7C3AED, #EC4899)' }}>
-              <div className="absolute -right-8 -top-8 w-24 h-24 bg-white/10 rounded-full" />
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-lg">{isOvToday ? '\u{1F31F}' : '\u2728'}</span>
-                <h3 className="font-bold text-sm">{isOvToday ? 'Ovulation Day!' : 'Fertile Window Active'}</h3>
-              </div>
-              <p className="text-xs text-white/80">
-                {isOvToday ? 'Peak fertility! Highest chance of conception today.' : `Ovulation in ${daysToOv} day${daysToOv > 1 ? 's' : ''}. This is a great time to try if planning to conceive.`}
-              </p>
-              <button onClick={logIntercourse} className="mt-3 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1 active:scale-95 transition-transform">
-                {loggedIntercourse.includes(cycleDay) ? '\u2705 Logged Intercourse Today' : '\u{1F495} Log Intercourse'}
+          {/* No periods logged yet — empty state */}
+          {!eventsLoading && events.length === 0 && (
+            <div className="bg-white rounded-3xl p-6 shadow-sm text-center">
+              <span className="text-5xl">{'\u{1FA78}'}</span>
+              <h3 className="text-base font-extrabold text-gray-900 mt-3">No periods logged yet</h3>
+              <p className="text-xs text-gray-500 mt-2 leading-relaxed">Tap the button below to log your first period and unlock accurate predictions, phase insights, and fertility tracking.</p>
+              <button onClick={() => setShowLogPeriod(true)}
+                className="w-full mt-4 py-3.5 rounded-2xl font-bold text-sm active:scale-95 transition-transform text-white"
+                style={{ background: 'linear-gradient(135deg, #E11D48, #F43F5E)' }}>
+                {'\u{1FA78}'} + Log Your First Period
               </button>
             </div>
           )}
 
-          {/* Phase Card */}
-          <div className="rounded-2xl p-4 border" style={{ backgroundColor: curPhase.bgLight, borderColor: curPhase.color + '20' }}>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xl">{curPhase.emoji}</span>
-              <div>
-                <h3 className="text-sm font-bold" style={{ color: curPhase.color }}>{curPhase.title} Phase</h3>
-                <p className="text-[10px] text-gray-500">{curPhase.subtitle}</p>
+          {/* Cycle Wheel Hero — only show when data loaded */}
+          {!eventsLoading && events.length > 0 && (
+            <div className="bg-white rounded-3xl p-4 shadow-sm overflow-hidden relative">
+              <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full opacity-5" style={{ background: curPhase.gradient }} />
+              <CycleWheel cycleDay={cycleDay} cycleLength={cycleLength} periodLength={periodLength} phase={phase} />
+              <div className="flex justify-center gap-3 mt-2">
+                {[
+                  { c: '#E11D48', l: 'Period' }, { c: '#10B981', l: 'Follicular' },
+                  { c: '#7C3AED', l: 'Fertile' }, { c: '#D97706', l: 'Luteal' },
+                ].map(p => (
+                  <div key={p.l} className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.c }} />
+                    <span className="text-[9px] text-gray-500 font-medium">{p.l}</span>
+                  </div>
+                ))}
               </div>
             </div>
-            <p className="text-xs text-gray-600 mb-3">{curPhase.desc}</p>
-            <div className="space-y-1.5">
-              {curPhase.tips.map((t, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <span className="w-5 h-5 rounded-md flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0" style={{ background: curPhase.gradient }}>{i + 1}</span>
-                  <p className="text-[11px] text-gray-600 leading-relaxed">{t}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
 
-          {/* Quick Log */}
-          <button onClick={() => setView('log')} className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm font-bold text-gray-400 active:scale-98 transition-transform">
-            + Log Today's Symptoms
+          {/* LOG PERIOD BUTTON — always visible */}
+          <button onClick={() => setShowLogPeriod(true)}
+            className="w-full py-3.5 rounded-2xl font-bold text-sm active:scale-95 transition-transform text-white" style={{ background: 'linear-gradient(135deg, #E11D48, #F43F5E)' }}>
+            {'\u{1FA78}'} {events.length === 0 ? '+ Log Your First Period' : '+ Log Period'}
           </button>
+
+          {/* Only show detailed stats when events exist */}
+          {events.length > 0 && (<>
+            {/* Hormone Curves */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-bold text-gray-800">Hormone Levels</h3>
+                <div className="flex gap-3">
+                  {[{ c: '#EC4899', l: 'Estrogen' }, { c: '#F59E0B', l: 'Progesterone' }, { c: '#7C3AED', l: 'LH' }].map(h => (
+                    <div key={h.l} className="flex items-center gap-1">
+                      <span className="w-2 h-0.5 rounded" style={{ backgroundColor: h.c }} />
+                      <span className="text-[8px] text-gray-400">{h.l}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <HormoneCurve cycleLength={cycleLength} cycleDay={cycleDay} periodLength={periodLength} />
+              <p className="text-[10px] text-gray-400 mt-1 text-center">{curPhase.hormones}</p>
+            </div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-3 gap-2.5">
+              <div className="bg-white rounded-2xl p-3 shadow-sm text-center">
+                <p className="text-[9px] text-gray-400 font-medium uppercase">Next Period</p>
+                <p className="text-xl font-extrabold text-rose-600 mt-0.5">{daysUntilPeriod}d</p>
+              </div>
+              <div className="bg-white rounded-2xl p-3 shadow-sm text-center">
+                <p className="text-[9px] text-gray-400 font-medium uppercase">Ovulation</p>
+                <p className="text-xl font-extrabold text-purple-600 mt-0.5">{daysToOv > 0 ? daysToOv + 'd' : isOvToday ? '\u2605' : '\u2713'}</p>
+              </div>
+              <button onClick={() => setShowConceive(true)} className="rounded-2xl p-3 shadow-sm text-center active:scale-95 transition-transform" style={{ background: curPhase.gradient }}>
+                <p className="text-[9px] text-white/70 font-medium uppercase">Conceive</p>
+                <p className="text-xl font-extrabold text-white mt-0.5">{conception.pct}%</p>
+              </button>
+            </div>
+
+            {/* Fertility Alert */}
+            {isFertile && (
+              <div className="rounded-2xl p-4 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #7C3AED, #EC4899)' }}>
+                <div className="absolute -right-8 -top-8 w-24 h-24 bg-white/10 rounded-full" />
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-lg">{isOvToday ? '\u{1F31F}' : '\u2728'}</span>
+                  <h3 className="font-bold text-sm">{isOvToday ? 'Ovulation Day!' : 'Fertile Window Active'}</h3>
+                </div>
+                <p className="text-xs text-white/80">
+                  {isOvToday ? 'Peak fertility! Highest chance of conception today.' : `Ovulation in ${daysToOv} day${daysToOv > 1 ? 's' : ''}. This is a great time to try if planning to conceive.`}
+                </p>
+                <button onClick={logIntercourse} className="mt-3 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1 active:scale-95 transition-transform">
+                  {loggedIntercourse.includes(cycleDay) ? '\u2705 Logged Intercourse Today' : '\u{1F495} Log Intercourse'}
+                </button>
+              </div>
+            )}
+
+            {/* Phase Card */}
+            <div className="rounded-2xl p-4 border" style={{ backgroundColor: curPhase.bgLight, borderColor: curPhase.color + '20' }}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xl">{curPhase.emoji}</span>
+                <div>
+                  <h3 className="text-sm font-bold" style={{ color: curPhase.color }}>{curPhase.title} Phase</h3>
+                  <p className="text-[10px] text-gray-500">{curPhase.subtitle}</p>
+                </div>
+              </div>
+              <p className="text-xs text-gray-600 mb-3">{curPhase.desc}</p>
+              <div className="space-y-1.5">
+                {curPhase.tips.map((t, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <span className="w-5 h-5 rounded-md flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0" style={{ background: curPhase.gradient }}>{i + 1}</span>
+                    <p className="text-[11px] text-gray-600 leading-relaxed">{t}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button onClick={() => setView('log')} className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm font-bold text-gray-400 active:scale-98 transition-transform">
+              + Log Today's Symptoms
+            </button>
+          </>)}
         </>)}
 
         {/* ═══════════════════════════════════════
@@ -563,6 +589,8 @@ export default function TrackerPage() {
                 const isToday = isCurMo && d === td;
                 const isSel = d === selDay;
                 const p = getDayPhase(d);
+                // Bug C fix: logged period days show in RED, overriding predicted colors
+                const logged = isLoggedPeriodDay(d);
                 const colors: Record<string, { bg: string; text: string; dot: string }> = {
                   period: { bg: 'bg-rose-100', text: 'text-rose-700', dot: '#E11D48' },
                   ovulation: { bg: 'bg-purple-200', text: 'text-purple-700', dot: '#7C3AED' },
@@ -571,7 +599,9 @@ export default function TrackerPage() {
                   luteal: { bg: '', text: 'text-amber-600', dot: '#D97706' },
                   none: { bg: '', text: 'text-gray-600', dot: '' },
                 };
-                const c = colors[p] || colors.none;
+                const c = logged
+                  ? { bg: 'bg-rose-200', text: 'text-rose-800', dot: '#E11D48' }
+                  : (colors[p] || colors.none);
                 const hasIntercourse = loggedIntercourse.includes(d - td + cycleDay);
 
                 return (
@@ -581,14 +611,20 @@ export default function TrackerPage() {
                       (isToday && !isSel ? ' ring-2 ring-rose-400' : '')}>
                     <span className={isSel || isToday ? 'font-extrabold' : 'font-medium'}>{d}</span>
                     {c.dot && !isSel && <span className="w-1.5 h-1.5 rounded-full -mt-0.5" style={{ backgroundColor: c.dot }} />}
+                    {logged && !isSel && <span className="absolute -top-0.5 -right-0.5 text-[7px]">{'\u{1FA78}'}</span>}
                     {hasIntercourse && <span className="absolute -top-0.5 -right-0.5 text-[8px]">{'\u{1F495}'}</span>}
                   </button>
                 );
               })}
             </div>
 
+            {/* Legend — includes logged period */}
             <div className="flex gap-3 mt-4 justify-center flex-wrap">
-              {[{ c: '#E11D48', l: 'Period' }, { c: '#10B981', l: 'Follicular' }, { c: '#8B5CF6', l: 'Fertile' }, { c: '#7C3AED', l: 'Ovulation' }, { c: '#D97706', l: 'Luteal' }].map(x => (
+              {[
+                { c: '#E11D48', l: 'Logged' }, { c: '#FB7185', l: 'Period' },
+                { c: '#10B981', l: 'Follicular' }, { c: '#8B5CF6', l: 'Fertile' },
+                { c: '#7C3AED', l: 'Ovulation' }, { c: '#D97706', l: 'Luteal' }
+              ].map(x => (
                 <div key={x.l} className="flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full" style={{ backgroundColor: x.c }} />
                   <span className="text-[9px] text-gray-500">{x.l}</span>
@@ -597,7 +633,15 @@ export default function TrackerPage() {
             </div>
           </div>
 
-          {/* Selected Day */}
+          {/* Empty state for calendar */}
+          {events.length === 0 && !eventsLoading && (
+            <div className="bg-rose-50 rounded-2xl p-4 text-center">
+              <p className="text-xs font-bold text-rose-700">{'\u{1FA78}'} Log your first period to see it highlighted on the calendar</p>
+              <button onClick={() => setShowLogPeriod(true)} className="mt-2 text-xs font-bold text-rose-600 underline">+ Log Period</button>
+            </div>
+          )}
+
+          {/* Selected Day Info */}
           {selDay && isCurMo && (() => {
             const projected = cycleDay + (selDay - td);
             const p = getDayPhase(selDay);
@@ -610,6 +654,7 @@ export default function TrackerPage() {
               if (diff === 3) return 10; if (diff <= 5) return 5; return 0;
             })();
             const selDate = new Date(yr, mo, selDay);
+            const logged = isLoggedPeriodDay(selDay);
             return (
               <div className="bg-white rounded-2xl p-4 shadow-sm">
                 <div className="flex items-center justify-between mb-2">
@@ -617,9 +662,10 @@ export default function TrackerPage() {
                     <h3 className="text-sm font-bold text-gray-800">{selDate.toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' })}</h3>
                     {projected >= 1 && projected <= cycleLength && <p className="text-[10px] text-gray-400">Cycle Day {projected}</p>}
                   </div>
-                  {phData && <span className="text-2xl">{phData.emoji}</span>}
+                  {logged ? <span className="text-2xl">{'\u{1FA78}'}</span> : phData && <span className="text-2xl">{phData.emoji}</span>}
                 </div>
-                {phData && (
+                {logged && <div className="inline-block px-2.5 py-1 rounded-lg text-[10px] font-bold mb-2 bg-rose-100 text-rose-700">Logged Period Day</div>}
+                {phData && !logged && (
                   <>
                     <div className="inline-block px-2.5 py-1 rounded-lg text-[10px] font-bold mb-2" style={{ backgroundColor: phData.bgLight, color: phData.color }}>
                       {phData.title} Phase
@@ -647,14 +693,12 @@ export default function TrackerPage() {
             FERTILITY TAB
            ═══════════════════════════════════════ */}
         {view === 'fertility' && (<>
-          {/* Conception Gauge Hero */}
           <div className="bg-white rounded-3xl p-5 shadow-sm text-center">
             <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Today's Conception Probability</p>
             <ConceptionGauge chance={conception.pct} label={conception.label} />
             {isFertile && <p className="text-xs font-bold text-purple-600 mt-1">{'\u2728'} Fertile window is open!</p>}
           </div>
 
-          {/* Fertility Heatmap */}
           <div className="bg-white rounded-2xl p-4 shadow-sm">
             <div className="flex justify-between items-center mb-2">
               <h3 className="text-xs font-bold text-gray-800">Fertility Map</h3>
@@ -663,7 +707,6 @@ export default function TrackerPage() {
             <FertilityHeatmap cycleDay={cycleDay} cycleLength={cycleLength} />
           </div>
 
-          {/* Best Days to Try */}
           <div className="bg-white rounded-2xl p-4 shadow-sm">
             <h3 className="text-xs font-bold text-gray-800 mb-3">{'\u{1F495}'} Best Days for Conception</h3>
             <div className="space-y-2">
@@ -697,7 +740,6 @@ export default function TrackerPage() {
             </div>
           </div>
 
-          {/* Key Dates Timeline */}
           <div className="bg-white rounded-2xl p-4 shadow-sm">
             <h3 className="text-xs font-bold text-gray-800 mb-3">{'\u{1F4C5}'} Cycle Timeline</h3>
             <div className="space-y-0">
@@ -734,7 +776,6 @@ export default function TrackerPage() {
             </div>
           </div>
 
-          {/* Sperm & Egg Science */}
           <div className="bg-gradient-to-br from-violet-50 to-pink-50 rounded-2xl p-4 border border-violet-100">
             <h3 className="text-xs font-bold text-violet-800 mb-3">{'\u{1F52C}'} Understanding Conception</h3>
             <div className="space-y-3">
@@ -761,7 +802,6 @@ export default function TrackerPage() {
             LOG TAB
            ═══════════════════════════════════════ */}
         {view === 'log' && (<>
-          {/* Quick Log Buttons */}
           <div className="grid grid-cols-2 gap-2.5">
             <button onClick={logIntercourse}
               className={'p-4 rounded-2xl border-2 text-center transition-all active:scale-95 ' + (loggedIntercourse.includes(cycleDay) ? 'border-pink-400 bg-pink-50' : 'border-gray-200 bg-white')}>
@@ -776,7 +816,6 @@ export default function TrackerPage() {
             </div>
           </div>
 
-          {/* Symptom Logger */}
           <div className="bg-white rounded-2xl p-4 shadow-sm">
             <h3 className="text-sm font-bold text-gray-800 mb-3">Log Symptoms</h3>
             <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1 mb-3">
@@ -801,7 +840,6 @@ export default function TrackerPage() {
             </div>
           </div>
 
-          {/* Selected Summary */}
           {sym.length > 0 && (
             <div className="bg-white rounded-2xl p-4 shadow-sm">
               <div className="flex items-center justify-between mb-2">
@@ -826,14 +864,13 @@ export default function TrackerPage() {
             </div>
           )}
 
-          {/* Phase Note */}
           <div className="rounded-2xl p-4 border" style={{ backgroundColor: curPhase.bgLight, borderColor: curPhase.color + '15' }}>
             <h3 className="text-xs font-bold mb-1" style={{ color: curPhase.color }}>Common During {curPhase.title} Phase</h3>
             <p className="text-[11px] text-gray-600 leading-relaxed">
-              {phase === 'menstrual' && 'Cramps, fatigue, heavy flow, and lower back pain are most common. Tracking severity helps you predict and prepare for future cycles.'}
-              {phase === 'follicular' && 'Energy improves and symptoms ease. Some experience increased appetite, clearer skin, and positive mood as estrogen rises.'}
-              {phase === 'ovulation' && 'Mild pelvic pain (mittelschmerz), clear stretchy mucus, breast sensitivity, and higher libido are typical ovulation signs.'}
-              {phase === 'luteal' && 'PMS shows up: mood swings, bloating, breast tenderness, cravings, and irritability. Tracking patterns helps you prepare.'}
+              {phase === 'menstrual' && 'Cramps, fatigue, heavy flow, and lower back pain are most common.'}
+              {phase === 'follicular' && 'Energy improves and symptoms ease. Some experience increased appetite and clearer skin.'}
+              {phase === 'ovulation' && 'Mild pelvic pain, clear stretchy mucus, breast sensitivity, and higher libido are typical.'}
+              {phase === 'luteal' && 'PMS shows up: mood swings, bloating, breast tenderness, cravings, and irritability.'}
             </p>
           </div>
         </>)}
@@ -908,10 +945,8 @@ export default function TrackerPage() {
               <h4 className="font-extrabold text-sm">{'\u{1F4A1}'} Tips for Conceiving</h4>
               <p>{'\u2022'} Have intercourse every 1–2 days during your fertile window</p>
               <p>{'\u2022'} The day before ovulation has the highest success rate</p>
-              <p>{'\u2022'} Lie still for 10–15 minutes afterward</p>
               <p>{'\u2022'} Both partners: take folic acid & eat whole foods</p>
               <p>{'\u2022'} Reduce stress — it can delay ovulation</p>
-              <p>{'\u2022'} Avoid lubricants that harm sperm motility</p>
               <p>{'\u2022'} Track cervical mucus for extra accuracy</p>
             </div>
 
@@ -920,26 +955,112 @@ export default function TrackerPage() {
         </div>
       )}
 
-      {/* LOG PERIOD MODAL - sends data to backend */}
+      {/* ═══ LOG PERIOD MODAL — Full-featured (Bug C fix) ═══ */}
       {showLogPeriod && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end justify-center" onClick={() => setShowLogPeriod(false)}>
-          <div className="bg-white w-full max-w-[430px] rounded-t-3xl p-6" onClick={e => e.stopPropagation()}>
-            <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4" />
-            <div className="text-center mb-5">
-              <span className="text-4xl">{'\u{1FA78}'}</span>
-              <h3 className="text-lg font-extrabold text-gray-900 mt-2">Log Period Start</h3>
-              <p className="text-xs text-gray-500 mt-1">When did your last period start? This helps us predict your cycle accurately.</p>
+          <div className="bg-white w-full max-w-[430px] rounded-t-3xl max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white pt-4 px-6 pb-3 border-b border-gray-100">
+              <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-3" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">{'\u{1FA78}'}</span>
+                  <h3 className="text-lg font-extrabold text-gray-900">Log Period</h3>
+                </div>
+                <button onClick={() => setShowLogPeriod(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">{'\u2715'}</button>
+              </div>
             </div>
-            <div>
-              <label className="text-[10px] font-bold text-gray-500 uppercase">Period Start Date</label>
-              <input type="date" value={periodStartDate} onChange={e => setPeriodStartDate(e.target.value)}
-                className="w-full mt-1 px-4 py-3.5 border-2 border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none" />
+
+            <div className="px-6 pb-8 space-y-5 pt-4">
+              {/* Dates */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Start Date *</label>
+                  <input type="date" value={periodStartDate} onChange={e => setPeriodStartDate(e.target.value)}
+                    className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">End Date</label>
+                  <input type="date" value={periodEndDate} min={periodStartDate} onChange={e => setPeriodEndDate(e.target.value)}
+                    className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none" />
+                </div>
+              </div>
+
+              {/* Flow Intensity */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase block mb-2">Flow Intensity</label>
+                <div className="flex gap-2">
+                  {(['Light', 'Medium', 'Heavy'] as const).map(f => (
+                    <button key={f} onClick={() => setFlowIntensity(f === flowIntensity ? '' : f)}
+                      className={'flex-1 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 border-2 ' +
+                        (flowIntensity === f ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-gray-200 bg-white text-gray-600')}>
+                      {f === 'Light' ? '\u{1F4A7}' : f === 'Medium' ? '\u{1F4A7}\u{1F4A7}' : '\u{1FA78}'} {f}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pain Level */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase block mb-2">Pain Level</label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map(n => (
+                    <button key={n} onClick={() => setPainLevel(n === painLevel ? 0 : n)}
+                      className={'flex-1 h-10 rounded-xl text-sm font-extrabold transition-all active:scale-95 border-2 ' +
+                        (painLevel >= n ? 'border-rose-400 bg-rose-100 text-rose-700' : 'border-gray-200 bg-white text-gray-400')}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[9px] text-gray-400 mt-1 text-center">{painLevel === 0 ? 'Tap to select' : painLevel <= 2 ? 'Mild' : painLevel <= 3 ? 'Moderate' : 'Severe'}</p>
+              </div>
+
+              {/* Mood */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase block mb-2">Mood</label>
+                <div className="flex justify-between">
+                  {[
+                    { e: '\u{1F60A}', l: 'Good' }, { e: '\u{1F610}', l: 'Okay' },
+                    { e: '\u{1F614}', l: 'Low' }, { e: '\u{1F624}', l: 'Irritable' }, { e: '\u{1F62D}', l: 'Sad' }
+                  ].map(m => (
+                    <button key={m.l} onClick={() => setPeriodMood(m.l === periodMood ? '' : m.l)}
+                      className={'flex flex-col items-center gap-1 px-2 py-2 rounded-xl transition-all active:scale-95 ' +
+                        (periodMood === m.l ? 'bg-rose-50 ring-2 ring-rose-300' : '')}>
+                      <span className="text-2xl">{m.e}</span>
+                      <span className="text-[8px] font-bold text-gray-500">{m.l}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Symptoms */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase block mb-2">Symptoms</label>
+                <div className="flex flex-wrap gap-2">
+                  {['Cramps', 'Bloating', 'Headache', 'Fatigue', 'Spotting'].map(s => (
+                    <button key={s} onClick={() => togglePeriodSymptom(s)}
+                      className={'px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 border-2 ' +
+                        (periodSymptoms.includes(s) ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-gray-200 bg-white text-gray-600')}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Notes</label>
+                <textarea value={periodNotes} onChange={e => setPeriodNotes(e.target.value)}
+                  placeholder="Any other observations..."
+                  className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl text-xs focus:border-rose-400 focus:outline-none resize-none" rows={3} />
+              </div>
+
+              <button onClick={handleSavePeriod}
+                className="w-full py-3.5 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform shadow-lg"
+                style={{ background: 'linear-gradient(135deg, #E11D48, #EC4899)' }}>
+                {'\u{1FA78}'} Save Period
+              </button>
+              <p className="text-[9px] text-gray-400 text-center">Your cycle predictions will update automatically</p>
             </div>
-            <button onClick={logPeriodStart}
-              className="w-full mt-5 py-3.5 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform" style={{ background: 'linear-gradient(135deg, #E11D48, #EC4899)' }}>
-              Save Period Date
-            </button>
-            <p className="text-[9px] text-gray-400 text-center mt-2">Your cycle predictions will update based on this date</p>
           </div>
         </div>
       )}

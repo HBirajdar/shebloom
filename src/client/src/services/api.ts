@@ -1,11 +1,11 @@
 import axios from 'axios';
 
-// In production, VITE_API_URL MUST be set at build time in Railway
-// Example: VITE_API_URL=https://shebloom-production.up.railway.app
-const BASE = import.meta.env.VITE_API_URL || '';
+// Bug E fix: use Railway URL as fallback so API calls work in production
+const BASE = import.meta.env.VITE_API_URL || 'https://blissful-communication-production-83ce.up.railway.app';
+console.log('[API] baseURL:', BASE);
 
 export const api = axios.create({
-  baseURL: BASE ? BASE + '/api/v1' : '/api/v1',
+  baseURL: BASE + '/api/v1',
   timeout: 15000,
   headers: { 'Content-Type': 'application/json' },
 });
@@ -25,7 +25,7 @@ api.interceptors.response.use(
       const rt = localStorage.getItem('sb_refresh');
       if (rt) {
         try {
-          const refreshUrl = (BASE ? BASE + '/api/v1' : '/api/v1') + '/auth/refresh';
+          const refreshUrl = BASE + '/api/v1/auth/refresh';
           const resp = await axios.post(refreshUrl, { refreshToken: rt });
           localStorage.setItem('sb_token', resp.data.data.accessToken);
           localStorage.setItem('sb_refresh', resp.data.data.refreshToken);
@@ -85,6 +85,8 @@ export const articleAPI = {
   list: (p: any) => api.get('/articles', { params: p }),
   recommended: () => api.get('/articles/recommended'),
   get: (slug: string) => api.get('/articles/' + slug),
+  bookmark: (id: string) => api.post('/articles/' + id + '/bookmark'),
+  bookmarked: () => api.get('/articles/bookmarked'),
 };
 
 export const appointmentAPI = {
@@ -95,4 +97,40 @@ export const appointmentAPI = {
 
 export const wellnessAPI = {
   list: (p?: any) => api.get('/wellness', { params: p }),
+  dailyScore: () => api.get('/wellness/daily-score'),
+  log: (d: any) => api.post('/wellness/log', d),
+};
+
+export const notificationAPI = {
+  list: () => api.get('/notifications'),
+  markRead: (id: string) => api.put('/notifications/' + id + '/read'),
+  markAllRead: () => api.put('/notifications/read-all'),
+};
+
+export const coachAPI = {
+  chat: (d: { message: string; context: { cycleDay: number; phase: string; goal: string; lastSymptoms?: string[] } }) =>
+    api.post('/ai/chat', d),
+};
+
+export const cartAPI = {
+  list: () => api.get('/cart'),
+  add: (d: any) => api.post('/cart/add', d),
+  remove: (id: string) => api.delete('/cart/' + id),
+};
+
+export const achievementsAPI = {
+  list: () => api.get('/achievements'),
+};
+
+export const adminAPI = {
+  dashboard: () => api.get('/admin/dashboard'),
+  createProduct: (d: any) => api.post('/admin/products', d),
+  toggleProductPublish: (id: string) => api.post(`/admin/products/${id}/toggle-publish`),
+  deleteProduct: (id: string) => api.delete(`/admin/products/${id}`),
+  createArticle: (d: any) => api.post('/admin/articles', d),
+  toggleArticlePublish: (id: string) => api.post(`/admin/articles/${id}/toggle-publish`),
+  deleteArticle: (id: string) => api.delete(`/admin/articles/${id}`),
+  createDoctor: (d: any) => api.post('/admin/doctors', d),
+  toggleDoctorPublish: (id: string) => api.post(`/admin/doctors/${id}/toggle-publish`),
+  deleteDoctor: (id: string) => api.delete(`/admin/doctors/${id}`),
 };

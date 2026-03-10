@@ -27,6 +27,10 @@ import articleRoutes from './routes/article.routes';
 import wellnessRoutes from './routes/wellness.routes';
 import appointmentRoutes from './routes/appointment.routes';
 import notificationRoutes from './routes/notification.routes';
+import adminRoutes from './routes/admin.routes';
+import aiRoutes from './routes/ai.routes';
+import cartRoutes from './routes/cart.routes';
+import achievementsRoutes from './routes/achievements.routes';
 
 const app = express();
 
@@ -118,6 +122,10 @@ app.use('/api/v1/articles', articleRoutes);
 app.use('/api/v1/wellness', wellnessRoutes);
 app.use('/api/v1/appointments', appointmentRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/ai', aiRoutes);
+app.use('/api/v1/cart', cartRoutes);
+app.use('/api/v1/achievements', achievementsRoutes);
 app.use('/api/v1/debug', debugRoutes);
 
 // ─── Error Handling ─────────────────────────────────

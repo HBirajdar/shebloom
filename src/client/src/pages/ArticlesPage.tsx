@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAyurvedaStore } from '../stores/ayurvedaStore';
 import { useCycleStore } from '../stores/cycleStore';
 import type { Article } from '../stores/ayurvedaStore';
+import BottomNav from '../components/BottomNav';
+import toast from 'react-hot-toast';
 
 // ─── Rich article content (stored here for length) ──
 const richContent: Record<string, string> = {
@@ -775,13 +777,35 @@ const goalHeaders: Record<string, { title: string; subtitle: string }> = {
   wellness: { title: 'Wellness & Self-Care', subtitle: 'Curated for your wellbeing' },
 };
 
+// Phase-specific article recommendations
+const PHASE_ARTICLE_TAGS: Record<string, { emoji: string; label: string; cats: string[] }> = {
+  menstrual: { emoji: '🩸', label: 'For Your Period', cats: ['Period Health', 'Ayurveda', 'Nutrition'] },
+  follicular: { emoji: '🌱', label: 'Rising Energy Phase', cats: ['Nutrition', 'Fitness', 'Mental Health'] },
+  ovulation: { emoji: '✨', label: 'Ovulation Phase', cats: ['Fertility', 'Nutrition'] },
+  luteal: { emoji: '🍂', label: 'Pre-Period Self-Care', cats: ['Mental Health', 'Ayurveda', 'Nutrition'] },
+};
+
 export default function ArticlesPage() {
   const nav = useNavigate();
   const { articles, getChiefDoctor } = useAyurvedaStore();
-  const { goal } = useCycleStore();
+  const { goal, phase } = useCycleStore();
   const [cat, setCat] = useState('All');
   const [readingArticle, setReadingArticle] = useState<Article | null>(null);
   const [searchQ, setSearchQ] = useState('');
+  const [bookmarks, setBookmarks] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('sb_bookmarks') || '[]')); } catch { return new Set(); }
+  });
+
+  const toggleBookmark = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setBookmarks(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); toast('Bookmark removed'); }
+      else { next.add(id); toast.success('Bookmarked! 🔖'); }
+      localStorage.setItem('sb_bookmarks', JSON.stringify([...next]));
+      return next;
+    });
+  };
 
   const chief = getChiefDoctor();
 
@@ -809,6 +833,10 @@ export default function ArticlesPage() {
 
   const authorName = (a: Article) => a.author === 'chief' ? chief.name : a.author;
   const getFullContent = (a: Article) => richContent[a.id] || a.content;
+
+  // Phase-specific articles
+  const phaseRec = PHASE_ARTICLE_TAGS[phase] || PHASE_ARTICLE_TAGS.follicular;
+  const phaseArticles = visible.filter(a => phaseRec.cats.some(c => a.category === c)).slice(0, 4);
 
   // ─── FULL SCREEN READER ────────────────────────
   if (readingArticle) {
@@ -906,11 +934,16 @@ export default function ArticlesPage() {
 
   // ─── ARTICLE LIST VIEW ─────────────────────────
   return (
-    <div className="min-h-screen pb-10" style={{ backgroundColor: '#FAFAF9' }}>
+    <div className="min-h-screen pb-28" style={{ backgroundColor: '#FAFAF9' }}>
       <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-md px-5 py-3 border-b border-gray-100 flex items-center gap-3">
-        <button onClick={() => nav('/dashboard')} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm active:scale-90">{'\u2190'}</button>
-        <h1 className="text-base font-extrabold flex-1">Health Articles</h1>
-        <span className="text-[9px] text-gray-400 font-bold">{visible.length} articles</span>
+        <button onClick={() => nav('/dashboard')} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm active:scale-90">←</button>
+        <h1 className="text-base font-extrabold flex-1">Health Articles 📰</h1>
+        <div className="flex items-center gap-2">
+          {bookmarks.size > 0 && (
+            <span className="text-[9px] font-bold bg-rose-50 text-rose-600 px-2 py-0.5 rounded-full">🔖 {bookmarks.size}</span>
+          )}
+          <span className="text-[9px] text-gray-400 font-bold">{visible.length} articles</span>
+        </div>
       </div>
 
       <div className="px-5 pt-4 space-y-4">
@@ -951,6 +984,34 @@ export default function ArticlesPage() {
           </div>
         )}
 
+        {/* Phase-specific recommendations */}
+        {!searchQ && phaseArticles.length > 0 && (
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg">{phaseRec.emoji}</span>
+              <div>
+                <h3 className="text-sm font-extrabold text-gray-900">{phaseRec.label}</h3>
+                <p className="text-[10px] text-gray-400">Curated for your current phase</p>
+              </div>
+            </div>
+            <div className="overflow-x-auto -mx-5 px-5">
+              <div className="flex gap-3 min-w-max pb-2">
+                {phaseArticles.map(a => (
+                  <button key={a.id} onClick={() => setReadingArticle(a)}
+                    className="w-52 bg-white rounded-2xl p-3 shadow-sm text-left active:scale-[0.97] transition-transform flex-shrink-0 relative">
+                    <div className="w-full h-16 rounded-xl flex items-center justify-center text-3xl" style={{ backgroundColor: '#FFF1F2' }}>{a.emoji}</div>
+                    <button onClick={e => toggleBookmark(a.id, e)} className="absolute top-5 right-5 w-6 h-6 bg-white rounded-full shadow-sm flex items-center justify-center text-xs active:scale-90">
+                      {bookmarks.has(a.id) ? '🔖' : '🔗'}
+                    </button>
+                    <p className="text-xs font-bold text-gray-800 mt-2 line-clamp-2 leading-tight">{a.title}</p>
+                    <p className="text-[10px] text-gray-400 mt-1">{a.readTime}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Goal-specific section */}
         {!searchQ && goalSpecific.length > 0 && goalHeaders[goal] && (
           <div>
@@ -984,38 +1045,67 @@ export default function ArticlesPage() {
           ))}
         </div>
 
+        {/* Bookmarked articles section */}
+        {!searchQ && cat === 'All' && bookmarks.size > 0 && (
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-extrabold text-gray-400 uppercase tracking-wider">🔖 Bookmarked</span>
+              <div className="flex-1 h-px bg-gray-100" />
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+              {visible.filter(a => bookmarks.has(a.id)).map(a => (
+                <button key={a.id} onClick={() => setReadingArticle(a)}
+                  className="flex-shrink-0 w-40 bg-white rounded-2xl p-3 shadow-sm text-left active:scale-95 transition-transform">
+                  <div className="h-12 flex items-center justify-center text-2xl" style={{ backgroundColor: '#F5F3FF' }}>{a.emoji}</div>
+                  <p className="text-[10px] font-bold text-gray-800 mt-1.5 line-clamp-2">{a.title}</p>
+                  <p className="text-[9px] text-gray-400 mt-0.5">{a.readTime}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* All Articles */}
-        <h3 className="text-xs font-bold text-gray-400 uppercase">{cat === 'All' ? 'All Articles' : cat} ({filtered.length})</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-xs font-bold text-gray-400 uppercase">{cat === 'All' ? 'All Articles' : cat} ({filtered.length})</h3>
+          <div className="flex-1 h-px bg-gray-100" />
+        </div>
         {filtered.map(a => (
-          <button key={a.id} onClick={() => setReadingArticle(a)} className="w-full bg-white rounded-2xl p-4 shadow-sm text-left active:scale-[0.98] transition-transform">
-            <div className="flex gap-3">
-              <div className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl flex-shrink-0" style={{ backgroundColor: '#F5F3FF' }}>{a.emoji}</div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600">{a.category}</span>
-                  {a.isFeatured && <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600">{'\u2605'}</span>}
-                  {a.targetAudience.includes(goal as any) && !a.targetAudience.includes('all') && (
-                    <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-500">For You</span>
-                  )}
-                </div>
-                <h4 className="text-sm font-bold text-gray-800 leading-tight line-clamp-2">{a.title}</h4>
-                {a.summary && <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-2">{a.summary}</p>}
-                <div className="flex items-center gap-2 mt-1.5">
-                  <div className="w-4 h-4 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-[7px] text-white font-bold">{authorName(a).charAt(0)}</div>
-                  <span className="text-[10px] text-gray-400">{authorName(a)} {'\u2022'} {a.readTime}</span>
+          <div key={a.id} className="bg-white rounded-2xl p-4 shadow-sm relative">
+            <button onClick={() => setReadingArticle(a)} className="w-full text-left active:opacity-90">
+              <div className="flex gap-3">
+                <div className="w-16 h-16 rounded-xl flex items-center justify-center text-2xl flex-shrink-0" style={{ backgroundColor: '#F5F3FF' }}>{a.emoji}</div>
+                <div className="flex-1 min-w-0 pr-6">
+                  <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600">{a.category}</span>
+                    {a.isFeatured && <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600">⭐</span>}
+                    {a.targetAudience.includes(goal as any) && !a.targetAudience.includes('all') && (
+                      <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-500">For You</span>
+                    )}
+                  </div>
+                  <h4 className="text-sm font-bold text-gray-800 leading-tight line-clamp-2">{a.title}</h4>
+                  {a.summary && <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-1">{a.summary}</p>}
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <div className="w-4 h-4 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-[7px] text-white font-bold">{authorName(a).charAt(0)}</div>
+                    <span className="text-[10px] text-gray-400">{authorName(a)} · {a.readTime}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </button>
+            </button>
+            <button onClick={e => toggleBookmark(a.id, e)} className="absolute top-4 right-4 w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center text-sm active:scale-90 transition-transform">
+              {bookmarks.has(a.id) ? '🔖' : '🔗'}
+            </button>
+          </div>
         ))}
 
         {filtered.length === 0 && (
           <div className="text-center py-16">
-            <span className="text-5xl">{'\u{1F4DD}'}</span>
+            <span className="text-5xl">📝</span>
             <p className="text-sm font-bold text-gray-400 mt-3">{searchQ ? 'No matching articles' : 'No articles yet'}</p>
           </div>
         )}
       </div>
+      <BottomNav />
     </div>
   );
 }

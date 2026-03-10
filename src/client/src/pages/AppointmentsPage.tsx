@@ -1,18 +1,14 @@
 // @ts-nocheck
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAyurvedaStore } from '../stores/ayurvedaStore';
 import { useAuthStore } from '../stores/authStore';
-import { appointmentAPI } from '../services/api';
+// Bug A fix: import and use the useAppointments hook
+import { useAppointments } from '../hooks/useAppointments';
 import toast from 'react-hot-toast';
 
 const timeSlots = ['09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', '05:00 PM'];
 const reasons = ['General Consultation', 'PCOD/PCOS', 'Period Problems', 'Fertility Consultation', 'Pregnancy Care', 'Hair & Skin', 'Hormonal Imbalance', 'Nutrition Advice', 'Product Guidance', 'Other'];
-
-interface Booking {
-  id: string; doctorId: string; doctorName: string; date: string;
-  time: string; reason: string; notes: string; status: 'upcoming' | 'completed' | 'cancelled';
-}
 
 export default function AppointmentsPage() {
   const nav = useNavigate();
@@ -21,6 +17,9 @@ export default function AppointmentsPage() {
   const pubDoctors = doctors.filter(d => d.isPublished);
   const chief = pubDoctors.find(d => d.isChief);
 
+  // Bug A fix: use useAppointments hook — replaces local state + useEffect + confirmBooking + cancelBooking
+  const { bookings, createBooking, cancelBooking, loading } = useAppointments();
+
   const [view, setView] = useState<'book' | 'my'>('book');
   const [step, setStep] = useState(0);
   const [selDoc, setSelDoc] = useState<string>(chief?.id || '');
@@ -28,32 +27,6 @@ export default function AppointmentsPage() {
   const [selTime, setSelTime] = useState('');
   const [selReason, setSelReason] = useState('');
   const [notes, setNotes] = useState('');
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // FIX: Load bookings from backend + localStorage on mount
-  useEffect(() => {
-    const loadBookings = async () => {
-      // Try backend first
-      try {
-        const res = await appointmentAPI.list();
-        const apiBookings = (res.data.data || []).map((b: any) => ({
-          id: b.id, doctorId: b.doctorId, doctorName: b.doctor?.fullName || 'Doctor',
-          date: b.scheduledAt?.split('T')[0] || '', time: b.scheduledAt?.split('T')[1]?.slice(0,5) || '',
-          reason: b.reason || '', notes: b.notes || '', status: b.status === 'CANCELLED' ? 'cancelled' : 'upcoming',
-        }));
-        // Also load local bookings (for doctors not in DB)
-        const local = JSON.parse(localStorage.getItem('sb_local_bookings') || '[]');
-        setBookings([...apiBookings, ...local]);
-      } catch {
-        // Fallback to localStorage only
-        const local = JSON.parse(localStorage.getItem('sb_local_bookings') || '[]');
-        setBookings(local);
-      }
-      setLoading(false);
-    };
-    loadBookings();
-  }, []);
   const [showSuccess, setShowSuccess] = useState(false);
 
   // Next 14 days
@@ -64,44 +37,20 @@ export default function AppointmentsPage() {
 
   const selectedDoctor = pubDoctors.find(d => d.id === selDoc);
 
-  const confirmBooking = async () => {
+  // Bug A fix: use createBooking from hook instead of local confirmBooking
+  const handleConfirmBooking = async () => {
     if (!selDoc || !selDate || !selTime || !selReason) { toast.error('Please fill all fields'); return; }
     const doc = pubDoctors.find(d => d.id === selDoc);
-    const scheduledAt = selDate + 'T' + selTime.replace(' AM', ':00').replace(' PM', ':00');
-
-    // Try backend first
-    try {
-      const res = await appointmentAPI.create({ doctorId: selDoc, scheduledAt, reason: selReason, notes });
-      const apiBooking = res.data.data;
-      const booking: Booking = {
-        id: apiBooking.id, doctorId: selDoc, doctorName: doc?.name || 'Doctor',
-        date: selDate, time: selTime, reason: selReason, notes, status: 'upcoming',
-      };
-      setBookings(prev => [booking, ...prev]);
-    } catch {
-      // Backend doctor not found - save locally
-      const booking: Booking = {
-        id: 'local_' + Date.now(), doctorId: selDoc, doctorName: doc?.name || 'Doctor',
-        date: selDate, time: selTime, reason: selReason, notes, status: 'upcoming',
-      };
-      const local = JSON.parse(localStorage.getItem('sb_local_bookings') || '[]');
-      local.unshift(booking);
-      localStorage.setItem('sb_local_bookings', JSON.stringify(local));
-      setBookings(prev => [booking, ...prev]);
-    }
+    await createBooking({
+      doctorId: selDoc,
+      doctorName: doc?.name || 'Doctor',
+      date: selDate,
+      time: selTime,
+      reason: selReason,
+      notes,
+    });
     setShowSuccess(true);
     setStep(0); setSelDate(''); setSelTime(''); setSelReason(''); setNotes('');
-  };
-
-  const cancelBooking = async (id: string) => {
-    // Try backend cancel
-    try { await appointmentAPI.cancel(id); } catch {}
-    // Also update localStorage
-    const local = JSON.parse(localStorage.getItem('sb_local_bookings') || '[]');
-    const updated = local.map((b: any) => b.id === id ? { ...b, status: 'cancelled' } : b);
-    localStorage.setItem('sb_local_bookings', JSON.stringify(updated));
-    setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'cancelled' as const } : b));
-    toast.success('Appointment cancelled');
   };
 
   return (
@@ -134,7 +83,6 @@ export default function AppointmentsPage() {
           {/* Step 0: Select Doctor */}
           {step === 0 && (<>
             <h3 className="text-sm font-extrabold text-gray-900">Choose a Doctor</h3>
-            {/* Chief doctor highlighted */}
             {chief && (
               <button onClick={() => { setSelDoc(chief.id); setStep(1); }}
                 className={'w-full rounded-2xl p-4 text-left active:scale-[0.98] transition-transform border-2 ' + (selDoc === chief.id ? 'border-emerald-400 bg-emerald-50' : 'border-transparent bg-white shadow-sm')}>
@@ -240,7 +188,7 @@ export default function AppointmentsPage() {
                   className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-emerald-400 focus:outline-none resize-none" rows={3} />
               </div>
             </div>
-            <button onClick={confirmBooking} className="w-full py-3.5 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform" style={{ background: 'linear-gradient(135deg, #059669, #10B981)' }}>
+            <button onClick={handleConfirmBooking} className="w-full py-3.5 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform" style={{ background: 'linear-gradient(135deg, #059669, #10B981)' }}>
               Confirm Appointment {'\u2713'}
             </button>
           </>)}
@@ -248,7 +196,21 @@ export default function AppointmentsPage() {
 
         {/* MY BOOKINGS */}
         {view === 'my' && (<>
-          {bookings.length === 0 ? (
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2].map(i => (
+                <div key={i} className="bg-white rounded-2xl p-4 shadow-sm animate-pulse">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gray-100" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-3 bg-gray-100 rounded w-1/2" />
+                      <div className="h-2 bg-gray-100 rounded w-1/3" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : bookings.length === 0 ? (
             <div className="text-center py-16">
               <span className="text-5xl">{'\u{1F4C5}'}</span>
               <p className="text-sm font-bold text-gray-400 mt-3">No appointments yet</p>
