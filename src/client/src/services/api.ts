@@ -51,6 +51,7 @@ export const authAPI = {
   sendOtp: (phone: string) => api.post('/auth/otp/send', { phone }),
   verifyOtp: (phone: string, otp: string) => api.post('/auth/otp/verify', { phone, otp }),
   googleAuth: (idToken: string) => api.post('/auth/google', { idToken }),
+  forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
   logout: () => api.post('/auth/logout'),
 };
 

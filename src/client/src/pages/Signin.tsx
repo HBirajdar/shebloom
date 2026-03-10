@@ -9,7 +9,7 @@ export default function AuthPage() {
   const setAuth = useAuthStore((s) => s.setAuth);
 
   const [tab, setTab] = useState<'login' | 'signup'>('login');
-  const [via, setVia] = useState<'email' | 'phone'>('email');
+  const [via, setVia] = useState<'email' | 'phone'>('phone');
 
   // Email fields
   const [em, setEm] = useState('');
@@ -26,6 +26,10 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
 
   const parseErr = (e: any): string => {
@@ -100,6 +104,18 @@ export default function AuthPage() {
     go(authAPI.verifyOtp(ph, otp), '/dashboard');
   };
 
+  const handleForgotPassword = async () => {
+    if (!forgotEmail.trim()) { setErr('Enter your email address'); return; }
+    setForgotLoading(true); setErr('');
+    try {
+      await authAPI.forgotPassword(forgotEmail.trim());
+      setForgotSent(true);
+    } catch (e: any) {
+      setErr(parseErr(e));
+    }
+    setForgotLoading(false);
+  };
+
   const handleEmailAuth = () => {
     setErr('');
     if (!em.trim()) { setErr('Enter your email'); return; }
@@ -142,7 +158,7 @@ export default function AuthPage() {
 
         {/* Email / Phone toggle */}
         <div className="flex gap-2">
-          {(['email', 'phone'] as const).map(v => (
+          {(['phone', 'email'] as const).map(v => (
             <button key={v} onClick={() => { setVia(v); setErr(''); setOtpSent(false); setDebugOtp(''); }}
               className={'flex-1 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ' + (via === v ? 'border-rose-400 bg-rose-50 text-rose-600' : 'border-gray-100 text-gray-400 bg-gray-50')}>
               {v === 'email' ? '✉️ Email' : '📱 Phone'}
@@ -185,6 +201,36 @@ export default function AuthPage() {
                 Don't have an account?{' '}
                 <button onClick={() => setTab('signup')} className="text-rose-500 font-bold">Sign up free</button>
               </p>
+            )}
+            {tab === 'login' && !showForgot && (
+              <button onClick={() => { setShowForgot(true); setForgotEmail(em); setErr(''); }}
+                className="w-full text-center text-xs text-gray-400 active:scale-95 transition-transform">
+                Forgot password? <span className="text-rose-500 font-bold">Reset it</span>
+              </button>
+            )}
+            {tab === 'login' && showForgot && (
+              <div className="bg-rose-50 border border-rose-100 rounded-2xl p-4 space-y-3">
+                {forgotSent ? (
+                  <div className="text-center py-2">
+                    <span className="text-3xl block mb-2">📬</span>
+                    <p className="text-xs font-bold text-gray-700">Check your email</p>
+                    <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">If this email is registered, you'll receive a password reset link shortly.</p>
+                    <button onClick={() => { setShowForgot(false); setForgotSent(false); }} className="mt-3 text-xs text-rose-500 font-bold">← Back to Sign In</button>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-xs font-bold text-gray-700">Reset your password</p>
+                    <input value={forgotEmail} onChange={e => setForgotEmail(e.target.value)}
+                      placeholder="Enter your email" type="email" inputMode="email"
+                      className="w-full px-4 py-3 rounded-2xl border-2 border-gray-100 text-sm outline-none focus:border-rose-400 bg-white transition-colors" />
+                    <button disabled={forgotLoading} onClick={handleForgotPassword}
+                      className="w-full py-3 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-2xl font-bold text-sm disabled:opacity-60 active:scale-95 transition-all">
+                      {forgotLoading ? '⏳ Sending...' : 'Send Reset Link →'}
+                    </button>
+                    <button onClick={() => { setShowForgot(false); setErr(''); }} className="w-full text-center text-xs text-gray-400 active:scale-95">← Back to Sign In</button>
+                  </>
+                )}
+              </div>
             )}
           </div>
         ) : (
