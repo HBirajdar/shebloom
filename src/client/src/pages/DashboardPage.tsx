@@ -36,7 +36,7 @@ const phaseTips: Record<string, string[]> = {
 
 // ─── Animated SVG Cycle Ring ─────────────────────
 const CycleHeroRing = ({ day, total, phase, periodLength }: { day: number; total: number; phase: string; periodLength: number }) => {
-  const cx = 100, cy = 100, r = 78, sw = 14;
+  const cx = 120, cy = 120, r = 100, sw = 18;
   const theme = phaseThemes[phase] || phaseThemes.follicular;
   const ov = total - 14;
   const fS = Math.max(1, ov - 5), fE = Math.min(total, ov + 1);
@@ -48,23 +48,30 @@ const CycleHeroRing = ({ day, total, phase, periodLength }: { day: number; total
   const dayA = ((day - 0.5) / total) * 360 - 90;
   const dR = (dayA * Math.PI) / 180;
   return (
-    <svg viewBox="0 0 200 200" className="w-full h-full">
+    <svg viewBox="0 0 240 240" className="w-full h-full">
       <defs>
-        <linearGradient id="dg_per" x1="0%" y1="0%" x2="100%"><stop offset="0%" stopColor="#E11D48" /><stop offset="100%" stopColor="#FB7185" /></linearGradient>
-        <linearGradient id="dg_fol" x1="0%" y1="0%" x2="100%"><stop offset="0%" stopColor="#059669" /><stop offset="100%" stopColor="#6EE7B7" /></linearGradient>
-        <linearGradient id="dg_fer" x1="0%" y1="0%" x2="100%"><stop offset="0%" stopColor="#7C3AED" /><stop offset="100%" stopColor="#C084FC" /></linearGradient>
-        <linearGradient id="dg_lut" x1="0%" y1="0%" x2="100%"><stop offset="0%" stopColor="#D97706" /><stop offset="100%" stopColor="#FDE68A" /></linearGradient>
-        <filter id="dg_glow"><feGaussianBlur stdDeviation="2.5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+        <linearGradient id="dg_per" x1="0%" y1="0%" x2="100%"><stop offset="0%" stopColor="#BE123C" /><stop offset="100%" stopColor="#F43F5E" /></linearGradient>
+        <linearGradient id="dg_fol" x1="0%" y1="0%" x2="100%"><stop offset="0%" stopColor="#059669" /><stop offset="100%" stopColor="#34D399" /></linearGradient>
+        <linearGradient id="dg_fer" x1="0%" y1="0%" x2="100%"><stop offset="0%" stopColor="#6D28D9" /><stop offset="100%" stopColor="#C084FC" /></linearGradient>
+        <linearGradient id="dg_lut" x1="0%" y1="0%" x2="100%"><stop offset="0%" stopColor="#B45309" /><stop offset="100%" stopColor="#FDE68A" /></linearGradient>
+        <filter id="dg_glow"><feGaussianBlur stdDeviation="3" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+        <filter id="dg_shadow"><feDropShadow dx="0" dy="1" stdDeviation="2" floodColor="#00000020" /></filter>
       </defs>
+      {/* Background track */}
       <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F1F5F9" strokeWidth={sw} />
+      {/* Inner depth ring */}
+      <circle cx={cx} cy={cy} r={r - 12} fill="none" stroke="#F8FAFC" strokeWidth={4} />
+      {/* Phase arcs */}
       <path d={arcPath(1, periodLength)} fill="none" stroke="url(#dg_per)" strokeWidth={sw} strokeLinecap="round" />
-      {periodLength + 1 < fS && <path d={arcPath(periodLength + 1, fS - 1)} fill="none" stroke="url(#dg_fol)" strokeWidth={sw} strokeLinecap="round" opacity="0.65" />}
-      <path d={arcPath(fS, fE)} fill="none" stroke="url(#dg_fer)" strokeWidth={sw} strokeLinecap="round" />
-      {fE + 1 <= total && <path d={arcPath(fE + 1, total)} fill="none" stroke="url(#dg_lut)" strokeWidth={sw} strokeLinecap="round" opacity="0.65" />}
-      {(() => { const a = ((ov - 0.5) / total) * 360 - 90, rd = (a * Math.PI) / 180, ox = cx + r * Math.cos(rd), oy = cy + r * Math.sin(rd); return <polygon points={`${ox},${oy-5} ${ox+4},${oy} ${ox},${oy+5} ${ox-4},${oy}`} fill="#7C3AED" stroke="white" strokeWidth="1.5" />; })()}
-      <g filter="url(#dg_glow)">
-        <circle cx={cx + r * Math.cos(dR)} cy={cy + r * Math.sin(dR)} r={11} fill="white" stroke={theme.color} strokeWidth="2.5" />
-        <text x={cx + r * Math.cos(dR)} y={cy + r * Math.sin(dR) + 1} textAnchor="middle" dominantBaseline="central" fill={theme.color} fontSize="8" fontWeight="800">{day}</text>
+      {periodLength + 1 < fS && <path d={arcPath(periodLength + 1, fS - 1)} fill="none" stroke="url(#dg_fol)" strokeWidth={sw} strokeLinecap="round" opacity="0.7" />}
+      <path d={arcPath(fS, fE)} fill="none" stroke="url(#dg_fer)" strokeWidth={sw + 2} strokeLinecap="round" />
+      {fE + 1 <= total && <path d={arcPath(fE + 1, total)} fill="none" stroke="url(#dg_lut)" strokeWidth={sw} strokeLinecap="round" opacity="0.7" />}
+      {/* Ovulation diamond marker */}
+      {(() => { const a = ((ov - 0.5) / total) * 360 - 90, rd = (a * Math.PI) / 180, ox = cx + r * Math.cos(rd), oy = cy + r * Math.sin(rd); return <polygon points={`${ox},${oy-6} ${ox+5},${oy} ${ox},${oy+6} ${ox-5},${oy}`} fill="#7C3AED" stroke="white" strokeWidth="1.5" />; })()}
+      {/* Day position dot */}
+      <g filter="url(#dg_shadow)">
+        <circle cx={cx + r * Math.cos(dR)} cy={cy + r * Math.sin(dR)} r={13} fill="white" stroke={theme.color} strokeWidth="3" />
+        <text x={cx + r * Math.cos(dR)} y={cy + r * Math.sin(dR) + 1} textAnchor="middle" dominantBaseline="central" fill={theme.color} fontSize="9" fontWeight="800">{day}</text>
       </g>
     </svg>
   );
@@ -300,30 +307,56 @@ export default function DashboardPage() {
           <>
             {(goal === 'periods' || goal === 'wellness') && (
               <div className="bg-white rounded-3xl shadow-lg overflow-hidden">
-                <div className="p-5 flex items-center gap-4">
-                  <div className="w-44 h-44 flex-shrink-0"><CycleHeroRing day={cycleDay} total={cycleLength} phase={phase} periodLength={periodLength} /></div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <span className="text-lg">{theme.emoji}</span>
-                      <span className="text-xs font-extrabold uppercase tracking-wider" style={{ color: theme.color }}>{theme.name}</span>
+                {/* Gradient top accent bar */}
+                <div className="h-1.5 w-full" style={{ background: theme.gradient }} />
+
+                <div className="p-5">
+                  {/* Phase badge + next period at top */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base" style={{ backgroundColor: theme.bg }}>
+                        {theme.emoji}
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-gray-400 uppercase tracking-widest font-bold">Current Phase</p>
+                        <p className="text-sm font-extrabold" style={{ color: theme.color }}>{theme.name}</p>
+                      </div>
                     </div>
-                    <p className="text-[11px] text-gray-500 leading-relaxed mb-3">{theme.msg}</p>
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between bg-gray-50 rounded-lg px-2.5 py-1.5">
-                        <span className="text-[10px] text-gray-500">Next Period</span>
-                        <span className="text-xs font-extrabold text-rose-600">{daysUntilPeriod}d</span>
-                      </div>
-                      <div className="flex items-center justify-between bg-gray-50 rounded-lg px-2.5 py-1.5">
-                        <span className="text-[10px] text-gray-500">Cycle</span>
-                        <span className="text-xs font-extrabold text-gray-700">Day {cycleDay}/{cycleLength}</span>
-                      </div>
+                    <div className="text-right">
+                      <p className="text-[9px] text-gray-400 uppercase tracking-widest font-bold">Next Period</p>
+                      <p className="text-sm font-extrabold text-rose-600">{daysUntilPeriod}d away</p>
                     </div>
                   </div>
-                </div>
-                <div className="px-5 pb-4 flex justify-center gap-4">
-                  {[{ c: '#E11D48', l: 'Period' }, { c: '#059669', l: 'Follicular' }, { c: '#7C3AED', l: 'Fertile' }, { c: '#D97706', l: 'Luteal' }].map(p => (
-                    <div key={p.l} className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.c }} /><span className="text-[8px] text-gray-400 font-medium">{p.l}</span></div>
-                  ))}
+
+                  {/* Big centered ring with overlay */}
+                  <div className="relative w-56 h-56 mx-auto mb-4">
+                    <CycleHeroRing day={cycleDay} total={cycleLength} phase={phase} periodLength={periodLength} />
+                    {/* Center overlay content */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                      <span className="text-5xl font-black leading-none" style={{ color: theme.color }}>{cycleDay}</span>
+                      <span className="text-xl mt-0.5">{theme.emoji}</span>
+                      <span className="text-[9px] font-bold uppercase tracking-widest mt-0.5" style={{ color: theme.color }}>{theme.name}</span>
+                      <span className="text-[8px] text-gray-400 mt-0.5 text-center px-8 leading-tight">{theme.msg}</span>
+                    </div>
+                  </div>
+
+                  {/* Horizontal scrollable phase legend */}
+                  <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                    {[
+                      { c: '#BE123C', l: 'Period', days: `Day 1\u2013${periodLength}` },
+                      { c: '#059669', l: 'Follicular', days: `Day ${periodLength + 1}\u2013${Math.max(1, cycleLength - 14 - 5)}` },
+                      { c: '#7C3AED', l: 'Fertile', days: `Day ${Math.max(1, cycleLength - 14 - 5)}\u2013${Math.min(cycleLength, cycleLength - 14 + 1)}` },
+                      { c: '#D97706', l: 'Luteal', days: `Day ${Math.min(cycleLength, cycleLength - 14 + 1) + 1}\u2013${cycleLength}` },
+                    ].map(p => (
+                      <div key={p.l} className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl" style={{ backgroundColor: p.c + '15' }}>
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.c }} />
+                        <div>
+                          <p className="text-[9px] font-bold" style={{ color: p.c }}>{p.l}</p>
+                          <p className="text-[8px] text-gray-400">{p.days}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
