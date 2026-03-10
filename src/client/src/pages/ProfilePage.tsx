@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { userAPI } from '../services/api';
@@ -33,6 +33,22 @@ export default function ProfilePage() {
   const [email, setEmail] = useState(user?.email || '');
   const [dob, setDob] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // FIX: Fetch real profile from backend when edit opens
+  useEffect(() => {
+    if (showEdit) {
+      userAPI.me().then(res => {
+        const p = res.data.data || res.data;
+        if (p) {
+          setName(p.fullName || '');
+          setEmail(p.email || '');
+          if (p.dateOfBirth) setDob(p.dateOfBirth.split('T')[0]);
+          // Sync auth store with fresh backend data
+          if (user) setUser({ ...user, fullName: p.fullName || user.fullName, email: p.email || user.email });
+        }
+      }).catch(() => {});
+    }
+  }, [showEdit]);
   const [showLogout, setShowLogout] = useState(false);
   const [secretTaps, setSecretTaps] = useState(0);
   const [showAdminHint, setShowAdminHint] = useState(false);

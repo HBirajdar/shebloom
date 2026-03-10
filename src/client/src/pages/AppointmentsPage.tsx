@@ -1,8 +1,9 @@
 // @ts-nocheck
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAyurvedaStore } from '../stores/ayurvedaStore';
 import { useAuthStore } from '../stores/authStore';
+import { appointmentAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
 const timeSlots = ['09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', '05:00 PM'];
@@ -28,6 +29,31 @@ export default function AppointmentsPage() {
   const [selReason, setSelReason] = useState('');
   const [notes, setNotes] = useState('');
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // FIX: Load bookings from backend + localStorage on mount
+  useEffect(() => {
+    const loadBookings = async () => {
+      // Try backend first
+      try {
+        const res = await appointmentAPI.list();
+        const apiBookings = (res.data.data || []).map((b: any) => ({
+          id: b.id, doctorId: b.doctorId, doctorName: b.doctor?.fullName || 'Doctor',
+          date: b.scheduledAt?.split('T')[0] || '', time: b.scheduledAt?.split('T')[1]?.slice(0,5) || '',
+          reason: b.reason || '', notes: b.notes || '', status: b.status === 'CANCELLED' ? 'cancelled' : 'upcoming',
+        }));
+        // Also load local bookings (for doctors not in DB)
+        const local = JSON.parse(localStorage.getItem('sb_local_bookings') || '[]');
+        setBookings([...apiBookings, ...local]);
+      } catch {
+        // Fallback to localStorage only
+        const local = JSON.parse(localStorage.getItem('sb_local_bookings') || '[]');
+        setBookings(local);
+      }
+      setLoading(false);
+    };
+    loadBookings();
+  }, []);
   const [showSuccess, setShowSuccess] = useState(false);
 
   // Next 14 days
@@ -38,19 +64,42 @@ export default function AppointmentsPage() {
 
   const selectedDoctor = pubDoctors.find(d => d.id === selDoc);
 
-  const confirmBooking = () => {
+  const confirmBooking = async () => {
     if (!selDoc || !selDate || !selTime || !selReason) { toast.error('Please fill all fields'); return; }
     const doc = pubDoctors.find(d => d.id === selDoc);
-    const booking: Booking = {
-      id: 'b_' + Date.now(), doctorId: selDoc, doctorName: doc?.name || 'Doctor',
-      date: selDate, time: selTime, reason: selReason, notes, status: 'upcoming',
-    };
-    setBookings(prev => [booking, ...prev]);
+    const scheduledAt = selDate + 'T' + selTime.replace(' AM', ':00').replace(' PM', ':00');
+
+    // Try backend first
+    try {
+      const res = await appointmentAPI.create({ doctorId: selDoc, scheduledAt, reason: selReason, notes });
+      const apiBooking = res.data.data;
+      const booking: Booking = {
+        id: apiBooking.id, doctorId: selDoc, doctorName: doc?.name || 'Doctor',
+        date: selDate, time: selTime, reason: selReason, notes, status: 'upcoming',
+      };
+      setBookings(prev => [booking, ...prev]);
+    } catch {
+      // Backend doctor not found - save locally
+      const booking: Booking = {
+        id: 'local_' + Date.now(), doctorId: selDoc, doctorName: doc?.name || 'Doctor',
+        date: selDate, time: selTime, reason: selReason, notes, status: 'upcoming',
+      };
+      const local = JSON.parse(localStorage.getItem('sb_local_bookings') || '[]');
+      local.unshift(booking);
+      localStorage.setItem('sb_local_bookings', JSON.stringify(local));
+      setBookings(prev => [booking, ...prev]);
+    }
     setShowSuccess(true);
     setStep(0); setSelDate(''); setSelTime(''); setSelReason(''); setNotes('');
   };
 
-  const cancelBooking = (id: string) => {
+  const cancelBooking = async (id: string) => {
+    // Try backend cancel
+    try { await appointmentAPI.cancel(id); } catch {}
+    // Also update localStorage
+    const local = JSON.parse(localStorage.getItem('sb_local_bookings') || '[]');
+    const updated = local.map((b: any) => b.id === id ? { ...b, status: 'cancelled' } : b);
+    localStorage.setItem('sb_local_bookings', JSON.stringify(updated));
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'cancelled' as const } : b));
     toast.success('Appointment cancelled');
   };

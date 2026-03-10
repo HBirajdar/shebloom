@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useCycleStore } from '../stores/cycleStore';
 import type { UserGoal } from '../stores/cycleStore';
-import { cycleAPI, moodAPI } from '../services/api';
+import { cycleAPI, moodAPI, userAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
 /* ═══════════════════════════════════════════════════════
@@ -124,7 +124,23 @@ export default function DashboardPage() {
   const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
 
   useEffect(() => {
-    cycleAPI.predict().then(r => { if (r.data.data?.cycleDay) set(r.data.data); }).catch(() => {});
+    // FIX: Fetch profile from backend to keep user data fresh
+    userAPI.me().then(res => {
+      const p = res.data.data || res.data;
+      if (p && user) {
+        const authStore = useAuthStore.getState();
+        authStore.setUser({ ...user, fullName: p.fullName || user.fullName, email: p.email || user.email });
+      }
+    }).catch(() => {});
+
+    // FIX: Fetch cycle predictions - handle "no data" case properly
+    cycleAPI.predict().then(r => {
+      const d = r.data.data;
+      if (d && typeof d.cycleDay === 'number') {
+        set({ cycleDay: d.cycleDay, phase: d.phase, daysUntilPeriod: d.daysUntilPeriod, cycleLength: d.cycleLength || 28, periodLength: d.periodLength || 5 });
+      }
+      // If d.message exists (not enough data), keep defaults - user needs to log first period
+    }).catch(() => {});
   }, []);
 
   const logMood = (key: string) => {

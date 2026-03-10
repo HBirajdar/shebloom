@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCycleStore } from '../stores/cycleStore';
 import type { UserGoal } from '../stores/cycleStore';
-import { cycleAPI } from '../services/api';
+import { cycleAPI, userAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
 /* ═══════════════════════════════════════════════════
@@ -295,9 +295,21 @@ export default function TrackerPage() {
   const [symCat, setSymCat] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
   const [showConceive, setShowConceive] = useState(false);
+  const [showLogPeriod, setShowLogPeriod] = useState(false);
+  const [periodStartDate, setPeriodStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [tmpCycle, setTmpCycle] = useState(cycleLength);
   const [tmpPeriod, setTmpPeriod] = useState(periodLength);
   const [loggedIntercourse, setLoggedIntercourse] = useState<number[]>([]);
+
+  // FIX: Fetch real predictions from backend on mount
+  useEffect(() => {
+    cycleAPI.predict().then(r => {
+      const d = r.data.data;
+      if (d && d.cycleDay) {
+        setCycle({ cycleDay: d.cycleDay, phase: d.phase, daysUntilPeriod: d.daysUntilPeriod, cycleLength: d.cycleLength, periodLength: d.periodLength });
+      }
+    }).catch(() => {});
+  }, []);
 
   const fd = new Date(yr, mo, 1).getDay();
   const dim = new Date(yr, mo + 1, 0).getDate();
@@ -340,10 +352,33 @@ export default function TrackerPage() {
     try { await cycleAPI.logSymptoms({ symptoms: sym }); toast.success('Logged successfully!'); setSym([]); }
     catch { toast.error('Failed to save'); }
   };
-  const saveCycleSettings = () => {
+
+  // FIX: Save cycle settings to BACKEND so they persist
+  const saveCycleSettings = async () => {
     setCycle({ cycleLength: tmpCycle, periodLength: tmpPeriod });
+    try {
+      await userAPI.updateProfile({ cycleLength: tmpCycle, periodLength: tmpPeriod });
+    } catch { /* local update still works */ }
     setShowSettings(false);
     toast.success('Settings updated!');
+  };
+
+  // FIX: Log period start date to backend - THIS IS THE CRITICAL MISSING PIECE
+  const logPeriodStart = async () => {
+    if (!periodStartDate) { toast.error('Select a date'); return; }
+    try {
+      await cycleAPI.log({ startDate: periodStartDate });
+      toast.success('Period logged! Predictions will update.');
+      setShowLogPeriod(false);
+      // Refetch predictions with new data
+      const res = await cycleAPI.predict();
+      const d = res.data.data;
+      if (d && d.cycleDay) {
+        setCycle({ cycleDay: d.cycleDay, phase: d.phase, daysUntilPeriod: d.daysUntilPeriod, cycleLength: d.cycleLength, periodLength: d.periodLength });
+      }
+    } catch {
+      toast.error('Failed to log period');
+    }
   };
 
   const logIntercourse = () => {
@@ -419,6 +454,12 @@ export default function TrackerPage() {
               ))}
             </div>
           </div>
+
+          {/* LOG PERIOD BUTTON - Critical for real data */}
+          <button onClick={() => setShowLogPeriod(true)}
+            className="w-full py-3.5 rounded-2xl font-bold text-sm active:scale-95 transition-transform text-white" style={{ background: 'linear-gradient(135deg, #E11D48, #F43F5E)' }}>
+            {'\u{1FA78}'} Log Period Start Date
+          </button>
 
           {/* Hormone Curves */}
           <div className="bg-white rounded-2xl p-4 shadow-sm">
@@ -875,6 +916,30 @@ export default function TrackerPage() {
             </div>
 
             <button onClick={() => setShowConceive(false)} className="w-full py-3.5 bg-gray-100 rounded-2xl font-bold text-gray-600 mt-4 active:scale-95">Close</button>
+          </div>
+        </div>
+      )}
+
+      {/* LOG PERIOD MODAL - sends data to backend */}
+      {showLogPeriod && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end justify-center" onClick={() => setShowLogPeriod(false)}>
+          <div className="bg-white w-full max-w-[430px] rounded-t-3xl p-6" onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4" />
+            <div className="text-center mb-5">
+              <span className="text-4xl">{'\u{1FA78}'}</span>
+              <h3 className="text-lg font-extrabold text-gray-900 mt-2">Log Period Start</h3>
+              <p className="text-xs text-gray-500 mt-1">When did your last period start? This helps us predict your cycle accurately.</p>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 uppercase">Period Start Date</label>
+              <input type="date" value={periodStartDate} onChange={e => setPeriodStartDate(e.target.value)}
+                className="w-full mt-1 px-4 py-3.5 border-2 border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none" />
+            </div>
+            <button onClick={logPeriodStart}
+              className="w-full mt-5 py-3.5 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform" style={{ background: 'linear-gradient(135deg, #E11D48, #EC4899)' }}>
+              Save Period Date
+            </button>
+            <p className="text-[9px] text-gray-400 text-center mt-2">Your cycle predictions will update based on this date</p>
           </div>
         </div>
       )}
