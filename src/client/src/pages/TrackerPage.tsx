@@ -190,23 +190,27 @@ export default function TrackerPage() {
     const isToday = isSameDay(date, today)
     let bg = ''
     let text = ''
-    let border = isToday ? 'ring-2 ring-black' : ''
+    let border = isToday ? 'ring-2 ring-rose-400' : ''
 
     if (types.includes('period')) {
-      bg = 'bg-rose-500'
-      text = 'text-white'
+      bg = 'bg-gradient-to-br from-rose-400 to-pink-500'
+      text = 'text-white font-bold'
+      border = isToday ? 'ring-2 ring-rose-300' : ''
     } else if (types.includes('ovulation')) {
-      bg = 'bg-amber-100'
-      text = 'text-amber-800'
+      bg = 'bg-gradient-to-br from-fuchsia-100 to-purple-200'
+      text = 'text-purple-700 font-semibold'
+      border = 'border border-purple-300'
     } else if (types.includes('fertile')) {
-      bg = 'bg-emerald-100'
-      text = 'text-emerald-800'
+      bg = 'bg-gradient-to-br from-teal-50 to-emerald-100'
+      text = 'text-emerald-700 font-medium'
+      border = 'border border-emerald-200'
     } else if (types.includes('pms')) {
-      bg = 'bg-violet-100'
-      text = 'text-violet-800'
+      bg = 'bg-gradient-to-br from-purple-50 to-violet-100'
+      text = 'text-violet-600'
+      border = 'border border-violet-200'
     } else if (types.includes('predicted')) {
-      border = (isToday ? 'ring-2 ring-black ' : '') + 'border-2 border-dashed border-rose-400'
-      text = 'text-rose-500'
+      border = (isToday ? 'ring-2 ring-rose-400 ' : '') + 'border-2 border-dashed border-rose-300'
+      text = 'text-rose-400 font-medium'
     }
 
     return { bg, text, border }
@@ -492,10 +496,10 @@ export default function TrackerPage() {
                         {date.getDate()}
                       </span>
                       {isOvulation && (
-                        <span className="text-xs leading-none">⭐</span>
+                        <span className="text-[10px] leading-none">🌸</span>
                       )}
                       {hasSymptom && !isOvulation && (
-                        <span className="absolute bottom-0.5 w-1 h-1 rounded-full bg-rose-500" />
+                        <span className="absolute bottom-0.5 w-1 h-1 rounded-full bg-rose-400" />
                       )}
                     </div>
                   )
@@ -505,11 +509,11 @@ export default function TrackerPage() {
               {/* Legend */}
               <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 px-1">
                 {[
-                  { color: 'bg-rose-500', label: 'Period' },
-                  { color: 'bg-emerald-100 border border-emerald-300', label: 'Fertile' },
-                  { color: 'bg-amber-100 border border-amber-300', label: 'Ovulation ⭐' },
-                  { color: 'bg-violet-100 border border-violet-300', label: 'PMS' },
-                  { color: 'border-2 border-dashed border-rose-400', label: 'Predicted' },
+                  { color: 'bg-gradient-to-br from-rose-400 to-pink-500', label: 'Period' },
+                  { color: 'bg-gradient-to-br from-teal-50 to-emerald-100 border border-emerald-200', label: 'Fertile' },
+                  { color: 'bg-gradient-to-br from-fuchsia-100 to-purple-200 border border-purple-300', label: 'Ovulation 🌸' },
+                  { color: 'bg-gradient-to-br from-purple-50 to-violet-100 border border-violet-200', label: 'PMS' },
+                  { color: 'border-2 border-dashed border-rose-300', label: 'Predicted' },
                 ].map(({ color, label }) => (
                   <div key={label} className="flex items-center gap-1">
                     <div className={`w-3 h-3 rounded-sm flex-shrink-0 ${color}`} />

@@ -35,18 +35,30 @@ r.get('/daily-score', authenticate, async (q: AuthRequest, s: Response, n: NextF
     todayEnd.setHours(23, 59, 59, 999);
 
     // Gather today's logged data
-    const [waterLog, moodLog, symptomLog] = await Promise.all([
+    const [waterLog, moodLog, allSymptomLogs] = await Promise.all([
       prisma.waterLog.findFirst({ where: { userId: uid, logDate: { gte: todayStart, lte: todayEnd } } }),
       prisma.moodLog.findFirst({ where: { userId: uid, logDate: { gte: todayStart, lte: todayEnd } }, orderBy: { logDate: 'desc' } }),
-      prisma.symptomLog.findFirst({ where: { userId: uid, logDate: { gte: todayStart, lte: todayEnd } }, orderBy: { logDate: 'desc' } }),
+      prisma.symptomLog.findMany({ where: { userId: uid, logDate: { gte: todayStart, lte: todayEnd } }, orderBy: { logDate: 'desc' } }),
     ]);
+
+    // Extract sleep and exercise from encoded symptom entries
+    let sleepHours = 0;
+    let exerciseDone = false;
+    const realSymptoms: string[] = [];
+    allSymptomLogs.forEach(log => {
+      (log.symptoms || []).forEach(sym => {
+        if (sym.startsWith('sleep:')) { sleepHours = parseFloat(sym.split(':')[1]) || 0; }
+        else if (sym.startsWith('exercise:')) { exerciseDone = true; }
+        else { realSymptoms.push(sym); }
+      });
+    });
 
     // Score components (each out of 100)
     const moodScore = moodLog ? { GREAT: 100, GOOD: 80, OKAY: 60, LOW: 40, BAD: 20 }[moodLog.mood as string] ?? 60 : 60;
     const waterGlasses = waterLog?.glasses ?? 0;
     const waterTarget = waterLog?.targetGlasses ?? 8;
     const waterScore = Math.min(100, Math.round((waterGlasses / waterTarget) * 100));
-    const symptomCount = symptomLog?.symptoms?.length ?? 0;
+    const symptomCount = realSymptoms.length;
     const symptomScore = Math.max(0, 100 - symptomCount * 15);
 
     // Weighted composite
@@ -57,8 +69,10 @@ r.get('/daily-score', authenticate, async (q: AuthRequest, s: Response, n: NextF
       data: {
         score: composite,
         components: {
-          mood: { score: moodScore, logged: !!moodLog },
+          mood: { score: moodScore, logged: !!moodLog, value: moodLog?.mood || null },
           water: { score: waterScore, glasses: waterGlasses, target: waterTarget },
+          sleep: { logged: sleepHours > 0, hours: sleepHours },
+          exercise: { logged: exerciseDone },
           symptoms: { score: symptomScore, count: symptomCount },
         },
         date: todayStart.toISOString(),

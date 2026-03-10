@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { pregnancyAPI } from '../services/api';
 
 // ─── Comprehensive Week Data ────────────────────
 const weekData: Record<number, { size: string; emoji: string; len: string; wt: string; tri: number; baby: string[]; mom: string[]; tips: string[]; nutrition: string[]; exercise: string[] }> = {
@@ -97,8 +98,25 @@ const GrowthBar = ({ week }: { week: number }) => {
 export default function PregnancyPage() {
   const nav = useNavigate();
   const [week, setWeek] = useState(16);
+  const [apiLoaded, setApiLoaded] = useState(false);
   const [tab, setTab] = useState<'baby' | 'mom' | 'tips' | 'nutrition' | 'exercise'>('baby');
   const [done, setDone] = useState<Record<number, boolean[]>>({});
+
+  // Fetch real pregnancy week from API on mount
+  useEffect(() => {
+    pregnancyAPI.get().then(r => {
+      const data = r.data.data;
+      if (data?.pregnancyWeek && typeof data.pregnancyWeek === 'number') {
+        // Snap to nearest weekData milestone key
+        const keys = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40];
+        const nearest = keys.reduce((prev, curr) =>
+          Math.abs(curr - data.pregnancyWeek) < Math.abs(prev - data.pregnancyWeek) ? curr : prev
+        );
+        setWeek(nearest);
+      }
+      setApiLoaded(true);
+    }).catch(() => setApiLoaded(true));
+  }, []);
 
   const d = weekData[week] || weekData[16];
   const pct = Math.round((week / 40) * 100);

@@ -184,11 +184,13 @@ export default function DashboardPage() {
         set({ cycleDay: d.cycleDay, phase: d.phase, daysUntilPeriod: d.daysUntilPeriod, cycleLength: d.cycleLength || 28, periodLength: d.periodLength || 5, hasRealData: true });
       } else { set({ hasRealData: false }); }
     }).catch(() => {}).finally(() => setDashLoading(false));
-    // Load today's wellness data
+    // Load today's wellness data — restore all logged items after refresh
     wellnessAPI.dailyScore().then(r => {
       const d = r.data.data;
       if (d?.components?.water?.glasses !== undefined) setWater(d.components.water.glasses);
-      if (d?.components?.mood?.logged) setMood('LOGGED');
+      if (d?.components?.mood?.logged && d.components.mood.value) setMood(d.components.mood.value);
+      if (d?.components?.sleep?.logged) setSleepHours(d.components.sleep.hours || 7);
+      if (d?.components?.exercise?.logged) setExerciseDone(true);
     }).catch(() => {});
     // Load real notification count
     notificationAPI.list().then(r => {
