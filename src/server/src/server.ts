@@ -27,32 +27,35 @@ async function runMigrations() {
 }
 
 async function bootstrap() {
+  // 1. Start HTTP server immediately so Railway health checks pass
+  const server = app.listen(PORT, () => {
+    logger.info(`SheBloom API running on port ${PORT}`);
+    logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    logger.info(`Health: http://0.0.0.0:${PORT}/api/health`);
+  });
+
+  // 2. Connect database (non-fatal in dev — server is already up)
   try {
-    // 1. Connect database
     await connectDatabase();
     logger.info('Database connected');
-
-    // 2. Run migrations (non-fatal if they fail)
     await runMigrations();
-
-    // 3. Connect Redis (optional - app works without it)
-    try {
-      await connectRedis();
-      logger.info('Redis connected');
-    } catch (redisErr: any) {
-      logger.warn('Redis unavailable (caching disabled): ' + redisErr.message);
-    }
-
-    // 4. Start HTTP server
-    app.listen(PORT, () => {
-      logger.info(`SheBloom API running on port ${PORT}`);
-      logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
-      logger.info(`Health: http://0.0.0.0:${PORT}/api/health`);
-    });
   } catch (error: any) {
-    logger.error('Failed to start server: ' + error.message);
-    logger.error(error.stack);
-    process.exit(1);
+    logger.error('Database connection failed: ' + error.message);
+    if (process.env.NODE_ENV === 'production') {
+      logger.error('Shutting down (production requires database)');
+      server.close();
+      process.exit(1);
+    } else {
+      logger.warn('Running without database (dev mode) — DB-dependent routes will fail');
+    }
+  }
+
+  // 3. Connect Redis (always optional)
+  try {
+    await connectRedis();
+    logger.info('Redis connected');
+  } catch (redisErr: any) {
+    logger.warn('Redis unavailable (caching disabled): ' + redisErr.message);
   }
 }
 
