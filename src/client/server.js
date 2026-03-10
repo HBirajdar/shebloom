@@ -14,7 +14,11 @@ const port = process.env.PORT || 3000;
 //
 // Set BACKEND_URL in Railway (e.g. https://shebloom-server-production.up.railway.app)
 // or use Railway private networking (http://<service>.railway.internal:<port>).
-const BACKEND_URL = process.env.BACKEND_URL || process.env.VITE_API_URL || '';
+let BACKEND_URL = process.env.BACKEND_URL || process.env.VITE_API_URL || '';
+// Auto-add https:// if user forgot the protocol
+if (BACKEND_URL && !BACKEND_URL.startsWith('http')) BACKEND_URL = 'https://' + BACKEND_URL;
+// Strip trailing slash
+BACKEND_URL = BACKEND_URL.replace(/\/$/, '');
 
 if (BACKEND_URL) {
   // Proxy all /api/* requests to the backend service
