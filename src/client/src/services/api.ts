@@ -1,8 +1,12 @@
 import axios from 'axios';
 
-// Bug E fix: use Railway URL as fallback so API calls work in production
-const BASE = import.meta.env.VITE_API_URL || 'https://blissful-communication-production-83ce.up.railway.app';
-console.log('[API] baseURL:', BASE);
+// In production (Railway), client is served by the same Express server → use relative URL.
+// In local dev, fall back to VITE_API_URL or localhost:8000.
+const BASE =
+  import.meta.env.VITE_API_URL ||
+  (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+    ? ''
+    : 'http://localhost:8000');
 
 export const api = axios.create({
   baseURL: BASE + '/api/v1',
