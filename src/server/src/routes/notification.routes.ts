@@ -12,9 +12,41 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 const r = Router();
 r.use(authenticate);
 
+// ─── Smart notification generator ───────────────────
+async function generateSmartNotifications(userId: string) {
+  try {
+    const profile = await prisma.userProfile.findUnique({ where: { userId } });
+    if (!profile?.lastPeriodDate) return;
+    const now = new Date();
+    const cycleLength = profile.cycleLength || 28;
+    const lastPeriod = new Date(profile.lastPeriodDate);
+    const daysSince = Math.floor((now.getTime() - lastPeriod.getTime()) / 86400000);
+    const nextPeriod = new Date(lastPeriod.getTime() + cycleLength * 86400000);
+    const daysUntilPeriod = Math.floor((nextPeriod.getTime() - now.getTime()) / 86400000);
+    const ovulationDay = cycleLength - 14;
+    const cycleDay = (daysSince % cycleLength) + 1;
+
+    const toCreate: any[] = [];
+
+    // Period due in 3 days
+    if (daysUntilPeriod === 3) {
+      const exists = await prisma.notification.findFirst({ where: { userId, type: 'period_reminder', createdAt: { gte: new Date(now.getTime() - 86400000) } } });
+      if (!exists) toCreate.push({ userId, title: 'Period Coming Soon 🩸', body: 'Your period is expected in 3 days. Stock up on essentials!', type: 'period_reminder' });
+    }
+    // Ovulation today
+    if (cycleDay === ovulationDay) {
+      const exists = await prisma.notification.findFirst({ where: { userId, type: 'ovulation', createdAt: { gte: new Date(now.getTime() - 86400000) } } });
+      if (!exists) toCreate.push({ userId, title: 'Ovulation Day ✨', body: "You're likely ovulating today — your peak fertility window!", type: 'ovulation' });
+    }
+    if (toCreate.length > 0) await prisma.notification.createMany({ data: toCreate });
+  } catch (_) {}
+}
+
 // ─── GET / ───────────────────────────────────────────
 r.get('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
+    // Generate smart notifications on each fetch (idempotent)
+    generateSmartNotifications(q.user!.id);
     const notifications = await prisma.notification.findMany({
       where: { userId: q.user!.id },
       orderBy: { createdAt: 'desc' },

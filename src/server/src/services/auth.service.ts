@@ -64,9 +64,16 @@ export class AuthService {
 
   async sendOtp(phone: string) {
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
-    // Store in Redis (primary) with in-memory fallback
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    // Store in Redis (primary) + in-memory (fallback) + DB (persistent)
     await cacheSet(`otp:${phone}`, otp, 300);
-    otpSet(`otp:${phone}`, otp, 300); // always write to memory too
+    otpSet(`otp:${phone}`, otp, 300);
+    // DB storage — delete any existing OTPs for this phone first
+    await prisma.otpStore.deleteMany({ where: { phone } }).catch(() => {});
+    await prisma.otpStore.create({ data: { phone, otp, expiresAt } }).catch(() => {});
+    console.log('============================');
+    console.log(`OTP for ${phone}: ${otp}`);
+    console.log('============================');
     if (process.env.NODE_ENV === 'production' && process.env.TWILIO_ACCOUNT_SID) {
       try {
         const twilio = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
@@ -74,7 +81,6 @@ export class AuthService {
         logger.info(`OTP sent via Twilio to +91${phone}`);
       } catch (err: any) {
         logger.error(`Twilio error for ${phone}: ${err.message}`);
-        // Don't throw — OTP is still stored, log it so admin can retrieve
         logger.info(`[FALLBACK] OTP for +91${phone}: ${otp}`);
       }
     } else {
@@ -83,12 +89,18 @@ export class AuthService {
   }
 
   async verifyOtp(phone: string, otp: string) {
-    // Try Redis first, fall back to in-memory store
+    // Try Redis first → in-memory → DB
     let stored = await cacheGet<string>(`otp:${phone}`);
     if (!stored) stored = otpGet(`otp:${phone}`);
+    if (!stored) {
+      // DB fallback
+      const dbOtp = await prisma.otpStore.findFirst({ where: { phone, expiresAt: { gt: new Date() } }, orderBy: { createdAt: 'desc' } }).catch(() => null);
+      if (dbOtp) stored = dbOtp.otp;
+    }
     if (!stored || stored !== otp) throw new AppError('Invalid or expired OTP', 400);
     await cacheDel(`otp:${phone}`);
     otpDel(`otp:${phone}`);
+    await prisma.otpStore.deleteMany({ where: { phone } }).catch(() => {});
     let user = await prisma.user.findUnique({ where: { phone }, select: { id: true, fullName: true, email: true, phone: true, role: true } });
     const isNew = !user;
     if (!user) {

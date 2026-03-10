@@ -122,6 +122,16 @@ export const achievementsAPI = {
   list: () => api.get('/achievements'),
 };
 
+export const pregnancyAPI = {
+  get: () => api.get('/pregnancy'),
+  create: (d: { dueDate?: string; lastPeriodDate?: string }) => api.post('/pregnancy', d),
+  remove: () => api.delete('/pregnancy'),
+};
+
+export const reportsAPI = {
+  summary: () => api.get('/reports/summary'),
+};
+
 export const adminAPI = {
   dashboard: () => api.get('/admin/dashboard'),
   createProduct: (d: any) => api.post('/admin/products', d),

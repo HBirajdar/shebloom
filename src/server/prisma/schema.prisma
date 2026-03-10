@@ -463,6 +463,19 @@ model WellnessActivity {
   @@map("wellness_activities")
 }
 
+// ─── OTP STORE ──────────────────────────────────────
+
+model OtpStore {
+  id        String   @id @default(cuid())
+  phone     String
+  otp       String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+  @@map("otp_store")
+}
+
 // ─── AUDIT LOG ──────────────────────────────────────
 
 model AuditLog {

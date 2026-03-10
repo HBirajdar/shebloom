@@ -40,6 +40,7 @@ const ACHIEVEMENTS_DEF = [
 
 const sections = [
   { title: 'Health', items: [
+    { i: '📊', l: 'My Health Reports', action: 'reports' },
     { i: '📅', l: 'Cycle Settings', action: 'cycle' },
     { i: '🌿', l: 'Ayurveda Shop', action: 'ayurveda' },
     { i: '👩‍⚕️', l: 'My Doctors', action: 'doctors' },
@@ -128,7 +129,7 @@ export default function ProfilePage() {
   };
 
   const handleItem = (action: string) => {
-    const routes: Record<string, string> = { cycle: '/tracker', ayurveda: '/ayurveda', doctors: '/doctors', community: '/community', programs: '/programs', coach: '/coach' };
+    const routes: Record<string, string> = { reports: '/reports', cycle: '/tracker', ayurveda: '/ayurveda', doctors: '/doctors', community: '/community', programs: '/programs', coach: '/coach' };
     if (action === 'edit') openEdit();
     else if (routes[action]) nav(routes[action]);
     else if (action === 'share' && navigator.share) navigator.share({ title: 'SheBloom', text: 'Your women\'s wellness companion', url: window.location.origin });

@@ -1,7 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(node -e \"const p = require\\(''c:/Users/Satur/OneDrive/Desktop/shebloom/src/server/node_modules/@prisma/client''\\); console.log\\(Object.keys\\(p\\).filter\\(k => k.toLowerCase\\(\\).includes\\(''error''\\)\\).join\\(''\\\\n''\\)\\); console.log\\(''---''\\); console.log\\(require\\(''c:/Users/Satur/OneDrive/Desktop/shebloom/src/server/node_modules/@prisma/client/package.json''\\).version\\)\")",
+      "Bash(docker --version)",
+      "Bash(where docker:*)",
+      "Bash(where pg_isready)",
+      "Bash(node -e \"require\\(''net''\\).createConnection\\(5432,''localhost''\\).on\\(''connect'',\\(\\)=>{console.log\\(''postgres:open''\\);process.exit\\(0\\)}\\).on\\(''error'',\\(\\)=>{console.log\\(''postgres:closed''\\);process.exit\\(0\\)}\\)\")",
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(curl -s http://localhost:8000/api/v1/auth/login -X POST -H \"Content-Type: application/json\" -d \"{\"\"email\"\":\"\"test@test.com\"\",\"\"password\"\":\"\"test\"\"}\")",
+      "Bash(powershell -Command \"Get-Process -Name node,tsx -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_Id -Force }\")"
     ]
   }
 }

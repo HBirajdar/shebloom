@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useCycleStore } from '../stores/cycleStore';
 import type { UserGoal } from '../stores/cycleStore';
-import { cycleAPI, moodAPI, userAPI } from '../services/api';
+import { cycleAPI, moodAPI, userAPI, wellnessAPI, notificationAPI } from '../services/api';
 import BottomNav from '../components/BottomNav';
 import toast from 'react-hot-toast';
 
@@ -128,12 +128,13 @@ export default function DashboardPage() {
   const setGoal = useCycleStore(s => s.setGoal);
 
   const [mood, setMood] = useState('');
-  const [water, setWater] = useState(3);
+  const [water, setWater] = useState(0);
   const [sleepHours, setSleepHours] = useState(0);
   const [exerciseDone, setExerciseDone] = useState(false);
   const [showGoalPicker, setShowGoalPicker] = useState(false);
   const [showSleepPicker, setShowSleepPicker] = useState(false);
-  const [notifCount, setNotifCount] = useState(3);
+  const [showMoodSheet, setShowMoodSheet] = useState(false);
+  const [notifCount, setNotifCount] = useState(0);
   const [dashLoading, setDashLoading] = useState(true);
   const [tipIdx, setTipIdx] = useState(0);
 
@@ -183,11 +184,38 @@ export default function DashboardPage() {
         set({ cycleDay: d.cycleDay, phase: d.phase, daysUntilPeriod: d.daysUntilPeriod, cycleLength: d.cycleLength || 28, periodLength: d.periodLength || 5, hasRealData: true });
       } else { set({ hasRealData: false }); }
     }).catch(() => {}).finally(() => setDashLoading(false));
+    // Load today's wellness data
+    wellnessAPI.dailyScore().then(r => {
+      const d = r.data.data;
+      if (d?.components?.water?.glasses !== undefined) setWater(d.components.water.glasses);
+      if (d?.components?.mood?.logged) setMood('LOGGED');
+    }).catch(() => {});
+    // Load real notification count
+    notificationAPI.list().then(r => {
+      setNotifCount(r.data.unreadCount || 0);
+    }).catch(() => {});
   }, []);
 
   const logMood = (key: string) => {
     setMood(key);
-    moodAPI.log({ mood: key }).then(() => toast.success('Mood logged!')).catch(() => {});
+    setShowMoodSheet(false);
+    moodAPI.log({ mood: key }).then(() => toast.success('Mood logged! 😊')).catch(() => {});
+  };
+
+  const logWater = (glasses: number) => {
+    setWater(glasses);
+    wellnessAPI.log({ type: 'water', value: glasses }).catch(() => {});
+  };
+
+  const logSleep = (hours: number) => {
+    setSleepHours(hours);
+    setShowSleepPicker(false);
+    wellnessAPI.log({ type: 'sleep', value: hours }).then(() => toast.success(`${hours}h sleep logged! 😴`)).catch(() => {});
+  };
+
+  const logExercise = () => {
+    setExerciseDone(true);
+    wellnessAPI.log({ type: 'exercise', value: 1 }).then(() => toast.success('Exercise logged! 💪')).catch(() => {});
   };
 
   const goalLabels: Record<UserGoal, { emoji: string; label: string; short: string }> = {
@@ -235,7 +263,7 @@ export default function DashboardPage() {
             <button onClick={() => setShowGoalPicker(true)} className="px-2.5 py-1 rounded-lg text-[9px] font-bold border border-gray-200 active:scale-95 transition-transform" style={{ color: theme.color, backgroundColor: theme.bg }}>
               {curGoal.emoji} {curGoal.short}
             </button>
-            <button onClick={() => { setNotifCount(0); nav('/notifications'); }} className="relative w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center active:scale-95 transition-transform text-sm">
+            <button onClick={() => nav('/notifications')} className="relative w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center active:scale-95 transition-transform text-sm">
               🔔
               {notifCount > 0 && <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 rounded-full border-2 border-white flex items-center justify-center"><span className="text-[7px] text-white font-extrabold">{notifCount}</span></div>}
             </button>
@@ -250,10 +278,10 @@ export default function DashboardPage() {
           <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Quick Log</p>
           <div className="grid grid-cols-4 gap-2">
             {[
-              { e: '💧', l: 'Water', val: water + '/8', action: () => setWater(w => Math.min(8, w + 1)), done: water >= 8 },
+              { e: '💧', l: 'Water', val: water + '/8', action: () => logWater(Math.min(8, water + 1)), done: water >= 8 },
               { e: '😴', l: 'Sleep', val: sleepHours > 0 ? sleepHours + 'h' : 'Log', action: () => setShowSleepPicker(true), done: sleepHours > 0 },
-              { e: '🏃', l: 'Exercise', val: exerciseDone ? 'Done ✓' : 'Log', action: () => { setExerciseDone(true); toast.success('Exercise logged! 💪'); }, done: exerciseDone },
-              { e: '😊', l: 'Mood', val: mood ? '✓' : 'Log', action: () => {}, done: !!mood },
+              { e: '🏃', l: 'Exercise', val: exerciseDone ? 'Done ✓' : 'Log', action: logExercise, done: exerciseDone },
+              { e: '😊', l: 'Mood', val: mood && mood !== 'LOGGED' ? moods.find(m => m.key === mood)?.l || '✓' : mood === 'LOGGED' ? '✓' : 'Log', action: () => setShowMoodSheet(true), done: !!mood },
             ].map(item => (
               <button key={item.l} onClick={item.action}
                 className={'flex flex-col items-center gap-1 py-2.5 rounded-xl active:scale-95 transition-transform ' + (item.done ? 'bg-emerald-50' : 'bg-gray-50')}>
@@ -473,7 +501,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex gap-1.5">
             {Array.from({ length: 8 }).map((_, i) => (
-              <button key={i} onClick={() => setWater(i < water ? i : i + 1)}
+              <button key={i} onClick={() => logWater(i < water ? i : i + 1)}
                 className={'flex-1 h-10 rounded-lg flex items-center justify-center transition-all active:scale-90 ' + (i < water ? '' : 'bg-gray-100')}
                 style={i < water ? { backgroundColor: `rgba(59,130,246,${0.15 + (i / 8) * 0.4})` } : {}}>
                 <span className={'text-sm ' + (i < water ? 'text-blue-600' : 'text-gray-300')}>💧</span>
@@ -524,9 +552,29 @@ export default function DashboardPage() {
             <h3 className="text-base font-extrabold text-gray-900 mb-4">😴 How many hours did you sleep?</h3>
             <div className="grid grid-cols-4 gap-3">
               {[5, 6, 7, 8, 9, 10].map(h => (
-                <button key={h} onClick={() => { setSleepHours(h); setShowSleepPicker(false); toast.success(`${h}h sleep logged! 😴`); }}
+                <button key={h} onClick={() => logSleep(h)}
                   className={'py-3 rounded-xl font-extrabold text-sm active:scale-95 transition-transform border-2 ' + (sleepHours === h ? 'border-purple-400 bg-purple-50 text-purple-700' : 'border-gray-200 bg-gray-50 text-gray-700')}>
                   {h}h
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Mood Sheet ─── */}
+      {showMoodSheet && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end justify-center" onClick={() => setShowMoodSheet(false)}>
+          <div className="bg-white w-full max-w-[430px] rounded-t-3xl p-6" onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4" />
+            <h3 className="text-base font-extrabold text-gray-900 mb-1">How are you feeling? 💭</h3>
+            <p className="text-xs text-gray-400 mb-4">Tap to log your mood for today</p>
+            <div className="grid grid-cols-5 gap-2">
+              {moods.map(m => (
+                <button key={m.key} onClick={() => logMood(m.key)}
+                  className={'flex flex-col items-center gap-2 py-3 rounded-2xl border-2 active:scale-95 transition-all ' + (mood === m.key ? 'border-rose-400 bg-rose-50' : 'border-gray-100 bg-gray-50')}>
+                  <span className="text-3xl">{m.e}</span>
+                  <span className="text-[9px] font-bold text-gray-600">{m.l}</span>
                 </button>
               ))}
             </div>
