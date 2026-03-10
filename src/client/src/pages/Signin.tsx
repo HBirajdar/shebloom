@@ -27,6 +27,19 @@ export default function AuthPage() {
   const [err, setErr] = useState('');
   const [showPw, setShowPw] = useState(false);
 
+  const parseErr = (e: any): string => {
+    if (!e?.response) return 'Cannot reach server. Check your internet or try again in a moment.';
+    const status = e.response.status;
+    const body = e.response.data;
+    if (status === 429) return 'Too many attempts. Please wait 15 minutes and try again.';
+    if (status >= 500) return 'Server is temporarily unavailable. Please try again in a minute.';
+    if (status === 400 && body?.details) {
+      const fields = Object.entries(body.details || {}).map(([k, v]: any) => `${k}: ${Array.isArray(v) ? v[0] : v}`).join('; ');
+      return fields || body?.error || 'Invalid input';
+    }
+    return body?.error || body?.message || `Error ${status}. Please try again.`;
+  };
+
   const go = async (promise: Promise<any>, to: string) => {
     setLoading(true); setErr('');
     try {
@@ -35,14 +48,15 @@ export default function AuthPage() {
       setAuth(d.user, d.accessToken, d.refreshToken);
       nav(to);
     } catch (e: any) {
-      const msg = e?.response?.data?.error || e?.response?.data?.message || e?.message || 'Something went wrong. Please try again.';
-      setErr(msg);
+      setErr(parseErr(e));
     }
     setLoading(false);
   };
 
   const handleSendOtp = async () => {
     if (ph.length !== 10) { setErr('Enter a valid 10-digit phone number'); return; }
+    // Basic Indian mobile check (must start with 6-9)
+    if (!/^[6-9]/.test(ph)) { setErr('Phone number must start with 6, 7, 8 or 9 (Indian mobile)'); return; }
     setLoading(true); setErr(''); setDebugOtp(''); setSmsSent(false);
     try {
       const r = await authAPI.sendOtp(ph);
@@ -50,7 +64,7 @@ export default function AuthPage() {
       setSmsSent(r.data.smsSent);
       if (r.data.debugOtp) setDebugOtp(r.data.debugOtp);
     } catch (e: any) {
-      setErr(e?.response?.data?.error || 'Failed to send OTP. Check your number.');
+      setErr(parseErr(e));
     }
     setLoading(false);
   };
