@@ -13,6 +13,8 @@ import swaggerSpec from './config/swagger';
 import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFoundHandler';
 import { requestLogger } from './middleware/requestLogger';
+import path from 'path';
+import fs from 'fs';
 
 // Route imports
 import authRoutes from './routes/auth.routes';
@@ -48,12 +50,33 @@ app.use(helmet({
 }));
 
 // ─── CORS ───────────────────────────────────────────
+const allowedOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
+  : [];
+
 app.use(cors({
-  origin: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000'],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, Postman, server-to-server)
+    if (!origin) return callback(null, true);
+    // If CORS_ORIGINS explicitly set, use that list
+    if (allowedOrigins.length > 0 && !allowedOrigins.includes('*')) {
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      // Always allow Railway and localhost regardless
+      if (origin.includes('railway.app') || origin.includes('localhost') || origin.includes('127.0.0.1')) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    }
+    // Default: allow all (safe since auth is handled by JWT)
+    return callback(null, true);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
 }));
+
+// Ensure OPTIONS preflight is handled before any other middleware
+app.options('*', cors());
 
 // ─── Body Parsing ───────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
@@ -127,6 +150,20 @@ app.use('/api/v1/ai', aiRoutes);
 app.use('/api/v1/cart', cartRoutes);
 app.use('/api/v1/achievements', achievementsRoutes);
 app.use('/api/v1/debug', debugRoutes);
+
+// ─── Serve React Client (production) ────────────────
+// Path from compiled server (src/server/dist/) to client build (src/client/dist/)
+const clientDist = path.resolve(__dirname, '../../client/dist');
+if (fs.existsSync(clientDist)) {
+  app.use(express.static(clientDist));
+  // SPA fallback: serve index.html for all non-API routes
+  app.get('*', (req, res) => {
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ success: false, error: `Route ${req.method} ${req.path} not found` });
+    }
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+}
 
 // ─── Error Handling ─────────────────────────────────
 app.use(notFoundHandler);

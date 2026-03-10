@@ -7,6 +7,25 @@ import { AppError } from '../middleware/errorHandler';
 
 interface RegisterInput { fullName: string; email?: string; password?: string; phone?: string; }
 
+// ─── In-memory OTP store (fallback when Redis unavailable) ──
+// Clears automatically since entries include expiry timestamps
+const otpStore = new Map<string, { otp: string; expiresAt: number }>();
+
+function otpSet(key: string, otp: string, ttlSeconds: number) {
+  otpStore.set(key, { otp, expiresAt: Date.now() + ttlSeconds * 1000 });
+  // Auto-cleanup after TTL
+  setTimeout(() => otpStore.delete(key), ttlSeconds * 1000);
+}
+
+function otpGet(key: string): string | null {
+  const entry = otpStore.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) { otpStore.delete(key); return null; }
+  return entry.otp;
+}
+
+function otpDel(key: string) { otpStore.delete(key); }
+
 export class AuthService {
   private generateTokens(userId: string, role: string) {
     const accessToken = jwt.sign({ userId, role }, process.env.JWT_SECRET!, { expiresIn: process.env.JWT_EXPIRY || '15m' } as any);
@@ -45,15 +64,18 @@ export class AuthService {
 
   async sendOtp(phone: string) {
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    // Store in Redis (primary) with in-memory fallback
     await cacheSet(`otp:${phone}`, otp, 300);
+    otpSet(`otp:${phone}`, otp, 300); // always write to memory too
     if (process.env.NODE_ENV === 'production' && process.env.TWILIO_ACCOUNT_SID) {
       try {
         const twilio = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-        await twilio.messages.create({ body: `Your SheBloom code: ${otp}`, from: process.env.TWILIO_PHONE_NUMBER, to: `+91${phone}` });
-        logger.info(`OTP sent to +91${phone}`);
+        await twilio.messages.create({ body: `Your SheBloom OTP: ${otp}. Valid for 5 minutes.`, from: process.env.TWILIO_PHONE_NUMBER, to: `+91${phone}` });
+        logger.info(`OTP sent via Twilio to +91${phone}`);
       } catch (err: any) {
         logger.error(`Twilio error for ${phone}: ${err.message}`);
-        throw new AppError('Failed to send OTP. Please try again.', 500);
+        // Don't throw — OTP is still stored, log it so admin can retrieve
+        logger.info(`[FALLBACK] OTP for +91${phone}: ${otp}`);
       }
     } else {
       logger.info(`[DEV] OTP for ${phone}: ${otp}`);
@@ -61,9 +83,12 @@ export class AuthService {
   }
 
   async verifyOtp(phone: string, otp: string) {
-    const stored = await cacheGet(`otp:${phone}`);
+    // Try Redis first, fall back to in-memory store
+    let stored = await cacheGet<string>(`otp:${phone}`);
+    if (!stored) stored = otpGet(`otp:${phone}`);
     if (!stored || stored !== otp) throw new AppError('Invalid or expired OTP', 400);
     await cacheDel(`otp:${phone}`);
+    otpDel(`otp:${phone}`);
     let user = await prisma.user.findUnique({ where: { phone }, select: { id: true, fullName: true, email: true, phone: true, role: true } });
     const isNew = !user;
     if (!user) {

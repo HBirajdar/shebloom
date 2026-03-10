@@ -28,11 +28,13 @@ export const errorHandler = (err: Error, req: Request, res: Response, _next: Nex
     res.status(400).json({ success: false, error: 'Validation failed', details: err.flatten().fieldErrors });
     return;
   }
-  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+  // Duck-type check for PrismaClientKnownRequestError (avoids import issues across Prisma versions)
+  const anyErr = err as any;
+  if (anyErr.code && typeof anyErr.code === 'string' && anyErr.code.match(/^P\d{4}$/)) {
     const map: Record<string, [number, string]> = {
       P2002: [409, 'Record already exists'], P2025: [404, 'Record not found'], P2003: [400, 'Related record not found'],
     };
-    const [status, msg] = map[err.code] || [400, 'Database error'];
+    const [status, msg] = map[anyErr.code] || [400, 'Database error'];
     res.status(status).json({ success: false, error: msg });
     return;
   }
