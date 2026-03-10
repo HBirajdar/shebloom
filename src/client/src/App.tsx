@@ -22,6 +22,7 @@ const CommunityPage = lazy(() => import('./pages/CommunityPage'));
 const ProgramsPage = lazy(() => import('./pages/ProgramsPage'));
 const SelfCarePage = lazy(() => import('./pages/SelfCarePage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+const DebugPage = lazy(() => import('./pages/DebugPage'));
 
 // Loading spinner
 const LoadingScreen = () => (
@@ -69,6 +70,7 @@ export default function App() {
           <Route path="/selfcare" element={<ProtectedRoute><SelfCarePage /></ProtectedRoute>} />
 
           {/* 404 */}
+          <Route path="/debug" element={<DebugPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </div>

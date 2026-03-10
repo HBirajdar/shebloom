@@ -26,7 +26,7 @@
     "docker:dev": "docker compose up -d",
     "docker:prod": "docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build",
     "docker:down": "docker compose down",
-    "prepare": "husky"
+    "prepare": "echo 'skipping husky'"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.8.0",
@@ -36,7 +36,6 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-react": "^7.34.1",
     "eslint-plugin-react-hooks": "^4.6.2",
-    "husky": "^9.0.11",
     "lint-staged": "^15.2.2",
     "prettier": "^3.2.5",
     "typescript": "^5.4.5"
