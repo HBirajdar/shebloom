@@ -19,7 +19,16 @@ router.post('/login', validate(loginSchema), async (req: Request, res: Response,
 });
 
 router.post('/otp/send', validate(otpSendSchema), async (req: Request, res: Response, next: NextFunction) => {
-  try { await auth.sendOtp(req.body.phone); res.json({ success: true, message: 'OTP sent' }); } catch (e) { next(e); }
+  try {
+    const result = await auth.sendOtp(req.body.phone);
+    res.json({
+      success: true,
+      message: result.smsSent ? 'OTP sent via SMS' : 'OTP generated (SMS unavailable)',
+      smsSent: result.smsSent,
+      // debugOtp returned when SMS not available so users can still login
+      ...(result.debugOtp ? { debugOtp: result.debugOtp } : {}),
+    });
+  } catch (e) { next(e); }
 });
 
 router.post('/otp/verify', validate(otpVerifySchema), async (req: Request, res: Response, next: NextFunction) => {

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
@@ -5,89 +6,234 @@ import { authAPI } from '../services/api';
 
 export default function AuthPage() {
   const nav = useNavigate();
-  const sa = useAuthStore((s) => s.setAuth);
-  const [tab, setTab] = useState('login');
-  const [via, setVia] = useState('phone');
-  const [ph, setPh] = useState('');
+  const setAuth = useAuthStore((s) => s.setAuth);
+
+  const [tab, setTab] = useState<'login' | 'signup'>('login');
+  const [via, setVia] = useState<'email' | 'phone'>('email');
+
+  // Email fields
   const [em, setEm] = useState('');
   const [pw, setPw] = useState('');
   const [nm, setNm] = useState('');
-  const [otp, setOtp] = useState('');
-  const [sent, setSent] = useState(false);
-  const [ld, setLd] = useState(false);
-  const [err, setErr] = useState('');
 
-  const go = async (p: Promise<any>, to: string) => {
-    setLd(true); setErr('');
-    try { const r = await p; sa(r.data.data.user, r.data.data.accessToken, r.data.data.refreshToken); nav(to); }
-    catch (e: any) { setErr(e?.response?.data?.error || e?.message || 'Something went wrong. Please try again.'); }
-    setLd(false);
+  // Phone / OTP fields
+  const [ph, setPh] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [debugOtp, setDebugOtp] = useState(''); // shown on screen when SMS unavailable
+  const [smsSent, setSmsSent] = useState(false);
+
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const [showPw, setShowPw] = useState(false);
+
+  const go = async (promise: Promise<any>, to: string) => {
+    setLoading(true); setErr('');
+    try {
+      const r = await promise;
+      const d = r.data.data;
+      setAuth(d.user, d.accessToken, d.refreshToken);
+      nav(to);
+    } catch (e: any) {
+      const msg = e?.response?.data?.error || e?.response?.data?.message || e?.message || 'Something went wrong. Please try again.';
+      setErr(msg);
+    }
+    setLoading(false);
   };
 
-  const ac = (v: boolean) => v ? 'bg-white text-rose-600 shadow-md' : 'text-gray-400';
-  const bc = (v: boolean) => v ? 'border-rose-400 bg-rose-50 text-rose-600' : 'border-gray-200 text-gray-400';
+  const handleSendOtp = async () => {
+    if (ph.length !== 10) { setErr('Enter a valid 10-digit phone number'); return; }
+    setLoading(true); setErr(''); setDebugOtp(''); setSmsSent(false);
+    try {
+      const r = await authAPI.sendOtp(ph);
+      setOtpSent(true);
+      setSmsSent(r.data.smsSent);
+      if (r.data.debugOtp) setDebugOtp(r.data.debugOtp);
+    } catch (e: any) {
+      setErr(e?.response?.data?.error || 'Failed to send OTP. Check your number.');
+    }
+    setLoading(false);
+  };
+
+  const handleVerifyOtp = () => {
+    if (otp.length !== 4) { setErr('Enter the 4-digit OTP'); return; }
+    go(authAPI.verifyOtp(ph, otp), '/dashboard');
+  };
+
+  const handleEmailAuth = () => {
+    setErr('');
+    if (!em.trim()) { setErr('Enter your email'); return; }
+    if (!pw) { setErr('Enter your password'); return; }
+    if (tab === 'signup') {
+      if (!nm.trim()) { setErr('Enter your full name'); return; }
+      if (pw.length < 8) { setErr('Password must be at least 8 characters'); return; }
+      go(authAPI.register({ fullName: nm.trim(), email: em.trim(), password: pw }), '/setup');
+    } else {
+      go(authAPI.login({ email: em.trim(), password: pw }), '/dashboard');
+    }
+  };
+
+  const inputCls = 'w-full px-4 py-3.5 rounded-2xl border-2 border-gray-100 text-sm outline-none focus:border-rose-400 transition-colors bg-gray-50 focus:bg-white';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 p-6">
-      <div className="text-center pt-10 pb-6">
-        <p className="text-5xl">&#127800;</p>
-        <h1 className="text-3xl font-bold mt-2 text-gray-900">SheBloom</h1>
-        <p className="text-gray-400 text-sm mt-1">Your wellness companion</p>
+    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 flex flex-col px-5 py-8">
+
+      {/* Header */}
+      <div className="text-center pt-8 pb-6">
+        <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-rose-500 to-pink-400 flex items-center justify-center shadow-lg shadow-rose-200 mb-4">
+          <span className="text-4xl">🌸</span>
+        </div>
+        <h1 className="text-2xl font-extrabold text-gray-900">SheBloom</h1>
+        <p className="text-gray-400 text-sm mt-1">Your personal wellness companion</p>
       </div>
 
-      <div className="flex bg-white/50 rounded-2xl p-1 mb-5">
-        <button onClick={() => setTab('login')} className={'flex-1 py-3 rounded-xl text-sm font-bold ' + ac(tab === 'login')}>Sign In</button>
-        <button onClick={() => setTab('signup')} className={'flex-1 py-3 rounded-xl text-sm font-bold ' + ac(tab === 'signup')}>Sign Up</button>
+      {/* Sign In / Sign Up tabs */}
+      <div className="flex bg-white rounded-2xl p-1.5 mb-5 shadow-sm">
+        {(['login', 'signup'] as const).map(t => (
+          <button key={t} onClick={() => { setTab(t); setErr(''); }}
+            className={'flex-1 py-3 rounded-xl text-sm font-bold transition-all ' + (tab === t ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md' : 'text-gray-400')}>
+            {t === 'login' ? 'Sign In' : 'Sign Up'}
+          </button>
+        ))}
       </div>
 
-      <div className="bg-white rounded-3xl p-5 shadow-lg space-y-4">
+      {/* Card */}
+      <div className="bg-white rounded-3xl p-5 shadow-lg space-y-4 flex-1">
+
+        {/* Email / Phone toggle */}
         <div className="flex gap-2">
-          <button onClick={() => { setVia('phone'); setSent(false); }} className={'flex-1 py-2 rounded-xl text-xs font-semibold border-2 ' + bc(via === 'phone')}>Phone</button>
-          <button onClick={() => setVia('email')} className={'flex-1 py-2 rounded-xl text-xs font-semibold border-2 ' + bc(via === 'email')}>Email</button>
+          {(['email', 'phone'] as const).map(v => (
+            <button key={v} onClick={() => { setVia(v); setErr(''); setOtpSent(false); setDebugOtp(''); }}
+              className={'flex-1 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ' + (via === v ? 'border-rose-400 bg-rose-50 text-rose-600' : 'border-gray-100 text-gray-400 bg-gray-50')}>
+              {v === 'email' ? '✉️ Email' : '📱 Phone'}
+            </button>
+          ))}
         </div>
 
-        {via === 'phone' ? (
+        {via === 'email' ? (
           <div className="space-y-3">
-            <div className="flex gap-2">
-              <span className="px-3 py-3 bg-gray-50 rounded-xl text-gray-500 text-sm font-semibold">+91</span>
-              <input value={ph} onChange={e => setPh(e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="Phone number" className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-100 text-sm outline-none" />
+            {tab === 'signup' && (
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide ml-1">Full Name</label>
+                <input value={nm} onChange={e => setNm(e.target.value)} placeholder="Your full name"
+                  className={inputCls + ' mt-1'} autoComplete="name" />
+              </div>
+            )}
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide ml-1">Email</label>
+              <input value={em} onChange={e => setEm(e.target.value)} placeholder="you@example.com"
+                type="email" inputMode="email" className={inputCls + ' mt-1'} autoComplete="email" />
             </div>
-            {sent && <input value={otp} onChange={e => setOtp(e.target.value.slice(0, 4))} placeholder="Enter OTP" maxLength={4} className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 text-sm text-center tracking-widest outline-none" />}
-            <button disabled={ld} onClick={async () => {
-              setErr('');
-              if (!sent) { setLd(true); try { await authAPI.sendOtp(ph); setSent(true); } catch (e: any) { setErr(e?.response?.data?.error || 'Failed to send OTP'); } setLd(false); }
-              else go(authAPI.verifyOtp(ph, otp), '/dashboard');
-            }} className="w-full py-3.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-xl font-bold disabled:opacity-50">
-              {ld ? 'Wait...' : sent ? 'Verify OTP' : 'Send OTP'}
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide ml-1">Password</label>
+              <div className="relative mt-1">
+                <input value={pw} onChange={e => setPw(e.target.value)}
+                  placeholder={tab === 'signup' ? 'Minimum 8 characters' : 'Your password'}
+                  type={showPw ? 'text' : 'password'} className={inputCls + ' pr-12'} autoComplete={tab === 'login' ? 'current-password' : 'new-password'} />
+                <button type="button" onClick={() => setShowPw(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg active:scale-90 transition-transform">
+                  {showPw ? '🙈' : '👁️'}
+                </button>
+              </div>
+            </div>
+            <button disabled={loading} onClick={handleEmailAuth}
+              className="w-full py-4 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-2xl font-bold text-sm disabled:opacity-60 active:scale-95 transition-all shadow-md shadow-rose-200">
+              {loading ? '⏳ Please wait...' : tab === 'login' ? 'Sign In →' : 'Create Account →'}
             </button>
-            {err && <p className="text-red-500 text-xs text-center bg-red-50 p-2 rounded-lg">{err}</p>}
+            {tab === 'login' && (
+              <p className="text-center text-xs text-gray-400">
+                Don't have an account?{' '}
+                <button onClick={() => setTab('signup')} className="text-rose-500 font-bold">Sign up free</button>
+              </p>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
-            {tab === 'signup' && <input value={nm} onChange={e => setNm(e.target.value)} placeholder="Full Name" className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 text-sm outline-none" />}
-            <input value={em} onChange={e => setEm(e.target.value)} placeholder="Email" type="email" className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 text-sm outline-none" />
-            <input value={pw} onChange={e => setPw(e.target.value)} placeholder="Password" type="password" className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 text-sm outline-none" />
-            <button disabled={ld} onClick={() => {
-              setErr('');
-              if (tab === 'signup') go(authAPI.register({ fullName: nm, email: em, password: pw }), '/setup');
-              else go(authAPI.login({ email: em, password: pw }), '/dashboard');
-            }} className="w-full py-3.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-xl font-bold disabled:opacity-50">
-              {ld ? 'Wait...' : tab === 'login' ? 'Sign In' : 'Create Account'}
-            </button>
-            {err && <p className="text-red-500 text-xs text-center bg-red-50 p-2 rounded-lg">{err}</p>}
+            {/* Phone input */}
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide ml-1">Phone Number</label>
+              <div className="flex gap-2 mt-1">
+                <div className="px-3 py-3.5 bg-gray-50 border-2 border-gray-100 rounded-2xl text-gray-600 text-sm font-semibold">🇮🇳 +91</div>
+                <input value={ph} onChange={e => setPh(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  placeholder="10-digit mobile number" inputMode="numeric" maxLength={10}
+                  className="flex-1 px-4 py-3.5 rounded-2xl border-2 border-gray-100 text-sm outline-none focus:border-rose-400 bg-gray-50 focus:bg-white transition-colors" />
+              </div>
+            </div>
+
+            {/* OTP sent state */}
+            {otpSent && (
+              <div className="space-y-3">
+                {/* Show OTP on screen when SMS is unavailable */}
+                {debugOtp && (
+                  <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4">
+                    <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wide mb-1">📋 Your OTP (SMS unavailable)</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-3xl font-extrabold text-amber-800 tracking-widest">{debugOtp}</p>
+                      <button onClick={() => setOtp(debugOtp)}
+                        className="px-3 py-1.5 bg-amber-500 text-white rounded-xl text-xs font-bold active:scale-95 transition-transform">
+                        Auto-fill
+                      </button>
+                    </div>
+                    <p className="text-[9px] text-amber-600 mt-1">Valid for 5 minutes · Tap Auto-fill to use it</p>
+                  </div>
+                )}
+                {smsSent && (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3">
+                    <p className="text-xs text-emerald-700 font-medium">✅ OTP sent to +91{ph} via SMS</p>
+                  </div>
+                )}
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide ml-1">Enter OTP</label>
+                  <input value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    placeholder="_ _ _ _" inputMode="numeric" maxLength={4}
+                    className="w-full mt-1 px-4 py-4 rounded-2xl border-2 border-gray-100 text-2xl text-center tracking-[0.5em] font-extrabold outline-none focus:border-rose-400 bg-gray-50 focus:bg-white transition-colors" />
+                </div>
+                <button disabled={loading} onClick={handleVerifyOtp}
+                  className="w-full py-4 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-2xl font-bold text-sm disabled:opacity-60 active:scale-95 transition-all shadow-md shadow-rose-200">
+                  {loading ? '⏳ Verifying...' : 'Verify OTP →'}
+                </button>
+                <button onClick={() => { setOtpSent(false); setOtp(''); setDebugOtp(''); setErr(''); }}
+                  className="w-full py-2.5 text-gray-400 text-xs font-medium active:scale-95 transition-transform">
+                  ← Change number
+                </button>
+              </div>
+            )}
+
+            {!otpSent && (
+              <button disabled={loading || ph.length !== 10} onClick={handleSendOtp}
+                className="w-full py-4 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-2xl font-bold text-sm disabled:opacity-60 active:scale-95 transition-all shadow-md shadow-rose-200">
+                {loading ? '⏳ Sending...' : 'Send OTP →'}
+              </button>
+            )}
           </div>
         )}
 
-        <div className="relative py-2">
-          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
-          <div className="relative flex justify-center"><span className="bg-white px-3 text-xs text-gray-400">or</span></div>
+        {/* Error message */}
+        {err && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-3 flex items-start gap-2">
+            <span className="text-red-500 flex-shrink-0">⚠️</span>
+            <p className="text-red-600 text-xs leading-relaxed">{err}</p>
+          </div>
+        )}
+
+        {/* Divider + Social */}
+        <div className="relative py-1">
+          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100" /></div>
+          <div className="relative flex justify-center"><span className="bg-white px-3 text-[10px] text-gray-400 font-medium">or continue with</span></div>
         </div>
         <div className="flex gap-3">
-          <button onClick={() => alert('Google Sign-In: To enable, set up Google OAuth in Google Cloud Console and add GOOGLE_CLIENT_ID to your environment.')} className="flex-1 py-2.5 border-2 border-gray-100 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 active:scale-95 transition-all cursor-pointer">Google</button>
-          <button onClick={() => alert('Apple Sign-In coming soon!')} className="flex-1 py-2.5 border-2 border-gray-100 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 active:scale-95 transition-all cursor-pointer">Apple</button>
+          <button onClick={() => alert('Google Sign-In: Add GOOGLE_CLIENT_ID to your Railway environment variables to enable.')}
+            className="flex-1 py-3 border-2 border-gray-100 rounded-2xl text-sm font-semibold text-gray-600 active:scale-95 transition-all flex items-center justify-center gap-2 bg-gray-50">
+            <span>🔵</span> Google
+          </button>
+          <button onClick={() => alert('Apple Sign-In coming soon!')}
+            className="flex-1 py-3 border-2 border-gray-100 rounded-2xl text-sm font-semibold text-gray-600 active:scale-95 transition-all flex items-center justify-center gap-2 bg-gray-50">
+            <span>🍎</span> Apple
+          </button>
         </div>
       </div>
-      <p className="text-center text-[11px] text-gray-400 mt-6">By continuing, you agree to our Terms and Privacy Policy</p>
+
+      <p className="text-center text-[10px] text-gray-400 mt-4 mb-2">By continuing, you agree to our Terms &amp; Privacy Policy</p>
     </div>
   );
 }

@@ -35,7 +35,6 @@ const ACHIEVEMENTS_DEF = [
   { id: 'cycles_3', emoji: '📊', title: '3 Cycles Tracked', desc: 'Tracked 3 full cycles', key: 'sb_cycles_count', threshold: 3 },
   { id: 'community', emoji: '💬', title: 'Community Member', desc: 'Joined the SheBloom community', key: 'sb_community_joined' },
   { id: 'water', emoji: '💧', title: 'Hydration Hero', desc: 'Hit 8 glasses in a day', key: 'sb_water_goal' },
-  { id: 'coach', emoji: '🤖', title: 'AI Explorer', desc: 'Used the wellness coach', key: 'sb_coach_used' },
 ];
 
 const sections = [
@@ -46,7 +45,6 @@ const sections = [
     { i: '👩‍⚕️', l: 'My Doctors', action: 'doctors' },
     { i: '💬', l: 'Community', action: 'community' },
     { i: '🎯', l: 'Wellness Programs', action: 'programs' },
-    { i: '🤖', l: 'AI Coach', action: 'coach' },
   ]},
   { title: 'Support', items: [
     { i: '❓', l: 'Help Center', action: 'help' },
@@ -129,7 +127,7 @@ export default function ProfilePage() {
   };
 
   const handleItem = (action: string) => {
-    const routes: Record<string, string> = { reports: '/reports', cycle: '/tracker', ayurveda: '/ayurveda', doctors: '/doctors', community: '/community', programs: '/programs', coach: '/coach' };
+    const routes: Record<string, string> = { reports: '/reports', cycle: '/tracker', ayurveda: '/ayurveda', doctors: '/doctors', community: '/community', programs: '/programs' };
     if (action === 'edit') openEdit();
     else if (routes[action]) nav(routes[action]);
     else if (action === 'share' && navigator.share) navigator.share({ title: 'SheBloom', text: 'Your women\'s wellness companion', url: window.location.origin });

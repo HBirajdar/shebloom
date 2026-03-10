@@ -381,17 +381,17 @@ export default function DashboardPage() {
           {(goal === 'periods' || goal === 'wellness' ? [
             { l: 'Tracker', p: '/tracker', bg: '#FFF1F2', e: '📅', c: '#E11D48' },
             { l: 'Ayurveda', p: '/ayurveda', bg: '#ECFDF5', e: '🌿', c: '#059669' },
-            { l: 'Coach', p: '/coach', bg: '#F5F3FF', e: '🤖', c: '#7C3AED' },
+            { l: 'Wellness', p: '/wellness', bg: '#FEF3C7', e: '🧘', c: '#D97706' },
             { l: 'Articles', p: '/articles', bg: '#FFF7ED', e: '📰', c: '#EA580C' },
           ] : goal === 'fertility' ? [
             { l: 'Tracker', p: '/tracker', bg: '#F5F3FF', e: '💜', c: '#7C3AED' },
             { l: 'Ayurveda', p: '/ayurveda', bg: '#ECFDF5', e: '🌿', c: '#059669' },
-            { l: 'Coach', p: '/coach', bg: '#FFF1F2', e: '🤖', c: '#E11D48' },
+            { l: 'Wellness', p: '/wellness', bg: '#FEF3C7', e: '🧘', c: '#D97706' },
             { l: 'Doctors', p: '/doctors', bg: '#EFF6FF', e: '👩‍⚕️', c: '#2563EB' },
           ] : [
             { l: 'Pregnancy', p: '/pregnancy', bg: '#F5F3FF', e: '🤰', c: '#7C3AED' },
             { l: 'Doctors', p: '/doctors', bg: '#EFF6FF', e: '👩‍⚕️', c: '#2563EB' },
-            { l: 'Coach', p: '/coach', bg: '#FFF1F2', e: '🤖', c: '#E11D48' },
+            { l: 'Wellness', p: '/wellness', bg: '#FEF3C7', e: '🧘', c: '#D97706' },
             { l: 'Hospitals', p: '/hospitals', bg: '#FFF1F2', e: '🏥', c: '#E11D48' },
           ]).map(a => (
             <button key={a.l} onClick={() => nav(a.p)} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">

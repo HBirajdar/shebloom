@@ -62,30 +62,30 @@ export class AuthService {
     return { user: safe, ...tokens };
   }
 
-  async sendOtp(phone: string) {
+  async sendOtp(phone: string): Promise<{ smsSent: boolean; debugOtp?: string }> {
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-    // Store in Redis (primary) + in-memory (fallback) + DB (persistent)
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
     await cacheSet(`otp:${phone}`, otp, 300);
     otpSet(`otp:${phone}`, otp, 300);
-    // DB storage — delete any existing OTPs for this phone first
     await prisma.otpStore.deleteMany({ where: { phone } }).catch(() => {});
     await prisma.otpStore.create({ data: { phone, otp, expiresAt } }).catch(() => {});
     console.log('============================');
     console.log(`OTP for ${phone}: ${otp}`);
     console.log('============================');
-    if (process.env.NODE_ENV === 'production' && process.env.TWILIO_ACCOUNT_SID) {
+    const twilioReady = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER);
+    if (twilioReady) {
       try {
         const twilio = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
         await twilio.messages.create({ body: `Your SheBloom OTP: ${otp}. Valid for 5 minutes.`, from: process.env.TWILIO_PHONE_NUMBER, to: `+91${phone}` });
         logger.info(`OTP sent via Twilio to +91${phone}`);
+        return { smsSent: true };
       } catch (err: any) {
-        logger.error(`Twilio error for ${phone}: ${err.message}`);
-        logger.info(`[FALLBACK] OTP for +91${phone}: ${otp}`);
+        logger.error(`Twilio send failed for ${phone}: ${err.message}`);
       }
-    } else {
-      logger.info(`[DEV] OTP for ${phone}: ${otp}`);
     }
+    // SMS not sent — return OTP in response so users can still log in without SMS
+    logger.info(`[NO-SMS] OTP for +91${phone}: ${otp}`);
+    return { smsSent: false, debugOtp: otp };
   }
 
   async verifyOtp(phone: string, otp: string) {
