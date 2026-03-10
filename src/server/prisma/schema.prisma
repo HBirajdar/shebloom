@@ -311,11 +311,12 @@ model DoctorReview {
 model Appointment {
   id              String            @id @default(cuid())
   userId          String
-  doctorId        String
+  doctorId        String?           // Changed: was String (required)
+  doctorName      String?           // Added: stores name for custom/admin doctors
   scheduledAt     DateTime
-  duration        Int               @default(30) // minutes
+  duration        Int               @default(30)
   status          AppointmentStatus @default(PENDING)
-  type            String            @default("consultation") // consultation, follow_up, emergency
+  type            String            @default("consultation")
   notes           String?
   meetingLink     String?
   paymentId       String?
@@ -325,7 +326,7 @@ model Appointment {
   updatedAt       DateTime          @updatedAt
 
   user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  doctor          Doctor            @relation(fields: [doctorId], references: [id])
+  doctor          Doctor?           @relation(fields: [doctorId], references: [id])  // Changed: was non-optional
 
   @@index([userId])
   @@index([doctorId])

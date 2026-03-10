@@ -190,27 +190,32 @@ export default function TrackerPage() {
     const isToday = isSameDay(date, today)
     let bg = ''
     let text = ''
-    let border = isToday ? 'ring-2 ring-rose-400' : ''
+    let border = ''
 
     if (types.includes('period')) {
-      bg = 'bg-gradient-to-br from-rose-400 to-pink-500'
+      bg = 'bg-rose-500'
       text = 'text-white font-bold'
-      border = isToday ? 'ring-2 ring-rose-300' : ''
+      border = isToday ? 'ring-2 ring-white ring-offset-1' : ''
     } else if (types.includes('ovulation')) {
-      bg = 'bg-gradient-to-br from-fuchsia-100 to-purple-200'
-      text = 'text-purple-700 font-semibold'
-      border = 'border border-purple-300'
+      bg = 'bg-amber-400'
+      text = 'text-white font-semibold'
+      border = ''
     } else if (types.includes('fertile')) {
-      bg = 'bg-gradient-to-br from-teal-50 to-emerald-100'
+      bg = 'bg-emerald-100'
       text = 'text-emerald-700 font-medium'
-      border = 'border border-emerald-200'
+      border = ''
     } else if (types.includes('pms')) {
-      bg = 'bg-gradient-to-br from-purple-50 to-violet-100'
-      text = 'text-violet-600'
-      border = 'border border-violet-200'
+      bg = 'bg-purple-100'
+      text = 'text-purple-700'
+      border = ''
     } else if (types.includes('predicted')) {
-      border = (isToday ? 'ring-2 ring-rose-400 ' : '') + 'border-2 border-dashed border-rose-300'
+      border = 'border-2 border-dashed border-rose-300'
       text = 'text-rose-400 font-medium'
+    } else if (isToday) {
+      border = 'border-2 border-gray-800'
+      text = 'text-gray-900 font-black'
+    } else {
+      text = 'text-gray-700'
     }
 
     return { bg, text, border }
@@ -490,13 +495,13 @@ export default function TrackerPage() {
                   return (
                     <div
                       key={idx}
-                      className={`relative flex flex-col items-center justify-center rounded-xl aspect-square text-sm font-medium transition-all ${bg} ${text} ${border}`}
+                      className={`relative flex flex-col items-center justify-center rounded-full aspect-square text-sm font-medium transition-all ${bg} ${text} ${border}`}
                     >
                       <span className={isToday && !bg ? 'font-black text-gray-900' : ''}>
                         {date.getDate()}
                       </span>
                       {isOvulation && (
-                        <span className="text-[10px] leading-none">🌸</span>
+                        <span className="text-[8px] leading-none">⭐</span>
                       )}
                       {hasSymptom && !isOvulation && (
                         <span className="absolute bottom-0.5 w-1 h-1 rounded-full bg-rose-400" />
@@ -509,10 +514,10 @@ export default function TrackerPage() {
               {/* Legend */}
               <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 px-1">
                 {[
-                  { color: 'bg-gradient-to-br from-rose-400 to-pink-500', label: 'Period' },
-                  { color: 'bg-gradient-to-br from-teal-50 to-emerald-100 border border-emerald-200', label: 'Fertile' },
-                  { color: 'bg-gradient-to-br from-fuchsia-100 to-purple-200 border border-purple-300', label: 'Ovulation 🌸' },
-                  { color: 'bg-gradient-to-br from-purple-50 to-violet-100 border border-violet-200', label: 'PMS' },
+                  { color: 'bg-rose-500', label: 'Period' },
+                  { color: 'bg-emerald-100 border border-emerald-300', label: 'Fertile' },
+                  { color: 'bg-amber-400', label: 'Ovulation ⭐' },
+                  { color: 'bg-purple-100', label: 'PMS' },
                   { color: 'border-2 border-dashed border-rose-300', label: 'Predicted' },
                 ].map(({ color, label }) => (
                   <div key={label} className="flex items-center gap-1">

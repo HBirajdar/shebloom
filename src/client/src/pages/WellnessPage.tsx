@@ -135,8 +135,8 @@ export default function WellnessPage() {
 
   // ─── State ────────────────────────────────────────────
   const [tab, setTab] = useState<'today' | 'routine' | 'yoga' | 'breathe'>('today');
-  const [water, setWater] = useState(() => Number(localStorage.getItem('sb_water') || '0'));
-  const [sleepHours, setSleepHours] = useState(() => Number(localStorage.getItem('sb_sleep') || '0'));
+  const [water, setWater] = useState(0);
+  const [sleepHours, setSleepHours] = useState(0);
   const [routineDone, setRoutineDone] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem('sb_routine_done') || '[]')); } catch { return new Set(); }
   });
@@ -163,9 +163,14 @@ export default function WellnessPage() {
   const breathRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const bMode = BREATHING_MODES.find(b => b.id === breathMode)!;
 
-  // ─── Persist water & sleep ────────────────────────────
-  useEffect(() => { localStorage.setItem('sb_water', String(water)); }, [water]);
-  useEffect(() => { localStorage.setItem('sb_sleep', String(sleepHours)); }, [sleepHours]);
+  // Load today's wellness data from API on mount
+  useEffect(() => {
+    wellnessAPI.dailyScore().then(r => {
+      const d = r.data?.data;
+      if (d?.components?.water?.glasses !== undefined) setWater(d.components.water.glasses);
+      if (d?.components?.sleep?.logged && d.components.sleep.hours) setSleepHours(d.components.sleep.hours);
+    }).catch(() => {});
+  }, []);
 
   // ─── Wellness score ───────────────────────────────────
   const wellnessScore = Math.round(
@@ -358,18 +363,19 @@ export default function WellnessPage() {
                 <WaterGlass key={i} filled={i < water} onClick={() => {
                   const next = i < water ? i : i + 1;
                   setWater(next);
+                  wellnessAPI.log({ type: 'water', value: next }).catch(() => {});
                   if (next === 8) toast.success('💧 Hydration goal reached!');
                 }} />
               ))}
             </div>
             <div className="mt-3 flex justify-between items-center">
-              <button onClick={() => setWater(Math.max(0, water - 1))}
+              <button onClick={() => { const next = Math.max(0, water - 1); setWater(next); wellnessAPI.log({ type: 'water', value: next }).catch(() => {}); }}
                 className="w-9 h-9 rounded-full bg-gray-100 text-gray-600 font-extrabold text-lg active:scale-90 transition-transform">−</button>
               <div className="flex-1 mx-3 bg-gray-100 rounded-full h-2">
                 <div className="bg-gradient-to-r from-blue-400 to-blue-600 h-2 rounded-full transition-all"
                   style={{ width: `${(water / 8) * 100}%` }} />
               </div>
-              <button onClick={() => { setWater(Math.min(8, water + 1)); if (water + 1 === 8) toast.success('💧 Goal reached!'); }}
+              <button onClick={() => { const next = Math.min(8, water + 1); setWater(next); wellnessAPI.log({ type: 'water', value: next }).catch(() => {}); if (next === 8) toast.success('💧 Goal reached!'); }}
                 className="w-9 h-9 rounded-full bg-blue-100 text-blue-600 font-extrabold text-lg active:scale-90 transition-transform">+</button>
             </div>
           </div>
@@ -683,7 +689,7 @@ export default function WellnessPage() {
             <h3 className="text-base font-extrabold text-gray-900 mb-4">😴 How many hours did you sleep?</h3>
             <div className="grid grid-cols-4 gap-3">
               {[4, 5, 6, 7, 7.5, 8, 9, 10].map(h => (
-                <button key={h} onClick={() => { setSleepHours(h); setShowSleepPicker(false); toast.success(`${h}h sleep logged! 😴`); }}
+                <button key={h} onClick={() => { setSleepHours(h); setShowSleepPicker(false); wellnessAPI.log({ type: 'sleep', value: h }).catch(() => {}); toast.success(`${h}h sleep logged! 😴`); }}
                   className={'py-3 rounded-xl font-extrabold text-sm active:scale-95 transition-transform border-2 ' + (sleepHours === h ? 'border-purple-400 bg-purple-50 text-purple-700' : 'border-gray-200 bg-gray-50 text-gray-700')}>
                   {h}h
                 </button>

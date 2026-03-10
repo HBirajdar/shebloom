@@ -36,7 +36,7 @@ export function useAppointments() {
     const scheduledAt = data.date + 'T' + data.time.replace(/ [AP]M/, '') + ':00';
     // Try API first
     try {
-      const res = await appointmentAPI.create({ doctorId: data.doctorId, scheduledAt, reason: data.reason, notes: data.notes });
+      const res = await appointmentAPI.create({ doctorId: data.doctorId, doctorName: data.doctorName, scheduledAt, reason: data.reason, notes: data.notes });
       toast.success('Appointment booked!');
       await fetchBookings();
       return res.data.data;

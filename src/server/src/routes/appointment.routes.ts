@@ -5,28 +5,42 @@ const r = Router(); r.use(authenticate);
 
 r.post('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
-    const { doctorId, scheduledAt, reason, notes } = q.body;
-    // Check if doctor exists in DB
-    const doctor = await prisma.doctor.findUnique({ where: { id: doctorId } });
-    if (!doctor) {
-      // Doctor not in DB — return 404 so frontend falls back to localStorage
-      return s.status(404).json({ success: false, error: 'Doctor not in database. Saved locally.' });
-    }
+    const { doctorId, doctorName, scheduledAt, reason, notes } = q.body;
+    // Try to find doctor in DB (may be an admin/local doctor not in DB)
+    const doctor = doctorId ? await prisma.doctor.findUnique({ where: { id: doctorId } }).catch(() => null) : null;
     const appt = await prisma.appointment.create({
-      data: { userId: q.user!.id, doctorId, scheduledAt: new Date(scheduledAt), amountPaid: doctor.consultationFee, notes: [reason, notes].filter(Boolean).join(' | ') },
+      data: {
+        userId: q.user!.id,
+        doctorId: doctor ? doctorId : null,
+        doctorName: doctor?.fullName || doctorName || 'Doctor',
+        scheduledAt: new Date(scheduledAt),
+        amountPaid: doctor ? doctor.consultationFee : 0,
+        notes: [reason, notes].filter(Boolean).join(' | ') || null,
+      },
       include: { doctor: { select: { fullName: true, specialization: true } } },
     });
-    s.status(201).json({ success: true, data: appt });
+    s.status(201).json({
+      success: true,
+      data: {
+        ...appt,
+        doctor: appt.doctor || { fullName: appt.doctorName || 'Doctor', specialization: '' },
+      },
+    });
   } catch (e) { n(e); }
 });
 
 r.get('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
-    s.json({ success: true, data: await prisma.appointment.findMany({
+    const data = await prisma.appointment.findMany({
       where: { userId: q.user!.id },
       include: { doctor: { select: { fullName: true, specialization: true } } },
       orderBy: { scheduledAt: 'desc' },
-    })});
+    });
+    const result = data.map((a: any) => ({
+      ...a,
+      doctor: a.doctor || { fullName: a.doctorName || 'Doctor', specialization: '' },
+    }));
+    s.json({ success: true, data: result });
   } catch (e) { n(e); }
 });
 

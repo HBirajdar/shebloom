@@ -99,24 +99,88 @@ export default function PregnancyPage() {
   const nav = useNavigate();
   const [week, setWeek] = useState(16);
   const [apiLoaded, setApiLoaded] = useState(false);
+  const [hasPregnancy, setHasPregnancy] = useState<boolean | null>(null);
   const [tab, setTab] = useState<'baby' | 'mom' | 'tips' | 'nutrition' | 'exercise'>('baby');
   const [done, setDone] = useState<Record<number, boolean[]>>({});
 
-  // Fetch real pregnancy week from API on mount
   useEffect(() => {
     pregnancyAPI.get().then(r => {
-      const data = r.data.data;
+      const data = r.data?.data;
       if (data?.pregnancyWeek && typeof data.pregnancyWeek === 'number') {
-        // Snap to nearest weekData milestone key
         const keys = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40];
         const nearest = keys.reduce((prev, curr) =>
           Math.abs(curr - data.pregnancyWeek) < Math.abs(prev - data.pregnancyWeek) ? curr : prev
         );
         setWeek(nearest);
+        setHasPregnancy(true);
+      } else {
+        setHasPregnancy(false);
       }
       setApiLoaded(true);
-    }).catch(() => setApiLoaded(true));
+    }).catch(() => { setHasPregnancy(false); setApiLoaded(true); });
   }, []);
+
+  if (!apiLoaded) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 mx-auto border-4 border-purple-200 border-t-purple-500 rounded-full animate-spin mb-3" />
+          <p className="text-sm text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasPregnancy) {
+    return (
+      <div className="min-h-screen bg-gray-50 pb-20">
+        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-md px-5 py-3 flex items-center gap-3 border-b border-gray-100">
+          <button onClick={() => nav('/dashboard')} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm active:scale-90">←</button>
+          <h1 className="text-lg font-bold flex-1">Pregnancy Tracker</h1>
+        </div>
+        <div className="flex flex-col items-center justify-center px-6 pt-16 text-center">
+          <span className="text-7xl mb-4">🤰</span>
+          <h2 className="text-xl font-extrabold text-gray-900">Pregnancy Tracker</h2>
+          <p className="text-sm text-gray-500 mt-3 leading-relaxed max-w-xs">
+            Track your pregnancy week by week with personalized tips, baby development info, and nutrition guidance.
+          </p>
+          <div className="mt-6 bg-purple-50 rounded-2xl p-5 w-full max-w-xs text-left space-y-2">
+            <p className="text-xs font-extrabold text-purple-700 mb-2">You'll see weekly:</p>
+            {['👶 Baby size & development', '🧘 Safe exercises & yoga', '🥗 Nutrition & supplements', '💡 Doctor-approved tips'].map(t => (
+              <p key={t} className="text-xs text-purple-600">{t}</p>
+            ))}
+          </div>
+          <button
+            onClick={() => {
+              const lmp = prompt('Enter your last menstrual period date (YYYY-MM-DD):');
+              if (lmp) {
+                pregnancyAPI.create({ lastPeriodDate: lmp }).then(() => {
+                  setHasPregnancy(null);
+                  setApiLoaded(false);
+                  pregnancyAPI.get().then(r => {
+                    const data = r.data?.data;
+                    if (data?.pregnancyWeek) {
+                      const keys = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40];
+                      const nearest = keys.reduce((prev, curr) =>
+                        Math.abs(curr - data.pregnancyWeek) < Math.abs(prev - data.pregnancyWeek) ? curr : prev
+                      );
+                      setWeek(nearest);
+                      setHasPregnancy(true);
+                    }
+                    setApiLoaded(true);
+                  });
+                }).catch(() => alert('Invalid date. Use YYYY-MM-DD format.'));
+              }
+            }}
+            className="mt-6 w-full max-w-xs py-4 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform"
+            style={{ background: 'linear-gradient(135deg, #7C3AED, #EC4899)' }}
+          >
+            🌸 I'm Pregnant! Set My Due Date
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const d = weekData[week] || weekData[16];
   const pct = Math.round((week / 40) * 100);
