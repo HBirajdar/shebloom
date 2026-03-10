@@ -278,12 +278,12 @@ export default function WellnessPage() {
   const timeOfDay = new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening';
 
   return (
-    <div className="min-h-screen pb-28" style={{ backgroundColor: '#FAFAF9' }}>
+    <div className="min-h-screen pb-28 bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
 
       {/* ─── Header ─── */}
-      <div className="sticky top-0 z-20 backdrop-blur-xl border-b border-gray-100" style={{ backgroundColor: 'rgba(250,250,249,0.95)' }}>
+      <div className="sticky top-0 z-20 backdrop-blur-xl border-b border-rose-100" style={{ backgroundColor: 'rgba(255,241,242,0.85)' }}>
         <div className="px-5 py-3 flex items-center gap-3">
-          <button onClick={() => nav('/dashboard')} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-sm active:scale-90 transition-transform">←</button>
+          <button onClick={() => nav('/dashboard')} className="w-9 h-9 rounded-2xl bg-white/80 flex items-center justify-center text-sm active:scale-95 transition-all shadow-sm">←</button>
           <div className="flex-1">
             <h1 className="text-base font-extrabold text-gray-900">Wellness Hub 🧘</h1>
             <p className="text-[9px] text-gray-400">{pd.emoji} {pd.name} phase · Day {cycleDay}</p>
@@ -318,7 +318,7 @@ export default function WellnessPage() {
         {tab === 'today' && (<>
 
           {/* Wellness Score */}
-          <div className="bg-white rounded-3xl shadow-sm p-5">
+          <div className="bg-white rounded-3xl shadow-lg p-5">
             <h2 className="text-xs font-extrabold text-gray-400 uppercase tracking-wider mb-4 text-center">Today's Wellness Score</h2>
             <div className="flex items-center justify-around">
               <ScoreRing score={wellnessScore} />
@@ -349,7 +349,7 @@ export default function WellnessPage() {
           </div>
 
           {/* Water Tracker */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <div className="bg-white rounded-3xl p-4 shadow-lg">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-xs font-extrabold text-gray-800">💧 Water Tracker</h3>
               <div className="flex items-center gap-1.5">
@@ -381,7 +381,7 @@ export default function WellnessPage() {
           </div>
 
           {/* Sleep Tracker */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <div className="bg-white rounded-3xl p-4 shadow-lg">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-xs font-extrabold text-gray-800">😴 Sleep Tracker</h3>
               {sleepHours > 0 && <span className="text-xs font-extrabold text-purple-600">{sleepHours}h {sleepHours >= 7 ? '✅' : '😔'}</span>}
@@ -407,7 +407,7 @@ export default function WellnessPage() {
 
           {/* Active Challenges */}
           {joinedChallenges.size > 0 && (
-            <div className="bg-white rounded-2xl p-4 shadow-sm">
+            <div className="bg-white rounded-3xl p-4 shadow-lg">
               <h3 className="text-xs font-extrabold text-gray-800 mb-3">🎯 Your Challenges</h3>
               <div className="space-y-3">
                 {CHALLENGES.filter(c => joinedChallenges.has(c.id)).map(c => {
@@ -444,7 +444,7 @@ export default function WellnessPage() {
           )}
 
           {/* All Challenges */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <div className="bg-white rounded-3xl p-4 shadow-lg">
             <h3 className="text-xs font-extrabold text-gray-800 mb-3">🏆 Wellness Challenges</h3>
             <div className="space-y-3">
               {CHALLENGES.filter(c => !joinedChallenges.has(c.id)).map(c => (
@@ -494,7 +494,7 @@ export default function WellnessPage() {
             const tasks = pd.routine[time];
             const doneTasks = tasks.filter(t => routineDone.has(`${time}_${t}`));
             return (
-              <div key={time} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <div key={time} className="bg-white rounded-3xl shadow-lg overflow-hidden">
                 <div className="px-4 py-3 flex items-center justify-between border-b border-gray-50">
                   <div className="flex items-center gap-2">
                     <span className="text-lg">{timeEmoji}</span>
@@ -538,7 +538,7 @@ export default function WellnessPage() {
           )}
 
           {/* Duration picker */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <div className="bg-white rounded-3xl p-4 shadow-lg">
             <h3 className="text-xs font-extrabold text-gray-800 mb-3">Session Duration</h3>
             <div className="flex gap-2">
               {([5, 15, 30] as const).map(d => (
@@ -560,7 +560,7 @@ export default function WellnessPage() {
           {/* Poses grid */}
           <div className="grid grid-cols-2 gap-3">
             {pd.yoga.map(pose => (
-              <div key={pose.name} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <div key={pose.name} className="bg-white rounded-3xl shadow-lg overflow-hidden">
                 <div className="h-24 flex items-center justify-center text-5xl" style={{ backgroundColor: pd.bg }}>{pose.emoji}</div>
                 <div className="p-3">
                   <p className="text-xs font-extrabold text-gray-800">{pose.name}</p>
@@ -612,7 +612,7 @@ export default function WellnessPage() {
           </div>
 
           {/* Breathing animation */}
-          <div className="bg-white rounded-3xl shadow-sm p-8 flex flex-col items-center">
+          <div className="bg-white rounded-3xl shadow-lg p-8 flex flex-col items-center">
             <div className="relative w-48 h-48 flex items-center justify-center mb-6">
               {/* Outer ring */}
               <div className="absolute inset-0 rounded-full border-2 border-purple-100" />
@@ -663,7 +663,7 @@ export default function WellnessPage() {
           </div>
 
           {/* Breathwork benefits */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <div className="bg-white rounded-3xl p-4 shadow-lg">
             <h3 className="text-xs font-extrabold text-gray-800 mb-3">🧪 Why breathwork works</h3>
             {[
               { e: '🧠', t: 'Activates parasympathetic nervous system (rest & digest)' },

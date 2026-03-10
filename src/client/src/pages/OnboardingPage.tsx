@@ -66,7 +66,7 @@ export default function OnboardingPage() {
   const TOTAL = 5;
 
   return (
-    <div className="min-h-screen flex flex-col max-w-[430px] mx-auto" style={{ background: step === 0 ? 'linear-gradient(135deg,#E11D48,#EC4899,#8B5CF6)' : '#FAFAF9' }}>
+    <div className={'min-h-screen flex flex-col max-w-[430px] mx-auto ' + (step === 0 ? '' : 'bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50')} style={step === 0 ? { background: 'linear-gradient(135deg,#E11D48,#EC4899,#8B5CF6)' } : undefined}>
 
       {/* Progress bar (steps 1-5) */}
       {step > 0 && (

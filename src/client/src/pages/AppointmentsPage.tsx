@@ -54,15 +54,15 @@ export default function AppointmentsPage() {
   };
 
   return (
-    <div className="min-h-screen pb-8" style={{ backgroundColor: '#FAFAF9' }}>
-      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-gray-100">
+    <div className="min-h-screen pb-24 bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+      <div className="sticky top-0 z-20 backdrop-blur-xl border-b border-rose-100" style={{ backgroundColor: 'rgba(255,241,242,0.85)' }}>
         <div className="px-5 py-3 flex items-center gap-2.5">
-          <button onClick={() => nav('/dashboard')} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-sm active:scale-90">{'\u2190'}</button>
+          <button onClick={() => nav('/dashboard')} className="w-9 h-9 rounded-2xl bg-white/80 flex items-center justify-center text-sm active:scale-95 transition-all shadow-sm">{'\u2190'}</button>
           <h1 className="text-base font-extrabold text-gray-900">Appointments</h1>
         </div>
         <div className="px-5 pb-3 flex gap-2">
-          <button onClick={() => setView('book')} className={'px-4 py-1.5 rounded-full text-[10px] font-bold ' + (view === 'book' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-500')}>Book New</button>
-          <button onClick={() => setView('my')} className={'px-4 py-1.5 rounded-full text-[10px] font-bold ' + (view === 'my' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-500')}>
+          <button onClick={() => setView('book')} className={'px-4 py-2 rounded-2xl text-xs font-bold transition-all active:scale-95 ' + (view === 'book' ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md shadow-rose-200' : 'bg-white/60 text-gray-400')}>Book New</button>
+          <button onClick={() => setView('my')} className={'px-4 py-2 rounded-2xl text-xs font-bold transition-all active:scale-95 ' + (view === 'my' ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md shadow-rose-200' : 'bg-white/60 text-gray-400')}>
             My Bookings {bookings.filter(b => b.status === 'upcoming').length > 0 && <span className="ml-1 w-4 h-4 inline-flex items-center justify-center bg-white/30 rounded-full text-[8px]">{bookings.filter(b => b.status === 'upcoming').length}</span>}
           </button>
         </div>
@@ -74,8 +74,8 @@ export default function AppointmentsPage() {
           <div className="flex gap-2">
             {['Doctor', 'Date & Time', 'Reason', 'Confirm'].map((s, i) => (
               <div key={s} className="flex-1">
-                <div className={'h-1 rounded-full transition-all ' + (i <= step ? 'bg-emerald-500' : 'bg-gray-200')} />
-                <p className={'text-[8px] mt-1 font-bold ' + (i <= step ? 'text-emerald-600' : 'text-gray-400')}>{s}</p>
+                <div className={'h-1.5 rounded-full transition-all ' + (i <= step ? 'bg-gradient-to-r from-rose-500 to-pink-500' : 'bg-gray-200')} />
+                <p className={'text-[8px] mt-1 font-bold ' + (i <= step ? 'text-rose-600' : 'text-gray-400')}>{s}</p>
               </div>
             ))}
           </div>
@@ -85,7 +85,7 @@ export default function AppointmentsPage() {
             <h3 className="text-sm font-extrabold text-gray-900">Choose a Doctor</h3>
             {chief && (
               <button onClick={() => { setSelDoc(chief.id); setStep(1); }}
-                className={'w-full rounded-2xl p-4 text-left active:scale-[0.98] transition-transform border-2 ' + (selDoc === chief.id ? 'border-emerald-400 bg-emerald-50' : 'border-transparent bg-white shadow-sm')}>
+                className={'w-full rounded-3xl p-4 text-left active:scale-[0.98] transition-transform border-2 shadow-lg ' + (selDoc === chief.id ? 'border-rose-400 bg-rose-50' : 'border-transparent bg-white')}>
                 <div className="flex items-center gap-3">
                   <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-extrabold text-lg shadow-md">{chief.name.charAt(0)}</div>
                   <div className="flex-1">
@@ -105,7 +105,7 @@ export default function AppointmentsPage() {
             )}
             {pubDoctors.filter(d => !d.isChief).map(d => (
               <button key={d.id} onClick={() => { setSelDoc(d.id); setStep(1); }}
-                className={'w-full rounded-2xl p-3 text-left active:scale-[0.98] transition-transform border-2 ' + (selDoc === d.id ? 'border-emerald-400 bg-emerald-50' : 'border-transparent bg-white shadow-sm')}>
+                className={'w-full rounded-2xl p-3 text-left active:scale-[0.98] transition-transform border-2 shadow-lg ' + (selDoc === d.id ? 'border-rose-400 bg-rose-50' : 'border-transparent bg-white')}>
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold text-sm">{d.name.charAt(0)}</div>
                   <div className="flex-1">
@@ -124,7 +124,7 @@ export default function AppointmentsPage() {
               <div className="flex gap-2 min-w-max pb-2">
                 {dates.map(d => (
                   <button key={d.full} onClick={() => setSelDate(d.full)}
-                    className={'w-16 py-3 rounded-xl text-center transition-all active:scale-95 flex-shrink-0 ' + (selDate === d.full ? 'bg-emerald-500 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-100')}>
+                    className={'w-16 py-3 rounded-2xl text-center transition-all active:scale-95 flex-shrink-0 ' + (selDate === d.full ? 'bg-gradient-to-b from-rose-500 to-pink-500 text-white shadow-md shadow-rose-200' : 'bg-white text-gray-600 border border-gray-100')}>
                     <p className="text-[9px] font-bold">{d.day}</p>
                     <p className="text-lg font-extrabold">{d.date}</p>
                     <p className="text-[9px]">{d.month}</p>
@@ -137,7 +137,7 @@ export default function AppointmentsPage() {
               <div className="grid grid-cols-3 gap-2">
                 {timeSlots.map(t => (
                   <button key={t} onClick={() => { setSelTime(t); setStep(2); }}
-                    className={'py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 ' + (selTime === t ? 'bg-emerald-500 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-100')}>
+                    className={'py-2.5 rounded-2xl text-xs font-bold transition-all active:scale-95 ' + (selTime === t ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md shadow-rose-200' : 'bg-white text-gray-600 border border-gray-100')}>
                     {t}
                   </button>
                 ))}
@@ -151,7 +151,7 @@ export default function AppointmentsPage() {
             <div className="space-y-2">
               {reasons.map(r => (
                 <button key={r} onClick={() => { setSelReason(r); setStep(3); }}
-                  className={'w-full p-3 rounded-xl text-left text-xs font-bold transition-all active:scale-[0.98] border-2 ' + (selReason === r ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'border-gray-100 bg-white text-gray-700')}>
+                  className={'w-full p-3 rounded-2xl text-left text-xs font-bold transition-all active:scale-[0.98] border-2 ' + (selReason === r ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-gray-100 bg-white text-gray-700')}>
                   {r}
                 </button>
               ))}
@@ -188,7 +188,7 @@ export default function AppointmentsPage() {
                   className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-emerald-400 focus:outline-none resize-none" rows={3} />
               </div>
             </div>
-            <button onClick={handleConfirmBooking} className="w-full py-3.5 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform" style={{ background: 'linear-gradient(135deg, #059669, #10B981)' }}>
+            <button onClick={handleConfirmBooking} className="w-full py-3.5 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform shadow-md shadow-rose-200 bg-gradient-to-r from-rose-500 to-pink-500">
               Confirm Appointment {'\u2713'}
             </button>
           </>)}
@@ -218,7 +218,7 @@ export default function AppointmentsPage() {
             </div>
           ) : (
             bookings.map(b => (
-              <div key={b.id} className={'bg-white rounded-2xl p-4 shadow-sm ' + (b.status === 'cancelled' ? 'opacity-60' : '')}>
+              <div key={b.id} className={'bg-white rounded-3xl p-4 shadow-lg ' + (b.status === 'cancelled' ? 'opacity-60' : '')}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm">{b.doctorName.charAt(0)}</div>
@@ -251,7 +251,7 @@ export default function AppointmentsPage() {
             <div className="w-16 h-16 mx-auto rounded-full bg-emerald-100 flex items-center justify-center text-3xl mb-3">{'\u2705'}</div>
             <h3 className="text-lg font-extrabold text-gray-900">Booked!</h3>
             <p className="text-xs text-gray-500 mt-1">Your appointment has been confirmed. You'll receive a reminder before the visit.</p>
-            <button onClick={() => { setShowSuccess(false); setView('my'); }} className="w-full mt-4 py-3 rounded-2xl font-bold text-sm text-white active:scale-95" style={{ background: 'linear-gradient(135deg, #059669, #10B981)' }}>
+            <button onClick={() => { setShowSuccess(false); setView('my'); }} className="w-full mt-4 py-3 rounded-2xl font-bold text-sm text-white active:scale-95 shadow-md shadow-rose-200 bg-gradient-to-r from-rose-500 to-pink-500">
               View My Bookings
             </button>
           </div>

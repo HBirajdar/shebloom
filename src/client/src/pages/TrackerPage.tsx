@@ -409,40 +409,38 @@ export default function TrackerPage() {
   )
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col" style={{ maxWidth: 430, margin: '0 auto' }}>
+    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 flex flex-col" style={{ maxWidth: 430, margin: '0 auto' }}>
       {/* Header */}
-      <div className="bg-white sticky top-0 z-20 shadow-sm">
-        <div className="flex items-center px-4 pt-4 pb-2 gap-3">
+      <div className="sticky top-0 z-20 backdrop-blur-xl border-b border-rose-100" style={{ backgroundColor: 'rgba(255,241,242,0.85)' }}>
+        <div className="flex items-center px-5 pt-4 pb-2 gap-3">
           <button
             onClick={() => navigate('/dashboard')}
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+            className="w-9 h-9 flex items-center justify-center rounded-2xl bg-white/80 text-gray-600 active:scale-95 transition-all shadow-sm"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
+            ←
           </button>
-          <h1 className="text-xl font-bold text-gray-900 flex-1">My Cycle</h1>
+          <h1 className="text-xl font-extrabold text-gray-900 flex-1">My Cycle</h1>
         </div>
         {/* Tabs */}
-        <div className="flex px-4 gap-0 border-b border-gray-100">
+        <div className="flex px-5 gap-2 pb-3">
           {['calendar', 'insights'].map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`flex-1 py-2.5 text-sm font-semibold capitalize transition-colors border-b-2 ${
+              className={`flex-1 py-2.5 text-sm font-bold capitalize transition-all rounded-2xl ${
                 tab === t
-                  ? 'text-rose-500 border-rose-500'
-                  : 'text-gray-400 border-transparent hover:text-gray-600'
+                  ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md shadow-rose-200'
+                  : 'bg-white/60 text-gray-400'
               }`}
             >
-              {t.charAt(0).toUpperCase() + t.slice(1)}
+              {t === 'calendar' ? '📅 ' : '💡 '}{t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
           ))}
         </div>
       </div>
 
       {/* Main scrollable content */}
-      <div className="flex-1 overflow-y-auto pb-40">
+      <div className="flex-1 overflow-y-auto pb-28">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-10 h-10 border-4 border-rose-200 border-t-rose-500 rounded-full animate-spin" />
@@ -450,30 +448,27 @@ export default function TrackerPage() {
         ) : tab === 'calendar' ? (
           <>
             {/* Month Navigation */}
-            <div className="bg-white px-4 py-3 flex items-center justify-between">
+            <div className="mx-5 mt-4 bg-white rounded-3xl shadow-lg overflow-hidden">
+            <div className="px-4 py-3 flex items-center justify-between">
               <button
                 onClick={prevMonth}
-                className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+                className="w-9 h-9 flex items-center justify-center rounded-2xl bg-rose-50 text-rose-500 active:scale-95 transition-all"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
+                ←
               </button>
-              <span className="text-base font-bold text-gray-800">
+              <span className="text-base font-extrabold text-gray-900">
                 {MONTHS[selectedMonth.getMonth()]} {selectedMonth.getFullYear()}
               </span>
               <button
                 onClick={nextMonth}
-                className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+                className="w-9 h-9 flex items-center justify-center rounded-2xl bg-rose-50 text-rose-500 active:scale-95 transition-all"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                →
               </button>
             </div>
 
             {/* Calendar Grid */}
-            <div className="bg-white px-3 pb-4">
+            <div className="px-3 pb-4">
               {/* Day headers */}
               <div className="grid grid-cols-7 mb-1">
                 {DAYS_SHORT.map(d => (
@@ -527,9 +522,10 @@ export default function TrackerPage() {
                 ))}
               </div>
             </div>
+            </div>
 
             {/* Phase Timeline Bar */}
-            <div className="bg-white mx-3 mt-3 rounded-2xl p-4 shadow-sm">
+            <div className="bg-white mx-5 mt-3 rounded-2xl p-4 shadow-lg">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-bold text-gray-700">Cycle Phase</span>
                 {prediction?.cycleDay && (
@@ -578,7 +574,7 @@ export default function TrackerPage() {
             </div>
 
             {/* Cycle Stats Row */}
-            <div className="mt-3 px-3">
+            <div className="mt-3 px-5">
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {[
                   { icon: '📊', label: 'Avg Cycle', value: `${stats.avgCycle} days` },
@@ -589,7 +585,7 @@ export default function TrackerPage() {
                 ].map(card => (
                   <div
                     key={card.label}
-                    className="bg-white rounded-2xl p-3 shadow-sm flex-shrink-0 min-w-[88px] text-center"
+                    className="bg-white rounded-2xl p-3 shadow-lg flex-shrink-0 min-w-[88px] text-center"
                   >
                     <div className="text-xl mb-1">{card.icon}</div>
                     <div className="text-sm font-bold text-gray-800 whitespace-nowrap">{card.value}</div>
@@ -600,10 +596,10 @@ export default function TrackerPage() {
             </div>
 
             {/* Past Period History */}
-            <div className="mt-3 px-3">
+            <div className="mt-3 px-5">
               <h3 className="text-sm font-bold text-gray-700 mb-2">Period History</h3>
               {sortedCycles.length === 0 ? (
-                <div className="bg-white rounded-2xl p-6 text-center text-gray-400 text-sm shadow-sm">
+                <div className="bg-white rounded-3xl p-6 text-center text-gray-400 text-sm shadow-lg">
                   No periods logged yet. Tap + Log Period to get started!
                 </div>
               ) : (
@@ -617,7 +613,7 @@ export default function TrackerPage() {
                         : cycle.periodLength || '?'
                     const isExpanded = expandedCycle === i
                     return (
-                      <div key={cycle.id || i} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                      <div key={cycle.id || i} className="bg-white rounded-3xl shadow-lg overflow-hidden">
                         <button
                           className="w-full flex items-center justify-between px-4 py-3 text-left"
                           onClick={() => setExpandedCycle(isExpanded ? null : i)}
@@ -682,7 +678,7 @@ export default function TrackerPage() {
           </>
         ) : (
           /* INSIGHTS TAB */
-          <div className="px-3 py-4 space-y-3">
+          <div className="px-5 py-4 space-y-3">
             {/* Current Phase Card */}
             <div className={`rounded-2xl border p-4 ${phaseInfo.color}`}>
               <div className="flex items-start justify-between mb-2">
@@ -787,7 +783,7 @@ export default function TrackerPage() {
             )}
 
             {/* Hormone Levels */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm">
+            <div className="bg-white rounded-3xl p-4 shadow-lg">
               <div className="text-sm font-bold text-gray-700 mb-3">Hormone Levels</div>
               <div className="flex gap-3">
                 <HormoneBar label="Estrogen" value={phaseInfo.estrogen} color="bg-rose-400" />
@@ -799,7 +795,7 @@ export default function TrackerPage() {
             </div>
 
             {/* Phase Tips */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm">
+            <div className="bg-white rounded-3xl p-4 shadow-lg">
               <div className="text-sm font-bold text-gray-700 mb-3">Phase Tips</div>
               <div className="space-y-2">
                 {phaseInfo.tips.map((tip, i) => (

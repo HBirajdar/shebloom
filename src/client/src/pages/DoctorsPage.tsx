@@ -23,10 +23,10 @@ export default function DoctorsPage() {
   });
 
   return (
-    <div className="min-h-screen pb-10" style={{ backgroundColor: '#FAFAF9' }}>
-      <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-md px-5 py-3 flex items-center gap-3 border-b border-gray-100">
-        <button onClick={() => nav('/dashboard')} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm active:scale-90">{'\u2190'}</button>
-        <h1 className="text-base font-extrabold text-gray-900">Our Doctors</h1>
+    <div className="min-h-screen pb-24 bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+      <div className="sticky top-0 z-10 backdrop-blur-xl border-b border-rose-100 px-5 py-3 flex items-center gap-3" style={{ backgroundColor: 'rgba(255,241,242,0.85)' }}>
+        <button onClick={() => nav('/dashboard')} className="w-9 h-9 rounded-2xl bg-white/80 flex items-center justify-center text-sm active:scale-95 transition-all shadow-sm">{'\u2190'}</button>
+        <h1 className="text-base font-extrabold text-gray-900">Our Doctors 👩‍⚕️</h1>
       </div>
 
       <div className="px-5 pt-4 space-y-4">
@@ -61,14 +61,14 @@ export default function DoctorsPage() {
         )}
 
         {/* Search */}
-        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search doctors..."
-          className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm outline-none bg-white focus:border-emerald-400" />
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="🔍 Search doctors..."
+          className="w-full px-4 py-3.5 rounded-2xl border-2 border-gray-100 text-sm outline-none bg-white focus:border-rose-400 focus:bg-white transition-colors shadow-lg" />
 
         {/* Categories */}
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5">
           {CATS.map(c => (
             <button key={c} onClick={() => setCat(c)}
-              className={'px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ' + (cat === c ? 'bg-emerald-100 text-emerald-700' : 'bg-white border border-gray-200 text-gray-500')}>
+              className={'px-3 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all active:scale-95 ' + (cat === c ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md shadow-rose-200' : 'bg-white border border-gray-100 text-gray-500')}>
               {c}
             </button>
           ))}
@@ -77,7 +77,7 @@ export default function DoctorsPage() {
         {/* Doctor List */}
         <p className="text-xs text-gray-400 font-bold">{filtered.length} doctors available</p>
         {filtered.map(d => (
-          <button key={d.id} onClick={() => setSel(d)} className="w-full bg-white rounded-2xl p-4 shadow-sm text-left active:scale-[0.98] transition-transform">
+          <button key={d.id} onClick={() => setSel(d)} className="w-full bg-white rounded-3xl p-4 shadow-lg text-left active:scale-[0.98] transition-transform">
             <div className="flex gap-3">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm">
                 {d.name.split(' ').map(w => w[0]).join('').slice(0, 2)}
@@ -134,7 +134,7 @@ export default function DoctorsPage() {
               {sel.tags?.map((t: string) => <span key={t} className="text-[9px] px-2 py-1 bg-purple-50 text-purple-600 rounded-full font-bold">{t}</span>)}
             </div>
             {sel.languages && <p className="text-[10px] text-gray-500 mb-4">{'\u{1F5E3}\uFE0F'} {sel.languages.join(', ')}</p>}
-            <button onClick={() => nav('/appointments')} className="w-full py-3.5 rounded-2xl text-white font-bold active:scale-95 transition-transform" style={{ background: 'linear-gradient(135deg, #059669, #10B981)' }}>
+            <button onClick={() => nav('/appointments')} className="w-full py-3.5 rounded-2xl text-white font-bold active:scale-95 transition-transform shadow-md shadow-rose-200 bg-gradient-to-r from-rose-500 to-pink-500">
               Book Appointment {'\u2192'}
             </button>
             <button onClick={() => setSel(null)} className="w-full py-3 mt-2 border border-gray-200 rounded-2xl text-gray-600 text-sm font-bold active:scale-95">Close</button>

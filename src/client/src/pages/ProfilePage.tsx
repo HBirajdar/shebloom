@@ -140,7 +140,7 @@ export default function ProfilePage() {
   const phaseEmojis: Record<string, string> = { menstrual: '🩸', follicular: '🌱', ovulation: '✨', luteal: '🍂' };
 
   return (
-    <div className="min-h-screen pb-28" style={{ backgroundColor: '#FAFAF9' }}>
+    <div className="min-h-screen pb-28 bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
 
       {/* ─── Profile Header ─── */}
       <div className="relative overflow-hidden">
@@ -205,7 +205,7 @@ export default function ProfilePage() {
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-purple-100">
+            <div className="bg-white rounded-3xl p-4 shadow-lg border border-purple-100">
               <div className="flex items-center gap-3">
                 <span className="text-3xl">✨</span>
                 <div className="flex-1">
@@ -219,7 +219,7 @@ export default function ProfilePage() {
             </div>
           )}
 
-          <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <div className="bg-white rounded-3xl p-4 shadow-lg">
             <h3 className="text-xs font-extrabold text-gray-800 mb-3">📈 Stats</h3>
             <div className="grid grid-cols-3 gap-3">
               {[
@@ -237,7 +237,7 @@ export default function ProfilePage() {
           </div>
 
           {sections.map(sec => (
-            <div key={sec.title} className="bg-white rounded-2xl overflow-hidden shadow-sm">
+            <div key={sec.title} className="bg-white rounded-3xl overflow-hidden shadow-lg">
               <p className="text-[10px] font-extrabold text-gray-400 px-5 pt-3 uppercase tracking-wider">{sec.title}</p>
               {sec.items.map((item, i) => (
                 <button key={item.l} onClick={() => handleItem(item.action)}
@@ -268,7 +268,7 @@ export default function ProfilePage() {
             {ACHIEVEMENTS_DEF.map(a => {
               const earned = earnedAchievements.some(e => e.id === a.id);
               return (
-                <div key={a.id} className={`bg-white rounded-2xl p-4 shadow-sm text-center border-2 transition-all ${earned ? 'border-amber-200' : 'border-gray-100 opacity-50'}`}>
+                <div key={a.id} className={`bg-white rounded-3xl p-4 shadow-lg text-center border-2 transition-all ${earned ? 'border-amber-200' : 'border-gray-100 opacity-50'}`}>
                   <span className={`text-3xl block mb-2 ${!earned ? 'grayscale' : ''}`}>{a.emoji}</span>
                   <p className="text-xs font-extrabold text-gray-800">{a.title}</p>
                   <p className="text-[9px] text-gray-400 mt-0.5 leading-relaxed">{a.desc}</p>
@@ -282,7 +282,7 @@ export default function ProfilePage() {
         </>)}
 
         {activeTab === 'settings' && (<>
-          <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <div className="bg-white rounded-3xl p-4 shadow-lg">
             <h3 className="text-xs font-extrabold text-gray-800 mb-3">📅 Cycle Settings</h3>
             {[
               { l: 'Cycle Length', v: `${cycleLength} days` },
@@ -299,7 +299,7 @@ export default function ProfilePage() {
             ))}
           </div>
 
-          <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <div className="bg-white rounded-3xl p-4 shadow-lg">
             <h3 className="text-xs font-extrabold text-gray-800 mb-3">🔒 Privacy</h3>
             <button onClick={() => toast('Data export coming soon!')} className="w-full text-left flex items-center justify-between py-2.5 border-b border-gray-50 active:bg-gray-50">
               <span className="text-xs text-gray-600">Export my data</span><span className="text-gray-300 text-lg">›</span>

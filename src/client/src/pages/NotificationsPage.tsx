@@ -84,25 +84,25 @@ export default function NotificationsPage() {
   const read = notifications.filter(n => n.read);
 
   return (
-    <div className="min-h-screen pb-8" style={{ backgroundColor: '#FAFAF9' }}>
-      <div className="sticky top-0 z-20 backdrop-blur-xl border-b border-gray-100" style={{ backgroundColor: 'rgba(250,250,249,0.95)' }}>
-        <div className="px-4 py-3 flex items-center justify-between">
+    <div className="min-h-screen pb-24 bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+      <div className="sticky top-0 z-20 backdrop-blur-xl border-b border-rose-100" style={{ backgroundColor: 'rgba(255,241,242,0.85)' }}>
+        <div className="px-5 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => nav(-1)} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center active:scale-90 transition-transform text-sm font-bold">←</button>
+            <button onClick={() => nav(-1)} className="w-9 h-9 rounded-2xl bg-white/80 flex items-center justify-center active:scale-95 transition-all shadow-sm text-sm font-bold">←</button>
             <div>
               <h1 className="text-base font-extrabold text-gray-900">Notifications 🔔</h1>
               {unreadCount > 0 && <p className="text-[9px] text-rose-500 font-bold">{unreadCount} unread</p>}
             </div>
           </div>
           {unreadCount > 0 && (
-            <button onClick={markAllRead} className="text-xs font-bold text-rose-500 active:scale-95 transition-transform">
+            <button onClick={markAllRead} className="px-3 py-1.5 rounded-2xl text-xs font-bold text-white bg-gradient-to-r from-rose-500 to-pink-500 active:scale-95 transition-all shadow-md shadow-rose-200">
               Mark all read
             </button>
           )}
         </div>
       </div>
 
-      <div className="px-4 pt-4 space-y-5">
+      <div className="px-5 pt-4 space-y-5">
         {loading ? (
           <div className="space-y-3">{[1,2,3].map(i => <SkeletonCard key={i} />)}</div>
         ) : notifications.length === 0 ? (
@@ -119,7 +119,7 @@ export default function NotificationsPage() {
                 <div className="space-y-2">
                   {unread.map(n => (
                     <button key={n.id} onClick={() => markRead(n.id)} className="w-full text-left">
-                      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-50 flex items-start gap-3 active:scale-[0.99] transition-transform relative overflow-hidden">
+                      <div className="bg-white rounded-3xl p-4 shadow-lg flex items-start gap-3 active:scale-[0.99] transition-transform relative overflow-hidden">
                         <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl" style={{ backgroundColor: TYPE_COLORS[n.type] || '#E11D48' }} />
                         <div className="w-10 h-10 rounded-full flex items-center justify-center text-xl flex-shrink-0" style={{ backgroundColor: (TYPE_COLORS[n.type] || '#E11D48') + '15' }}>
                           {n.emoji}
@@ -140,7 +140,7 @@ export default function NotificationsPage() {
                 <h2 className="text-xs font-extrabold text-gray-400 uppercase tracking-wider mb-3 px-1">Earlier</h2>
                 <div className="space-y-2">
                   {read.map(n => (
-                    <div key={n.id} className="bg-white rounded-2xl p-4 shadow-sm flex items-start gap-3 opacity-70 relative overflow-hidden">
+                    <div key={n.id} className="bg-white rounded-3xl p-4 shadow-lg flex items-start gap-3 opacity-70 relative overflow-hidden">
                       <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl bg-gray-200" />
                       <div className="w-10 h-10 rounded-full flex items-center justify-center text-xl flex-shrink-0 bg-gray-50">{n.emoji}</div>
                       <div className="flex-1 min-w-0">

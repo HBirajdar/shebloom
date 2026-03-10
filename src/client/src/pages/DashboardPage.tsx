@@ -89,7 +89,7 @@ const PregnancyRing = ({ week }: { week: number }) => {
 
 // ─── Skeleton ─────────────────────────────────────
 const SkeletonCard = () => (
-  <div className="bg-white rounded-3xl shadow-sm overflow-hidden animate-pulse">
+  <div className="bg-white rounded-3xl shadow-lg overflow-hidden animate-pulse">
     <div className="p-5 flex items-center gap-4">
       <div className="w-44 h-44 flex-shrink-0 bg-gray-100 rounded-full" />
       <div className="flex-1 space-y-3">
@@ -229,7 +229,7 @@ export default function DashboardPage() {
   const curGoal = goalLabels[goal] || goalLabels.periods;
 
   const OnboardingCard = () => (
-    <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+    <div className="bg-white rounded-3xl shadow-lg overflow-hidden">
       <div className="p-6 text-center">
         <span className="text-5xl">🌸</span>
         <h2 className="text-lg font-extrabold text-gray-900 mt-3">Welcome to SheBloom!</h2>
@@ -248,9 +248,9 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="min-h-screen pb-28" style={{ backgroundColor: '#FAFAF9' }}>
+    <div className="min-h-screen pb-28 bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
       {/* ─── Header ─── */}
-      <div className="sticky top-0 z-20 backdrop-blur-xl border-b border-gray-100" style={{ backgroundColor: 'rgba(250,250,249,0.92)' }}>
+      <div className="sticky top-0 z-20 backdrop-blur-xl border-b border-rose-100" style={{ backgroundColor: 'rgba(255,241,242,0.85)' }}>
         <div className="px-5 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-extrabold text-sm shadow-md" style={{ background: theme.gradient }}>
@@ -276,7 +276,7 @@ export default function DashboardPage() {
       <div className="px-5 pt-4 space-y-4">
 
         {/* ─── Quick Log Strip ─── */}
-        <div className="bg-white rounded-2xl p-3 shadow-sm">
+        <div className="bg-white rounded-3xl p-3 shadow-lg">
           <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Quick Log</p>
           <div className="grid grid-cols-4 gap-2">
             {[
@@ -299,7 +299,7 @@ export default function DashboardPage() {
         {dashLoading ? <SkeletonCard /> : !hasRealData && goal !== 'pregnancy' ? <OnboardingCard /> : (
           <>
             {(goal === 'periods' || goal === 'wellness') && (
-              <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+              <div className="bg-white rounded-3xl shadow-lg overflow-hidden">
                 <div className="p-5 flex items-center gap-4">
                   <div className="w-44 h-44 flex-shrink-0"><CycleHeroRing day={cycleDay} total={cycleLength} phase={phase} periodLength={periodLength} /></div>
                   <div className="flex-1 min-w-0">
@@ -432,7 +432,7 @@ export default function DashboardPage() {
 
         {/* ─── Your Body Today ─── */}
         {hasRealData && goal !== 'pregnancy' && (
-          <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <div className="bg-white rounded-3xl p-4 shadow-lg">
             <h3 className="text-xs font-extrabold text-gray-800 mb-3">🧬 Your Body Today</h3>
             {[
               {
@@ -480,7 +480,7 @@ export default function DashboardPage() {
         )}
 
         {/* ─── Mood Logger ─── */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm">
+        <div className="bg-white rounded-3xl p-4 shadow-lg">
           <h3 className="text-xs font-bold text-gray-800 mb-3">How are you feeling? 💭</h3>
           <div className="flex justify-between">
             {moods.map(m => (
@@ -496,7 +496,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ─── Water Tracker ─── */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm">
+        <div className="bg-white rounded-3xl p-4 shadow-lg">
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-xs font-bold text-gray-800">💧 Hydration</h3>
             <div className="flex items-center gap-1.5"><span className="text-xs font-extrabold text-blue-600">{water}</span><span className="text-[10px] text-gray-400">/ 8 glasses</span></div>
@@ -514,7 +514,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ─── Wellness Score ─── */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm">
+        <div className="bg-white rounded-3xl p-4 shadow-lg">
           <h3 className="text-xs font-bold text-gray-800 mb-3">⚡ Today's Wellness Score</h3>
           <div className="flex items-center gap-4">
             <WellnessRing score={wellnessScore} />
@@ -536,7 +536,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ─── Daily Tip ─── */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm">
+        <div className="bg-white rounded-3xl p-4 shadow-lg">
           <h3 className="text-xs font-bold text-gray-800 mb-2">💡 Daily Tip</h3>
           <p className="text-[11px] text-gray-600 leading-relaxed">
             {!hasRealData && goal !== 'pregnancy' ? 'Log your first period to get personalized phase-based tips tailored to your body.' :
