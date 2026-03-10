@@ -168,7 +168,7 @@ export default function DashboardPage() {
             </div>
             <div>
               <p className="text-[10px] text-gray-400 font-medium">{greeting}</p>
-              <p className="text-[8px] text-gray-300 mt-0.5">v2.1 — {new Date().toLocaleDateString()}</p>
+              <p className="text-[8px] text-gray-300 mt-0.5">v2.2 — {new Date().toLocaleDateString()}</p>
               <p className="text-sm font-extrabold text-gray-900">{user?.fullName?.split(' ')[0] || 'User'}</p>
             </div>
           </div>

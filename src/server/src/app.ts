@@ -17,6 +17,7 @@ import { requestLogger } from './middleware/requestLogger';
 // Route imports
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
+import debugRoutes from './routes/debug.routes';
 import cycleRoutes from './routes/cycle.routes';
 import moodRoutes from './routes/mood.routes';
 import pregnancyRoutes from './routes/pregnancy.routes';
@@ -87,13 +88,13 @@ app.get('/api/health', (_req, res) => {
     uptime: process.uptime(),
     environment: process.env.NODE_ENV,
     version: process.env.APP_VERSION || '1.0.0',
-    memory: Math.round(process.memoryUsage().rss / 1024 / 1024) + 'MB',
   });
 });
 
 app.get('/api/ready', async (_req, res) => {
   try {
-    res.json({ status: 'ready', port: process.env.PORT || process.env.APP_PORT || 8000 });
+    // Could add DB and Redis ping checks here
+    res.json({ status: 'ready' });
   } catch {
     res.status(503).json({ status: 'not ready' });
   }
@@ -117,6 +118,7 @@ app.use('/api/v1/articles', articleRoutes);
 app.use('/api/v1/wellness', wellnessRoutes);
 app.use('/api/v1/appointments', appointmentRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/debug', debugRoutes);
 
 // ─── Error Handling ─────────────────────────────────
 app.use(notFoundHandler);
