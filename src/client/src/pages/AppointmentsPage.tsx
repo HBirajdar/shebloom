@@ -6,6 +6,7 @@ import { useAuthStore } from '../stores/authStore';
 import apiService from '../services/api.service';
 // Bug A fix: import and use the useAppointments hook
 import { useAppointments } from '../hooks/useAppointments';
+import { prescriptionAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
 const timeSlots = ['09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', '05:00 PM'];
@@ -47,6 +48,20 @@ export default function AppointmentsPage() {
   const [notes, setNotes] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [lastVideoLink, setLastVideoLink] = useState('');
+
+  // Prescription viewer state
+  const [rxModal, setRxModal] = useState<{ open: boolean; data: any; loading: boolean }>({ open: false, data: null, loading: false });
+
+  const viewPrescription = async (appointmentId: string) => {
+    setRxModal({ open: true, data: null, loading: true });
+    try {
+      const res = await prescriptionAPI.byAppointment(appointmentId);
+      setRxModal({ open: true, data: res.data.data || res.data, loading: false });
+    } catch {
+      setRxModal({ open: false, data: null, loading: false });
+      toast.error('No prescription found for this appointment');
+    }
+  };
 
   // Next 14 days
   const dates = Array.from({ length: 14 }, (_, i) => {
@@ -264,11 +279,111 @@ export default function AppointmentsPage() {
                     <button onClick={() => cancelBooking(b.id)} className="w-full py-2 rounded-xl bg-red-50 text-red-600 text-xs font-bold active:scale-95">Cancel Appointment</button>
                   </div>
                 )}
+                {b.status === 'completed' && b.source === 'api' && (
+                  <div className="mt-2">
+                    <button onClick={() => viewPrescription(b.id)} className="w-full py-2 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-bold active:scale-95 border border-emerald-100">
+                      📋 View Prescription
+                    </button>
+                  </div>
+                )}
               </div>
             ))
           )}
         </>)}
       </div>
+
+      {/* Prescription Modal */}
+      {rxModal.open && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end justify-center" onClick={() => setRxModal({ open: false, data: null, loading: false })}>
+          <div className="bg-white w-full max-w-lg rounded-t-3xl p-5 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-extrabold text-gray-900">📋 Prescription</h3>
+              <button onClick={() => setRxModal({ open: false, data: null, loading: false })} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-lg font-bold active:scale-95">×</button>
+            </div>
+
+            {rxModal.loading ? (
+              <div className="py-12 flex flex-col items-center gap-3">
+                <div className="w-10 h-10 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                <p className="text-xs text-gray-400 font-medium">Loading prescription…</p>
+              </div>
+            ) : rxModal.data ? (
+              <div className="space-y-4">
+                {/* Doctor info */}
+                {rxModal.data.appointment && (
+                  <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-2xl">
+                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-base">
+                      {(rxModal.data.appointment.doctor?.fullName || rxModal.data.appointment.doctorName || 'D').charAt(0)}
+                    </div>
+                    <div>
+                      <p className="text-xs font-extrabold text-gray-800">{rxModal.data.appointment.doctor?.fullName || rxModal.data.appointment.doctorName}</p>
+                      {rxModal.data.appointment.doctor?.specialization && (
+                        <p className="text-[10px] text-gray-500">{rxModal.data.appointment.doctor.specialization}</p>
+                      )}
+                      {rxModal.data.appointment.scheduledAt && (
+                        <p className="text-[10px] text-emerald-600 font-semibold">
+                          {new Date(rxModal.data.appointment.scheduledAt).toLocaleDateString('en', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Diagnosis */}
+                {rxModal.data.diagnosis && (
+                  <div className="bg-rose-50 rounded-2xl p-3">
+                    <p className="text-[10px] font-bold text-rose-600 uppercase mb-1">Diagnosis</p>
+                    <p className="text-xs text-gray-800 font-medium">{rxModal.data.diagnosis}</p>
+                  </div>
+                )}
+
+                {/* Medicines */}
+                {rxModal.data.medicines && rxModal.data.medicines.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-500 uppercase mb-2">💊 Medicines</p>
+                    <div className="space-y-2">
+                      {rxModal.data.medicines.map((med: any, idx: number) => (
+                        <div key={idx} className="bg-white border border-gray-100 rounded-2xl p-3 shadow-sm">
+                          <p className="text-xs font-extrabold text-gray-800">{med.name}</p>
+                          <div className="flex gap-3 mt-1 flex-wrap">
+                            {med.dosage && <span className="text-[10px] text-gray-500">💊 {med.dosage}</span>}
+                            {med.frequency && <span className="text-[10px] text-gray-500">🔁 {med.frequency}</span>}
+                            {med.duration && <span className="text-[10px] text-gray-500">⏱ {med.duration}</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Instructions */}
+                {rxModal.data.instructions && (
+                  <div className="bg-blue-50 rounded-2xl p-3">
+                    <p className="text-[10px] font-bold text-blue-600 uppercase mb-1">📝 Instructions</p>
+                    <p className="text-xs text-gray-700">{rxModal.data.instructions}</p>
+                  </div>
+                )}
+
+                {/* Follow-up date */}
+                {rxModal.data.followUpDate && (
+                  <div className="flex items-center gap-2 bg-amber-50 rounded-2xl p-3">
+                    <span className="text-lg">📅</span>
+                    <div>
+                      <p className="text-[10px] font-bold text-amber-700 uppercase">Follow-up</p>
+                      <p className="text-xs font-bold text-gray-800">
+                        {new Date(rxModal.data.followUpDate).toLocaleDateString('en', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <button onClick={() => setRxModal({ open: false, data: null, loading: false })} className="w-full py-3 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-emerald-500 to-teal-500 active:scale-95 transition-transform shadow-md shadow-emerald-200 mt-2">
+                  Done
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
 
       {/* Success Modal */}
       {showSuccess && (
