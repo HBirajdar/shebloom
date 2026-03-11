@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { adminAPI } from '../services/api';
+import { useAyurvedaStore } from '../stores/ayurvedaStore';
 import toast from 'react-hot-toast';
 
 // ─── Local types (no longer imported from ayurvedaStore) ────────────────────
@@ -24,6 +25,7 @@ interface AdminDoctor {
   id: string; name: string; specialization: string; experience: number; rating: number;
   reviews: number; fee: number; feeFreeForPoor: boolean; qualification: string;
   tags: string[]; languages: string[]; about: string; isChief: boolean; isPublished: boolean;
+  isPromoted?: boolean;
 }
 
 // ─── Admin PIN stored in localStorage ─────────────────────────────────────
@@ -74,6 +76,7 @@ const FormTargetPicker = ({ value, onChange, opts }: { value: TargetAudience[]; 
 
 export default function AdminPage() {
   const nav = useNavigate();
+  const { toggleDoctorPromote } = useAyurvedaStore();
 
   // Bug B fix: local auth state (no ayurvedaStore)
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -410,13 +413,14 @@ export default function AdminPage() {
             </div>
             {doctors.length === 0 && <p className="text-center text-gray-400 text-xs py-8">No doctors yet. Click + Add to create one.</p>}
             {doctors.map(d => (
-              <div key={d.id} className={'bg-white rounded-2xl p-3 shadow-sm ' + (d.isChief ? 'ring-2 ring-emerald-300' : '')}>
+              <div key={d.id} className={'bg-white rounded-2xl p-3 shadow-sm ' + (d.isChief ? 'ring-2 ring-emerald-300' : d.isPromoted ? 'border-l-4 border-amber-400' : '')}>
                 <div className="flex items-center gap-2.5">
                   <div className={'w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm ' + (d.isChief ? 'bg-gradient-to-br from-emerald-500 to-teal-600' : 'bg-gradient-to-br from-rose-400 to-pink-500')}>{d.name.charAt(0)}</div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1">
                       <p className="text-xs font-bold text-gray-800 truncate">{d.name}</p>
                       {d.isChief && <span className="text-[7px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">{'\u{1F451}'} CHIEF</span>}
+                      {d.isPromoted && !d.isChief && <span className="text-[7px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{'\u2B50'} FEATURED</span>}
                     </div>
                     <p className="text-[9px] text-gray-500">{d.specialization}</p>
                     <span className={'text-[7px] font-bold px-1.5 py-0.5 rounded-full ' + (d.isPublished ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600')}>{d.isPublished ? 'VISIBLE' : 'HIDDEN'}</span>
@@ -424,6 +428,20 @@ export default function AdminPage() {
                 </div>
                 <div className="flex gap-1.5 mt-2 border-t border-gray-50 pt-2">
                   <button onClick={() => handleToggleDoctorPublish(d.id)} className={'flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 ' + (d.isPublished ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600')}>{d.isPublished ? 'Hide' : 'Show'}</button>
+                  {!d.isChief && (
+                    <button
+                      onClick={() => {
+                        toggleDoctorPromote(d.id);
+                        setDoctors(prev => prev.map(doc => doc.id === d.id ? { ...doc, isPromoted: !doc.isPromoted } : doc));
+                      }}
+                      className={'px-2 py-1 rounded-lg text-[9px] font-bold transition-all active:scale-95 ' +
+                        (d.isPromoted
+                          ? 'bg-amber-100 text-amber-700 border border-amber-300'
+                          : 'bg-gray-100 text-gray-500 border border-gray-200')}
+                    >
+                      {d.isPromoted ? '\u2B50 Featured' : '\u2606 Feature'}
+                    </button>
+                  )}
                   {!d.isChief && <button onClick={() => setConfirmDel({ id: d.id, type: 'doctor' })} className="px-2.5 py-1.5 rounded-lg bg-red-50 text-red-400 text-[9px] font-bold active:scale-95">{'\u{1F5D1}'}</button>}
                 </div>
               </div>
