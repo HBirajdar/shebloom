@@ -142,17 +142,34 @@ export default function AyurvedaPage() {
     setCbMessage('I am interested in ' + product.name); setCbSent(false); setShowCallback(true);
   };
 
-  const submitCallback = () => {
+  const submitCallback = async () => {
     if (!cbName.trim() || !cbPhone.trim()) { toast.error('Please enter name and phone'); return; }
-    const requests = JSON.parse(localStorage.getItem('sb_callbacks') || '[]');
-    requests.push({
-      id: 'cb_' + Date.now(), productId: cbProduct?.id, productName: cbProduct?.name,
-      userName: cbName, userPhone: cbPhone, message: cbMessage,
-      timestamp: new Date().toISOString(), status: 'pending',
-    });
-    localStorage.setItem('sb_callbacks', JSON.stringify(requests));
-    setCbSent(true);
-    toast.success('Callback requested!');
+    try {
+      await api.post('/callbacks', {
+        userId: user?.id || undefined,
+        productId: cbProduct?.id || undefined,
+        userName: cbName,
+        userPhone: cbPhone,
+        userEmail: user?.email || undefined,
+        productName: cbProduct?.name || 'Consultation',
+        ownerEmail: (cbProduct as any)?.ownerEmail || undefined,
+        ownerPhone: (cbProduct as any)?.ownerPhone || undefined,
+        message: cbMessage,
+      });
+      setCbSent(true);
+      toast.success('Callback requested!');
+    } catch (e: any) {
+      // Fallback to localStorage if API fails
+      const requests = JSON.parse(localStorage.getItem('sb_callbacks') || '[]');
+      requests.push({
+        id: 'cb_' + Date.now(), productId: cbProduct?.id, productName: cbProduct?.name || 'Consultation',
+        userName: cbName, userPhone: cbPhone, message: cbMessage,
+        timestamp: new Date().toISOString(), status: 'pending',
+      });
+      localStorage.setItem('sb_callbacks', JSON.stringify(requests));
+      setCbSent(true);
+      toast.success('Callback requested!');
+    }
   };
 
   return (

@@ -45,6 +45,7 @@ r.post('/', authenticate, requireAdmin, async (req: AuthRequest, res: Response, 
     const {
       name, category, price, discountPrice, description, ingredients, benefits,
       howToUse, size, emoji, targetAudience, tags, imageUrl, galleryImages, videoUrl,
+      ownerEmail, ownerPhone,
     } = req.body;
     const product = await prisma.product.create({
       data: {
@@ -63,6 +64,8 @@ r.post('/', authenticate, requireAdmin, async (req: AuthRequest, res: Response, 
         imageUrl: imageUrl || null,
         galleryImages: Array.isArray(galleryImages) ? galleryImages : [],
         videoUrl: videoUrl || null,
+        ownerEmail: ownerEmail || null,
+        ownerPhone: ownerPhone || null,
       },
     });
     successResponse(res, product, 'Product created', 201);
@@ -94,6 +97,8 @@ r.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response
       data.tags = Array.isArray(req.body.tags) ? req.body.tags : (req.body.tags || '').split(',').map((s: string) => s.trim()).filter(Boolean);
     }
     if (req.body.galleryImages !== undefined) data.galleryImages = req.body.galleryImages;
+    if (req.body.ownerEmail !== undefined) data.ownerEmail = req.body.ownerEmail || null;
+    if (req.body.ownerPhone !== undefined) data.ownerPhone = req.body.ownerPhone || null;
 
     const product = await prisma.product.update({ where: { id }, data });
     successResponse(res, product);

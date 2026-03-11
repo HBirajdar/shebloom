@@ -537,6 +537,8 @@ model Product {
   imageUrl       String?
   galleryImages  String[] @default([])
   videoUrl       String?
+  ownerEmail     String?
+  ownerPhone     String?
   status         String   @default("draft")
   publishedAt    DateTime?
   approvedBy     String?
@@ -549,4 +551,27 @@ model Product {
   @@index([category])
   @@index([isPublished])
   @@map("products")
+}
+
+// ─── CALLBACK REQUESTS ─────────────────────────────
+
+model CallbackRequest {
+  id          String   @id @default(cuid())
+  userId      String?
+  productId   String?
+  userName    String
+  userPhone   String
+  userEmail   String?
+  productName String
+  ownerEmail  String?
+  ownerPhone  String?
+  message     String?
+  status      String   @default("PENDING")  // PENDING | CALLED | RESOLVED
+  adminNotes  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([productId])
+  @@map("callback_requests")
 }

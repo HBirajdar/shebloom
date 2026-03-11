@@ -50,6 +50,8 @@ function mapProduct(p: any) {
     approvedAt: p.approvedAt ? p.approvedAt.toISOString() : null,
     stock: p.stock || 0,
     unit: p.unit || 'piece',
+    ownerEmail: p.ownerEmail || null,
+    ownerPhone: p.ownerPhone || null,
     createdAt: p.createdAt ? p.createdAt.toISOString().split('T')[0] : '',
   };
 }
@@ -286,6 +288,7 @@ r.post('/products', async (req: Request, res: Response, next: NextFunction) => {
         galleryImages: Array.isArray(b.galleryImages) ? b.galleryImages : [],
         isPublished: false, isFeatured: b.isFeatured ?? false, inStock: true, rating: 5.0, reviews: 0,
         status: 'draft', stock: Number(b.stock) || 0, unit: b.unit || 'piece',
+        ownerEmail: b.ownerEmail || null, ownerPhone: b.ownerPhone || null,
       },
     });
     successResponse(res, mapProduct(product), 'Product created', 201);
@@ -314,6 +317,8 @@ r.put('/products/:id', async (req: Request, res: Response, next: NextFunction) =
     if (typeof b.inStock === 'boolean') data.inStock = b.inStock;
     if (b.stock !== undefined) data.stock = Number(b.stock);
     if (b.unit !== undefined) data.unit = b.unit;
+    if (b.ownerEmail !== undefined) data.ownerEmail = b.ownerEmail || null;
+    if (b.ownerPhone !== undefined) data.ownerPhone = b.ownerPhone || null;
     const product = await prisma.product.update({ where: { id: req.params.id }, data });
     successResponse(res, mapProduct(product));
   } catch (e: any) {
@@ -623,6 +628,44 @@ r.delete('/doctors/:id', async (req: Request, res: Response, next: NextFunction)
 r.post('/upload', upload.single('file'), (req: Request, res: Response) => {
   if (!req.file) { errorResponse(res, 'No file uploaded'); return; }
   successResponse(res, { url: `/uploads/${req.file.filename}`, filename: req.file.filename, size: req.file.size });
+});
+
+// ─── Callback Requests (Prisma) ─────────────────────
+
+// GET /api/v1/admin/callbacks — list all callback requests
+r.get('/callbacks', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const callbacks = await prisma.callbackRequest.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+    successResponse(res, callbacks);
+  } catch (e) { next(e); }
+});
+
+// PATCH /api/v1/admin/callbacks/:id — update status + notes
+r.patch('/callbacks/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { status, adminNotes } = req.body;
+    const callback = await prisma.callbackRequest.update({
+      where: { id: req.params.id },
+      data: { status, adminNotes, updatedAt: new Date() }
+    });
+    successResponse(res, callback, 'Callback updated');
+  } catch (e: any) {
+    if (e.code === 'P2025') { errorResponse(res, 'Callback not found', 404); return; }
+    next(e);
+  }
+});
+
+// DELETE /api/v1/admin/callbacks/:id
+r.delete('/callbacks/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await prisma.callbackRequest.delete({ where: { id: req.params.id } });
+    successResponse(res, null, 'Callback request deleted');
+  } catch (e: any) {
+    if (e.code === 'P2025') { errorResponse(res, 'Callback not found', 404); return; }
+    next(e);
+  }
 });
 
 // ─── Test Email ─────────────────────────────────────

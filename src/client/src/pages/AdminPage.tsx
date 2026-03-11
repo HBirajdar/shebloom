@@ -138,7 +138,7 @@ export default function AdminPage() {
   const [editDoctor, setEditDoctor] = useState<AdminDoctor | null>(null);
 
   // Form states
-  const emptyProduct = { name: '', category: 'hair_oil' as ProductCategory, price: 0, discountPrice: 0, description: '', ingredients: '', benefits: '', howToUse: '', size: '', emoji: '\u{1F33F}', targetAudience: ['all'] as TargetAudience[], doctorNote: '', preparationMethod: '', imageUrl: '', galleryImages: [] as string[], isFeatured: false, stock: 0, unit: 'piece', tags: '' };
+  const emptyProduct = { name: '', category: 'hair_oil' as ProductCategory, price: 0, discountPrice: 0, description: '', ingredients: '', benefits: '', howToUse: '', size: '', emoji: '\u{1F33F}', targetAudience: ['all'] as TargetAudience[], doctorNote: '', preparationMethod: '', imageUrl: '', galleryImages: [] as string[], isFeatured: false, stock: 0, unit: 'piece', tags: '', ownerEmail: '', ownerPhone: '' };
   const emptyArticle = { title: '', content: '', category: '', readTime: '5 min', emoji: '\u{1F4DD}', targetAudience: ['all'] as TargetAudience[], imageUrl: '', excerpt: '', isFeatured: false, authorName: 'VedaClue Team', tags: '' };
   const emptyDoctor = { name: '', specialization: '', experience: 0, fee: 0, qualification: '', about: '', tags: '', languages: '', avatarUrl: '', isChief: false, isPromoted: false, hospitalName: '', location: '' };
 
@@ -159,6 +159,10 @@ export default function AdminPage() {
   const [newEmail, setNewEmail] = useState('');
   const [maintenanceMode, setMaintenanceMode] = useState(() => localStorage.getItem('sb_maintenance') === 'true');
   const [registrationsOpen, setRegistrationsOpen] = useState(() => localStorage.getItem('sb_registrations_off') !== 'true');
+
+  // Callbacks state (API-backed)
+  const [callbacks, setCallbacks] = useState<any[]>([]);
+  const [callbacksLoading, setCallbacksLoading] = useState(false);
 
   // Loading states for actions
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -228,12 +232,41 @@ export default function AdminPage() {
     }
   };
 
+  const fetchCallbacks = async () => {
+    setCallbacksLoading(true);
+    try {
+      const res = await apiService.adminGetCallbacks();
+      setCallbacks(res.data || []);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to load callbacks');
+    } finally {
+      setCallbacksLoading(false);
+    }
+  };
+
+  const handleUpdateCallback = async (id: string, status: string, adminNotes?: string) => {
+    try {
+      const res = await apiService.adminUpdateCallback(id, { status, adminNotes });
+      setCallbacks(prev => prev.map(c => c.id === id ? res.data : c));
+      toast.success('Callback updated');
+    } catch (e: any) { toast.error(e.message || 'Failed to update callback'); }
+  };
+
+  const handleDeleteCallback = async (id: string) => {
+    try {
+      await apiService.adminDeleteCallback(id);
+      setCallbacks(prev => prev.filter(c => c.id !== id));
+      toast.success('Callback deleted');
+    } catch (e: any) { toast.error(e.message || 'Failed to delete callback'); }
+  };
+
   // Load data when tab changes
   useEffect(() => {
     if (!isUnlocked) return;
     if (tab === 'users') fetchUsers(1, usersSearch, usersRoleFilter);
     if (tab === 'appointments') fetchAppointments(1, apptsStatusFilter);
     if (tab === 'analytics' || tab === 'overview') fetchAnalytics();
+    if (tab === 'callbacks') fetchCallbacks();
   }, [tab, isUnlocked]);
 
   // ─── Auth ───────────────────────────────────────────
@@ -319,6 +352,8 @@ export default function AdminPage() {
         galleryImages: np.galleryImages || [],
         stock: np.stock || 0,
         unit: np.unit || 'piece',
+        ownerEmail: np.ownerEmail || undefined,
+        ownerPhone: np.ownerPhone || undefined,
       });
       setProducts(prev => [res.data, ...prev]);
       toast.success('Product added as draft!');
@@ -344,6 +379,8 @@ export default function AdminPage() {
         imageUrl: ep.imageUrl || null,
         galleryImages: ep.galleryImages || [],
         isFeatured: ep.isFeatured, stock: ep.stock, unit: ep.unit,
+        ownerEmail: ep.ownerEmail || null,
+        ownerPhone: ep.ownerPhone || null,
       });
       setProducts(prev => prev.map(p => p.id === editProduct.id ? res.data : p));
       toast.success('Product updated!');
@@ -516,6 +553,7 @@ export default function AdminPage() {
       isFeatured: p.isFeatured || false,
       stock: p.stock || 0, unit: p.unit || 'piece',
       tags: (p.tags || []).join(', '),
+      ownerEmail: (p as any).ownerEmail || '', ownerPhone: (p as any).ownerPhone || '',
     });
     setTab('edit_product');
   };
@@ -686,7 +724,7 @@ export default function AdminPage() {
                 { l: 'Products', v: products.length, p: pubProducts, c: '#059669', bg: '#ECFDF5' },
                 { l: 'Articles', v: articles.length, p: pubArticles, c: '#2563EB', bg: '#EFF6FF' },
                 { l: 'Doctors', v: doctors.length, p: pubDoctors, c: '#7C3AED', bg: '#F5F3FF' },
-                { l: 'Callbacks', v: (JSON.parse(localStorage.getItem('sb_callbacks') || '[]')).length, p: (JSON.parse(localStorage.getItem('sb_callbacks') || '[]')).filter((c: any) => c.status === 'pending').length, c: '#EA580C', bg: '#FFF7ED' },
+                { l: 'Callbacks', v: callbacks.length, p: callbacks.filter((c: any) => c.status === 'PENDING').length, c: '#EA580C', bg: '#FFF7ED' },
                 ...(analytics ? [
                   { l: 'Users', v: analytics.totalUsers, p: analytics.activeUsers, c: '#0891B2', bg: '#ECFEFF' },
                   { l: 'Appointments', v: analytics.totalAppointments, p: 0, c: '#BE185D', bg: '#FDF2F8' },
@@ -1147,6 +1185,16 @@ export default function AdminPage() {
             <FormField label="Benefits (comma-sep)" value={np.benefits} onChange={v => setNp({...np, benefits: v})} placeholder="Reduces hairfall..." multiline />
             <FormField label="Tags (comma-sep)" value={np.tags} onChange={v => setNp({...np, tags: v})} placeholder="ayurveda, natural..." />
             <FormField label="How to Use" value={np.howToUse} onChange={v => setNp({...np, howToUse: v})} placeholder="Instructions..." multiline />
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 uppercase">Owner Email (for callback notifications)</label>
+              <input type="email" value={np.ownerEmail || ''} onChange={e => setNp({...np, ownerEmail: e.target.value})} placeholder="owner@example.com"
+                className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-rose-400 focus:outline-none" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 uppercase">Owner WhatsApp/Phone (for callback notifications)</label>
+              <input type="tel" value={np.ownerPhone || ''} onChange={e => setNp({...np, ownerPhone: e.target.value})} placeholder="+91 98765 43210"
+                className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-rose-400 focus:outline-none" />
+            </div>
             <FormCheckbox label="Featured Product" checked={np.isFeatured} onChange={v => setNp({...np, isFeatured: v})} />
             <div><label className="text-[9px] font-bold text-gray-500 uppercase">Category</label>
               <div className="flex flex-wrap gap-1 mt-1">{catOpts.map(c => (<button key={c.k} onClick={() => setNp({...np, category: c.k})} className={'px-2 py-1 rounded-lg text-[9px] font-bold ' + (np.category === c.k ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500')}>{c.l}</button>))}</div></div>
@@ -1171,6 +1219,16 @@ export default function AdminPage() {
             <FormField label="Benefits (comma-sep)" value={ep.benefits} onChange={v => setEp({...ep, benefits: v})} placeholder="Reduces hairfall..." multiline />
             <FormField label="Tags (comma-sep)" value={ep.tags} onChange={v => setEp({...ep, tags: v})} placeholder="ayurveda, natural..." />
             <FormField label="How to Use" value={ep.howToUse} onChange={v => setEp({...ep, howToUse: v})} placeholder="Instructions..." multiline />
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 uppercase">Owner Email (for callback notifications)</label>
+              <input type="email" value={ep.ownerEmail || ''} onChange={e => setEp({...ep, ownerEmail: e.target.value})} placeholder="owner@example.com"
+                className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-rose-400 focus:outline-none" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 uppercase">Owner WhatsApp/Phone (for callback notifications)</label>
+              <input type="tel" value={ep.ownerPhone || ''} onChange={e => setEp({...ep, ownerPhone: e.target.value})} placeholder="+91 98765 43210"
+                className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-rose-400 focus:outline-none" />
+            </div>
             <FormCheckbox label="Featured Product" checked={ep.isFeatured} onChange={v => setEp({...ep, isFeatured: v})} />
             <div><label className="text-[9px] font-bold text-gray-500 uppercase">Category</label>
               <div className="flex flex-wrap gap-1 mt-1">{catOpts.map(c => (<button key={c.k} onClick={() => setEp({...ep, category: c.k})} className={'px-2 py-1 rounded-lg text-[9px] font-bold ' + (ep.category === c.k ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500')}>{c.l}</button>))}</div></div>
@@ -1266,54 +1324,84 @@ export default function AdminPage() {
           </>)}
 
           {/* ════════ CALLBACKS ════════ */}
-          {tab === 'callbacks' && (() => {
-            const cbs = JSON.parse(localStorage.getItem('sb_callbacks') || '[]') as any[];
-            const pending = cbs.filter((c: any) => c.status === 'pending');
-            const handled = cbs.filter((c: any) => c.status !== 'pending');
-            const markDone = (id: string) => {
-              const updated = cbs.map((c: any) => c.id === id ? { ...c, status: 'done' } : c);
-              localStorage.setItem('sb_callbacks', JSON.stringify(updated));
-              toast.success('Marked as done');
-              setTab('overview'); setTimeout(() => setTab('callbacks'), 50);
-            };
-            return (<>
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm font-extrabold">{'\u{1F4DE}'} Callback Requests</h3>
-                <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-full">{pending.length} pending</span>
+          {tab === 'callbacks' && (<>
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-extrabold">{'\u{1F4DE}'} Callback Requests</h3>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-full">{callbacks.filter(c => c.status === 'PENDING').length} pending</span>
+                <button onClick={fetchCallbacks} className="text-[9px] font-bold bg-gray-100 text-gray-600 px-2 py-1 rounded-full active:scale-95">Refresh</button>
               </div>
-              {pending.length === 0 && handled.length === 0 && (
-                <div className="text-center py-10"><span className="text-4xl">{'\u{1F4ED}'}</span><p className="text-sm text-gray-400 mt-2">No callback requests yet</p></div>
-              )}
-              {pending.map((c: any) => (
+            </div>
+
+            {callbacksLoading ? (
+              <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-3 border-slate-400 border-t-transparent rounded-full" /></div>
+            ) : callbacks.length === 0 ? (
+              <div className="text-center py-10"><span className="text-4xl">{'\u{1F4ED}'}</span><p className="text-sm text-gray-400 mt-2">No callback requests yet</p></div>
+            ) : (<>
+              {/* Pending callbacks */}
+              {callbacks.filter(c => c.status === 'PENDING').map((c: any) => (
                 <div key={c.id} className="bg-white rounded-2xl p-4 shadow-sm border-l-4 border-orange-400">
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-sm font-extrabold text-gray-900">{c.userName}</p>
                       <a href={'tel:' + c.userPhone} className="text-xs font-bold text-emerald-600 underline">{'\u{1F4F1}'} {c.userPhone}</a>
+                      {c.userEmail && <p className="text-[9px] text-gray-500">{c.userEmail}</p>}
                     </div>
                     <span className="text-[8px] font-bold bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">PENDING</span>
                   </div>
                   {c.productName && <p className="text-[10px] text-gray-500 mt-1">{'\u{1F4E6}'} Product: <strong>{c.productName}</strong></p>}
                   {c.message && <p className="text-[10px] text-gray-600 mt-1 bg-gray-50 rounded-lg p-2 italic">"{c.message}"</p>}
-                  <p className="text-[9px] text-gray-400 mt-1">{new Date(c.timestamp).toLocaleString()}</p>
+                  <p className="text-[9px] text-gray-400 mt-1">{new Date(c.createdAt).toLocaleString()}</p>
                   <div className="flex gap-2 mt-3">
                     <a href={'tel:' + c.userPhone} className="flex-1 py-2 rounded-xl bg-emerald-500 text-white text-xs font-bold text-center active:scale-95">{'\u{1F4DE}'} Call Now</a>
-                    <button onClick={() => markDone(c.id)} className="flex-1 py-2 rounded-xl bg-gray-100 text-gray-600 text-xs font-bold active:scale-95">{'\u2713'} Mark Done</button>
+                    <button onClick={() => handleUpdateCallback(c.id, 'CALLED')} className="flex-1 py-2 rounded-xl bg-blue-50 text-blue-600 text-xs font-bold active:scale-95">{'\u{1F4DE}'} Called</button>
+                    <button onClick={() => handleUpdateCallback(c.id, 'RESOLVED')} className="flex-1 py-2 rounded-xl bg-gray-100 text-gray-600 text-xs font-bold active:scale-95">{'\u2713'} Resolved</button>
                   </div>
                 </div>
               ))}
-              {handled.length > 0 && (<>
-                <h4 className="text-xs font-bold text-gray-400 uppercase mt-4">Completed ({handled.length})</h4>
-                {handled.map((c: any) => (
-                  <div key={c.id} className="bg-gray-50 rounded-2xl p-3 opacity-60">
-                    <p className="text-xs font-bold text-gray-700">{c.userName} {'\u2014'} {c.userPhone}</p>
-                    {c.productName && <p className="text-[9px] text-gray-500">{c.productName}</p>}
-                    <p className="text-[8px] text-gray-400">{new Date(c.timestamp).toLocaleString()}</p>
+
+              {/* Called callbacks */}
+              {callbacks.filter(c => c.status === 'CALLED').length > 0 && (<>
+                <h4 className="text-xs font-bold text-blue-500 uppercase mt-4">Called ({callbacks.filter(c => c.status === 'CALLED').length})</h4>
+                {callbacks.filter(c => c.status === 'CALLED').map((c: any) => (
+                  <div key={c.id} className="bg-white rounded-2xl p-3 shadow-sm border-l-4 border-blue-300">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-gray-700">{c.userName} {'\u2014'} <a href={'tel:' + c.userPhone} className="text-emerald-600 underline">{c.userPhone}</a></p>
+                        {c.productName && <p className="text-[9px] text-gray-500">{c.productName}</p>}
+                        {c.message && <p className="text-[9px] text-gray-500 italic">"{c.message}"</p>}
+                        <p className="text-[8px] text-gray-400">{new Date(c.createdAt).toLocaleString()}</p>
+                        {c.adminNotes && <p className="text-[9px] text-blue-600 mt-1">Notes: {c.adminNotes}</p>}
+                      </div>
+                      <span className="text-[8px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">CALLED</span>
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                      <button onClick={() => handleUpdateCallback(c.id, 'RESOLVED')} className="flex-1 py-1.5 rounded-xl bg-emerald-50 text-emerald-600 text-[9px] font-bold active:scale-95">{'\u2713'} Resolve</button>
+                      <button onClick={() => handleDeleteCallback(c.id)} className="px-2.5 py-1.5 rounded-xl bg-red-50 text-red-400 text-[9px] font-bold active:scale-95">{'\u{1F5D1}'}</button>
+                    </div>
                   </div>
                 ))}
               </>)}
-            </>);
-          })()}
+
+              {/* Resolved callbacks */}
+              {callbacks.filter(c => c.status === 'RESOLVED').length > 0 && (<>
+                <h4 className="text-xs font-bold text-gray-400 uppercase mt-4">Resolved ({callbacks.filter(c => c.status === 'RESOLVED').length})</h4>
+                {callbacks.filter(c => c.status === 'RESOLVED').map((c: any) => (
+                  <div key={c.id} className="bg-gray-50 rounded-2xl p-3 opacity-60">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-gray-700">{c.userName} {'\u2014'} {c.userPhone}</p>
+                        {c.productName && <p className="text-[9px] text-gray-500">{c.productName}</p>}
+                        <p className="text-[8px] text-gray-400">{new Date(c.createdAt).toLocaleString()}</p>
+                        {c.adminNotes && <p className="text-[9px] text-gray-500">Notes: {c.adminNotes}</p>}
+                      </div>
+                      <button onClick={() => handleDeleteCallback(c.id)} className="px-2 py-1 rounded-lg bg-red-50 text-red-400 text-[9px] font-bold active:scale-95">{'\u{1F5D1}'}</button>
+                    </div>
+                  </div>
+                ))}
+              </>)}
+            </>)}
+          </>)}
 
           {/* ════════ SETTINGS ════════ */}
           {tab === 'settings' && (<>

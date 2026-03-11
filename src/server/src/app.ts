@@ -38,6 +38,7 @@ import aiRoutes from './routes/ai.routes';
 import cartRoutes from './routes/cart.routes';
 import achievementsRoutes from './routes/achievements.routes';
 import reportsRoutes from './routes/reports.routes';
+import callbackRoutes from './routes/callback.routes';
 
 const app = express();
 
@@ -200,6 +201,7 @@ app.use('/api/v1/ai', aiRoutes);
 app.use('/api/v1/cart', cartRoutes);
 app.use('/api/v1/achievements', achievementsRoutes);
 app.use('/api/v1/reports', reportsRoutes);
+app.use('/api/v1/callbacks', callbackRoutes);
 app.use('/api/v1/debug', debugRoutes);
 
 // ─── Serve React Client (production) ────────────────

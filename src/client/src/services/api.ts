@@ -141,6 +141,13 @@ export const reportsAPI = {
   summary: () => api.get('/reports/summary'),
 };
 
+export const callbackAPI = {
+  request: (d: any) => api.post('/callbacks', d),
+  adminList: () => api.get('/admin/callbacks'),
+  adminUpdate: (id: string, d: any) => api.patch(`/admin/callbacks/${id}`, d),
+  adminDelete: (id: string) => api.delete(`/admin/callbacks/${id}`),
+};
+
 export const uploadAPI = {
   image: (fd: FormData) => api.post('/upload/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } }),
   video: (fd: FormData) => api.post('/upload/video', fd, { headers: { 'Content-Type': 'multipart/form-data' } }),
@@ -194,4 +201,8 @@ export const adminAPI = {
   updateAppointment: (id: string, d: { status: string }) => api.patch(`/admin/appointments/${id}`, d),
   // Upload
   upload: (formData: FormData) => api.post('/admin/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  // Callbacks
+  getCallbacks: () => api.get('/admin/callbacks'),
+  updateCallback: (id: string, d: any) => api.patch(`/admin/callbacks/${id}`, d),
+  deleteCallback: (id: string) => api.delete(`/admin/callbacks/${id}`),
 };
