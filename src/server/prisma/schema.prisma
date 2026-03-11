@@ -270,6 +270,9 @@ model Doctor {
   introVideoUrl     String?
   isAvailable       Boolean       @default(true)
   isVerified        Boolean       @default(false)
+  isPublished       Boolean       @default(false)
+  isChief           Boolean       @default(false)
+  isPromoted        Boolean       @default(false)
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
@@ -399,6 +402,8 @@ model Article {
   tags            String[]
   coverImageUrl   String?
   readTimeMinutes Int             @default(5)
+  emoji           String          @default("📝")
+  targetAudience  String[]        @default([])
   status          ArticleStatus   @default(DRAFT)
   viewCount       Int             @default(0)
   likeCount       Int             @default(0)
