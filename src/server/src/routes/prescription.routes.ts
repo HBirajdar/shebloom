@@ -21,6 +21,9 @@ r.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!['COMPLETED', 'IN_PROGRESS'].includes(appt.status)) {
       errorResponse(res, 'Can only prescribe for completed or in-progress appointments', 400); return;
     }
+    if (!appt.doctorId) {
+      errorResponse(res, 'Appointment must be linked to a registered doctor to issue a prescription', 400); return;
+    }
 
     // Check no prescription already exists
     const existing = await prisma.prescription.findUnique({ where: { appointmentId } });
@@ -29,7 +32,7 @@ r.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
     const prescription = await prisma.prescription.create({
       data: {
         appointmentId,
-        doctorId: appt.doctorId || null,
+        doctorId: appt.doctorId,
         userId: appt.userId,
         diagnosis,
         medicines: Array.isArray(medicines) ? medicines : [],
