@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiService from '../services/api.service';
 import ImageUpload from '../components/ImageUpload';
@@ -15,18 +15,25 @@ interface AdminProduct {
   description: string; ingredients: string[]; benefits: string[]; howToUse: string;
   size: string; emoji: string; rating: number; reviews: number; inStock: boolean;
   isPublished: boolean; isFeatured: boolean; targetAudience: TargetAudience[]; tags: string[];
-  preparationMethod?: string; doctorNote?: string; imageUrl?: string; createdAt: string;
+  preparationMethod?: string; doctorNote?: string; imageUrl?: string; galleryImages?: string[];
+  status?: string; publishedAt?: string | null; approvedBy?: string | null; approvedAt?: string | null;
+  stock?: number; unit?: string; createdAt: string;
 }
 interface AdminArticle {
   id: string; title: string; content: string; category: string; readTime: string;
+  readTimeMinutes?: number; excerpt?: string;
   emoji: string; isPublished: boolean; isFeatured: boolean; targetAudience: TargetAudience[];
-  imageUrl?: string; createdAt: string;
+  tags?: string[]; imageUrl?: string; status?: string; publishedAt?: string | null;
+  approvedBy?: string | null; approvedAt?: string | null; authorName?: string;
+  viewCount?: number; createdAt: string;
 }
 interface AdminDoctor {
   id: string; name: string; specialization: string; experience: number; rating: number;
   reviews: number; fee: number; feeFreeForPoor: boolean; qualification: string;
   tags: string[]; languages: string[]; about: string; isChief: boolean; isPublished: boolean;
-  isPromoted?: boolean; avatarUrl?: string;
+  isPromoted?: boolean; avatarUrl?: string; hospitalName?: string; location?: string;
+  status?: string; approvedBy?: string | null; approvedAt?: string | null;
+  publishedAt?: string | null; createdAt?: string;
 }
 
 // ─── Admin PIN stored in localStorage ───────────────
@@ -76,7 +83,14 @@ const FormTargetPicker = ({ value, onChange, opts }: { value: TargetAudience[]; 
   </div>
 );
 
-type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor';
+const FormCheckbox = ({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) => (
+  <label className="flex items-center gap-2 cursor-pointer">
+    <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+    <span className="text-[10px] font-bold text-gray-600">{label}</span>
+  </label>
+);
+
+type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor';
 
 export default function AdminPage() {
   const nav = useNavigate();
@@ -87,7 +101,7 @@ export default function AdminPage() {
   const [showPass, setShowPass] = useState(false);
   const [passError, setPassError] = useState('');
 
-  // CMS data (in-memory store)
+  // CMS data
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [articles, setArticles] = useState<AdminArticle[]>([]);
   const [doctors, setDoctors] = useState<AdminDoctor[]>([]);
@@ -118,10 +132,25 @@ export default function AdminPage() {
   const [tab, setTab] = useState<TabId>('overview');
   const [confirmDel, setConfirmDel] = useState<{ id: string; type: string } | null>(null);
 
+  // Edit states
+  const [editProduct, setEditProduct] = useState<AdminProduct | null>(null);
+  const [editArticle, setEditArticle] = useState<AdminArticle | null>(null);
+  const [editDoctor, setEditDoctor] = useState<AdminDoctor | null>(null);
+
   // Form states
-  const [np, setNp] = useState({ name: '', category: 'hair_oil' as ProductCategory, price: 0, discountPrice: 0, description: '', ingredients: '', benefits: '', howToUse: '', size: '', emoji: '\u{1F33F}', targetAudience: ['all'] as TargetAudience[], doctorNote: '', preparationMethod: '', imageUrl: '', galleryImages: [] as string[] });
-  const [na, setNa] = useState({ title: '', content: '', category: '', readTime: '5 min', emoji: '\u{1F4DD}', targetAudience: ['all'] as TargetAudience[], imageUrl: '' });
-  const [nd, setNd] = useState({ name: '', specialization: '', experience: 0, fee: 0, qualification: '', about: '', tags: '', languages: '', avatarUrl: '' });
+  const emptyProduct = { name: '', category: 'hair_oil' as ProductCategory, price: 0, discountPrice: 0, description: '', ingredients: '', benefits: '', howToUse: '', size: '', emoji: '\u{1F33F}', targetAudience: ['all'] as TargetAudience[], doctorNote: '', preparationMethod: '', imageUrl: '', galleryImages: [] as string[], isFeatured: false, stock: 0, unit: 'piece', tags: '' };
+  const emptyArticle = { title: '', content: '', category: '', readTime: '5 min', emoji: '\u{1F4DD}', targetAudience: ['all'] as TargetAudience[], imageUrl: '', excerpt: '', isFeatured: false, authorName: 'VedaClue Team', tags: '' };
+  const emptyDoctor = { name: '', specialization: '', experience: 0, fee: 0, qualification: '', about: '', tags: '', languages: '', avatarUrl: '', isChief: false, isPromoted: false, hospitalName: '', location: '' };
+
+  const [np, setNp] = useState(emptyProduct);
+  const [na, setNa] = useState(emptyArticle);
+  const [nd, setNd] = useState(emptyDoctor);
+
+  // Edit form states
+  const [ep, setEp] = useState(emptyProduct);
+  const [ea, setEa] = useState(emptyArticle);
+  const [ed, setEd] = useState(emptyDoctor);
+
   const [oldPin, setOldPin] = useState('');
   const [newPin, setNewPin] = useState('');
 
@@ -131,7 +160,25 @@ export default function AdminPage() {
   const [maintenanceMode, setMaintenanceMode] = useState(() => localStorage.getItem('sb_maintenance') === 'true');
   const [registrationsOpen, setRegistrationsOpen] = useState(() => localStorage.getItem('sb_registrations_off') !== 'true');
 
+  // Loading states for actions
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
   // ─── Data fetchers ──────────────────────────────────
+  const fetchDashboard = useCallback(async () => {
+    setDashLoading(true);
+    try {
+      const res = await apiService.getDashboard();
+      const data = res.data;
+      setProducts(data.products || []);
+      setArticles(data.articles || []);
+      setDoctors(data.doctors || []);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to load dashboard');
+    } finally {
+      setDashLoading(false);
+    }
+  }, []);
+
   const fetchUsers = async (page = 1, search = usersSearch, role = usersRoleFilter) => {
     setUsersLoading(true);
     try {
@@ -200,18 +247,7 @@ export default function AdminPage() {
     setPassword('');
     setPassError('');
     toast.success('Welcome, Admin!');
-    setDashLoading(true);
-    try {
-      const res = await apiService.getDashboard();
-      const data = res.data;
-      setProducts(data.products || []);
-      setArticles(data.articles || []);
-      setDoctors(data.doctors || []);
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to load dashboard');
-    } finally {
-      setDashLoading(false);
-    }
+    await fetchDashboard();
   };
 
   const handleLock = () => { setIsUnlocked(false); nav('/profile'); };
@@ -266,82 +302,139 @@ export default function AdminPage() {
   const pubArticles = articles.filter(a => a.isPublished).length;
   const pubDoctors = doctors.filter(d => d.isPublished).length;
 
-  // Helper: reload all CMS data from dashboard
-  const reloadDashboard = async () => {
-    try {
-      const res = await apiService.getDashboard();
-      const data = res.data;
-      setProducts(data.products || []);
-      setArticles(data.articles || []);
-      setDoctors(data.doctors || []);
-    } catch {}
-  };
-
   // ─── CRUD Handlers ──────────────────────────────────
   const handleAddProduct = async () => {
     if (!np.name || np.price <= 0) { toast.error('Name and price required'); return; }
+    setActionLoading('add_product');
     try {
       const res = await apiService.adminCreateProduct({
         ...np,
         discountPrice: np.discountPrice > 0 ? np.discountPrice : undefined,
         ingredients: np.ingredients.split(',').map(s => s.trim()).filter(Boolean),
         benefits: np.benefits.split(',').map(s => s.trim()).filter(Boolean),
-        tags: [],
+        tags: np.tags ? np.tags.split(',').map(s => s.trim()).filter(Boolean) : [],
         preparationMethod: np.preparationMethod || undefined,
         doctorNote: np.doctorNote || undefined,
         imageUrl: np.imageUrl || undefined,
         galleryImages: np.galleryImages || [],
+        stock: np.stock || 0,
+        unit: np.unit || 'piece',
       });
       setProducts(prev => [res.data, ...prev]);
       toast.success('Product added as draft!');
-      setNp({ name: '', category: 'hair_oil', price: 0, discountPrice: 0, description: '', ingredients: '', benefits: '', howToUse: '', size: '', emoji: '\u{1F33F}', targetAudience: ['all'], doctorNote: '', preparationMethod: '', imageUrl: '', galleryImages: [] });
+      setNp(emptyProduct);
       setTab('products');
     } catch (e: any) { toast.error(e.message || 'Failed to add product'); }
+    finally { setActionLoading(null); }
+  };
+
+  const handleUpdateProduct = async () => {
+    if (!editProduct) return;
+    setActionLoading('edit_product');
+    try {
+      const res = await apiService.adminUpdateProduct(editProduct.id, {
+        name: ep.name, category: ep.category, price: ep.price,
+        discountPrice: ep.discountPrice > 0 ? ep.discountPrice : null,
+        description: ep.description,
+        ingredients: ep.ingredients.split(',').map(s => s.trim()).filter(Boolean),
+        benefits: ep.benefits.split(',').map(s => s.trim()).filter(Boolean),
+        howToUse: ep.howToUse, size: ep.size, emoji: ep.emoji,
+        targetAudience: ep.targetAudience,
+        tags: ep.tags ? ep.tags.split(',').map(s => s.trim()).filter(Boolean) : [],
+        imageUrl: ep.imageUrl || null,
+        galleryImages: ep.galleryImages || [],
+        isFeatured: ep.isFeatured, stock: ep.stock, unit: ep.unit,
+      });
+      setProducts(prev => prev.map(p => p.id === editProduct.id ? res.data : p));
+      toast.success('Product updated!');
+      setEditProduct(null);
+      setTab('products');
+    } catch (e: any) { toast.error(e.message || 'Failed to update product'); }
+    finally { setActionLoading(null); }
   };
 
   const handleToggleProductPublish = async (id: string) => {
+    setActionLoading(id);
     try {
       const res = await apiService.adminToggleProductPublish(id);
       setProducts(prev => prev.map(p => p.id === id ? res.data : p));
     } catch (e: any) { toast.error(e.message || 'Failed'); }
+    finally { setActionLoading(null); }
   };
 
   const handleDeleteProduct = async (id: string) => {
+    setActionLoading(id);
     try {
       await apiService.adminDeleteProduct(id);
       setProducts(prev => prev.filter(p => p.id !== id));
       toast.success('Deleted');
     } catch (e: any) { toast.error(e.message || 'Failed to delete'); }
+    finally { setActionLoading(null); }
   };
 
   const handleAddArticle = async () => {
     if (!na.title || !na.content) { toast.error('Title and content required'); return; }
+    setActionLoading('add_article');
     try {
-      const res = await apiService.adminCreateArticle({ ...na, author: 'chief', imageUrl: na.imageUrl || undefined });
+      const res = await apiService.adminCreateArticle({
+        ...na,
+        author: 'chief',
+        imageUrl: na.imageUrl || undefined,
+        tags: na.tags ? na.tags.split(',').map(s => s.trim()).filter(Boolean) : [],
+        authorName: na.authorName || 'VedaClue Team',
+      });
       setArticles(prev => [res.data, ...prev]);
       toast.success('Article saved as draft!');
-      setNa({ title: '', content: '', category: '', readTime: '5 min', emoji: '\u{1F4DD}', targetAudience: ['all'], imageUrl: '' });
+      setNa(emptyArticle);
       setTab('articles');
     } catch (e: any) { toast.error(e.message || 'Failed to add article'); }
+    finally { setActionLoading(null); }
+  };
+
+  const handleUpdateArticle = async () => {
+    if (!editArticle) return;
+    setActionLoading('edit_article');
+    try {
+      const res = await apiService.adminUpdateArticle(editArticle.id, {
+        title: ea.title, content: ea.content, excerpt: ea.excerpt,
+        category: ea.category, emoji: ea.emoji,
+        targetAudience: ea.targetAudience,
+        tags: ea.tags ? ea.tags.split(',').map(s => s.trim()).filter(Boolean) : [],
+        imageUrl: ea.imageUrl || null,
+        readTime: ea.readTime,
+        isFeatured: ea.isFeatured,
+        authorName: ea.authorName || 'VedaClue Team',
+      });
+      setArticles(prev => prev.map(a => a.id === editArticle.id ? res.data : a));
+      toast.success('Article updated!');
+      setEditArticle(null);
+      setTab('articles');
+    } catch (e: any) { toast.error(e.message || 'Failed to update article'); }
+    finally { setActionLoading(null); }
   };
 
   const handleToggleArticlePublish = async (id: string) => {
+    setActionLoading(id);
     try {
       const res = await apiService.adminToggleArticlePublish(id);
       setArticles(prev => prev.map(a => a.id === id ? res.data : a));
     } catch (e: any) { toast.error(e.message || 'Failed'); }
+    finally { setActionLoading(null); }
   };
 
   const handleDeleteArticle = async (id: string) => {
+    setActionLoading(id);
     try {
       await apiService.adminDeleteArticle(id);
       setArticles(prev => prev.filter(a => a.id !== id));
       toast.success('Deleted');
     } catch (e: any) { toast.error(e.message || 'Failed to delete'); }
+    finally { setActionLoading(null); }
   };
 
   const handleAddDoctor = async () => {
     if (!nd.name) { toast.error('Name required'); return; }
+    setActionLoading('add_doctor');
     try {
       const res = await apiService.adminCreateDoctor({
         name: nd.name, specialization: nd.specialization, experience: nd.experience,
@@ -349,34 +442,112 @@ export default function AdminPage() {
         tags: nd.tags.split(',').map(s => s.trim()).filter(Boolean),
         languages: nd.languages.split(',').map(s => s.trim()).filter(Boolean),
         avatarUrl: nd.avatarUrl || undefined,
+        isChief: nd.isChief, isPromoted: nd.isPromoted,
+        hospitalName: nd.hospitalName || undefined, location: nd.location || undefined,
       });
       setDoctors(prev => [res.data, ...prev]);
       toast.success('Doctor added!');
-      setNd({ name: '', specialization: '', experience: 0, fee: 0, qualification: '', about: '', tags: '', languages: '', avatarUrl: '' });
+      setNd(emptyDoctor);
       setTab('doctors');
     } catch (e: any) { toast.error(e.message || 'Failed to add doctor'); }
+    finally { setActionLoading(null); }
+  };
+
+  const handleUpdateDoctor = async () => {
+    if (!editDoctor) return;
+    setActionLoading('edit_doctor');
+    try {
+      const res = await apiService.adminUpdateDoctor(editDoctor.id, {
+        name: ed.name, specialization: ed.specialization, experience: ed.experience,
+        fee: ed.fee, qualification: ed.qualification, about: ed.about,
+        tags: ed.tags.split(',').map(s => s.trim()).filter(Boolean),
+        languages: ed.languages.split(',').map(s => s.trim()).filter(Boolean),
+        avatarUrl: ed.avatarUrl || undefined,
+        isChief: ed.isChief, isPromoted: ed.isPromoted,
+        hospitalName: ed.hospitalName || undefined, location: ed.location || undefined,
+      });
+      setDoctors(prev => prev.map(d => d.id === editDoctor.id ? res.data : d));
+      toast.success('Doctor updated!');
+      setEditDoctor(null);
+      setTab('doctors');
+    } catch (e: any) { toast.error(e.message || 'Failed to update doctor'); }
+    finally { setActionLoading(null); }
   };
 
   const handleToggleDoctorPublish = async (id: string) => {
+    setActionLoading(id);
     try {
       const res = await apiService.adminToggleDoctorPublish(id);
       setDoctors(prev => prev.map(d => d.id === id ? res.data : d));
     } catch (e: any) { toast.error(e.message || 'Failed'); }
+    finally { setActionLoading(null); }
   };
 
   const handleToggleDoctorPromote = async (id: string) => {
+    setActionLoading(id);
     try {
       const res = await apiService.adminToggleDoctorPromote(id);
       setDoctors(prev => prev.map(d => d.id === id ? res.data : d));
     } catch (e: any) { toast.error(e.message || 'Failed'); }
+    finally { setActionLoading(null); }
   };
 
   const handleDeleteDoctor = async (id: string) => {
+    setActionLoading(id);
     try {
       await apiService.adminDeleteDoctor(id);
       setDoctors(prev => prev.filter(d => d.id !== id));
       toast.success('Deleted');
     } catch (e: any) { toast.error(e.message || 'Failed to delete'); }
+    finally { setActionLoading(null); }
+  };
+
+  // Edit openers
+  const openEditProduct = (p: AdminProduct) => {
+    setEditProduct(p);
+    setEp({
+      name: p.name, category: p.category, price: p.price,
+      discountPrice: p.discountPrice || 0, description: p.description,
+      ingredients: (p.ingredients || []).join(', '), benefits: (p.benefits || []).join(', '),
+      howToUse: p.howToUse || '', size: p.size || '', emoji: p.emoji || '\u{1F33F}',
+      targetAudience: p.targetAudience || ['all'],
+      doctorNote: '', preparationMethod: '',
+      imageUrl: p.imageUrl || '', galleryImages: p.galleryImages || [],
+      isFeatured: p.isFeatured || false,
+      stock: p.stock || 0, unit: p.unit || 'piece',
+      tags: (p.tags || []).join(', '),
+    });
+    setTab('edit_product');
+  };
+
+  const openEditArticle = (a: AdminArticle) => {
+    setEditArticle(a);
+    setEa({
+      title: a.title, content: a.content, category: a.category,
+      readTime: a.readTime || '5 min', emoji: a.emoji || '\u{1F4DD}',
+      targetAudience: a.targetAudience || ['all'],
+      imageUrl: a.imageUrl || '', excerpt: a.excerpt || '',
+      isFeatured: a.isFeatured || false,
+      authorName: a.authorName || 'VedaClue Team',
+      tags: (a.tags || []).join(', '),
+    });
+    setTab('edit_article');
+  };
+
+  const openEditDoctor = (d: AdminDoctor) => {
+    setEditDoctor(d);
+    setEd({
+      name: d.name, specialization: d.specialization,
+      experience: d.experience, fee: d.fee,
+      qualification: d.qualification || '',
+      about: d.about || '',
+      tags: (d.tags || []).join(', '),
+      languages: (d.languages || []).join(', '),
+      avatarUrl: d.avatarUrl || '',
+      isChief: d.isChief || false, isPromoted: d.isPromoted || false,
+      hospitalName: d.hospitalName || '', location: d.location || '',
+    });
+    setTab('edit_doctor');
   };
 
   // User management handlers
@@ -455,7 +626,16 @@ export default function AdminPage() {
   };
 
   const statusBadge = (status: string) => {
-    const colors: Record<string, string> = { PENDING: 'bg-orange-100 text-orange-700', CONFIRMED: 'bg-blue-100 text-blue-700', COMPLETED: 'bg-emerald-100 text-emerald-700', CANCELLED: 'bg-red-100 text-red-700' };
+    const colors: Record<string, string> = {
+      PENDING: 'bg-orange-100 text-orange-700', CONFIRMED: 'bg-blue-100 text-blue-700',
+      COMPLETED: 'bg-emerald-100 text-emerald-700', CANCELLED: 'bg-red-100 text-red-700',
+      DRAFT: 'bg-gray-100 text-gray-600', PUBLISHED: 'bg-emerald-100 text-emerald-700',
+      ARCHIVED: 'bg-red-100 text-red-600',
+      draft: 'bg-gray-100 text-gray-600', published: 'bg-emerald-100 text-emerald-700',
+      archived: 'bg-red-100 text-red-600',
+      pending: 'bg-orange-100 text-orange-700', active: 'bg-emerald-100 text-emerald-700',
+      inactive: 'bg-red-100 text-red-600',
+    };
     return <span className={'text-[7px] font-bold px-1.5 py-0.5 rounded-full ' + (colors[status] || 'bg-gray-100 text-gray-600')}>{status}</span>;
   };
 
@@ -469,9 +649,14 @@ export default function AdminPage() {
           <div className="flex items-center gap-2">
             <h1 className="text-sm font-extrabold">{'\u{1F6E1}\uFE0F'} VedaClue Admin</h1>
           </div>
-          <button onClick={handleLock} className="text-[10px] font-bold bg-white/10 px-3 py-1.5 rounded-full active:scale-95">
-            {'\u{1F512}'} Lock & Exit
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={fetchDashboard} className="text-[10px] font-bold bg-white/10 px-3 py-1.5 rounded-full active:scale-95">
+              {'\u{1F504}'} Refresh
+            </button>
+            <button onClick={handleLock} className="text-[10px] font-bold bg-white/10 px-3 py-1.5 rounded-full active:scale-95">
+              {'\u{1F512}'} Lock
+            </button>
+          </div>
         </div>
         <div className="px-3 pb-2 flex gap-1 overflow-x-auto scrollbar-hide">
           {tabs.map(t => (
@@ -514,6 +699,42 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
+
+            {/* Recent items preview */}
+            {articles.length > 0 && (
+              <div className="bg-white rounded-2xl p-4 shadow-sm">
+                <h3 className="text-xs font-bold text-gray-800 mb-2">Recent Articles</h3>
+                {articles.slice(0, 3).map(a => (
+                  <div key={a.id} className="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0">
+                    <span className="text-sm">{a.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-bold text-gray-700 truncate">{a.title}</p>
+                      <p className="text-[8px] text-gray-400">{a.category} - {a.status || (a.isPublished ? 'PUBLISHED' : 'DRAFT')}</p>
+                    </div>
+                    {statusBadge(a.status || (a.isPublished ? 'PUBLISHED' : 'DRAFT'))}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {doctors.length > 0 && (
+              <div className="bg-white rounded-2xl p-4 shadow-sm">
+                <h3 className="text-xs font-bold text-gray-800 mb-2">Recent Doctors</h3>
+                {doctors.slice(0, 3).map(d => (
+                  <div key={d.id} className="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0">
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0">
+                      {d.name.charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-bold text-gray-700 truncate">{d.name}</p>
+                      <p className="text-[8px] text-gray-400">{d.specialization}</p>
+                    </div>
+                    {statusBadge(d.status || (d.isPublished ? 'active' : 'pending'))}
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="bg-white rounded-2xl p-4 shadow-sm">
               <h3 className="text-xs font-bold text-gray-800 mb-2">Quick Actions</h3>
               {[
@@ -573,6 +794,7 @@ export default function AdminPage() {
                           {!u.isActive && <span className="text-[7px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">BANNED</span>}
                         </div>
                         <p className="text-[9px] text-gray-500 truncate">{u.email || u.phone || 'No contact'}</p>
+                        <p className="text-[8px] text-gray-400">Joined: {new Date(u.createdAt).toLocaleDateString()}</p>
                       </div>
                     </div>
                     <div className="flex gap-1.5 mt-2 border-t border-gray-50 pt-2 items-center">
@@ -623,13 +845,25 @@ export default function AdminPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-gray-800 truncate">{p.name}</p>
                     <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-                      <span className={'text-[7px] font-bold px-1.5 py-0.5 rounded-full ' + (p.isPublished ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600')}>{p.isPublished ? '\u2713 LIVE' : 'DRAFT'}</span>
+                      {statusBadge(p.status || (p.isPublished ? 'published' : 'draft'))}
                       <span className="text-[7px] text-gray-400">{'\u20B9'}{p.discountPrice || p.price}</span>
+                      <span className="text-[7px] text-gray-400">{p.category}</span>
+                      {p.isFeatured && <span className="text-[7px] font-bold bg-amber-100 text-amber-700 px-1 py-0.5 rounded-full">{'\u2B50'}</span>}
+                      {p.stock !== undefined && <span className="text-[7px] text-gray-400">Stock: {p.stock}</span>}
                     </div>
+                    {p.approvedBy && <p className="text-[7px] text-gray-400">Approved by: {p.approvedBy}</p>}
+                    {p.publishedAt && <p className="text-[7px] text-gray-400">Published: {new Date(p.publishedAt).toLocaleDateString()}</p>}
                   </div>
                 </div>
                 <div className="flex gap-1.5 mt-2 border-t border-gray-50 pt-2">
-                  <button onClick={() => handleToggleProductPublish(p.id)} className={'flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 ' + (p.isPublished ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600')}>{p.isPublished ? 'Unpublish' : 'Publish'}</button>
+                  <button onClick={() => openEditProduct(p)}
+                    className="flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 bg-blue-50 text-blue-600"
+                    disabled={actionLoading === p.id}>{'\u270F\uFE0F'} Edit</button>
+                  <button onClick={() => handleToggleProductPublish(p.id)}
+                    className={'flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 ' + (p.isPublished ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600')}
+                    disabled={actionLoading === p.id}>
+                    {actionLoading === p.id ? '...' : (p.isPublished ? 'Unpublish' : 'Publish')}
+                  </button>
                   <button onClick={() => setConfirmDel({ id: p.id, type: 'product' })} className="px-2.5 py-1.5 rounded-lg bg-red-50 text-red-400 text-[9px] font-bold active:scale-95">{'\u{1F5D1}'}</button>
                 </div>
               </div>
@@ -653,14 +887,26 @@ export default function AdminPage() {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-gray-800 truncate">{a.title}</p>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <span className={'text-[7px] font-bold px-1.5 py-0.5 rounded-full ' + (a.isPublished ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600')}>{a.isPublished ? '\u2713 LIVE' : 'DRAFT'}</span>
+                    <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                      {statusBadge(a.status || (a.isPublished ? 'PUBLISHED' : 'DRAFT'))}
                       <span className="text-[7px] text-gray-400">{a.category} {'\u2022'} {a.readTime}</span>
+                      {a.isFeatured && <span className="text-[7px] font-bold bg-amber-100 text-amber-700 px-1 py-0.5 rounded-full">{'\u2B50'}</span>}
                     </div>
+                    <p className="text-[7px] text-gray-400">By: {a.authorName || 'VedaClue Team'}</p>
+                    {a.approvedBy && <p className="text-[7px] text-gray-400">Approved by: {a.approvedBy}</p>}
+                    {a.publishedAt && <p className="text-[7px] text-gray-400">Published: {new Date(a.publishedAt).toLocaleDateString()}</p>}
+                    {a.viewCount !== undefined && a.viewCount > 0 && <p className="text-[7px] text-gray-400">Views: {a.viewCount}</p>}
                   </div>
                 </div>
                 <div className="flex gap-1.5 mt-2 border-t border-gray-50 pt-2">
-                  <button onClick={() => handleToggleArticlePublish(a.id)} className={'flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 ' + (a.isPublished ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600')}>{a.isPublished ? 'Unpublish' : 'Publish'}</button>
+                  <button onClick={() => openEditArticle(a)}
+                    className="flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 bg-blue-50 text-blue-600"
+                    disabled={actionLoading === a.id}>{'\u270F\uFE0F'} Edit</button>
+                  <button onClick={() => handleToggleArticlePublish(a.id)}
+                    className={'flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 ' + (a.isPublished ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600')}
+                    disabled={actionLoading === a.id}>
+                    {actionLoading === a.id ? '...' : (a.isPublished ? 'Unpublish' : 'Publish')}
+                  </button>
                   <button onClick={() => setConfirmDel({ id: a.id, type: 'article' })} className="px-2.5 py-1.5 rounded-lg bg-red-50 text-red-400 text-[9px] font-bold active:scale-95">{'\u{1F5D1}'}</button>
                 </div>
               </div>
@@ -688,19 +934,31 @@ export default function AdminPage() {
                       {d.isChief && <span className="text-[7px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">{'\u{1F451}'} CHIEF</span>}
                       {d.isPromoted && !d.isChief && <span className="text-[7px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{'\u2B50'} FEATURED</span>}
                     </div>
-                    <p className="text-[9px] text-gray-500">{d.specialization}</p>
-                    <span className={'text-[7px] font-bold px-1.5 py-0.5 rounded-full ' + (d.isPublished ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600')}>{d.isPublished ? 'VISIBLE' : 'HIDDEN'}</span>
+                    <p className="text-[9px] text-gray-500">{d.specialization} {d.hospitalName ? `@ ${d.hospitalName}` : ''}</p>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {statusBadge(d.status || (d.isPublished ? 'active' : 'pending'))}
+                      <span className="text-[7px] text-gray-400">{d.experience}yr exp</span>
+                    </div>
+                    {d.approvedBy && <p className="text-[7px] text-gray-400">Approved by: {d.approvedBy}</p>}
                   </div>
                 </div>
                 <div className="flex gap-1.5 mt-2 border-t border-gray-50 pt-2">
-                  <button onClick={() => handleToggleDoctorPublish(d.id)} className={'flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 ' + (d.isPublished ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600')}>{d.isPublished ? 'Hide' : 'Show'}</button>
+                  <button onClick={() => openEditDoctor(d)}
+                    className="py-1.5 px-2 rounded-lg text-[9px] font-bold active:scale-95 bg-blue-50 text-blue-600"
+                    disabled={actionLoading === d.id}>{'\u270F\uFE0F'} Edit</button>
+                  <button onClick={() => handleToggleDoctorPublish(d.id)}
+                    className={'flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 ' + (d.isPublished ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600')}
+                    disabled={actionLoading === d.id}>
+                    {actionLoading === d.id ? '...' : (d.isPublished ? 'Hide' : 'Show')}
+                  </button>
                   {!d.isChief && (
                     <button
                       onClick={() => handleToggleDoctorPromote(d.id)}
                       className={'px-2 py-1 rounded-lg text-[9px] font-bold transition-all active:scale-95 ' +
                         (d.isPromoted ? 'bg-amber-100 text-amber-700 border border-amber-300' : 'bg-gray-100 text-gray-500 border border-gray-200')}
+                      disabled={actionLoading === d.id}
                     >
-                      {d.isPromoted ? '\u2B50 Featured' : '\u2606 Feature'}
+                      {d.isPromoted ? '\u2B50' : '\u2606'}
                     </button>
                   )}
                   {!d.isChief && <button onClick={() => setConfirmDel({ id: d.id, type: 'doctor' })} className="px-2.5 py-1.5 rounded-lg bg-red-50 text-red-400 text-[9px] font-bold active:scale-95">{'\u{1F5D1}'}</button>}
@@ -783,6 +1041,8 @@ export default function AdminPage() {
                   { l: 'Active Users', v: analytics.activeUsers, c: '#059669', bg: '#ECFDF5', icon: '\u{1F7E2}' },
                   { l: 'Total Cycles', v: analytics.totalCycles, c: '#7C3AED', bg: '#F5F3FF', icon: '\u{1F504}' },
                   { l: 'Appointments', v: analytics.totalAppointments, c: '#BE185D', bg: '#FDF2F8', icon: '\u{1F4C5}' },
+                  { l: 'Published Articles', v: analytics.publishedArticles || 0, c: '#2563EB', bg: '#EFF6FF', icon: '\u{1F4DD}' },
+                  { l: 'Active Products', v: analytics.activeProducts || 0, c: '#059669', bg: '#ECFDF5', icon: '\u{1F4E6}' },
                 ].map(s => (
                   <div key={s.l} className="rounded-2xl p-4" style={{ backgroundColor: s.bg }}>
                     <div className="flex items-center gap-1.5">
@@ -881,15 +1141,44 @@ export default function AdminPage() {
             <FormField label="Name *" value={np.name} onChange={v => setNp({...np, name: v})} placeholder="Bhringraj Hair Oil" />
             <FormField label="Description *" value={np.description} onChange={v => setNp({...np, description: v})} placeholder="Product description..." multiline />
             <div className="grid grid-cols-2 gap-2"><FormNumField label="Price *" value={np.price} onChange={v => setNp({...np, price: v})} /><FormNumField label="Sale Price" value={np.discountPrice} onChange={v => setNp({...np, discountPrice: v})} /></div>
+            <div className="grid grid-cols-2 gap-2"><FormNumField label="Stock" value={np.stock} onChange={v => setNp({...np, stock: v})} /><FormField label="Unit" value={np.unit} onChange={v => setNp({...np, unit: v})} placeholder="piece" /></div>
             <div className="grid grid-cols-2 gap-2"><FormField label="Size" value={np.size} onChange={v => setNp({...np, size: v})} placeholder="200ml" /><FormField label="Emoji" value={np.emoji} onChange={v => setNp({...np, emoji: v})} placeholder="\u{1F33F}" /></div>
             <FormField label="Ingredients (comma-sep)" value={np.ingredients} onChange={v => setNp({...np, ingredients: v})} placeholder="Bhringraj, Amla..." multiline />
             <FormField label="Benefits (comma-sep)" value={np.benefits} onChange={v => setNp({...np, benefits: v})} placeholder="Reduces hairfall..." multiline />
+            <FormField label="Tags (comma-sep)" value={np.tags} onChange={v => setNp({...np, tags: v})} placeholder="ayurveda, natural..." />
             <FormField label="How to Use" value={np.howToUse} onChange={v => setNp({...np, howToUse: v})} placeholder="Instructions..." multiline />
-            <FormField label="Doctor Note" value={np.doctorNote} onChange={v => setNp({...np, doctorNote: v})} placeholder="Personal recommendation..." multiline />
+            <FormCheckbox label="Featured Product" checked={np.isFeatured} onChange={v => setNp({...np, isFeatured: v})} />
             <div><label className="text-[9px] font-bold text-gray-500 uppercase">Category</label>
               <div className="flex flex-wrap gap-1 mt-1">{catOpts.map(c => (<button key={c.k} onClick={() => setNp({...np, category: c.k})} className={'px-2 py-1 rounded-lg text-[9px] font-bold ' + (np.category === c.k ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500')}>{c.l}</button>))}</div></div>
             <FormTargetPicker opts={targetOpts} value={np.targetAudience} onChange={v => setNp({...np, targetAudience: v})} />
-            <button onClick={handleAddProduct} className="w-full py-3 rounded-2xl text-white font-bold text-sm active:scale-95" style={{background:'linear-gradient(135deg,#059669,#10B981)'}}>Add as Draft</button>
+            <button onClick={handleAddProduct} disabled={actionLoading === 'add_product'}
+              className="w-full py-3 rounded-2xl text-white font-bold text-sm active:scale-95 disabled:opacity-50" style={{background:'linear-gradient(135deg,#059669,#10B981)'}}>
+              {actionLoading === 'add_product' ? 'Adding...' : 'Add as Draft'}
+            </button>
+          </>)}
+
+          {/* ════════ EDIT PRODUCT ════════ */}
+          {tab === 'edit_product' && editProduct && (<>
+            <div className="flex items-center gap-2 mb-1"><button onClick={() => { setEditProduct(null); setTab('products'); }} className="text-gray-400 text-sm">{'\u2190'}</button><h3 className="text-sm font-extrabold">Edit Product</h3></div>
+            <ImageUpload label="Product Image" value={ep.imageUrl} onChange={url => setEp({...ep, imageUrl: url})} />
+            <MultiImageUpload label="Gallery Images" values={ep.galleryImages} onChange={urls => setEp({...ep, galleryImages: urls})} maxImages={5} />
+            <FormField label="Name *" value={ep.name} onChange={v => setEp({...ep, name: v})} placeholder="Product Name" />
+            <FormField label="Description *" value={ep.description} onChange={v => setEp({...ep, description: v})} placeholder="Description..." multiline />
+            <div className="grid grid-cols-2 gap-2"><FormNumField label="Price *" value={ep.price} onChange={v => setEp({...ep, price: v})} /><FormNumField label="Sale Price" value={ep.discountPrice} onChange={v => setEp({...ep, discountPrice: v})} /></div>
+            <div className="grid grid-cols-2 gap-2"><FormNumField label="Stock" value={ep.stock} onChange={v => setEp({...ep, stock: v})} /><FormField label="Unit" value={ep.unit} onChange={v => setEp({...ep, unit: v})} placeholder="piece" /></div>
+            <div className="grid grid-cols-2 gap-2"><FormField label="Size" value={ep.size} onChange={v => setEp({...ep, size: v})} placeholder="200ml" /><FormField label="Emoji" value={ep.emoji} onChange={v => setEp({...ep, emoji: v})} placeholder="\u{1F33F}" /></div>
+            <FormField label="Ingredients (comma-sep)" value={ep.ingredients} onChange={v => setEp({...ep, ingredients: v})} placeholder="Bhringraj, Amla..." multiline />
+            <FormField label="Benefits (comma-sep)" value={ep.benefits} onChange={v => setEp({...ep, benefits: v})} placeholder="Reduces hairfall..." multiline />
+            <FormField label="Tags (comma-sep)" value={ep.tags} onChange={v => setEp({...ep, tags: v})} placeholder="ayurveda, natural..." />
+            <FormField label="How to Use" value={ep.howToUse} onChange={v => setEp({...ep, howToUse: v})} placeholder="Instructions..." multiline />
+            <FormCheckbox label="Featured Product" checked={ep.isFeatured} onChange={v => setEp({...ep, isFeatured: v})} />
+            <div><label className="text-[9px] font-bold text-gray-500 uppercase">Category</label>
+              <div className="flex flex-wrap gap-1 mt-1">{catOpts.map(c => (<button key={c.k} onClick={() => setEp({...ep, category: c.k})} className={'px-2 py-1 rounded-lg text-[9px] font-bold ' + (ep.category === c.k ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500')}>{c.l}</button>))}</div></div>
+            <FormTargetPicker opts={targetOpts} value={ep.targetAudience} onChange={v => setEp({...ep, targetAudience: v})} />
+            <button onClick={handleUpdateProduct} disabled={actionLoading === 'edit_product'}
+              className="w-full py-3 rounded-2xl text-white font-bold text-sm active:scale-95 disabled:opacity-50" style={{background:'linear-gradient(135deg,#059669,#10B981)'}}>
+              {actionLoading === 'edit_product' ? 'Saving...' : 'Save Changes'}
+            </button>
           </>)}
 
           {/* ════════ ADD ARTICLE ════════ */}
@@ -897,13 +1186,41 @@ export default function AdminPage() {
             <div className="flex items-center gap-2 mb-1"><button onClick={() => setTab('articles')} className="text-gray-400 text-sm">{'\u2190'}</button><h3 className="text-sm font-extrabold">Write Article</h3></div>
             <ImageUpload label="Cover Image" value={na.imageUrl} onChange={url => setNa({...na, imageUrl: url})} />
             <FormField label="Title *" value={na.title} onChange={v => setNa({...na, title: v})} placeholder="Understanding PCOD..." />
+            <FormField label="Excerpt" value={na.excerpt} onChange={v => setNa({...na, excerpt: v})} placeholder="Short summary..." />
             <div className="grid grid-cols-2 gap-2">
               <FormField label="Category" value={na.category} onChange={v => setNa({...na, category: v})} placeholder="PCOD, Wellness..." />
               <FormField label="Read Time" value={na.readTime} onChange={v => setNa({...na, readTime: v})} placeholder="5 min" />
             </div>
+            <FormField label="Author Name" value={na.authorName} onChange={v => setNa({...na, authorName: v})} placeholder="VedaClue Team" />
+            <FormField label="Tags (comma-sep)" value={na.tags} onChange={v => setNa({...na, tags: v})} placeholder="health, periods..." />
             <FormField label="Content *" value={na.content} onChange={v => setNa({...na, content: v})} placeholder="Write your article..." multiline />
+            <FormCheckbox label="Featured Article" checked={na.isFeatured} onChange={v => setNa({...na, isFeatured: v})} />
             <FormTargetPicker opts={targetOpts} value={na.targetAudience} onChange={v => setNa({...na, targetAudience: v})} />
-            <button onClick={handleAddArticle} className="w-full py-3 rounded-2xl text-white font-bold text-sm active:scale-95" style={{background:'linear-gradient(135deg,#2563EB,#3B82F6)'}}>Save as Draft</button>
+            <button onClick={handleAddArticle} disabled={actionLoading === 'add_article'}
+              className="w-full py-3 rounded-2xl text-white font-bold text-sm active:scale-95 disabled:opacity-50" style={{background:'linear-gradient(135deg,#2563EB,#3B82F6)'}}>
+              {actionLoading === 'add_article' ? 'Saving...' : 'Save as Draft'}
+            </button>
+          </>)}
+
+          {/* ════════ EDIT ARTICLE ════════ */}
+          {tab === 'edit_article' && editArticle && (<>
+            <div className="flex items-center gap-2 mb-1"><button onClick={() => { setEditArticle(null); setTab('articles'); }} className="text-gray-400 text-sm">{'\u2190'}</button><h3 className="text-sm font-extrabold">Edit Article</h3></div>
+            <ImageUpload label="Cover Image" value={ea.imageUrl} onChange={url => setEa({...ea, imageUrl: url})} />
+            <FormField label="Title *" value={ea.title} onChange={v => setEa({...ea, title: v})} placeholder="Title" />
+            <FormField label="Excerpt" value={ea.excerpt} onChange={v => setEa({...ea, excerpt: v})} placeholder="Short summary..." />
+            <div className="grid grid-cols-2 gap-2">
+              <FormField label="Category" value={ea.category} onChange={v => setEa({...ea, category: v})} placeholder="Category" />
+              <FormField label="Read Time" value={ea.readTime} onChange={v => setEa({...ea, readTime: v})} placeholder="5 min" />
+            </div>
+            <FormField label="Author Name" value={ea.authorName} onChange={v => setEa({...ea, authorName: v})} placeholder="VedaClue Team" />
+            <FormField label="Tags (comma-sep)" value={ea.tags} onChange={v => setEa({...ea, tags: v})} placeholder="health, periods..." />
+            <FormField label="Content *" value={ea.content} onChange={v => setEa({...ea, content: v})} placeholder="Article content..." multiline />
+            <FormCheckbox label="Featured Article" checked={ea.isFeatured} onChange={v => setEa({...ea, isFeatured: v})} />
+            <FormTargetPicker opts={targetOpts} value={ea.targetAudience} onChange={v => setEa({...ea, targetAudience: v})} />
+            <button onClick={handleUpdateArticle} disabled={actionLoading === 'edit_article'}
+              className="w-full py-3 rounded-2xl text-white font-bold text-sm active:scale-95 disabled:opacity-50" style={{background:'linear-gradient(135deg,#2563EB,#3B82F6)'}}>
+              {actionLoading === 'edit_article' ? 'Saving...' : 'Save Changes'}
+            </button>
           </>)}
 
           {/* ════════ ADD DOCTOR ════════ */}
@@ -911,13 +1228,41 @@ export default function AdminPage() {
             <div className="flex items-center gap-2 mb-1"><button onClick={() => setTab('doctors')} className="text-gray-400 text-sm">{'\u2190'}</button><h3 className="text-sm font-extrabold">Add Doctor</h3></div>
             <ImageUpload label="Doctor Photo" value={nd.avatarUrl} onChange={url => setNd({...nd, avatarUrl: url})} />
             <FormField label="Full Name *" value={nd.name} onChange={v => setNd({...nd, name: v})} placeholder="Dr. Priya Sharma" />
-            <FormField label="Specialization" value={nd.specialization} onChange={v => setNd({...nd, specialization: v})} placeholder="Gynecologist" />
+            <FormField label="Specialization *" value={nd.specialization} onChange={v => setNd({...nd, specialization: v})} placeholder="Gynecologist" />
             <FormField label="Qualification" value={nd.qualification} onChange={v => setNd({...nd, qualification: v})} placeholder="MBBS, MS" />
             <div className="grid grid-cols-2 gap-2"><FormNumField label="Experience (yrs)" value={nd.experience} onChange={v => setNd({...nd, experience: v})} /><FormNumField label="Fee" value={nd.fee} onChange={v => setNd({...nd, fee: v})} /></div>
+            <FormField label="Hospital" value={nd.hospitalName} onChange={v => setNd({...nd, hospitalName: v})} placeholder="Hospital name" />
+            <FormField label="Location" value={nd.location} onChange={v => setNd({...nd, location: v})} placeholder="City, State" />
             <FormField label="Tags (comma-sep)" value={nd.tags} onChange={v => setNd({...nd, tags: v})} placeholder="PCOD, IVF..." />
             <FormField label="Languages (comma-sep)" value={nd.languages} onChange={v => setNd({...nd, languages: v})} placeholder="English, Hindi..." />
             <FormField label="About" value={nd.about} onChange={v => setNd({...nd, about: v})} placeholder="Brief description..." multiline />
-            <button onClick={handleAddDoctor} className="w-full py-3 rounded-2xl text-white font-bold text-sm active:scale-95" style={{background:'linear-gradient(135deg,#7C3AED,#8B5CF6)'}}>Add Doctor</button>
+            <FormCheckbox label="Chief Doctor" checked={nd.isChief} onChange={v => setNd({...nd, isChief: v})} />
+            <FormCheckbox label="Promoted / Featured" checked={nd.isPromoted} onChange={v => setNd({...nd, isPromoted: v})} />
+            <button onClick={handleAddDoctor} disabled={actionLoading === 'add_doctor'}
+              className="w-full py-3 rounded-2xl text-white font-bold text-sm active:scale-95 disabled:opacity-50" style={{background:'linear-gradient(135deg,#7C3AED,#8B5CF6)'}}>
+              {actionLoading === 'add_doctor' ? 'Adding...' : 'Add Doctor'}
+            </button>
+          </>)}
+
+          {/* ════════ EDIT DOCTOR ════════ */}
+          {tab === 'edit_doctor' && editDoctor && (<>
+            <div className="flex items-center gap-2 mb-1"><button onClick={() => { setEditDoctor(null); setTab('doctors'); }} className="text-gray-400 text-sm">{'\u2190'}</button><h3 className="text-sm font-extrabold">Edit Doctor</h3></div>
+            <ImageUpload label="Doctor Photo" value={ed.avatarUrl} onChange={url => setEd({...ed, avatarUrl: url})} />
+            <FormField label="Full Name *" value={ed.name} onChange={v => setEd({...ed, name: v})} placeholder="Dr. Name" />
+            <FormField label="Specialization *" value={ed.specialization} onChange={v => setEd({...ed, specialization: v})} placeholder="Gynecologist" />
+            <FormField label="Qualification" value={ed.qualification} onChange={v => setEd({...ed, qualification: v})} placeholder="MBBS, MS" />
+            <div className="grid grid-cols-2 gap-2"><FormNumField label="Experience (yrs)" value={ed.experience} onChange={v => setEd({...ed, experience: v})} /><FormNumField label="Fee" value={ed.fee} onChange={v => setEd({...ed, fee: v})} /></div>
+            <FormField label="Hospital" value={ed.hospitalName} onChange={v => setEd({...ed, hospitalName: v})} placeholder="Hospital name" />
+            <FormField label="Location" value={ed.location} onChange={v => setEd({...ed, location: v})} placeholder="City, State" />
+            <FormField label="Tags (comma-sep)" value={ed.tags} onChange={v => setEd({...ed, tags: v})} placeholder="PCOD, IVF..." />
+            <FormField label="Languages (comma-sep)" value={ed.languages} onChange={v => setEd({...ed, languages: v})} placeholder="English, Hindi..." />
+            <FormField label="About" value={ed.about} onChange={v => setEd({...ed, about: v})} placeholder="Brief description..." multiline />
+            <FormCheckbox label="Chief Doctor" checked={ed.isChief} onChange={v => setEd({...ed, isChief: v})} />
+            <FormCheckbox label="Promoted / Featured" checked={ed.isPromoted} onChange={v => setEd({...ed, isPromoted: v})} />
+            <button onClick={handleUpdateDoctor} disabled={actionLoading === 'edit_doctor'}
+              className="w-full py-3 rounded-2xl text-white font-bold text-sm active:scale-95 disabled:opacity-50" style={{background:'linear-gradient(135deg,#7C3AED,#8B5CF6)'}}>
+              {actionLoading === 'edit_doctor' ? 'Saving...' : 'Save Changes'}
+            </button>
           </>)}
 
           {/* ════════ CALLBACKS ════════ */}

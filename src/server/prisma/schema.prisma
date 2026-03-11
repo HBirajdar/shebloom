@@ -273,6 +273,11 @@ model Doctor {
   isPublished       Boolean       @default(false)
   isChief           Boolean       @default(false)
   isPromoted        Boolean       @default(false)
+  approvedBy        String?
+  approvedAt        DateTime?
+  publishedAt       DateTime?
+  status            String        @default("pending")
+  location          String?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
@@ -409,6 +414,9 @@ model Article {
   likeCount       Int             @default(0)
   isFeatured      Boolean         @default(false)
   publishedAt     DateTime?
+  approvedBy      String?
+  approvedAt      DateTime?
+  authorName      String          @default("VedaClue Team")
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
@@ -529,6 +537,12 @@ model Product {
   imageUrl       String?
   galleryImages  String[] @default([])
   videoUrl       String?
+  status         String   @default("draft")
+  publishedAt    DateTime?
+  approvedBy     String?
+  approvedAt     DateTime?
+  stock          Int      @default(0)
+  unit           String   @default("piece")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

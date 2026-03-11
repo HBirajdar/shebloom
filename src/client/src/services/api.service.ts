@@ -116,15 +116,25 @@ const apiService = {
   deleteUser: (id: string) => fetch(`${BASE_URL}/api/v1/admin/users/${id}`, { method: 'DELETE', headers: getHeaders() }).then(handleResponse),
   adminUpdateAppointment: (id: string, body: any) => fetch(`${BASE_URL}/api/v1/admin/appointments/${id}`, { method: 'PATCH', headers: getHeaders(), body: JSON.stringify(body) }).then(handleResponse),
 
-  // ADMIN CMS
+  // ADMIN CMS - Products
+  adminGetProducts: () => fetch(`${BASE_URL}/api/v1/admin/products`, { headers: getHeaders() }).then(handleResponse),
   adminCreateProduct: (body: any) => fetch(`${BASE_URL}/api/v1/admin/products`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(body) }).then(handleResponse),
+  adminUpdateProduct: (id: string, body: any) => fetch(`${BASE_URL}/api/v1/admin/products/${id}`, { method: 'PUT', headers: getHeaders(), body: JSON.stringify(body) }).then(handleResponse),
   adminToggleProductPublish: (id: string) => fetch(`${BASE_URL}/api/v1/admin/products/${id}/toggle-publish`, { method: 'POST', headers: getHeaders() }).then(handleResponse),
   adminDeleteProduct: (id: string) => fetch(`${BASE_URL}/api/v1/admin/products/${id}`, { method: 'DELETE', headers: getHeaders() }).then(handleResponse),
+  // ADMIN CMS - Articles
+  adminGetArticles: () => fetch(`${BASE_URL}/api/v1/admin/articles`, { headers: getHeaders() }).then(handleResponse),
   adminCreateArticle: (body: any) => fetch(`${BASE_URL}/api/v1/admin/articles`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(body) }).then(handleResponse),
+  adminUpdateArticle: (id: string, body: any) => fetch(`${BASE_URL}/api/v1/admin/articles/${id}`, { method: 'PUT', headers: getHeaders(), body: JSON.stringify(body) }).then(handleResponse),
   adminToggleArticlePublish: (id: string) => fetch(`${BASE_URL}/api/v1/admin/articles/${id}/toggle-publish`, { method: 'POST', headers: getHeaders() }).then(handleResponse),
   adminDeleteArticle: (id: string) => fetch(`${BASE_URL}/api/v1/admin/articles/${id}`, { method: 'DELETE', headers: getHeaders() }).then(handleResponse),
+  // ADMIN CMS - Doctors
+  adminGetDoctors: () => fetch(`${BASE_URL}/api/v1/admin/doctors`, { headers: getHeaders() }).then(handleResponse),
   adminCreateDoctor: (body: any) => fetch(`${BASE_URL}/api/v1/admin/doctors`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(body) }).then(handleResponse),
+  adminUpdateDoctor: (id: string, body: any) => fetch(`${BASE_URL}/api/v1/admin/doctors/${id}`, { method: 'PUT', headers: getHeaders(), body: JSON.stringify(body) }).then(handleResponse),
   adminToggleDoctorPublish: (id: string) => fetch(`${BASE_URL}/api/v1/admin/doctors/${id}/toggle-publish`, { method: 'POST', headers: getHeaders() }).then(handleResponse),
+  adminApproveDoctor: (id: string) => fetch(`${BASE_URL}/api/v1/admin/doctors/${id}/approve`, { method: 'PATCH', headers: getHeaders() }).then(handleResponse),
+  adminRejectDoctor: (id: string) => fetch(`${BASE_URL}/api/v1/admin/doctors/${id}/reject`, { method: 'PATCH', headers: getHeaders() }).then(handleResponse),
   adminToggleDoctorPromote: (id: string) => fetch(`${BASE_URL}/api/v1/admin/doctors/${id}/toggle-promote`, { method: 'POST', headers: getHeaders() }).then(handleResponse),
   adminDeleteDoctor: (id: string) => fetch(`${BASE_URL}/api/v1/admin/doctors/${id}`, { method: 'DELETE', headers: getHeaders() }).then(handleResponse),
 

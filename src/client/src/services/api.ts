@@ -156,22 +156,40 @@ export const productAPI = {
 
 export const adminAPI = {
   dashboard: () => api.get('/admin/dashboard'),
+  stats: () => api.get('/admin/stats'),
+  analytics: () => api.get('/admin/analytics'),
+  // Products
+  getProducts: () => api.get('/admin/products'),
   createProduct: (d: any) => api.post('/admin/products', d),
+  updateProduct: (id: string, d: any) => api.put(`/admin/products/${id}`, d),
   toggleProductPublish: (id: string) => api.post(`/admin/products/${id}/toggle-publish`),
+  publishProduct: (id: string) => api.patch(`/admin/products/${id}/publish`),
+  unpublishProduct: (id: string) => api.patch(`/admin/products/${id}/unpublish`),
   deleteProduct: (id: string) => api.delete(`/admin/products/${id}`),
+  // Articles
+  getArticles: () => api.get('/admin/articles'),
   createArticle: (d: any) => api.post('/admin/articles', d),
+  updateArticle: (id: string, d: any) => api.put(`/admin/articles/${id}`, d),
   toggleArticlePublish: (id: string) => api.post(`/admin/articles/${id}/toggle-publish`),
+  publishArticle: (id: string) => api.patch(`/admin/articles/${id}/publish`),
+  unpublishArticle: (id: string) => api.patch(`/admin/articles/${id}/unpublish`),
   deleteArticle: (id: string) => api.delete(`/admin/articles/${id}`),
+  // Doctors
+  getDoctors: () => api.get('/admin/doctors'),
   createDoctor: (d: any) => api.post('/admin/doctors', d),
+  updateDoctor: (id: string, d: any) => api.put(`/admin/doctors/${id}`, d),
   toggleDoctorPublish: (id: string) => api.post(`/admin/doctors/${id}/toggle-publish`),
+  approveDoctor: (id: string) => api.patch(`/admin/doctors/${id}/approve`),
+  rejectDoctor: (id: string) => api.patch(`/admin/doctors/${id}/reject`),
   deleteDoctor: (id: string) => api.delete(`/admin/doctors/${id}`),
   toggleDoctorPromote: (id: string) => api.post(`/admin/doctors/${id}/toggle-promote`),
+  // Users
   users: (params?: { page?: number; limit?: number; search?: string; role?: string }) => api.get('/admin/users', { params }),
   updateUser: (id: string, d: { role?: string; isActive?: boolean }) => api.patch(`/admin/users/${id}`, d),
   deleteUser: (id: string) => api.delete(`/admin/users/${id}`),
-  analytics: () => api.get('/admin/analytics'),
+  // Appointments
   appointments: (params?: { status?: string; page?: number }) => api.get('/admin/appointments', { params }),
   updateAppointment: (id: string, d: { status: string }) => api.patch(`/admin/appointments/${id}`, d),
+  // Upload
   upload: (formData: FormData) => api.post('/admin/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-  stats: () => api.get('/admin/stats'),
 };
