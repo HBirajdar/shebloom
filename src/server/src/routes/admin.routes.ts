@@ -5,6 +5,7 @@ import prisma from '../config/database';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { sendWelcomeEmail } from '../services/email.service';
 
 const r = Router();
 
@@ -399,6 +400,17 @@ r.post('/doctors/:id/toggle-promote', (req: Request, res: Response, next: NextFu
 r.delete('/doctors/:id', (req: Request, res: Response) => {
   store.doctors = store.doctors.filter(x => x.id !== req.params.id);
   res.json({ success: true });
+});
+
+// ─── Test Email ─────────────────────────────────────
+r.post('/test-email', async (req: Request, res: Response) => {
+  const { email } = req.body;
+  if (!email || typeof email !== 'string' || !email.includes('@')) {
+    res.status(400).json({ success: false, error: 'Valid email address required' });
+    return;
+  }
+  await sendWelcomeEmail(email, 'VedaClue Admin');
+  res.json({ success: true, message: 'Test email sent' });
 });
 
 export default r;
