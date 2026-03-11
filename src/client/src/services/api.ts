@@ -120,6 +120,7 @@ export const cartAPI = {
   list: () => api.get('/cart'),
   add: (d: any) => api.post('/cart/add', d),
   remove: (id: string) => api.delete('/cart/' + id),
+  checkout: () => api.post('/cart/checkout'),
 };
 
 export const achievementsAPI = {

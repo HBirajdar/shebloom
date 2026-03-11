@@ -20,7 +20,7 @@ export function useAppointments() {
         id: b.id, doctorId: b.doctorId, doctorName: b.doctor?.fullName || b.doctorName || 'Doctor',
         date: b.scheduledAt?.split('T')[0] || '', time: b.scheduledAt?.split('T')[1]?.substring(0, 5) || '',
         reason: b.notes?.split(' | ')[0] || '', notes: b.notes?.split(' | ')[1] || '',
-        status: b.status === 'CANCELLED' ? 'cancelled' : 'upcoming', source: 'api',
+        status: (['CANCELLED'].includes(b.status) ? 'cancelled' : ['COMPLETED'].includes(b.status) ? 'completed' : ['REJECTED','NO_SHOW'].includes(b.status) ? 'rejected' : 'upcoming'), source: 'api',
         videoLink: b.videoLink || b.meetingLink || '', meetingLink: b.meetingLink || b.videoLink || '',
       }));
       // Merge: API bookings + localStorage bookings (deduplicated)
@@ -34,7 +34,14 @@ export function useAppointments() {
   }, []);
 
   const createBooking = async (data: { doctorId: string; doctorName: string; date: string; time: string; reason: string; notes: string }) => {
-    const scheduledAt = data.date + 'T' + data.time.replace(/ [AP]M/, '') + ':00';
+    const convertTo24h = (t: string) => {
+      const [time, meridiem] = t.split(' ');
+      let [h, m] = time.split(':').map(Number);
+      if (meridiem === 'PM' && h !== 12) h += 12;
+      if (meridiem === 'AM' && h === 12) h = 0;
+      return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+    };
+    const scheduledAt = data.date + 'T' + convertTo24h(data.time) + ':00';
     // Try API first
     try {
       const result = await apiService.createAppointment({ doctorId: data.doctorId, doctorName: data.doctorName, scheduledAt, reason: data.reason, notes: data.notes });

@@ -1,6 +1,7 @@
 // Admin CMS routes — Full Prisma-backed implementation
 import { Router, Request, Response, NextFunction } from 'express';
 import { authenticate } from '../middleware/auth';
+import { requireAdmin } from '../middleware/roles.middleware';
 import prisma from '../config/database';
 import { successResponse, errorResponse } from '../utils/response.utils';
 import multer from 'multer';
@@ -9,7 +10,7 @@ import fs from 'fs';
 import { sendWelcomeEmail } from '../services/email.service';
 
 const r = Router();
-r.use(authenticate);
+r.use(authenticate, requireAdmin);
 
 // ─── Multer upload config ────────────────────────────
 const uploadsDir = path.join(__dirname, '../../uploads');

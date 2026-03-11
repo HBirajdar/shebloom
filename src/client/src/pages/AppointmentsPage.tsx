@@ -248,7 +248,7 @@ export default function AppointmentsPage() {
                       <p className="text-[10px] text-gray-500">{b.reason}</p>
                     </div>
                   </div>
-                  <span className={'text-[8px] font-bold px-2 py-1 rounded-full ' + (b.status === 'upcoming' ? 'bg-emerald-100 text-emerald-700' : b.status === 'completed' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-600')}>
+                  <span className={'text-[8px] font-bold px-2 py-1 rounded-full ' + (b.status === 'upcoming' ? 'bg-emerald-100 text-emerald-700' : b.status === 'completed' ? 'bg-blue-100 text-blue-700' : b.status === 'rejected' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-600')}>
                     {b.status.toUpperCase()}
                   </span>
                 </div>

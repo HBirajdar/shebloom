@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
+import { useAuthStore } from '../stores/authStore';
 import apiService from '../services/api.service';
 import ImageUpload from '../components/ImageUpload';
 import MultiImageUpload from '../components/MultiImageUpload';
@@ -96,6 +97,11 @@ type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appoi
 
 export default function AdminPage() {
   const nav = useNavigate();
+  const user = useAuthStore(s => s.user);
+
+  if (user && user.role !== 'ADMIN' && user.role !== 'DOCTOR') {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   // Auth state
   const [isUnlocked, setIsUnlocked] = useState(false);

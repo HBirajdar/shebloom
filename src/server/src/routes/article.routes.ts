@@ -33,6 +33,7 @@ r.get('/', async (q: Request, res: Response, n: NextFunction) => {
       select: {
         id: true, title: true, slug: true, excerpt: true,
         category: true, tags: true, coverImageUrl: true,
+        emoji: true,
         readTimeMinutes: true, viewCount: true, likeCount: true,
         isFeatured: true, publishedAt: true,
         doctor: { select: { fullName: true, avatarUrl: true, specialization: true } },

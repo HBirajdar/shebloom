@@ -1,6 +1,7 @@
 import { Router, Response, NextFunction } from 'express';
 import prisma from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { requireAdmin } from '../middleware/roles.middleware';
 import { sendBookingConfirmation, sendDoctorNotification } from '../services/email.service';
 import { successResponse, errorResponse } from '../utils/response.utils';
 
@@ -131,7 +132,7 @@ r.patch('/:id/cancel', async (q: AuthRequest, s: Response, n: NextFunction) => {
 });
 
 // PATCH /:id/status — admin update status
-r.patch('/:id/status', async (q: AuthRequest, s: Response, n: NextFunction) => {
+r.patch('/:id/status', requireAdmin, async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const { status } = q.body;
     if (!status || !['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'NO_SHOW', 'CANCELLED'].includes(status)) {
