@@ -514,7 +514,13 @@ export default function DashboardPage() {
 
         {/* ─── Mood Logger ─── */}
         <div className="bg-white rounded-3xl p-4 shadow-lg">
-          <h3 className="text-xs font-bold text-gray-800 mb-3">How are you feeling? 💭</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-bold text-gray-800">How are you feeling? 💭</h3>
+            <button onClick={() => nav('/mood/history')}
+              className="flex items-center gap-1 bg-rose-50 px-2 py-1 rounded-xl border border-rose-100 active:scale-95 transition-transform">
+              <span className="text-[9px] font-extrabold text-rose-600">📊 History</span>
+            </button>
+          </div>
           <div className="flex justify-between">
             {moods.map(m => (
               <button key={m.key} onClick={() => logMood(m.key)}

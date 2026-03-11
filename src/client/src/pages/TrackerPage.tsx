@@ -420,6 +420,10 @@ export default function TrackerPage() {
             ←
           </button>
           <h1 className="text-xl font-extrabold text-gray-900 flex-1">My Cycle</h1>
+          <button onClick={() => navigate('/cycle/history')}
+            className="flex items-center gap-1 bg-rose-50 px-2.5 py-1 rounded-xl border border-rose-100 active:scale-95 transition-transform">
+            <span className="text-[10px] font-extrabold text-rose-600">History 📅</span>
+          </button>
         </div>
         {/* Tabs */}
         <div className="flex px-5 gap-2 pb-3">
