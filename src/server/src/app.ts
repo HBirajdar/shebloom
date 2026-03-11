@@ -147,6 +147,11 @@ app.get('/api/ready', async (_req, res) => {
   }
 });
 
+// ─── Versioned Health Check ─────────────────────────
+app.get('/api/v1/health', (_req, res) => {
+  res.json({ success: true, message: 'VedaClue API running', timestamp: new Date().toISOString() });
+});
+
 // ─── API Documentation ──────────────────────────────
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customCss: '.swagger-ui .topbar { display: none }',
@@ -191,5 +196,14 @@ if (fs.existsSync(clientDist)) {
 // ─── Error Handling ─────────────────────────────────
 app.use(notFoundHandler);
 app.use(errorHandler);
+
+// Global error handler
+app.use((err: any, req: any, res: any, next: any) => {
+  console.error('[Global Error]', err.message, err.stack);
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({ success: false, error: 'File too large. Max 5MB for images.' });
+  }
+  return res.status(500).json({ success: false, error: err.message || 'Internal server error' });
+});
 
 export default app;

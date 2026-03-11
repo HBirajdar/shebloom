@@ -7,7 +7,7 @@ const imageStorage = new CloudinaryStorage({
   params: {
     folder: 'vedaclue/images',
     allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
-    transformation: [{ width: 1200, crop: 'limit' }],
+    transformation: [{ width: 1000, crop: 'limit' }],
   } as any,
 });
 
@@ -20,17 +20,22 @@ const videoStorage = new CloudinaryStorage({
   } as any,
 });
 
-export const imageUpload = multer({
+export const uploadImage = multer({
   storage: imageStorage,
   limits: { fileSize: 5 * 1024 * 1024 },
-}).single('file');
+}).single('image');
 
-export const videoUpload = multer({
+export const uploadVideo = multer({
   storage: videoStorage,
   limits: { fileSize: 50 * 1024 * 1024 },
-}).single('file');
+}).single('video');
 
-export const multiUpload = multer({
+export const uploadMultiple = multer({
   storage: imageStorage,
   limits: { fileSize: 5 * 1024 * 1024 },
-}).array('files', 5);
+}).array('images', 5);
+
+// Keep old names as aliases for backward compatibility
+export const imageUpload = uploadImage;
+export const videoUpload = uploadVideo;
+export const multiUpload = uploadMultiple;

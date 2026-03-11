@@ -370,11 +370,13 @@ r.post('/upload', upload.single('file'), (req: Request, res: Response) => {
 });
 
 // ─── Test Email ─────────────────────────────────────
-r.post('/test-email', async (req: Request, res: Response) => {
-  const { email } = req.body;
-  if (!email || !email.includes('@')) { errorResponse(res, 'Valid email required'); return; }
-  await sendWelcomeEmail(email, 'VedaClue Admin');
-  successResponse(res, null, 'Test email sent');
+r.post('/test-email', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email } = req.body;
+    if (!email || !email.includes('@')) { errorResponse(res, 'Valid email required'); return; }
+    await sendWelcomeEmail(email, 'VedaClue Admin');
+    successResponse(res, null, 'Test email sent');
+  } catch (e) { next(e); }
 });
 
 export default r;
