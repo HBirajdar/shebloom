@@ -61,6 +61,8 @@ export const userAPI = {
   updateProfile: (d: any) => api.put('/users/me/profile', d),
   exportData: () => api.get('/users/me/export'),
   deleteAccount: () => api.delete('/users/me'),
+  sendMobileOtp: (phone: string) => api.post('/users/me/mobile/send-otp', { phone }),
+  confirmMobile: (phone: string, otp: string) => api.post('/users/me/mobile/confirm', { phone, otp }),
 };
 
 export const cycleAPI = {

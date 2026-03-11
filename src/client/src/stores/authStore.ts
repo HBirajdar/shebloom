@@ -7,7 +7,9 @@ interface User {
   email?: string;
   phone?: string;
   avatarUrl?: string;
+  photoUrl?: string;
   role: string;
+  authProvider?: string; // 'email' | 'mobile' | 'google' | 'apple'
 }
 
 interface AuthState {

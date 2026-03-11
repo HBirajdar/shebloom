@@ -4,12 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useCycleStore } from '../stores/cycleStore';
 import { userAPI } from '../services/api';
+import { api } from '../services/api';
 import BottomNav from '../components/BottomNav';
 import toast from 'react-hot-toast';
-import { api } from '../services/api';
 
 /* ═══════════════════════════════════════════════════════
-   VEDACLUE PROFILE — Premium Edition
+   VEDACLUE PROFILE — Smart Auth Provider Field Locking
    ═══════════════════════════════════════════════════════ */
 
 const DOSHA_INFO: Record<string, { emoji: string; color: string; bg: string; desc: string; tips: string[] }> = {
@@ -54,6 +54,17 @@ const sections = [
   ]},
 ];
 
+// ─── Auth Provider helpers ───────────────────────────
+function normalizeProvider(p?: string): 'email' | 'mobile' | 'google' | 'apple' | 'unknown' {
+  if (!p) return 'unknown';
+  const v = p.toLowerCase();
+  if (v === 'phone' || v === 'mobile') return 'mobile';
+  if (v === 'google') return 'google';
+  if (v === 'apple') return 'apple';
+  if (v === 'email') return 'email';
+  return 'unknown';
+}
+
 export default function ProfilePage() {
   const nav = useNavigate();
   const user = useAuthStore(s => s.user);
@@ -67,12 +78,24 @@ export default function ProfilePage() {
   const [secretTaps, setSecretTaps] = useState(0);
   const [activeTab, setActiveTab] = useState<'overview' | 'achievements' | 'settings'>('overview');
 
+  // Edit form fields
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [dob, setDob] = useState('');
   const [saving, setSaving] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
+
+  // Mobile OTP flow
+  const [mobileStep, setMobileStep] = useState<'idle' | 'otp-sent'>('idle');
+  const [newPhone, setNewPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+
+  // Tooltip state
+  const [showMobileTip, setShowMobileTip] = useState(false);
+  const [showEmailTip, setShowEmailTip] = useState(false);
+
   const [avatarUploading, setAvatarUploading] = useState(false);
   const avatarInputRef = (typeof window !== 'undefined') ? document.createElement('input') : null;
   if (avatarInputRef) { avatarInputRef.type = 'file'; avatarInputRef.accept = 'image/jpeg,image/png,image/webp'; }
@@ -88,24 +111,55 @@ export default function ProfilePage() {
     return !!val;
   });
 
+  // Derive auth provider from user store
+  const provider = normalizeProvider(user?.authProvider);
+  const isMobileAuth = provider === 'mobile';
+  const isEmailAuth = provider === 'email';
+  const isGoogleAuth = provider === 'google' || provider === 'apple';
+
+  // Field lock rules:
+  // mobile auth  → mobile LOCKED, email editable
+  // email auth   → email LOCKED (it's their login), mobile editable (with OTP)
+  // google/apple → both email and mobile editable
+  const mobileLocked = isMobileAuth;
+  const emailLocked = isEmailAuth;
+
   useEffect(() => {
     if (!user) return;
     userAPI.me().then(res => {
       const p = res.data.data || res.data;
-      if (p) setUser({ ...user, fullName: p.fullName || user.fullName, email: p.email || undefined, phone: p.phone || user.phone });
+      if (p) {
+        setUser({
+          ...user,
+          fullName: p.fullName || user.fullName,
+          email: p.email || undefined,
+          phone: p.phone || user.phone,
+          authProvider: p.authProvider || user.authProvider,
+        });
+      }
     }).catch(() => {});
   }, []);
 
   const openEdit = () => {
-    setLoadingProfile(true); setShowEdit(true);
+    setMobileStep('idle');
+    setOtp('');
+    setNewPhone('');
+    setLoadingProfile(true);
+    setShowEdit(true);
     userAPI.me().then(res => {
       const p = res.data.data || res.data;
       if (p) {
-        setName(p.fullName || ''); setEmail(p.email || ''); setPhone(p.phone || '');
+        setName(p.fullName || '');
+        setEmail(p.email || '');
+        setPhone(p.phone || '');
         setDob(p.dateOfBirth ? new Date(p.dateOfBirth).toISOString().split('T')[0] : '');
+        setNewPhone(p.phone || '');
       }
     }).catch(() => {
-      setName(user?.fullName || ''); setEmail(user?.email || ''); setPhone(user?.phone || '');
+      setName(user?.fullName || '');
+      setEmail(user?.email || '');
+      setPhone(user?.phone || '');
+      setNewPhone(user?.phone || '');
     }).finally(() => setLoadingProfile(false));
   };
 
@@ -114,7 +168,8 @@ export default function ProfilePage() {
     try {
       const data: any = {};
       if (name.trim()) data.fullName = name.trim();
-      if (email.trim()) data.email = email.trim();
+      // Only send email if not locked
+      if (!emailLocked && email.trim()) data.email = email.trim();
       if (dob) data.dateOfBirth = dob;
       if (Object.keys(data).length === 0) { toast('No changes'); setShowEdit(false); setSaving(false); return; }
       const res = await userAPI.update(data);
@@ -128,6 +183,37 @@ export default function ProfilePage() {
       else toast.error(msg);
     }
     setSaving(false);
+  };
+
+  const sendMobileOtp = async () => {
+    if (!newPhone.trim() || newPhone.trim().length < 10) { toast.error('Enter a valid mobile number'); return; }
+    if (newPhone.trim() === phone) { toast('Same number — no change needed'); return; }
+    setOtpLoading(true);
+    try {
+      await userAPI.sendMobileOtp(newPhone.trim());
+      setMobileStep('otp-sent');
+      toast.success('OTP sent to ' + newPhone.trim());
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to send OTP');
+    }
+    setOtpLoading(false);
+  };
+
+  const confirmMobileOtp = async () => {
+    if (!otp.trim() || otp.trim().length !== 6) { toast.error('Enter the 6-digit OTP'); return; }
+    setOtpLoading(true);
+    try {
+      const res = await userAPI.confirmMobile(newPhone.trim(), otp.trim());
+      const updated = res.data.data;
+      if (updated && user) setUser({ ...user, phone: updated.phone });
+      setPhone(newPhone.trim());
+      setMobileStep('idle');
+      setOtp('');
+      toast.success('Mobile number verified and saved!');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Invalid OTP');
+    }
+    setOtpLoading(false);
   };
 
   const handleAvatarUpload = async () => {
@@ -164,6 +250,9 @@ export default function ProfilePage() {
   const de = user?.email || user?.phone || '';
   const phaseEmojis: Record<string, string> = { menstrual: '🩸', follicular: '🌱', ovulation: '✨', luteal: '🍂' };
 
+  // Provider badge
+  const providerBadge = { email: { label: 'Email Login', icon: '📧', color: '#3B82F6' }, mobile: { label: 'Mobile Login', icon: '📱', color: '#10B981' }, google: { label: 'Google Login', icon: '🌐', color: '#EF4444' }, apple: { label: 'Apple Login', icon: '🍎', color: '#374151' }, unknown: { label: 'Standard Login', icon: '🔑', color: '#6B7280' } }[provider];
+
   return (
     <div className="min-h-screen pb-28 bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
 
@@ -185,7 +274,11 @@ export default function ProfilePage() {
             <div className="pb-1">
               <h2 className="text-xl font-extrabold">{dn}</h2>
               <p className="text-xs text-white/70 mt-0.5">{de}</p>
-              <button onClick={openEdit} className="mt-2 px-3 py-1 bg-white/20 rounded-full text-[10px] font-bold active:scale-95 transition-transform">✏️ Edit Profile</button>
+              {/* Provider badge */}
+              <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[9px] font-bold" style={{ background: 'rgba(255,255,255,0.2)' }}>
+                <span>{providerBadge.icon}</span>{providerBadge.label}
+              </span>
+              <button onClick={openEdit} className="block mt-2 px-3 py-1 bg-white/20 rounded-full text-[10px] font-bold active:scale-95 transition-transform">✏️ Edit Profile</button>
             </div>
           </div>
           {hasRealData && (
@@ -344,24 +437,145 @@ export default function ProfilePage() {
         </>)}
       </div>
 
+      {/* ─── Edit Profile Modal ───────────────────────── */}
       {showEdit && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-end justify-center" onClick={() => setShowEdit(false)}>
-          <div className="bg-white w-full max-w-[430px] rounded-t-3xl p-6 space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-white w-full max-w-[430px] rounded-t-3xl p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto -mt-1 mb-2" />
-            <div className="flex justify-between items-center"><h3 className="text-lg font-extrabold">Edit Profile</h3><button onClick={() => setShowEdit(false)} className="text-gray-400 text-xl active:scale-90">✕</button></div>
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-extrabold">Edit Profile</h3>
+              <button onClick={() => setShowEdit(false)} className="text-gray-400 text-xl active:scale-90">✕</button>
+            </div>
+
             {loadingProfile ? (
               <div className="space-y-3 animate-pulse">{[1,2,3].map(i => <div key={i} className="h-12 bg-gray-100 rounded-xl" />)}</div>
             ) : (<>
-              <div><label className="text-[10px] font-bold text-gray-500 uppercase">Full Name</label><input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Your name" className="w-full mt-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none" /></div>
-              <div><label className="text-[10px] font-bold text-gray-500 uppercase">Email Address</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com" className="w-full mt-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none" /></div>
-              <div><label className="text-[10px] font-bold text-gray-500 uppercase">Date of Birth</label><input type="date" value={dob} onChange={e => setDob(e.target.value)} className="w-full mt-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none" /></div>
-              <div><label className="text-[10px] font-bold text-gray-500 uppercase">Phone</label><input type="text" value={phone} disabled className="w-full mt-1 px-4 py-3 border-2 border-gray-100 rounded-xl text-sm bg-gray-50 text-gray-400" /><p className="text-[10px] text-gray-400 mt-1">Phone cannot be changed</p></div>
-              <button onClick={saveProfile} disabled={saving} className="w-full py-3.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-2xl font-bold text-sm disabled:opacity-50 active:scale-95 transition-transform">{saving ? 'Saving...' : 'Save Changes'}</button>
+
+              {/* Full Name — always editable */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase">Full Name</label>
+                <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Your name"
+                  className="w-full mt-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none" />
+              </div>
+
+              {/* Email field */}
+              <div className="relative">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Email Address</label>
+                  {emailLocked && (
+                    <button onMouseEnter={() => setShowEmailTip(true)} onMouseLeave={() => setShowEmailTip(false)}
+                      onClick={() => setShowEmailTip(v => !v)} className="text-[10px] text-amber-600 font-bold flex items-center gap-1">
+                      🔒 Login email
+                    </button>
+                  )}
+                </div>
+                {showEmailTip && emailLocked && (
+                  <div className="absolute top-6 right-0 z-10 bg-gray-800 text-white text-[10px] rounded-lg px-3 py-2 w-52 shadow-xl">
+                    Cannot change login email address. Contact support to update.
+                  </div>
+                )}
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                  disabled={emailLocked} placeholder="your@email.com"
+                  className={`w-full px-4 py-3 border-2 rounded-xl text-sm focus:outline-none transition-colors ${
+                    emailLocked
+                      ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
+                      : 'border-gray-200 focus:border-rose-400'
+                  }`} />
+                {emailLocked && (
+                  <p className="text-[10px] text-amber-600 mt-1 flex items-center gap-1">
+                    <span>🔒</span> Cannot change login email address
+                  </p>
+                )}
+              </div>
+
+              {/* Date of Birth — always editable */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase">Date of Birth</label>
+                <input type="date" value={dob} onChange={e => setDob(e.target.value)}
+                  className="w-full mt-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none" />
+              </div>
+
+              {/* Mobile field — smart locking + OTP */}
+              <div className="relative">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Mobile Number</label>
+                  {mobileLocked && (
+                    <button onMouseEnter={() => setShowMobileTip(true)} onMouseLeave={() => setShowMobileTip(false)}
+                      onClick={() => setShowMobileTip(v => !v)} className="text-[10px] text-amber-600 font-bold flex items-center gap-1">
+                      🔒 Login mobile
+                    </button>
+                  )}
+                </div>
+                {showMobileTip && mobileLocked && (
+                  <div className="absolute top-6 right-0 z-10 bg-gray-800 text-white text-[10px] rounded-lg px-3 py-2 w-52 shadow-xl">
+                    Cannot change login mobile number. This is your primary login method.
+                  </div>
+                )}
+
+                {mobileLocked ? (
+                  <>
+                    <div className="relative">
+                      <input type="tel" value={phone} disabled
+                        className="w-full px-4 py-3 pr-10 border-2 border-gray-100 rounded-xl text-sm bg-gray-50 text-gray-400 cursor-not-allowed" />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-base">🔒</span>
+                    </div>
+                    <p className="text-[10px] text-amber-600 mt-1 flex items-center gap-1">
+                      <span>🔒</span> Cannot change login mobile number
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    {/* Editable mobile with OTP verification */}
+                    {mobileStep === 'idle' ? (
+                      <div className="flex gap-2">
+                        <input type="tel" value={newPhone} onChange={e => setNewPhone(e.target.value)}
+                          placeholder="+91 98765 43210"
+                          className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none" />
+                        {newPhone !== phone && newPhone.trim().length >= 10 && (
+                          <button onClick={sendMobileOtp} disabled={otpLoading}
+                            className="px-3 py-3 bg-emerald-500 text-white rounded-xl text-[10px] font-bold whitespace-nowrap disabled:opacity-50 active:scale-95">
+                            {otpLoading ? '...' : 'Send OTP'}
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-[10px] text-emerald-600 font-bold">
+                          <span>✅</span> OTP sent to {newPhone}
+                          <button onClick={() => setMobileStep('idle')} className="ml-auto text-gray-400 underline">Change</button>
+                        </div>
+                        <div className="flex gap-2">
+                          <input type="number" value={otp} onChange={e => setOtp(e.target.value)}
+                            placeholder="Enter 6-digit OTP" maxLength={6}
+                            className="flex-1 px-4 py-3 border-2 border-emerald-300 rounded-xl text-sm focus:border-emerald-500 focus:outline-none text-center tracking-widest font-bold" />
+                          <button onClick={confirmMobileOtp} disabled={otpLoading}
+                            className="px-3 py-3 bg-emerald-500 text-white rounded-xl text-[10px] font-bold whitespace-nowrap disabled:opacity-50 active:scale-95">
+                            {otpLoading ? '...' : 'Verify'}
+                          </button>
+                        </div>
+                        <button onClick={sendMobileOtp} disabled={otpLoading}
+                          className="text-[10px] text-rose-500 font-bold w-full text-center active:scale-95">
+                          Resend OTP
+                        </button>
+                      </div>
+                    )}
+                    {!phone && mobileStep === 'idle' && (
+                      <p className="text-[10px] text-gray-400 mt-1">Add a mobile number to enable phone login</p>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <button onClick={saveProfile} disabled={saving}
+                className="w-full py-3.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-2xl font-bold text-sm disabled:opacity-50 active:scale-95 transition-transform">
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
             </>)}
           </div>
         </div>
       )}
 
+      {/* ─── Logout Modal ─────────────────────────────── */}
       {showLogout && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-6" onClick={() => setShowLogout(false)}>
           <div className="bg-white w-full max-w-[340px] rounded-3xl p-6 text-center" onClick={e => e.stopPropagation()}>
@@ -375,6 +589,7 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {/* ─── Admin Hint Modal ─────────────────────────── */}
       {showAdminHint && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-6" onClick={() => setShowAdminHint(false)}>
           <div className="bg-white w-full max-w-[340px] rounded-3xl p-6 text-center" onClick={e => e.stopPropagation()}>
