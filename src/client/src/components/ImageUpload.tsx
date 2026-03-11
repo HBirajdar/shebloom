@@ -1,98 +1,84 @@
 // @ts-nocheck
-import { useState, useRef } from 'react';
-import { adminAPI } from '../services/api';
+import { useRef, useState } from 'react';
 import toast from 'react-hot-toast';
+import { api } from '../services/api';
 
-interface ImageUploadProps {
+interface Props {
   value?: string;
   onChange: (url: string) => void;
   label?: string;
   className?: string;
 }
 
-export default function ImageUpload({ value, onChange, label, className }: ImageUploadProps) {
-  const [preview, setPreview] = useState<string | null>(null);
+export default function ImageUpload({ value, onChange, label = 'Photo', className }: Props) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
-  const displayUrl = preview || value || '';
-
-  const handleClick = () => {
-    inputRef.current?.click();
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Show local preview immediately
-    const localUrl = URL.createObjectURL(file);
-    setPreview(localUrl);
-
-    // Upload to server
+  const handleFile = async (file: File) => {
+    if (!file.type.match(/image\/(jpeg|png|webp)/)) {
+      toast.error('Only JPG, PNG, WebP images allowed');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be under 5MB');
+      return;
+    }
+    const fd = new FormData();
+    fd.append('file', file);
     setUploading(true);
+    setProgress(0);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await adminAPI.upload(formData);
-      const url = res.data.data.url;
-      onChange(url);
-      setPreview(null); // Clear local preview, use server URL
-      toast.success('Image uploaded!');
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Upload failed');
-      setPreview(null); // Revert to previous image
+      const res = await api.post('/upload/image', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (e) => setProgress(Math.round((e.loaded / (e.total || 1)) * 100)),
+      });
+      onChange(res.data.data.url);
+      toast.success('Photo uploaded!');
+    } catch {
+      toast.error('Upload failed. Try again');
     } finally {
       setUploading(false);
-      // Reset input so same file can be re-selected
-      if (inputRef.current) inputRef.current.value = '';
+      setProgress(0);
+      if (ref.current) ref.current.value = '';
     }
   };
 
   return (
     <div className={className}>
-      {label && (
-        <label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">{label}</label>
-      )}
-      <div
-        onClick={handleClick}
-        className="relative w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer overflow-hidden hover:border-rose-400 transition-colors bg-gray-50"
-      >
-        {displayUrl ? (
-          <img
-            src={displayUrl}
-            alt="Preview"
-            className="w-full h-full object-cover rounded-xl"
-          />
-        ) : (
-          <div className="flex flex-col items-center justify-center">
-            <span className="text-2xl">📷</span>
-            <span className="text-[8px] text-gray-400 font-bold mt-0.5">Upload</span>
-          </div>
-        )}
+      {label && <p style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</p>}
+      <input ref={ref} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }}
+        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
 
-        {uploading && (
-          <div className="absolute inset-0 bg-white/80 flex items-center justify-center rounded-xl">
-            <div className="animate-spin w-6 h-6 border-3 border-rose-400 border-t-transparent rounded-full" />
-          </div>
-        )}
-      </div>
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleFileChange}
-        className="hidden"
-      />
-
-      {displayUrl && !uploading && (
-        <button
-          onClick={(e) => { e.stopPropagation(); handleClick(); }}
-          className="mt-1.5 px-3 py-1 rounded-lg text-[9px] font-bold text-white active:scale-95 transition-transform"
-          style={{ background: 'linear-gradient(135deg, #F43F5E, #FB7185)' }}
-        >
-          Change Image
+      {value ? (
+        <div style={{ position: 'relative', display: 'inline-block' }}>
+          <img src={value} alt="upload" style={{ width: 100, height: 100, borderRadius: 12, objectFit: 'cover', border: '2px solid #e5e7eb' }} />
+          <button onClick={() => onChange('')}
+            style={{ position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: '50%', background: '#ef4444', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            ×
+          </button>
+          <button onClick={() => ref.current?.click()}
+            style={{ display: 'block', marginTop: 6, padding: '4px 12px', borderRadius: 8, fontSize: 9, fontWeight: 700, color: '#fff', background: 'linear-gradient(135deg, #F43F5E, #FB7185)', border: 'none', cursor: 'pointer' }}>
+            Change Image
+          </button>
+        </div>
+      ) : (
+        <button onClick={() => ref.current?.click()} disabled={uploading}
+          style={{ width: '100%', padding: '20px 16px', border: '2px dashed #d1d5db', borderRadius: 12, background: '#f9fafb', cursor: 'pointer', textAlign: 'center', color: '#9ca3af' }}>
+          {uploading ? (
+            <div>
+              <p style={{ marginBottom: 8, fontSize: 14 }}>Uploading... {progress}%</p>
+              <div style={{ height: 4, background: '#e5e7eb', borderRadius: 4 }}>
+                <div style={{ height: 4, background: '#f43f5e', borderRadius: 4, width: `${progress}%`, transition: 'width 0.3s' }} />
+              </div>
+            </div>
+          ) : (
+            <>
+              <p style={{ fontSize: 24, marginBottom: 4 }}>📷</p>
+              <p style={{ fontSize: 13, fontWeight: 600 }}>Tap to upload photo</p>
+              <p style={{ fontSize: 11, marginTop: 2 }}>JPG, PNG, WebP · Max 5MB</p>
+            </>
+          )}
         </button>
       )}
     </div>

@@ -198,7 +198,7 @@ export default function AyurvedaPage() {
                 {phaseProducts.map(p => (
                   <button key={p.id} onClick={() => setSelProduct(p)}
                     className="flex-shrink-0 w-36 bg-white rounded-2xl overflow-hidden shadow-sm text-left active:scale-[0.97] transition-transform">
-                    <div className="h-20 flex items-center justify-center text-3xl" style={{ backgroundColor: '#ECFDF5' }}>{p.emoji}</div>
+                    <div className="h-20 flex items-center justify-center text-3xl overflow-hidden" style={{ backgroundColor: '#ECFDF5' }}>{p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" /> : p.emoji}</div>
                     <div className="p-2.5">
                       <p className="text-[10px] font-extrabold text-gray-800 line-clamp-1">{p.name}</p>
                       <div className="flex items-center justify-between mt-1">
@@ -252,7 +252,7 @@ export default function AyurvedaPage() {
                     <button key={p.id} onClick={() => setSelProduct(p)}
                       className="w-48 bg-white rounded-2xl p-3 shadow-sm text-left active:scale-95 transition-transform flex-shrink-0">
                       <div className="relative">
-                        <div className="w-full h-24 rounded-xl flex items-center justify-center text-4xl" style={{ backgroundColor: '#ECFDF5' }}>{p.emoji}</div>
+                        <div className="w-full h-24 rounded-xl flex items-center justify-center text-4xl overflow-hidden" style={{ backgroundColor: '#ECFDF5' }}>{p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover rounded-xl" /> : p.emoji}</div>
                         <button onClick={e => { e.stopPropagation(); toggleWishlist(p.id); }}
                           className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center text-sm active:scale-90 shadow-sm">
                           {wishlist.has(p.id) ? '❤️' : '🤍'}
@@ -282,7 +282,7 @@ export default function AyurvedaPage() {
             visibleProducts.map(p => (
               <div key={p.id} className="bg-white rounded-2xl p-3 shadow-sm flex gap-3">
                 <button onClick={() => setSelProduct(p)} className="flex-1 flex gap-3 text-left active:opacity-90">
-                  <div className="w-20 h-20 rounded-xl flex items-center justify-center text-3xl flex-shrink-0" style={{ backgroundColor: '#ECFDF5' }}>{p.emoji}</div>
+                  <div className="w-20 h-20 rounded-xl flex items-center justify-center text-3xl flex-shrink-0 overflow-hidden" style={{ backgroundColor: '#ECFDF5' }}>{p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" /> : p.emoji}</div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start gap-1">
                       <p className="text-sm font-bold text-gray-800 line-clamp-1 flex-1">{p.name}</p>
@@ -398,7 +398,7 @@ export default function AyurvedaPage() {
           <div className="bg-white w-full max-w-[430px] rounded-t-3xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mt-3" />
             <div className="relative">
-              <div className="w-full h-44 flex items-center justify-center text-7xl" style={{ backgroundColor: '#ECFDF5' }}>{selProduct.emoji}</div>
+              <div className="w-full h-44 flex items-center justify-center text-7xl overflow-hidden" style={{ backgroundColor: '#ECFDF5' }}>{selProduct.imageUrl ? <img src={selProduct.imageUrl} alt={selProduct.name} className="w-full h-full object-cover" /> : selProduct.emoji}</div>
               <button onClick={() => toggleWishlist(selProduct.id)} className="absolute top-3 right-3 w-10 h-10 rounded-full bg-white shadow-md flex items-center justify-center text-xl active:scale-90 transition-transform">
                 {wishlist.has(selProduct.id) ? '❤️' : '🤍'}
               </button>

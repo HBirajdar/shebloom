@@ -97,6 +97,7 @@ export const articleAPI = {
 export const appointmentAPI = {
   create: (d: any) => api.post('/appointments', d),
   list: () => api.get('/appointments'),
+  get: (id: string) => api.get('/appointments/' + id),
   cancel: (id: string, reason?: string) => api.patch('/appointments/' + id + '/cancel', { reason }),
 };
 
@@ -136,6 +137,21 @@ export const pregnancyAPI = {
 
 export const reportsAPI = {
   summary: () => api.get('/reports/summary'),
+};
+
+export const uploadAPI = {
+  image: (fd: FormData) => api.post('/upload/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  video: (fd: FormData) => api.post('/upload/video', fd, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  multiple: (fd: FormData) => api.post('/upload/multiple', fd, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  delete: (publicId: string) => api.delete('/upload/' + encodeURIComponent(publicId)),
+};
+
+export const productAPI = {
+  list: (params?: any) => api.get('/products', { params }),
+  create: (d: any) => api.post('/products', d),
+  update: (id: string, d: any) => api.put('/products/' + id, d),
+  remove: (id: string) => api.delete('/products/' + id),
+  togglePublish: (id: string) => api.post('/products/' + id + '/toggle-publish'),
 };
 
 export const adminAPI = {

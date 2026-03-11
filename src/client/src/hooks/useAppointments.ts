@@ -17,10 +17,11 @@ export function useAppointments() {
     try {
       const res = await appointmentAPI.list();
       const apiData = (res.data.data || []).map((b: any) => ({
-        id: b.id, doctorId: b.doctorId, doctorName: b.doctor?.fullName || 'Doctor',
+        id: b.id, doctorId: b.doctorId, doctorName: b.doctor?.fullName || b.doctorName || 'Doctor',
         date: b.scheduledAt?.split('T')[0] || '', time: b.scheduledAt?.split('T')[1]?.substring(0, 5) || '',
         reason: b.notes?.split(' | ')[0] || '', notes: b.notes?.split(' | ')[1] || '',
         status: b.status === 'CANCELLED' ? 'cancelled' : 'upcoming', source: 'api',
+        videoLink: b.videoLink || b.meetingLink || '', meetingLink: b.meetingLink || b.videoLink || '',
       }));
       // Merge: API bookings + localStorage bookings (deduplicated)
       const apiIds = new Set(apiData.map((b: any) => b.id));
@@ -39,7 +40,8 @@ export function useAppointments() {
       const res = await appointmentAPI.create({ doctorId: data.doctorId, doctorName: data.doctorName, scheduledAt, reason: data.reason, notes: data.notes });
       toast.success('Appointment booked!');
       await fetchBookings();
-      return res.data.data;
+      const apptData = res.data.data;
+      return { ...apptData, videoLink: apptData.videoLink || apptData.meetingLink || '' };
     } catch {
       // API failed (doctor not in DB) — save to localStorage
       const booking = { id: 'local_' + Date.now(), ...data, status: 'upcoming', source: 'local' };

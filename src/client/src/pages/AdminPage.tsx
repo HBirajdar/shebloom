@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { adminAPI } from '../services/api';
 import ImageUpload from '../components/ImageUpload';
+import MultiImageUpload from '../components/MultiImageUpload';
 import toast from 'react-hot-toast';
 
 // ─── Local types ────────────────────────────────────
@@ -118,7 +119,7 @@ export default function AdminPage() {
   const [confirmDel, setConfirmDel] = useState<{ id: string; type: string } | null>(null);
 
   // Form states
-  const [np, setNp] = useState({ name: '', category: 'hair_oil' as ProductCategory, price: 0, discountPrice: 0, description: '', ingredients: '', benefits: '', howToUse: '', size: '', emoji: '\u{1F33F}', targetAudience: ['all'] as TargetAudience[], doctorNote: '', preparationMethod: '', imageUrl: '' });
+  const [np, setNp] = useState({ name: '', category: 'hair_oil' as ProductCategory, price: 0, discountPrice: 0, description: '', ingredients: '', benefits: '', howToUse: '', size: '', emoji: '\u{1F33F}', targetAudience: ['all'] as TargetAudience[], doctorNote: '', preparationMethod: '', imageUrl: '', galleryImages: [] as string[] });
   const [na, setNa] = useState({ title: '', content: '', category: '', readTime: '5 min', emoji: '\u{1F4DD}', targetAudience: ['all'] as TargetAudience[], imageUrl: '' });
   const [nd, setNd] = useState({ name: '', specialization: '', experience: 0, fee: 0, qualification: '', about: '', tags: '', languages: '', avatarUrl: '' });
   const [oldPin, setOldPin] = useState('');
@@ -273,10 +274,11 @@ export default function AdminPage() {
         preparationMethod: np.preparationMethod || undefined,
         doctorNote: np.doctorNote || undefined,
         imageUrl: np.imageUrl || undefined,
+        galleryImages: np.galleryImages || [],
       });
       setProducts(prev => [res.data.data, ...prev]);
       toast.success('Product added as draft!');
-      setNp({ name: '', category: 'hair_oil', price: 0, discountPrice: 0, description: '', ingredients: '', benefits: '', howToUse: '', size: '', emoji: '\u{1F33F}', targetAudience: ['all'], doctorNote: '', preparationMethod: '', imageUrl: '' });
+      setNp({ name: '', category: 'hair_oil', price: 0, discountPrice: 0, description: '', ingredients: '', benefits: '', howToUse: '', size: '', emoji: '\u{1F33F}', targetAudience: ['all'], doctorNote: '', preparationMethod: '', imageUrl: '', galleryImages: [] });
       setTab('products');
     } catch (e: any) { toast.error(e.response?.data?.error || 'Failed to add product'); }
   };
@@ -859,6 +861,7 @@ export default function AdminPage() {
           {tab === 'add_product' && (<>
             <div className="flex items-center gap-2 mb-1"><button onClick={() => setTab('products')} className="text-gray-400 text-sm">{'\u2190'}</button><h3 className="text-sm font-extrabold">New Product</h3></div>
             <ImageUpload label="Product Image" value={np.imageUrl} onChange={url => setNp({...np, imageUrl: url})} />
+            <MultiImageUpload label="Gallery Images" values={np.galleryImages} onChange={urls => setNp({...np, galleryImages: urls})} maxImages={5} />
             <FormField label="Name *" value={np.name} onChange={v => setNp({...np, name: v})} placeholder="Bhringraj Hair Oil" />
             <FormField label="Description *" value={np.description} onChange={v => setNp({...np, description: v})} placeholder="Product description..." multiline />
             <div className="grid grid-cols-2 gap-2"><FormNumField label="Price *" value={np.price} onChange={v => setNp({...np, price: v})} /><FormNumField label="Sale Price" value={np.discountPrice} onChange={v => setNp({...np, discountPrice: v})} /></div>

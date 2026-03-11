@@ -75,6 +75,7 @@ model User {
   passwordHash    String?
   fullName        String
   avatarUrl       String?
+  photoUrl        String?
   dateOfBirth     DateTime?
   role            Role         @default(USER)
   authProvider    AuthProvider  @default(EMAIL)
@@ -264,6 +265,9 @@ model Doctor {
   tags              String[]
   bio               String?
   avatarUrl         String?
+  photoUrl          String?
+  clinicPhotos      String[]      @default([])
+  introVideoUrl     String?
   isAvailable       Boolean       @default(true)
   isVerified        Boolean       @default(false)
   createdAt         DateTime      @default(now())
@@ -494,4 +498,36 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ─── PRODUCTS (Ayurveda Shop) ──────────────────────
+
+model Product {
+  id             String   @id @default(cuid())
+  name           String
+  category       String
+  price          Int
+  discountPrice  Int?
+  description    String
+  ingredients    String[]
+  benefits       String[]
+  howToUse       String
+  size           String
+  emoji          String   @default("🌿")
+  rating         Float    @default(5.0)
+  reviews        Int      @default(0)
+  inStock        Boolean  @default(true)
+  isPublished    Boolean  @default(false)
+  isFeatured     Boolean  @default(false)
+  targetAudience String[]
+  tags           String[]
+  imageUrl       String?
+  galleryImages  String[] @default([])
+  videoUrl       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([category])
+  @@index([isPublished])
+  @@map("products")
 }

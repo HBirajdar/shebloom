@@ -28,6 +28,7 @@ export default function AppointmentsPage() {
   const [selReason, setSelReason] = useState('');
   const [notes, setNotes] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [lastVideoLink, setLastVideoLink] = useState('');
 
   // Next 14 days
   const dates = Array.from({ length: 14 }, (_, i) => {
@@ -41,7 +42,7 @@ export default function AppointmentsPage() {
   const handleConfirmBooking = async () => {
     if (!selDoc || !selDate || !selTime || !selReason) { toast.error('Please fill all fields'); return; }
     const doc = pubDoctors.find(d => d.id === selDoc);
-    await createBooking({
+    const result = await createBooking({
       doctorId: selDoc,
       doctorName: doc?.name || 'Doctor',
       date: selDate,
@@ -49,6 +50,7 @@ export default function AppointmentsPage() {
       reason: selReason,
       notes,
     });
+    setLastVideoLink(result?.videoLink || result?.meetingLink || '');
     setShowSuccess(true);
     setStep(0); setSelDate(''); setSelTime(''); setSelReason(''); setNotes('');
   };
@@ -237,7 +239,12 @@ export default function AppointmentsPage() {
                   <span>{'\u{1F552}'} {b.time}</span>
                 </div>
                 {b.status === 'upcoming' && (
-                  <button onClick={() => cancelBooking(b.id)} className="mt-2 w-full py-2 rounded-xl bg-red-50 text-red-600 text-xs font-bold active:scale-95">Cancel Appointment</button>
+                  <div className="mt-2 space-y-1.5">
+                    {(b.videoLink || b.meetingLink) && (
+                      <button onClick={() => window.open(b.videoLink || b.meetingLink, '_blank')} className="w-full py-2 rounded-xl bg-blue-50 text-blue-600 text-xs font-bold active:scale-95">{'\uD83C\uDFA5'} Join Video Call</button>
+                    )}
+                    <button onClick={() => cancelBooking(b.id)} className="w-full py-2 rounded-xl bg-red-50 text-red-600 text-xs font-bold active:scale-95">Cancel Appointment</button>
+                  </div>
                 )}
               </div>
             ))
@@ -252,6 +259,22 @@ export default function AppointmentsPage() {
             <div className="w-16 h-16 mx-auto rounded-full bg-emerald-100 flex items-center justify-center text-3xl mb-3">{'\u2705'}</div>
             <h3 className="text-lg font-extrabold text-gray-900">Booked!</h3>
             <p className="text-xs text-gray-500 mt-1">Your appointment has been confirmed. You'll receive a reminder before the visit.</p>
+            {lastVideoLink && (
+              <div className="mt-3 bg-blue-50 rounded-xl p-3 border border-blue-100">
+                <p className="text-[10px] font-bold text-blue-700 uppercase mb-1">{'\uD83C\uDFA5'} Video Consultation Link</p>
+                <p className="text-[10px] text-blue-600 break-all mb-2">{lastVideoLink}</p>
+                <div className="flex gap-2">
+                  <button onClick={() => { navigator.clipboard.writeText(lastVideoLink); toast.success('Link copied!'); }}
+                    className="flex-1 py-2 rounded-xl bg-blue-100 text-blue-700 text-[10px] font-bold active:scale-95">
+                    {'\uD83D\uDCCB'} Copy Link
+                  </button>
+                  <button onClick={() => window.open(lastVideoLink, '_blank')}
+                    className="flex-1 py-2 rounded-xl bg-blue-600 text-white text-[10px] font-bold active:scale-95">
+                    {'\uD83C\uDFA5'} Join Call
+                  </button>
+                </div>
+              </div>
+            )}
             <button onClick={() => { setShowSuccess(false); setView('my'); }} className="w-full mt-4 py-3 rounded-2xl font-bold text-sm text-white active:scale-95 shadow-md shadow-rose-200 bg-gradient-to-r from-rose-500 to-pink-500">
               View My Bookings
             </button>

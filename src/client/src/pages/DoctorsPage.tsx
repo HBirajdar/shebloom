@@ -207,8 +207,8 @@ export default function DoctorsPage() {
               <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full" />
               <div className="absolute -right-4 -bottom-10 w-24 h-24 bg-white/5 rounded-full" />
               <div className="flex items-center gap-4 relative z-10">
-                <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center text-2xl text-white font-extrabold border-2 border-white/30 shadow-lg backdrop-blur-sm">
-                  {chief.name.charAt(0)}
+                <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center text-2xl text-white font-extrabold border-2 border-white/30 shadow-lg backdrop-blur-sm overflow-hidden">
+                  {(chief.photoUrl || chief.avatarUrl) ? <img src={chief.photoUrl || chief.avatarUrl} alt={chief.name} className="w-full h-full object-cover" /> : chief.name.charAt(0)}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -247,8 +247,8 @@ export default function DoctorsPage() {
                   <span className="text-[9px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200">{'\u2B50'} Featured</span>
                 </div>
                 <div className="flex gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm">
-                    {d.name.split(' ').map(w => w[0]).join('').slice(0, 2)}
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm overflow-hidden">
+                    {(d.photoUrl || d.avatarUrl) ? <img src={d.photoUrl || d.avatarUrl} alt={d.name} className="w-full h-full object-cover" /> : d.name.split(' ').map(w => w[0]).join('').slice(0, 2)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-gray-800 text-sm">{d.name}</p>
@@ -284,8 +284,8 @@ export default function DoctorsPage() {
         {filteredRegular.map(d => (
           <button key={d.id} onClick={() => setSel(d)} className="w-full bg-white rounded-3xl p-4 shadow-lg text-left active:scale-[0.98] transition-transform">
             <div className="flex gap-3">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm">
-                {d.name.split(' ').map(w => w[0]).join('').slice(0, 2)}
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm overflow-hidden">
+                {(d.photoUrl || d.avatarUrl) ? <img src={d.photoUrl || d.avatarUrl} alt={d.name} className="w-full h-full object-cover" /> : d.name.split(' ').map(w => w[0]).join('').slice(0, 2)}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-gray-800 text-sm">{d.name}</p>
@@ -331,8 +331,8 @@ export default function DoctorsPage() {
           <div className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4" />
             <div className="text-center mb-4">
-              <div className={'w-20 h-20 mx-auto rounded-2xl flex items-center justify-center text-white font-extrabold text-2xl mb-3 shadow-lg ' + (sel.isChief ? 'bg-gradient-to-br from-emerald-500 to-teal-600' : sel.isPromoted ? 'bg-gradient-to-br from-amber-400 to-orange-500' : 'bg-gradient-to-br from-rose-400 to-pink-500')}>
-                {sel.name.charAt(0)}
+              <div className={'w-20 h-20 mx-auto rounded-2xl flex items-center justify-center text-white font-extrabold text-2xl mb-3 shadow-lg overflow-hidden ' + (sel.isChief ? 'bg-gradient-to-br from-emerald-500 to-teal-600' : sel.isPromoted ? 'bg-gradient-to-br from-amber-400 to-orange-500' : 'bg-gradient-to-br from-rose-400 to-pink-500')}>
+                {(sel.photoUrl || sel.avatarUrl) ? <img src={sel.photoUrl || sel.avatarUrl} alt={sel.name} className="w-full h-full object-cover" /> : sel.name.charAt(0)}
               </div>
               {sel.isChief && <span className="text-[9px] font-bold bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full">{'\uD83D\uDC51'} Chief Doctor {'\u2022'} VedaClue</span>}
               {sel.isPromoted && !sel.isChief && <span className="text-[9px] font-bold bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full">{'\u2B50'} Featured Doctor</span>}

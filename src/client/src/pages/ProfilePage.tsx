@@ -6,6 +6,7 @@ import { useCycleStore } from '../stores/cycleStore';
 import { userAPI } from '../services/api';
 import BottomNav from '../components/BottomNav';
 import toast from 'react-hot-toast';
+import { api } from '../services/api';
 
 /* ═══════════════════════════════════════════════════════
    VEDACLUE PROFILE — Premium Edition
@@ -72,6 +73,9 @@ export default function ProfilePage() {
   const [dob, setDob] = useState('');
   const [saving, setSaving] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = (typeof window !== 'undefined') ? document.createElement('input') : null;
+  if (avatarInputRef) { avatarInputRef.type = 'file'; avatarInputRef.accept = 'image/jpeg,image/png,image/webp'; }
 
   const dosha = localStorage.getItem('sb_dosha') || '';
   const doshaInfo = DOSHA_INFO[dosha];
@@ -126,6 +130,27 @@ export default function ProfilePage() {
     setSaving(false);
   };
 
+  const handleAvatarUpload = async () => {
+    if (!avatarInputRef) return;
+    avatarInputRef.onchange = async (ev: any) => {
+      const file = ev.target?.files?.[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
+      setAvatarUploading(true);
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const uploadRes = await api.post('/upload/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        const photoUrl = uploadRes.data.data.url;
+        await userAPI.update({ photoUrl });
+        if (user) setUser({ ...user, avatarUrl: photoUrl, photoUrl });
+        toast.success('Avatar updated!');
+      } catch { toast.error('Upload failed'); }
+      setAvatarUploading(false);
+    };
+    avatarInputRef.click();
+  };
+
   const handleItem = (action: string) => {
     const routes: Record<string, string> = { reports: '/reports', cycle: '/tracker', ayurveda: '/ayurveda', doctors: '/doctors', community: '/community', programs: '/programs' };
     if (action === 'edit') openEdit();
@@ -148,8 +173,14 @@ export default function ProfilePage() {
           <button onClick={() => nav('/dashboard')} className="absolute left-4 top-4 text-white/70 text-2xl active:scale-90 transition-transform">‹</button>
           <div className="flex items-end gap-4 mb-3">
             <div className="relative">
-              <div className="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-3xl font-extrabold border-2 border-white/30">{initials}</div>
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-400 rounded-full border-2 border-white flex items-center justify-center"><span className="text-[8px]">✓</span></div>
+              <button onClick={handleAvatarUpload} disabled={avatarUploading} className="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-3xl font-extrabold border-2 border-white/30 overflow-hidden active:scale-95 transition-transform">
+                {avatarUploading ? (
+                  <div className="animate-spin w-6 h-6 border-2 border-white border-t-transparent rounded-full" />
+                ) : (user?.photoUrl || user?.avatarUrl) ? (
+                  <img src={user.photoUrl || user.avatarUrl} alt={dn} className="w-full h-full object-cover" />
+                ) : initials}
+              </button>
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-400 rounded-full border-2 border-white flex items-center justify-center"><span className="text-[8px]">📷</span></div>
             </div>
             <div className="pb-1">
               <h2 className="text-xl font-extrabold">{dn}</h2>
