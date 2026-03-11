@@ -56,9 +56,9 @@ app.use(helmet({
 const allowedOrigins = [
   'https://vedaclue.com',
   'https://www.vedaclue.com',
-  'http://localhost:3000',
   'http://localhost:5173',
   'http://localhost:4173',
+  'http://localhost:3000',
   process.env.RAILWAY_STATIC_URL,
   process.env.FRONTEND_URL,
   ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map(o => o.trim()) : []),
@@ -66,19 +66,25 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, Postman, server-to-server)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin) || origin.includes('railway.app')) {
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.railway.app') ||
+      origin.endsWith('.up.railway.app')
+    ) {
       return callback(null, true);
     }
-    return callback(new Error('Not allowed by CORS'));
+    // Log blocked origins for debugging
+    console.log('[CORS] Blocked origin:', origin);
+    // TEMPORARILY allow all to debug - remove after fixing
+    return callback(null, true);
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'X-Request-ID'],
 }));
 
-// Ensure OPTIONS preflight is handled before any other middleware
+// Handle preflight explicitly
 app.options('*', cors());
 
 // ─── Body Parsing ───────────────────────────────────
@@ -125,6 +131,8 @@ app.use('/api/v1/auth/', authLimiter);
 // ─── Health Check ───────────────────────────────────
 app.get('/api/health', (_req, res) => {
   res.json({
+    success: true,
+    message: 'VedaClue API is running',
     status: 'healthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),

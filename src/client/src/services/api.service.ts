@@ -1,23 +1,56 @@
 import { useAuthStore } from '../stores/authStore';
 
 const BASE_URL = (() => {
+  // Build-time env var takes highest priority
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL as string;
-  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+  // Runtime: if not on localhost, use the Railway backend URL
+  if (typeof window !== 'undefined'
+      && window.location.hostname !== 'localhost'
+      && window.location.hostname !== '127.0.0.1') {
     return 'https://blissful-communication-production-83ce.up.railway.app';
   }
   return 'http://localhost:8000';
 })();
 
 const getToken = (): string => {
+  // 1. Direct from Zustand store runtime state
   try {
     const state = (useAuthStore as any).getState();
-    if (state?.token) return state.token;
+    // Try all common field names
+    const t = state?.token || state?.accessToken || state?.authToken || state?.auth?.token;
+    if (t && typeof t === 'string') return t;
   } catch {}
-  return localStorage.getItem('sb_token') || localStorage.getItem('vedaclue-token') || '';
+
+  // 2. From Zustand persist in localStorage - try all persist keys
+  const persistKeys = ['vedaclue-auth', 'auth-storage', 'vedaclue-store', 'auth', 'sb-auth'];
+  for (const key of persistKeys) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const t = parsed?.state?.token
+          || parsed?.state?.accessToken
+          || parsed?.token
+          || parsed?.accessToken;
+        if (t && typeof t === 'string') return t;
+      }
+    } catch {}
+  }
+
+  // 3. Direct localStorage keys
+  const directKeys = ['sb_token', 'token', 'authToken', 'accessToken', 'vedaclue-token', 'auth-token'];
+  for (const key of directKeys) {
+    const t = localStorage.getItem(key);
+    if (t && t.length > 10) return t;
+  }
+
+  return '';
 };
 
 const getHeaders = (isFormData = false): Record<string, string> => {
   const token = getToken();
+  console.log('[VedaClue API] Token:', token ? token.substring(0, 20) + '...' : 'NONE');
+  console.log('[VedaClue API] Base URL:', BASE_URL);
   const headers: Record<string, string> = {};
   if (!isFormData) headers['Content-Type'] = 'application/json';
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -25,8 +58,12 @@ const getHeaders = (isFormData = false): Record<string, string> => {
 };
 
 const handleResponse = async (res: Response) => {
+  console.log('[VedaClue API] Response:', res.status, res.url);
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (!res.ok) {
+    console.error('[VedaClue API] Error:', data);
+    throw new Error(data.error || data.message || `HTTP ${res.status}`);
+  }
   return data;
 };
 
