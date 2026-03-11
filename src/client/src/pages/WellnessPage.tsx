@@ -7,7 +7,7 @@ import BottomNav from '../components/BottomNav';
 import toast from 'react-hot-toast';
 
 /* ═══════════════════════════════════════════════════════
-   SHEBLOOM WELLNESS HUB — Enterprise Grade
+   VEDACLUE WELLNESS HUB — Enterprise Grade
    ═══════════════════════════════════════════════════════ */
 
 // ─── Phase Content ────────────────────────────────────

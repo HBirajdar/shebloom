@@ -88,7 +88,7 @@ export default function OnboardingPage() {
         {step === 0 && (
           <div className="flex-1 flex flex-col items-center justify-center text-center px-8 pb-12">
             <div className="text-8xl mb-6 animate-pulse">🌸</div>
-            <h1 className="text-4xl font-extrabold text-white mb-3 leading-tight">Welcome to<br />SheBloom</h1>
+            <h1 className="text-4xl font-extrabold text-white mb-3 leading-tight">Welcome to<br />VedaClue</h1>
             <p className="text-white/80 text-sm leading-relaxed mb-2">Your complete women's wellness companion</p>
             <p className="text-white/60 text-xs mb-10">Period tracking · Ayurveda · Expert doctors</p>
             <button onClick={() => setStep(1)} className="w-full bg-white rounded-2xl py-4 font-extrabold text-base active:scale-95 transition-transform shadow-xl" style={{ color: '#E11D48' }}>

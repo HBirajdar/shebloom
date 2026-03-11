@@ -42,7 +42,7 @@ async function runMigrations() {
 async function bootstrap() {
   // 1. Start HTTP server immediately so Railway health checks pass
   const server = app.listen(PORT, () => {
-    logger.info(`SheBloom API running on port ${PORT}`);
+    logger.info(`VedaClue API running on port ${PORT}`);
     logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
     logger.info(`Health: http://0.0.0.0:${PORT}/api/health`);
   });

@@ -30,7 +30,7 @@ interface AdminDoctor {
 
 // ─── Admin PIN stored in localStorage ───────────────
 const ADMIN_PIN_KEY = 'sb_admin_pin';
-const DEFAULT_PIN = 'SheBloom@2024#Admin';
+const DEFAULT_PIN = 'VedaClue@2024#Admin';
 function getStoredPin() { return localStorage.getItem(ADMIN_PIN_KEY) || DEFAULT_PIN; }
 function setStoredPin(pin: string) { localStorage.setItem(ADMIN_PIN_KEY, pin); }
 
@@ -449,7 +449,7 @@ export default function AdminPage() {
       <div className="sticky top-0 z-20 bg-slate-800 text-white">
         <div className="px-5 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h1 className="text-sm font-extrabold">{'\u{1F6E1}\uFE0F'} SheBloom Admin</h1>
+            <h1 className="text-sm font-extrabold">{'\u{1F6E1}\uFE0F'} VedaClue Admin</h1>
           </div>
           <button onClick={handleLock} className="text-[10px] font-bold bg-white/10 px-3 py-1.5 rounded-full active:scale-95">
             {'\u{1F512}'} Lock & Exit
@@ -1019,12 +1019,12 @@ export default function AdminPage() {
             {/* Security notice */}
             <div className="bg-red-50 rounded-2xl p-4 border border-red-100">
               <h4 className="text-xs font-bold text-red-700">{'\u26A0\uFE0F'} Security Notice</h4>
-              <p className="text-[10px] text-red-600 mt-1">Default password: <strong>SheBloom@2024#Admin</strong></p>
+              <p className="text-[10px] text-red-600 mt-1">Default password: <strong>VedaClue@2024#Admin</strong></p>
               <p className="text-[10px] text-red-600">Change it immediately after first login.</p>
             </div>
             <div className="bg-slate-50 rounded-2xl p-4">
               <h4 className="text-xs font-bold text-slate-700">How to Access Admin</h4>
-              <p className="text-[10px] text-slate-600 mt-1">Go to Profile {'\u2192'} scroll to bottom {'\u2192'} tap "SheBloom v1.0.0" five times {'\u2192'} enter password.</p>
+              <p className="text-[10px] text-slate-600 mt-1">Go to Profile {'\u2192'} scroll to bottom {'\u2192'} tap "VedaClue v1.0.0" five times {'\u2192'} enter password.</p>
             </div>
           </>)}
 

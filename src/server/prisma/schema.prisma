@@ -1,5 +1,5 @@
 // ──────────────────────────────────────────────────────
-// SheBloom Database Schema (Prisma + PostgreSQL)
+// VedaClue Database Schema (Prisma + PostgreSQL)
 // ──────────────────────────────────────────────────────
 
 generator client {

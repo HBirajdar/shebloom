@@ -95,7 +95,7 @@ const articleData: Record<string, { title: string; cat: string; by: string; init
       '## Coping Strategies',
       'Regular exercise, consistent sleep, stress management, and social support significantly reduce PMS mood changes.',
       '## Tracking Your Patterns',
-      'Using SheBloom to track mood alongside your cycle can reveal patterns and help you prepare.',
+      'Using VedaClue to track mood alongside your cycle can reveal patterns and help you prepare.',
     ],
   },
 };

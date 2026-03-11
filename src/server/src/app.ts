@@ -137,7 +137,7 @@ app.get('/api/ready', async (_req, res) => {
 // ─── API Documentation ──────────────────────────────
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'SheBloom API Documentation',
+  customSiteTitle: 'VedaClue API Documentation',
 }));
 
 // ─── API Routes (v1) ────────────────────────────────

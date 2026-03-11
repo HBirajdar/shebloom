@@ -36,7 +36,7 @@ const LoadingScreen = () => (
   <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-rose-50 to-pink-50">
     <div className="text-center">
       <div className="w-16 h-16 mx-auto mb-4 border-4 border-rose-200 border-t-rose-500 rounded-full animate-spin" />
-      <p className="text-rose-400 font-medium">Loading SheBloom...</p>
+      <p className="text-rose-400 font-medium">Loading VedaClue...</p>
     </div>
   </div>
 );

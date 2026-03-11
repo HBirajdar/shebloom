@@ -9,7 +9,7 @@ import BottomNav from '../components/BottomNav';
 import toast from 'react-hot-toast';
 
 /* ═══════════════════════════════════════════════════════
-   SHEBLOOM DASHBOARD — Enterprise Grade
+   VEDACLUE DASHBOARD — Enterprise Grade
    ═══════════════════════════════════════════════════════ */
 
 const moods = [
@@ -239,7 +239,7 @@ export default function DashboardPage() {
     <div className="bg-white rounded-3xl shadow-lg overflow-hidden">
       <div className="p-6 text-center">
         <span className="text-5xl">🌸</span>
-        <h2 className="text-lg font-extrabold text-gray-900 mt-3">Welcome to SheBloom!</h2>
+        <h2 className="text-lg font-extrabold text-gray-900 mt-3">Welcome to VedaClue!</h2>
         <p className="text-xs text-gray-500 mt-2 leading-relaxed">Log your first period to unlock personalized predictions, phase insights, and fertility tracking.</p>
         <div className="mt-4 bg-rose-50 rounded-2xl p-4 text-left">
           <p className="text-[11px] text-rose-700 font-bold mb-2">After logging your first period you'll see:</p>
@@ -628,7 +628,7 @@ export default function DashboardPage() {
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end justify-center" onClick={() => setShowGoalPicker(false)}>
           <div className="bg-white w-full max-w-[430px] rounded-t-3xl p-6" onClick={e => e.stopPropagation()}>
             <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4" />
-            <h3 className="text-lg font-extrabold text-gray-900 mb-1">I'm using SheBloom to...</h3>
+            <h3 className="text-lg font-extrabold text-gray-900 mb-1">I'm using VedaClue to...</h3>
             <p className="text-xs text-gray-400 mb-4">This changes what you see on your dashboard</p>
             <div className="grid grid-cols-2 gap-3">
               {(Object.entries(goalLabels) as [UserGoal, typeof goalLabels[UserGoal]][]).map(([key, val]) => (

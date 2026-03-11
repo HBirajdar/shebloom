@@ -1,5 +1,5 @@
 {
-  "name": "@shebloom/server",
+  "name": "@vedaclue/server",
   "version": "1.0.0",
   "private": true,
   "main": "dist/server.js",

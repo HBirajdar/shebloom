@@ -9,7 +9,7 @@ import BottomNav from '../components/BottomNav';
 import toast from 'react-hot-toast';
 
 /* ═══════════════════════════════════════════════════════
-   SHEBLOOM AYURVEDA SHOP — Enterprise Grade
+   VEDACLUE AYURVEDA SHOP — Enterprise Grade
    ═══════════════════════════════════════════════════════ */
 
 const catLabels: Record<ProductCategory | 'all', { emoji: string; label: string }> = {
@@ -174,7 +174,7 @@ export default function AyurvedaPage() {
           <div className="rounded-2xl p-5 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg,#065F46,#059669,#10B981)' }}>
             <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full" />
             <div className="absolute -right-3 top-3 w-20 h-20 bg-white/5 rounded-full" />
-            <p className="text-white/60 text-[9px] uppercase tracking-widest font-bold">SheBloom Ayurveda</p>
+            <p className="text-white/60 text-[9px] uppercase tracking-widest font-bold">VedaClue Ayurveda</p>
             <h2 className="text-xl font-extrabold mt-1">Handmade with Love 💚</h2>
             <p className="text-xs text-white/80 mt-1 max-w-[220px]">Freshly prepared by {chief?.name || 'our doctor'} using pure organic herbs. No chemicals.</p>
             <div className="flex gap-2 mt-3">

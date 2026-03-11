@@ -4,15 +4,15 @@ const options: swaggerJsdoc.Options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'SheBloom API',
+      title: 'VedaClue API',
       version: '1.0.0',
       description: "Women's Health & Wellness Platform REST API",
-      contact: { name: 'SheBloom Team', email: 'api@shebloom.in', url: 'https://shebloom.in' },
+      contact: { name: 'VedaClue Team', email: 'api@vedaclue.com', url: 'https://vedaclue.com' },
       license: { name: 'MIT', url: 'https://opensource.org/licenses/MIT' },
     },
     servers: [
       { url: '/api/v1', description: 'API v1' },
-      { url: 'https://api.shebloom.in/api/v1', description: 'Production' },
+      { url: 'https://api.vedaclue.com/api/v1', description: 'Production' },
     ],
     components: {
       securitySchemes: {

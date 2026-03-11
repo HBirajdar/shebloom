@@ -139,7 +139,7 @@ export default function AuthPage() {
         <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-rose-500 to-pink-400 flex items-center justify-center shadow-lg shadow-rose-200 mb-4">
           <span className="text-4xl">🌸</span>
         </div>
-        <h1 className="text-2xl font-extrabold text-gray-900">SheBloom</h1>
+        <h1 className="text-2xl font-extrabold text-gray-900">VedaClue</h1>
         <p className="text-gray-400 text-sm mt-1">Your personal wellness companion</p>
       </div>
 

@@ -209,7 +209,7 @@ export const useAyurvedaStore = create<StoreState>()(
   persist(
     (set, get) => ({
       _version: STORE_VERSION,
-      adminPin: 'SheBloom@2024#Admin', isAdminUnlocked: false,
+      adminPin: 'VedaClue@2024#Admin', isAdminUnlocked: false,
       unlockAdmin: (pin) => { if (pin === get().adminPin) { set({ isAdminUnlocked: true }); return true; } return false; },
       lockAdmin: () => set({ isAdminUnlocked: false }),
       changePin: (o, n) => { if (o === get().adminPin && n.length >= 8) { set({ adminPin: n }); return true; } return false; },
@@ -234,7 +234,7 @@ export const useAyurvedaStore = create<StoreState>()(
       getChiefDoctor: () => get().doctors.find(d => d.isChief) || CHIEF_DOCTOR,
     }),
     {
-      name: 'shebloom-ayurveda',
+      name: 'vedaclue-ayurveda',
       version: STORE_VERSION,
       migrate: (persisted: any, version: number) => {
         if (version < STORE_VERSION) {

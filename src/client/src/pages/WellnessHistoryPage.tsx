@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { wellnessAPI } from '../services/api';
 
 /* ═══════════════════════════════════════════════════════
-   SHEBLOOM WELLNESS HISTORY — Daily / Weekly / Monthly
+   VEDACLUE WELLNESS HISTORY — Daily / Weekly / Monthly
    ═══════════════════════════════════════════════════════ */
 
 interface DayRecord {

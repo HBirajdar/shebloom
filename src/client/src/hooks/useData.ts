@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * SheBloom Data Hooks — Connects React to FastAPI backend
+ * VedaClue Data Hooks — Connects React to FastAPI backend
  * 
  * This is the SINGLE SOURCE OF TRUTH layer.
  * Every page reads/writes data through these hooks.

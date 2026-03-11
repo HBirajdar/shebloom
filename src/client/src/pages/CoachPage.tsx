@@ -83,7 +83,7 @@ export default function CoachPage() {
     const welcome: Message = {
       id: 'welcome',
       role: 'ai',
-      text: `Hi ${user?.fullName?.split(' ')[0] || 'there'}! I'm your SheBloom AI Wellness Coach 🌸\n\nI can see you're on Day ${cycleDay} of your cycle in the ${phase} phase — so I can give you truly personalized advice!\n\nAsk me anything about your cycle, nutrition, exercise, or wellness. 💜\n\n🩺 Note: I provide wellness guidance only. Always consult a doctor for medical concerns.`,
+      text: `Hi ${user?.fullName?.split(' ')[0] || 'there'}! I'm your VedaClue AI Wellness Coach 🌸\n\nI can see you're on Day ${cycleDay} of your cycle in the ${phase} phase — so I can give you truly personalized advice!\n\nAsk me anything about your cycle, nutrition, exercise, or wellness. 💜\n\n🩺 Note: I provide wellness guidance only. Always consult a doctor for medical concerns.`,
       timestamp: new Date(),
     };
     setMessages([welcome]);
@@ -122,7 +122,7 @@ export default function CoachPage() {
           <div className="w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-sm" style={{ background: 'linear-gradient(135deg, #7C3AED, #EC4899)' }}>🤖</div>
           <div>
             <h1 className="text-sm font-extrabold text-gray-900">AI Wellness Coach</h1>
-            <p className="text-[9px] text-emerald-500 font-bold">● Online · Powered by SheBloom AI</p>
+            <p className="text-[9px] text-emerald-500 font-bold">● Online · Powered by VedaClue AI</p>
           </div>
         </div>
 

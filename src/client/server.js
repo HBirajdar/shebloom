@@ -12,7 +12,7 @@ const port = process.env.PORT || 3000;
 // API calls to the same origin (BASE = '').  This proxy forwards /api requests
 // to the backend service so they don't 404 on the client server.
 //
-// Set BACKEND_URL in Railway (e.g. https://shebloom-server-production.up.railway.app)
+// Set BACKEND_URL in Railway (e.g. https://vedaclue-server-production.up.railway.app)
 // or use Railway private networking (http://<service>.railway.internal:<port>).
 let BACKEND_URL = process.env.BACKEND_URL || process.env.VITE_API_URL || '';
 // Auto-add https:// if user forgot the protocol
@@ -90,4 +90,4 @@ app.get('*', (req, res) => {
   res.sendFile(join(__dirname, 'dist', 'index.html'));
 });
 
-app.listen(port, '0.0.0.0', () => console.log(`SheBloom client v2.3 on port ${port}`));
+app.listen(port, '0.0.0.0', () => console.log(`VedaClue client v2.3 on port ${port}`));

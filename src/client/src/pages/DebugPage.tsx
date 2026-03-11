@@ -18,7 +18,7 @@ export default function DebugPage() {
     setResults([]);
     const L = (msg: string) => setResults(prev => [...prev, msg]);
 
-    L('═══ SheBloom Debug v2.2 ═══');
+    L('═══ VedaClue Debug v2.2 ═══');
     L('Time: ' + new Date().toLocaleString());
     L('Token: ' + (token ? token.substring(0, 20) + '...' : '❌ NONE'));
     L('Auth store user: ' + JSON.stringify(user));
@@ -147,7 +147,7 @@ export default function DebugPage() {
 
   return (
     <div style={{ padding: 20, fontFamily: 'monospace', fontSize: 11, background: '#0a0a1a', color: '#00ff88', minHeight: '100vh' }}>
-      <h1 style={{ color: '#fff', fontSize: 18, marginBottom: 4 }}>SheBloom Debug Console v2.2</h1>
+      <h1 style={{ color: '#fff', fontSize: 18, marginBottom: 4 }}>VedaClue Debug Console v2.2</h1>
       <p style={{ color: '#666', marginBottom: 16 }}>Tests actual backend API endpoints</p>
       <button onClick={runTests} disabled={running}
         style={{ padding: '12px 32px', background: running ? '#333' : '#00ff88', color: '#000', border: 'none', borderRadius: 8, fontWeight: 'bold', cursor: running ? 'wait' : 'pointer', marginBottom: 16, fontSize: 14 }}>

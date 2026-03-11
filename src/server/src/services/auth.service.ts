@@ -87,7 +87,7 @@ export class AuthService {
     if (twilioReady) {
       try {
         const twilio = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-        await twilio.messages.create({ body: `Your SheBloom OTP: ${otp}. Valid for 5 minutes.`, from: process.env.TWILIO_PHONE_NUMBER, to: `+91${normalized}` });
+        await twilio.messages.create({ body: `Your VedaClue OTP: ${otp}. Valid for 5 minutes.`, from: process.env.TWILIO_PHONE_NUMBER, to: `+91${normalized}` });
         logger.info(`OTP sent via Twilio to +91${normalized}`);
         return { smsSent: true };
       } catch (err: any) {

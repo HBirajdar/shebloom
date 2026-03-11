@@ -8,7 +8,7 @@ import BottomNav from '../components/BottomNav';
 import toast from 'react-hot-toast';
 
 /* ═══════════════════════════════════════════════════════
-   SHEBLOOM PROFILE — Premium Edition
+   VEDACLUE PROFILE — Premium Edition
    ═══════════════════════════════════════════════════════ */
 
 const DOSHA_INFO: Record<string, { emoji: string; color: string; bg: string; desc: string; tips: string[] }> = {
@@ -33,7 +33,7 @@ const ACHIEVEMENTS_DEF = [
   { id: 'first_period', emoji: '🌸', title: 'First Period Logged', desc: 'Logged your very first period', key: 'sb_first_period' },
   { id: 'streak_7', emoji: '🔥', title: '7-Day Streak', desc: 'Completed daily routine 7 days', key: 'sb_streak', threshold: 7 },
   { id: 'cycles_3', emoji: '📊', title: '3 Cycles Tracked', desc: 'Tracked 3 full cycles', key: 'sb_cycles_count', threshold: 3 },
-  { id: 'community', emoji: '💬', title: 'Community Member', desc: 'Joined the SheBloom community', key: 'sb_community_joined' },
+  { id: 'community', emoji: '💬', title: 'Community Member', desc: 'Joined the VedaClue community', key: 'sb_community_joined' },
   { id: 'water', emoji: '💧', title: 'Hydration Hero', desc: 'Hit 8 glasses in a day', key: 'sb_water_goal' },
 ];
 
@@ -48,7 +48,7 @@ const sections = [
   ]},
   { title: 'Support', items: [
     { i: '❓', l: 'Help Center', action: 'help' },
-    { i: '⭐', l: 'Rate SheBloom', action: 'rate' },
+    { i: '⭐', l: 'Rate VedaClue', action: 'rate' },
     { i: '🤝', l: 'Share App', action: 'share' },
   ]},
 ];
@@ -130,7 +130,7 @@ export default function ProfilePage() {
     const routes: Record<string, string> = { reports: '/reports', cycle: '/tracker', ayurveda: '/ayurveda', doctors: '/doctors', community: '/community', programs: '/programs' };
     if (action === 'edit') openEdit();
     else if (routes[action]) nav(routes[action]);
-    else if (action === 'share' && navigator.share) navigator.share({ title: 'SheBloom', text: 'Your women\'s wellness companion', url: window.location.origin });
+    else if (action === 'share' && navigator.share) navigator.share({ title: 'VedaClue', text: 'Your women\'s wellness companion', url: window.location.origin });
     else toast('Coming soon!');
   };
 
@@ -252,7 +252,7 @@ export default function ProfilePage() {
 
           <button onClick={() => setShowLogout(true)} className="w-full py-4 bg-white border-2 border-rose-200 text-rose-600 rounded-2xl font-bold text-sm active:scale-95 transition-transform">Sign Out</button>
           <div className="text-center py-4">
-            <button onClick={() => { const n = secretTaps + 1; setSecretTaps(n); if (n >= 5) { setShowAdminHint(true); setSecretTaps(0); }}} className="text-[10px] text-gray-300 select-none">SheBloom v2.1</button>
+            <button onClick={() => { const n = secretTaps + 1; setSecretTaps(n); if (n >= 5) { setShowAdminHint(true); setSecretTaps(0); }}} className="text-[10px] text-gray-300 select-none">VedaClue v2.1</button>
           </div>
         </>)}
 

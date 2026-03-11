@@ -334,7 +334,7 @@ export default function DoctorsPage() {
               <div className={'w-20 h-20 mx-auto rounded-2xl flex items-center justify-center text-white font-extrabold text-2xl mb-3 shadow-lg ' + (sel.isChief ? 'bg-gradient-to-br from-emerald-500 to-teal-600' : sel.isPromoted ? 'bg-gradient-to-br from-amber-400 to-orange-500' : 'bg-gradient-to-br from-rose-400 to-pink-500')}>
                 {sel.name.charAt(0)}
               </div>
-              {sel.isChief && <span className="text-[9px] font-bold bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full">{'\uD83D\uDC51'} Chief Doctor {'\u2022'} SheBloom</span>}
+              {sel.isChief && <span className="text-[9px] font-bold bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full">{'\uD83D\uDC51'} Chief Doctor {'\u2022'} VedaClue</span>}
               {sel.isPromoted && !sel.isChief && <span className="text-[9px] font-bold bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full">{'\u2B50'} Featured Doctor</span>}
               <h3 className="font-extrabold text-xl mt-2">{sel.name}</h3>
               <p className="text-sm text-gray-500">{sel.specialization}</p>

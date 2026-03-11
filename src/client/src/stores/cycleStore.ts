@@ -35,7 +35,7 @@ export const useCycleStore = create<CycleState>()(
       setGoal: (goal) => set({ goal }),
     }),
     {
-      name: 'shebloom-cycle',
+      name: 'vedaclue-cycle',
       partialize: (state) => ({
         cycleDay: state.cycleDay,
         phase: state.phase,

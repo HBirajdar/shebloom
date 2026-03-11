@@ -20,7 +20,7 @@ const prodFormat = combine(
 export const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
   format: process.env.NODE_ENV === 'production' ? prodFormat : devFormat,
-  defaultMeta: { service: 'shebloom-api', version: process.env.APP_VERSION || '1.0.0' },
+  defaultMeta: { service: 'vedaclue-api', version: process.env.APP_VERSION || '1.0.0' },
   transports: [
     new winston.transports.Console(),
     ...(process.env.NODE_ENV === 'production'
