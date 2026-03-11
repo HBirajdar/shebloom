@@ -166,6 +166,14 @@ export const productAPI = {
   togglePublish: (id: string) => api.post('/products/' + id + '/toggle-publish'),
 };
 
+export const paymentAPI = {
+  createOrder: (d: any) => api.post('/payments/create-order', d),
+  verifyPayment: (d: any) => api.post('/payments/verify', d),
+  codOrder: (d: any) => api.post('/payments/cod', d),
+  myOrders: () => api.get('/payments/orders'),
+  getOrder: (id: string) => api.get('/payments/orders/' + id),
+};
+
 export const adminAPI = {
   dashboard: () => api.get('/admin/dashboard'),
   stats: () => api.get('/admin/stats'),
@@ -213,4 +221,7 @@ export const adminAPI = {
   doctorAnalytics: () => api.get('/admin/analytics/doctors'),
   // Prescriptions
   getPrescriptions: () => api.get('/admin/prescriptions'),
+  // Orders
+  adminOrders: (params?: any) => api.get('/admin/orders', { params }),
+  adminUpdateOrderStatus: (id: string, status: string) => api.patch(`/admin/orders/${id}/status`, { status }),
 };

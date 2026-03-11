@@ -19,6 +19,8 @@ const apiService = {
   getAdminProductAnalytics:  ()              => wrap(adminAPI.productAnalytics()),
   getAdminDoctorAnalytics:   ()              => wrap(adminAPI.doctorAnalytics()),
   getAdminPrescriptions:     ()              => wrap(adminAPI.getPrescriptions()),
+  adminGetOrders:            (p?: any)       => wrap(adminAPI.adminOrders(p)),
+  adminUpdateOrderStatus:    (id: string, status: string) => wrap(adminAPI.adminUpdateOrderStatus(id, status)),
   adminCreateProduct:        (d: any)        => wrap(adminAPI.createProduct(d)),
   adminUpdateProduct:        (id: string, d: any) => wrap(adminAPI.updateProduct(id, d)),
   adminToggleProductPublish: (id: string)    => wrap(adminAPI.toggleProductPublish(id)),
@@ -124,7 +126,7 @@ const FormCheckbox = ({ label, checked, onChange }: { label: string; checked: bo
 
 type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'NO_SHOW' | 'CANCELLED';
 
-type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions';
+type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders';
 
 export default function AdminPage() {
   const nav = useNavigate();
@@ -211,6 +213,11 @@ export default function AdminPage() {
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
   const [prescriptionsLoading, setPrescriptionsLoading] = useState(false);
   const [expandedPrescription, setExpandedPrescription] = useState<string | null>(null);
+
+  // Orders state
+  const [orders, setOrders] = useState<any[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersTotal, setOrdersTotal] = useState(0);
 
   // Loading states for actions
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -335,12 +342,31 @@ export default function AdminPage() {
     finally { setPrescriptionsLoading(false); }
   };
 
+  const fetchOrders = async (page = 1) => {
+    setOrdersLoading(true);
+    try {
+      const res = await apiService.adminGetOrders({ page, limit: 20 });
+      setOrders(res.data?.orders || []);
+      setOrdersTotal(res.data?.total || 0);
+    } catch (e: any) { toast.error('Failed to load orders'); }
+    finally { setOrdersLoading(false); }
+  };
+
+  const handleUpdateOrderStatus = async (id: string, status: string) => {
+    try {
+      await apiService.adminUpdateOrderStatus(id, status);
+      toast.success('Order status updated');
+      fetchOrders();
+    } catch (e: any) { toast.error('Failed to update order status'); }
+  };
+
   // Load data when tab changes
   useEffect(() => {
     if (!isUnlocked) return;
     if (tab === 'users') fetchUsers(1, usersSearch, usersRoleFilter);
     if (tab === 'appointments') fetchAppointments(1, apptsStatusFilter);
     if (tab === 'analytics' || tab === 'overview') fetchAnalytics();
+    if (tab === 'orders') fetchOrders();
     if (tab === 'callbacks') fetchCallbacks();
     if (tab === 'analytics_products') fetchProductAnalytics();
     if (tab === 'analytics_doctors') fetchDoctorAnalytics();
@@ -736,6 +762,7 @@ export default function AdminPage() {
     { id: 'callbacks', icon: '\u{1F4DE}', label: 'Callbacks' },
     { id: 'analytics_products', icon: '\u{1F4CA}', label: 'Prod Stats' },
     { id: 'analytics_doctors', icon: '\u{1FA7A}', label: 'Doc Stats' },
+    { id: 'orders', icon: '\u{1F6D2}', label: 'Orders' },
     { id: 'prescriptions', icon: '\u{1F48A}', label: 'Rx' },
   ];
 
@@ -1408,6 +1435,62 @@ export default function AdminPage() {
           </>)}
 
           {/* ════════ PRESCRIPTIONS ════════ */}
+          {/* ════════ ORDERS ════════ */}
+          {tab === 'orders' && (<>
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-extrabold">{'\u{1F6D2}'} Orders ({ordersTotal})</h3>
+              <button onClick={() => fetchOrders()} className="text-[9px] font-bold bg-gray-100 text-gray-600 px-2 py-1 rounded-full active:scale-95">Refresh</button>
+            </div>
+            {ordersLoading ? (
+              <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-3 border-slate-400 border-t-transparent rounded-full" /></div>
+            ) : orders.length === 0 ? (
+              <div className="text-center py-10"><span className="text-4xl">{'\u{1F4E6}'}</span><p className="text-sm text-gray-400 mt-2">No orders yet</p></div>
+            ) : (<>
+              {orders.map((order: any) => (
+                <div key={order.id} className="bg-white rounded-2xl p-3 shadow-sm space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-gray-800">{order.orderNumber}</p>
+                      <p className="text-[9px] text-gray-500">{order.user?.fullName || 'Unknown'} &middot; {order.user?.email || order.user?.phone || ''}</p>
+                      <p className="text-[8px] text-gray-400">{new Date(order.createdAt).toLocaleString()}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-extrabold text-gray-900">{'\u20B9'}{order.totalAmount}</p>
+                      <span className={`text-[7px] font-bold px-1.5 py-0.5 rounded-full ${
+                        order.paymentStatus === 'PAID' ? 'bg-emerald-100 text-emerald-700' :
+                        order.paymentStatus === 'PENDING_COD' ? 'bg-amber-100 text-amber-700' :
+                        'bg-yellow-100 text-yellow-700'
+                      }`}>{order.paymentMethod === 'COD' ? 'COD' : order.paymentStatus}</span>
+                    </div>
+                  </div>
+                  <div className="text-[9px] text-gray-500">
+                    {order.items?.map((item: any) => (
+                      <span key={item.id} className="inline-block mr-2">{item.productName} x{item.quantity}</span>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2 pt-1 border-t border-gray-50">
+                    <span className="text-[9px] font-bold text-gray-500">Status:</span>
+                    <select value={order.orderStatus}
+                      onChange={e => handleUpdateOrderStatus(order.id, e.target.value)}
+                      className="text-[9px] font-bold border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:border-emerald-400">
+                      {['PENDING','CONFIRMED','PROCESSING','SHIPPED','DELIVERED','CANCELLED'].map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                    <span className={`ml-auto text-[7px] font-bold px-1.5 py-0.5 rounded-full ${
+                      order.orderStatus === 'DELIVERED' ? 'bg-emerald-100 text-emerald-700' :
+                      order.orderStatus === 'CANCELLED' ? 'bg-red-100 text-red-700' :
+                      order.orderStatus === 'SHIPPED' ? 'bg-purple-100 text-purple-700' :
+                      order.orderStatus === 'CONFIRMED' ? 'bg-blue-100 text-blue-700' :
+                      order.orderStatus === 'PROCESSING' ? 'bg-orange-100 text-orange-700' :
+                      'bg-yellow-100 text-yellow-700'
+                    }`}>{order.orderStatus}</span>
+                  </div>
+                </div>
+              ))}
+            </>)}
+          </>)}
+
           {tab === 'prescriptions' && (<>
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-extrabold">{'\u{1F48A}'} Prescriptions</h3>

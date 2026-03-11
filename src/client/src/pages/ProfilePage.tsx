@@ -43,6 +43,7 @@ const sections = [
     { i: '📊', l: 'My Health Reports', action: 'reports' },
     { i: '📅', l: 'Cycle Settings', action: 'cycle' },
     { i: '🌿', l: 'Ayurveda Shop', action: 'ayurveda' },
+    { i: '\u{1F4E6}', l: 'My Orders', action: 'my-orders' },
     { i: '👩‍⚕️', l: 'My Doctors', action: 'doctors' },
     { i: '💬', l: 'Community', action: 'community' },
     { i: '🎯', l: 'Wellness Programs', action: 'programs' },
@@ -238,7 +239,7 @@ export default function ProfilePage() {
   };
 
   const handleItem = (action: string) => {
-    const routes: Record<string, string> = { reports: '/reports', cycle: '/tracker', ayurveda: '/ayurveda', doctors: '/doctors', community: '/community', programs: '/programs' };
+    const routes: Record<string, string> = { reports: '/reports', cycle: '/tracker', ayurveda: '/ayurveda', doctors: '/doctors', community: '/community', programs: '/programs', 'my-orders': '/my-orders' };
     if (action === 'edit') openEdit();
     else if (routes[action]) nav(routes[action]);
     else if (action === 'share' && navigator.share) navigator.share({ title: 'VedaClue', text: 'Your women\'s wellness companion', url: window.location.origin });

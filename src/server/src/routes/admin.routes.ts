@@ -803,4 +803,43 @@ r.post('/test-email', async (req: Request, res: Response, next: NextFunction) =>
   } catch (e) { next(e); }
 });
 
+// ─── Orders (Admin) ─────────────────────────────────
+
+// GET /api/v1/admin/orders
+r.get('/orders', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { status, paymentStatus, page = '1', limit = '20' } = req.query as any;
+    const where: any = {};
+    if (status) where.orderStatus = status;
+    if (paymentStatus) where.paymentStatus = paymentStatus;
+
+    const [orders, total] = await Promise.all([
+      prisma.order.findMany({
+        where,
+        include: { items: true, user: { select: { id: true, fullName: true, email: true, phone: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: Number(limit),
+        skip: (Number(page) - 1) * Number(limit),
+      }),
+      prisma.order.count({ where }),
+    ]);
+    successResponse(res, { orders, total, page: Number(page) });
+  } catch (e) { next(e); }
+});
+
+// PATCH /api/v1/admin/orders/:id/status
+r.patch('/orders/:id/status', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const order = await prisma.order.update({
+      where: { id: req.params.id },
+      data: { orderStatus: req.body.status },
+      include: { user: { select: { email: true, fullName: true } } },
+    });
+    successResponse(res, order);
+  } catch (e: any) {
+    if (e.code === 'P2025') { errorResponse(res, 'Order not found', 404); return; }
+    next(e);
+  }
+});
+
 export default r;

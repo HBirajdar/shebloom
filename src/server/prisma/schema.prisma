@@ -103,6 +103,7 @@ model User {
   notifications    Notification[]
   refreshTokens    RefreshToken[]
   prescriptions    Prescription[]
+  orders           Order[]
 
   @@index([email])
   @@index([phone])
@@ -555,6 +556,8 @@ model Product {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
+  orderItems     OrderItem[]
+
   @@index([category])
   @@index([isPublished])
   @@map("products")
@@ -605,4 +608,47 @@ model Prescription {
   @@index([userId])
   @@index([doctorId])
   @@map("prescriptions")
+}
+
+// ─── ORDERS (Razorpay + COD) ────────────────────────
+
+model Order {
+  id                String      @id @default(cuid())
+  orderNumber       String      @unique
+  userId            String
+  items             OrderItem[]
+  subtotal          Float
+  discount          Float       @default(0)
+  deliveryCharge    Float       @default(0)
+  totalAmount       Float
+  paymentMethod     String      @default("razorpay")
+  paymentStatus     String      @default("PENDING")
+  paymentId         String?
+  razorpayOrderId   String?
+  razorpaySignature String?
+  orderStatus       String      @default("PENDING")
+  deliveryAddress   Json
+  notes             String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  user              User        @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([orderStatus])
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String  @id @default(cuid())
+  orderId     String
+  productId   String
+  productName String
+  quantity    Int
+  price       Float
+  totalPrice  Float
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@map("order_items")
 }

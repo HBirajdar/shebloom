@@ -40,6 +40,7 @@ import achievementsRoutes from './routes/achievements.routes';
 import reportsRoutes from './routes/reports.routes';
 import callbackRoutes from './routes/callback.routes';
 import prescriptionRoutes from './routes/prescription.routes';
+import paymentRoutes from './routes/payment.routes';
 
 const app = express();
 
@@ -48,9 +49,11 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://checkout.razorpay.com"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", 'data:', 'https:'],
+      frameSrc: ["'self'", "https://api.razorpay.com", "https://checkout.razorpay.com"],
+      connectSrc: ["'self'", "https://api.razorpay.com", "https://lumberjack.razorpay.com"],
     },
   },
   crossOriginEmbedderPolicy: false,
@@ -204,6 +207,7 @@ app.use('/api/v1/achievements', achievementsRoutes);
 app.use('/api/v1/reports', reportsRoutes);
 app.use('/api/v1/callbacks', callbackRoutes);
 app.use('/api/v1/prescriptions', prescriptionRoutes);
+app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/debug', debugRoutes);
 
 // ─── Serve React Client (production) ────────────────

@@ -30,6 +30,9 @@ const CycleHistoryPage = lazy(() => import('./pages/CycleHistoryPage'));
 const MoodHistoryPage = lazy(() => import('./pages/MoodHistoryPage'));
 const AppointmentHistoryPage = lazy(() => import('./pages/AppointmentHistoryPage'));
 const ShopHistoryPage = lazy(() => import('./pages/ShopHistoryPage'));
+const CheckoutPage = lazy(() => import('./pages/CheckoutPage'));
+const OrderSuccessPage = lazy(() => import('./pages/OrderSuccessPage'));
+const MyOrdersPage = lazy(() => import('./pages/MyOrdersPage'));
 
 // Loading spinner
 const LoadingScreen = () => (
@@ -74,6 +77,9 @@ export default function App() {
           <Route path="/appointments/history" element={<ProtectedRoute><AppointmentHistoryPage /></ProtectedRoute>} />
           <Route path="/ayurveda" element={<ProtectedRoute><AyurvedaPage /></ProtectedRoute>} />
           <Route path="/shop/history" element={<ProtectedRoute><ShopHistoryPage /></ProtectedRoute>} />
+          <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
+          <Route path="/order-success" element={<ProtectedRoute><OrderSuccessPage /></ProtectedRoute>} />
+          <Route path="/my-orders" element={<ProtectedRoute><MyOrdersPage /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
           <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
           <Route path="/programs" element={<ProtectedRoute><ProgramsPage /></ProtectedRoute>} />
