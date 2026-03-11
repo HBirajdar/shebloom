@@ -148,6 +148,13 @@ export const callbackAPI = {
   adminDelete: (id: string) => api.delete(`/admin/callbacks/${id}`),
 };
 
+export const prescriptionAPI = {
+  create: (d: any) => api.post('/prescriptions', d),
+  myList: () => api.get('/prescriptions/my'),
+  get: (id: string) => api.get('/prescriptions/' + id),
+  byAppointment: (appointmentId: string) => api.get('/prescriptions/appointment/' + appointmentId),
+};
+
 export const uploadAPI = {
   image: (fd: FormData) => api.post('/upload/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } }),
   video: (fd: FormData) => api.post('/upload/video', fd, { headers: { 'Content-Type': 'multipart/form-data' } }),
@@ -205,4 +212,9 @@ export const adminAPI = {
   getCallbacks: () => api.get('/admin/callbacks'),
   updateCallback: (id: string, d: any) => api.patch(`/admin/callbacks/${id}`, d),
   deleteCallback: (id: string) => api.delete(`/admin/callbacks/${id}`),
+  // Analytics
+  productAnalytics: () => api.get('/admin/analytics/products'),
+  doctorAnalytics: () => api.get('/admin/analytics/doctors'),
+  // Prescriptions
+  getPrescriptions: () => api.get('/admin/prescriptions'),
 };

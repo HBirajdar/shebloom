@@ -143,6 +143,12 @@ const apiService = {
   adminUpdateCallback: (id: string, body: any) => fetch(`${BASE_URL}/api/v1/admin/callbacks/${id}`, { method: 'PATCH', headers: getHeaders(), body: JSON.stringify(body) }).then(handleResponse),
   adminDeleteCallback: (id: string) => fetch(`${BASE_URL}/api/v1/admin/callbacks/${id}`, { method: 'DELETE', headers: getHeaders() }).then(handleResponse),
 
+  // ADMIN Analytics
+  getAdminProductAnalytics: () => fetch(`${BASE_URL}/api/v1/admin/analytics/products`, { headers: getHeaders() }).then(handleResponse),
+  getAdminDoctorAnalytics: () => fetch(`${BASE_URL}/api/v1/admin/analytics/doctors`, { headers: getHeaders() }).then(handleResponse),
+  // ADMIN Prescriptions
+  getAdminPrescriptions: () => fetch(`${BASE_URL}/api/v1/admin/prescriptions`, { headers: getHeaders() }).then(handleResponse),
+
   // UPLOAD
   uploadImage: (file: File) => {
     const formData = new FormData();

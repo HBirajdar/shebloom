@@ -90,7 +90,9 @@ const FormCheckbox = ({ label, checked, onChange }: { label: string; checked: bo
   </label>
 );
 
-type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor';
+type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'NO_SHOW' | 'CANCELLED';
+
+type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions';
 
 export default function AdminPage() {
   const nav = useNavigate();
@@ -163,6 +165,15 @@ export default function AdminPage() {
   // Callbacks state (API-backed)
   const [callbacks, setCallbacks] = useState<any[]>([]);
   const [callbacksLoading, setCallbacksLoading] = useState(false);
+
+  // Product/Doctor Analytics & Prescriptions state
+  const [productAnalytics, setProductAnalytics] = useState<any>(null);
+  const [doctorAnalytics, setDoctorAnalytics] = useState<any>(null);
+  const [productAnalyticsLoading, setProductAnalyticsLoading] = useState(false);
+  const [doctorAnalyticsLoading, setDoctorAnalyticsLoading] = useState(false);
+  const [prescriptions, setPrescriptions] = useState<any[]>([]);
+  const [prescriptionsLoading, setPrescriptionsLoading] = useState(false);
+  const [expandedPrescription, setExpandedPrescription] = useState<string | null>(null);
 
   // Loading states for actions
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -260,6 +271,33 @@ export default function AdminPage() {
     } catch (e: any) { toast.error(e.message || 'Failed to delete callback'); }
   };
 
+  const fetchProductAnalytics = async () => {
+    setProductAnalyticsLoading(true);
+    try {
+      const res = await apiService.getAdminProductAnalytics();
+      setProductAnalytics(res.data);
+    } catch (e: any) { toast.error('Failed to load product analytics'); }
+    finally { setProductAnalyticsLoading(false); }
+  };
+
+  const fetchDoctorAnalytics = async () => {
+    setDoctorAnalyticsLoading(true);
+    try {
+      const res = await apiService.getAdminDoctorAnalytics();
+      setDoctorAnalytics(res.data);
+    } catch (e: any) { toast.error('Failed to load doctor analytics'); }
+    finally { setDoctorAnalyticsLoading(false); }
+  };
+
+  const fetchPrescriptions = async () => {
+    setPrescriptionsLoading(true);
+    try {
+      const res = await apiService.getAdminPrescriptions();
+      setPrescriptions(res.data || []);
+    } catch (e: any) { toast.error('Failed to load prescriptions'); }
+    finally { setPrescriptionsLoading(false); }
+  };
+
   // Load data when tab changes
   useEffect(() => {
     if (!isUnlocked) return;
@@ -267,6 +305,9 @@ export default function AdminPage() {
     if (tab === 'appointments') fetchAppointments(1, apptsStatusFilter);
     if (tab === 'analytics' || tab === 'overview') fetchAnalytics();
     if (tab === 'callbacks') fetchCallbacks();
+    if (tab === 'analytics_products') fetchProductAnalytics();
+    if (tab === 'analytics_doctors') fetchDoctorAnalytics();
+    if (tab === 'prescriptions') fetchPrescriptions();
   }, [tab, isUnlocked]);
 
   // ─── Auth ───────────────────────────────────────────
@@ -656,6 +697,9 @@ export default function AdminPage() {
     { id: 'analytics', icon: '\u{1F4C8}', label: 'Stats' },
     { id: 'settings', icon: '\u2699\uFE0F', label: 'Settings' },
     { id: 'callbacks', icon: '\u{1F4DE}', label: 'Callbacks' },
+    { id: 'analytics_products', icon: '\u{1F4CA}', label: 'Prod Stats' },
+    { id: 'analytics_doctors', icon: '\u{1FA7A}', label: 'Doc Stats' },
+    { id: 'prescriptions', icon: '\u{1F48A}', label: 'Rx' },
   ];
 
   const roleBadge = (role: string) => {
@@ -665,8 +709,10 @@ export default function AdminPage() {
 
   const statusBadge = (status: string) => {
     const colors: Record<string, string> = {
-      PENDING: 'bg-orange-100 text-orange-700', CONFIRMED: 'bg-blue-100 text-blue-700',
-      COMPLETED: 'bg-emerald-100 text-emerald-700', CANCELLED: 'bg-red-100 text-red-700',
+      PENDING: 'bg-yellow-100 text-yellow-700', CONFIRMED: 'bg-blue-100 text-blue-700',
+      IN_PROGRESS: 'bg-purple-100 text-purple-700',
+      COMPLETED: 'bg-emerald-100 text-emerald-700', CANCELLED: 'bg-orange-100 text-orange-700',
+      REJECTED: 'bg-red-100 text-red-700', NO_SHOW: 'bg-gray-200 text-gray-600',
       DRAFT: 'bg-gray-100 text-gray-600', PUBLISHED: 'bg-emerald-100 text-emerald-700',
       ARCHIVED: 'bg-red-100 text-red-600',
       draft: 'bg-gray-100 text-gray-600', published: 'bg-emerald-100 text-emerald-700',
@@ -1011,7 +1057,7 @@ export default function AdminPage() {
               <h3 className="text-sm font-extrabold">{'\u{1F4C5}'} Appointments ({apptsTotal})</h3>
             </div>
             <div className="flex gap-1 flex-wrap">
-              {['', 'PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'].map(s => (
+              {['', 'PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'NO_SHOW', 'CANCELLED'].map(s => (
                 <button key={s} onClick={() => { setApptsStatusFilter(s); fetchAppointments(1, s); }}
                   className={'px-2.5 py-1.5 rounded-lg text-[9px] font-bold ' + (apptsStatusFilter === s ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-500')}>
                   {s || 'ALL'}
@@ -1047,7 +1093,10 @@ export default function AdminPage() {
                       >
                         <option value="PENDING">PENDING</option>
                         <option value="CONFIRMED">CONFIRMED</option>
+                        <option value="IN_PROGRESS">IN_PROGRESS</option>
                         <option value="COMPLETED">COMPLETED</option>
+                        <option value="REJECTED">REJECTED</option>
+                        <option value="NO_SHOW">NO_SHOW</option>
                         <option value="CANCELLED">CANCELLED</option>
                       </select>
                     </div>
@@ -1168,6 +1217,223 @@ export default function AdminPage() {
                   </div>
                 ))}
               </div>
+            </>)}
+          </>)}
+
+          {/* ════════ PRODUCT ANALYTICS ════════ */}
+          {tab === 'analytics_products' && (<>
+            <h3 className="text-sm font-extrabold">{'\u{1F4CA}'} Product Analytics</h3>
+            {productAnalyticsLoading ? (
+              <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-3 border-slate-400 border-t-transparent rounded-full" /></div>
+            ) : !productAnalytics ? (
+              <p className="text-center text-gray-400 text-xs py-8">Failed to load product analytics</p>
+            ) : (<>
+              {/* Summary cards */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-2xl p-3 bg-blue-50 text-center">
+                  <p className="text-[9px] font-bold text-blue-600 uppercase">Total</p>
+                  <p className="text-xl font-extrabold text-gray-900">{productAnalytics.total}</p>
+                </div>
+                <div className="rounded-2xl p-3 bg-emerald-50 text-center">
+                  <p className="text-[9px] font-bold text-emerald-600 uppercase">Published</p>
+                  <p className="text-xl font-extrabold text-gray-900">{productAnalytics.published}</p>
+                </div>
+                <div className="rounded-2xl p-3 bg-red-50 text-center">
+                  <p className="text-[9px] font-bold text-red-600 uppercase">Out of Stock</p>
+                  <p className="text-xl font-extrabold text-gray-900">{productAnalytics.outOfStock}</p>
+                </div>
+              </div>
+
+              {/* Low stock alerts */}
+              {productAnalytics.lowStock && productAnalytics.lowStock.length > 0 && (
+                <div className="bg-white rounded-2xl p-4 shadow-sm">
+                  <h4 className="text-xs font-bold text-red-600 mb-2">{'\u26A0\uFE0F'} Low Stock Alerts</h4>
+                  {productAnalytics.lowStock.map((p: any) => (
+                    <div key={p.id} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
+                      <span className="text-[10px] font-bold text-gray-700 truncate flex-1">{p.name}</span>
+                      <span className="text-[9px] font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{p.stock} left</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Top 5 products bar chart */}
+              {productAnalytics.top5 && productAnalytics.top5.length > 0 && (
+                <div className="bg-white rounded-2xl p-4 shadow-sm">
+                  <h4 className="text-xs font-bold text-gray-700 mb-3">Top 5 Products (by reviews)</h4>
+                  {(() => {
+                    const maxReviews = Math.max(...productAnalytics.top5.map((p: any) => p.reviews), 1);
+                    return productAnalytics.top5.map((p: any) => (
+                      <div key={p.id} className="mb-2.5">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-[9px] font-bold text-gray-700 truncate flex-1 mr-2">{p.name}</span>
+                          <span className="text-[8px] text-gray-500">{p.reviews} reviews</span>
+                        </div>
+                        <div className="w-full h-5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all duration-500 flex items-center justify-end pr-1.5"
+                            style={{ width: `${Math.max((p.reviews / maxReviews) * 100, 5)}%` }}>
+                            <span className="text-[7px] font-bold text-white">{'\u20B9'}{p.revenue}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              )}
+
+              {/* Category breakdown */}
+              {productAnalytics.categoryBreakdown && Object.keys(productAnalytics.categoryBreakdown).length > 0 && (
+                <div className="bg-white rounded-2xl p-4 shadow-sm">
+                  <h4 className="text-xs font-bold text-gray-700 mb-2">Category Breakdown</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(productAnalytics.categoryBreakdown).map(([cat, count]: [string, any]) => (
+                      <span key={cat} className="text-[9px] font-bold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full">
+                        {cat}: {count}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>)}
+          </>)}
+
+          {/* ════════ DOCTOR ANALYTICS ════════ */}
+          {tab === 'analytics_doctors' && (<>
+            <h3 className="text-sm font-extrabold">{'\u{1FA7A}'} Doctor Analytics</h3>
+            {doctorAnalyticsLoading ? (
+              <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-3 border-slate-400 border-t-transparent rounded-full" /></div>
+            ) : !doctorAnalytics ? (
+              <p className="text-center text-gray-400 text-xs py-8">Failed to load doctor analytics</p>
+            ) : (<>
+              {/* Most booked highlight */}
+              {doctorAnalytics.mostBooked && (
+                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-4 border border-purple-100">
+                  <p className="text-[9px] font-bold text-purple-600 uppercase">Most Booked Doctor</p>
+                  <p className="text-sm font-extrabold text-gray-900 mt-1">{doctorAnalytics.mostBooked.name}</p>
+                  <p className="text-[10px] text-gray-500">{doctorAnalytics.mostBooked.specialization}</p>
+                  <div className="flex gap-3 mt-2">
+                    <span className="text-[9px] font-bold text-purple-600">{doctorAnalytics.mostBooked.totalBookings} bookings</span>
+                    <span className="text-[9px] font-bold text-emerald-600">{'\u20B9'}{doctorAnalytics.mostBooked.revenue} revenue</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Completion rate */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-2xl p-3 bg-blue-50 text-center">
+                  <p className="text-[9px] font-bold text-blue-600 uppercase">Total Appts</p>
+                  <p className="text-xl font-extrabold text-gray-900">{doctorAnalytics.totalAppointments}</p>
+                </div>
+                <div className="rounded-2xl p-3 bg-emerald-50 text-center">
+                  <p className="text-[9px] font-bold text-emerald-600 uppercase">Completion Rate</p>
+                  <p className="text-xl font-extrabold text-gray-900">{doctorAnalytics.completionRate}%</p>
+                </div>
+              </div>
+
+              {/* Doctor table */}
+              {doctorAnalytics.doctors && doctorAnalytics.doctors.length > 0 && (
+                <div className="bg-white rounded-2xl p-3 shadow-sm overflow-x-auto">
+                  <h4 className="text-xs font-bold text-gray-700 mb-2">Doctor Performance</h4>
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        <th className="text-[8px] font-bold text-gray-500 uppercase py-1.5 pr-2">Doctor</th>
+                        <th className="text-[8px] font-bold text-gray-500 uppercase py-1.5 px-1 text-center">Booked</th>
+                        <th className="text-[8px] font-bold text-gray-500 uppercase py-1.5 px-1 text-center">Done</th>
+                        <th className="text-[8px] font-bold text-gray-500 uppercase py-1.5 px-1 text-center">Rej</th>
+                        <th className="text-[8px] font-bold text-gray-500 uppercase py-1.5 px-1 text-center">No-Show</th>
+                        <th className="text-[8px] font-bold text-gray-500 uppercase py-1.5 px-1 text-center">Cancel%</th>
+                        <th className="text-[8px] font-bold text-gray-500 uppercase py-1.5 pl-1 text-right">Rev</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {doctorAnalytics.doctors.map((d: any) => (
+                        <tr key={d.id} className="border-b border-gray-50 last:border-0">
+                          <td className="py-1.5 pr-2">
+                            <p className="text-[9px] font-bold text-gray-800 truncate max-w-[80px]">{d.name}</p>
+                            <p className="text-[7px] text-gray-400">{d.specialization}</p>
+                          </td>
+                          <td className="text-[9px] font-bold text-gray-700 text-center px-1">{d.totalBookings}</td>
+                          <td className="text-[9px] font-bold text-emerald-600 text-center px-1">{d.completed}</td>
+                          <td className="text-[9px] font-bold text-red-600 text-center px-1">{d.rejected}</td>
+                          <td className="text-[9px] font-bold text-gray-500 text-center px-1">{d.noShow}</td>
+                          <td className="text-[9px] font-bold text-center px-1">
+                            <span className={d.cancellationRate > 20 ? 'text-red-600' : 'text-gray-600'}>{d.cancellationRate}%</span>
+                          </td>
+                          <td className="text-[9px] font-bold text-gray-700 text-right pl-1">{'\u20B9'}{d.revenue}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>)}
+          </>)}
+
+          {/* ════════ PRESCRIPTIONS ════════ */}
+          {tab === 'prescriptions' && (<>
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-extrabold">{'\u{1F48A}'} Prescriptions</h3>
+              <button onClick={fetchPrescriptions} className="text-[9px] font-bold bg-gray-100 text-gray-600 px-2 py-1 rounded-full active:scale-95">Refresh</button>
+            </div>
+            {prescriptionsLoading ? (
+              <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-3 border-slate-400 border-t-transparent rounded-full" /></div>
+            ) : prescriptions.length === 0 ? (
+              <div className="text-center py-10"><span className="text-4xl">{'\u{1F48A}'}</span><p className="text-sm text-gray-400 mt-2">No prescriptions yet</p></div>
+            ) : (<>
+              {prescriptions.map((rx: any) => (
+                <div key={rx.id} className="bg-white rounded-2xl p-3 shadow-sm">
+                  <div className="flex items-start justify-between cursor-pointer" onClick={() => setExpandedPrescription(expandedPrescription === rx.id ? null : rx.id)}>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-gray-800">{rx.appointment?.user?.fullName || 'Unknown Patient'}</p>
+                      <p className="text-[9px] text-gray-500">{rx.appointment?.doctor?.fullName || rx.appointment?.doctorName || 'N/A'} {rx.appointment?.doctor?.specialization ? `(${rx.appointment.doctor.specialization})` : ''}</p>
+                      <p className="text-[9px] text-emerald-600 font-bold mt-0.5">Dx: {rx.diagnosis}</p>
+                      <p className="text-[8px] text-gray-400">{new Date(rx.createdAt).toLocaleDateString()}</p>
+                    </div>
+                    <span className="text-gray-400 text-sm ml-2">{expandedPrescription === rx.id ? '\u25B2' : '\u25BC'}</span>
+                  </div>
+                  {expandedPrescription === rx.id && (
+                    <div className="mt-2 pt-2 border-t border-gray-100 space-y-2">
+                      {/* Medicines */}
+                      <div>
+                        <p className="text-[9px] font-bold text-gray-600 uppercase mb-1">Medicines</p>
+                        {Array.isArray(rx.medicines) && rx.medicines.length > 0 ? (
+                          rx.medicines.map((m: any, i: number) => (
+                            <div key={i} className="bg-gray-50 rounded-lg p-2 mb-1">
+                              <p className="text-[10px] font-bold text-gray-800">{m.name || 'Unnamed'}</p>
+                              <div className="flex gap-2 flex-wrap mt-0.5">
+                                {m.dosage && <span className="text-[8px] text-gray-500">Dosage: {m.dosage}</span>}
+                                {m.frequency && <span className="text-[8px] text-gray-500">Freq: {m.frequency}</span>}
+                                {m.duration && <span className="text-[8px] text-gray-500">Duration: {m.duration}</span>}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-[9px] text-gray-400">No medicines listed</p>
+                        )}
+                      </div>
+                      {/* Instructions */}
+                      {rx.instructions && (
+                        <div>
+                          <p className="text-[9px] font-bold text-gray-600 uppercase">Instructions</p>
+                          <p className="text-[10px] text-gray-700 bg-blue-50 rounded-lg p-2 mt-0.5">{rx.instructions}</p>
+                        </div>
+                      )}
+                      {/* Follow-up */}
+                      {rx.followUpDate && (
+                        <div>
+                          <p className="text-[9px] font-bold text-gray-600 uppercase">Follow-up Date</p>
+                          <p className="text-[10px] text-purple-600 font-bold">{new Date(rx.followUpDate).toLocaleDateString()}</p>
+                        </div>
+                      )}
+                      {/* Appointment date */}
+                      {rx.appointment?.scheduledAt && (
+                        <p className="text-[8px] text-gray-400">Appointment: {new Date(rx.appointment.scheduledAt).toLocaleString()}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
             </>)}
           </>)}
 

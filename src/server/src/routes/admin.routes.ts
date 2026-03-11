@@ -231,7 +231,7 @@ r.get('/appointments', async (req: Request, res: Response, next: NextFunction) =
     const skip = (page - 1) * limit;
     const status = (req.query.status as string) || '';
     const where: any = {};
-    if (status && ['PENDING','CONFIRMED','COMPLETED','CANCELLED'].includes(status)) where.status = status;
+    if (status && ['PENDING','CONFIRMED','IN_PROGRESS','COMPLETED','REJECTED','NO_SHOW','CANCELLED'].includes(status)) where.status = status;
     const [appointments, total] = await Promise.all([
       prisma.appointment.findMany({
         where,
@@ -250,7 +250,7 @@ r.get('/appointments', async (req: Request, res: Response, next: NextFunction) =
 r.patch('/appointments/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { status } = req.body;
-    if (!status || !['PENDING','CONFIRMED','COMPLETED','CANCELLED'].includes(status)) {
+    if (!status || !['PENDING','CONFIRMED','IN_PROGRESS','COMPLETED','REJECTED','NO_SHOW','CANCELLED'].includes(status)) {
       errorResponse(res, 'Invalid status'); return;
     }
     const appt = await prisma.appointment.update({
@@ -666,6 +666,130 @@ r.delete('/callbacks/:id', async (req: Request, res: Response, next: NextFunctio
     if (e.code === 'P2025') { errorResponse(res, 'Callback not found', 404); return; }
     next(e);
   }
+});
+
+// ─── Product Analytics ───────────────────────────────
+r.get('/analytics/products', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const products = await prisma.product.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true, name: true, category: true, price: true, discountPrice: true,
+        stock: true, reviews: true, rating: true, isPublished: true, inStock: true,
+        createdAt: true,
+      },
+    });
+
+    // Stock alerts: products with stock < 10
+    const lowStock = products.filter(p => (p.stock || 0) < 10);
+
+    // Top 5 by reviews (proxy for orders since we don't have an order table)
+    const top5 = [...products]
+      .sort((a, b) => (b.reviews || 0) - (a.reviews || 0))
+      .slice(0, 5)
+      .map(p => ({
+        id: p.id,
+        name: p.name,
+        reviews: p.reviews || 0,
+        rating: p.rating || 5.0,
+        revenue: ((p.discountPrice || p.price) * (p.reviews || 0)),
+      }));
+
+    // Category breakdown
+    const categoryMap: Record<string, number> = {};
+    for (const p of products) {
+      categoryMap[p.category] = (categoryMap[p.category] || 0) + 1;
+    }
+
+    successResponse(res, {
+      total: products.length,
+      published: products.filter(p => p.isPublished).length,
+      outOfStock: products.filter(p => !p.inStock || p.stock === 0).length,
+      lowStock: lowStock.map(p => ({ id: p.id, name: p.name, stock: p.stock || 0 })),
+      top5,
+      categoryBreakdown: categoryMap,
+    });
+  } catch (e) { next(e); }
+});
+
+// ─── Doctor Analytics ────────────────────────────────
+r.get('/analytics/doctors', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const [doctors, appointments] = await Promise.all([
+      prisma.doctor.findMany({
+        select: { id: true, fullName: true, specialization: true, rating: true, totalReviews: true, isPublished: true },
+      }),
+      prisma.appointment.findMany({
+        select: { doctorId: true, status: true, amountPaid: true },
+        where: { doctorId: { not: null } },
+      }),
+    ]);
+
+    const statsMap: Record<string, {
+      totalBookings: number; confirmed: number; completed: number;
+      rejected: number; cancelled: number; noShow: number; inProgress: number; revenue: number;
+    }> = {};
+
+    for (const a of appointments) {
+      if (!a.doctorId) continue;
+      if (!statsMap[a.doctorId]) {
+        statsMap[a.doctorId] = { totalBookings: 0, confirmed: 0, completed: 0, rejected: 0, cancelled: 0, noShow: 0, inProgress: 0, revenue: 0 };
+      }
+      const s = statsMap[a.doctorId];
+      s.totalBookings++;
+      if (a.status === 'CONFIRMED') s.confirmed++;
+      if (a.status === 'COMPLETED') { s.completed++; s.revenue += a.amountPaid || 0; }
+      if (a.status === 'REJECTED') s.rejected++;
+      if (a.status === 'CANCELLED') s.cancelled++;
+      if (a.status === 'NO_SHOW') s.noShow++;
+      if (a.status === 'IN_PROGRESS') s.inProgress++;
+    }
+
+    const doctorStats = doctors.map(d => {
+      const s = statsMap[d.id] || { totalBookings: 0, confirmed: 0, completed: 0, rejected: 0, cancelled: 0, noShow: 0, inProgress: 0, revenue: 0 };
+      const cancellationRate = s.totalBookings > 0 ? Math.round(((s.cancelled + s.noShow) / s.totalBookings) * 100) : 0;
+      return {
+        id: d.id,
+        name: d.fullName,
+        specialization: d.specialization,
+        rating: d.rating,
+        isPublished: d.isPublished,
+        ...s,
+        cancellationRate,
+      };
+    }).sort((a, b) => b.totalBookings - a.totalBookings);
+
+    const mostBooked = doctorStats[0] || null;
+
+    successResponse(res, {
+      doctors: doctorStats,
+      mostBooked,
+      totalAppointments: appointments.length,
+      completionRate: appointments.length > 0
+        ? Math.round((appointments.filter(a => a.status === 'COMPLETED').length / appointments.length) * 100)
+        : 0,
+    });
+  } catch (e) { next(e); }
+});
+
+// ─── Prescriptions (Admin) ───────────────────────────
+r.get('/prescriptions', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const prescriptions = await prisma.prescription.findMany({
+      include: {
+        appointment: {
+          select: {
+            scheduledAt: true,
+            doctorName: true,
+            doctor: { select: { fullName: true, specialization: true } },
+            user: { select: { fullName: true, email: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    successResponse(res, prescriptions);
+  } catch (e) { next(e); }
 });
 
 // ─── Test Email ─────────────────────────────────────

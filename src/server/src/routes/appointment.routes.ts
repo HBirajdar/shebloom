@@ -134,12 +134,15 @@ r.patch('/:id/cancel', async (q: AuthRequest, s: Response, n: NextFunction) => {
 r.patch('/:id/status', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const { status } = q.body;
-    if (!status || !['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'].includes(status)) {
+    if (!status || !['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'NO_SHOW', 'CANCELLED'].includes(status)) {
       errorResponse(s, 'Invalid status'); return;
     }
     const appt = await prisma.appointment.update({
       where: { id: q.params.id },
-      data: { status },
+      data: {
+        status,
+        ...(status === 'REJECTED' && q.body.rejectionReason ? { rejectionReason: q.body.rejectionReason } : {})
+      },
     });
     successResponse(s, appt);
   } catch (e) { n(e); }
