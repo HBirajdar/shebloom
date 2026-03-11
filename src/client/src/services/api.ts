@@ -173,4 +173,5 @@ export const adminAPI = {
   appointments: (params?: { status?: string; page?: number }) => api.get('/admin/appointments', { params }),
   updateAppointment: (id: string, d: { status: string }) => api.patch(`/admin/appointments/${id}`, d),
   upload: (formData: FormData) => api.post('/admin/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  stats: () => api.get('/admin/stats'),
 };

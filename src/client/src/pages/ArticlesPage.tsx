@@ -1,8 +1,9 @@
 // @ts-nocheck
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAyurvedaStore } from '../stores/ayurvedaStore';
 import { useCycleStore } from '../stores/cycleStore';
+import { api } from '../services/api';
 import type { Article } from '../stores/ayurvedaStore';
 import BottomNav from '../components/BottomNav';
 import toast from 'react-hot-toast';
@@ -787,8 +788,40 @@ const PHASE_ARTICLE_TAGS: Record<string, { emoji: string; label: string; cats: s
 
 export default function ArticlesPage() {
   const nav = useNavigate();
-  const { articles, getChiefDoctor } = useAyurvedaStore();
+  const store = useAyurvedaStore();
+  const { getChiefDoctor } = store;
   const { goal, phase } = useCycleStore();
+
+  // Fetch articles from API, fall back to zustand defaults
+  const [apiArticles, setApiArticles] = useState<Article[] | null>(null);
+  useEffect(() => {
+    api.get('/articles')
+      .then(r => {
+        const items = r.data.data || r.data.articles || [];
+        if (items.length > 0) {
+          // Map API fields to match the UI expected format
+          const mapped = items.map((a: any) => ({
+            id: a.id,
+            title: a.title || '',
+            summary: a.excerpt || a.summary || '',
+            content: a.content || '',
+            category: a.category || 'Wellness',
+            author: a.doctor?.fullName || 'chief',
+            readTime: a.readTimeMinutes ? `${a.readTimeMinutes} min` : a.readTime || '5 min',
+            emoji: a.coverImageUrl ? '' : '\uD83D\uDCDD',
+            isPublished: a.status === 'PUBLISHED' || a.isPublished,
+            isFeatured: a.isFeatured || false,
+            targetAudience: a.tags || ['all'],
+            createdAt: a.publishedAt || a.createdAt || '',
+            coverImageUrl: a.coverImageUrl || null,
+            imageUrl: a.coverImageUrl || null,
+          }));
+          setApiArticles(mapped);
+        }
+      })
+      .catch(() => {});
+  }, []);
+  const articles = apiArticles || store.articles;
   const [cat, setCat] = useState('All');
   const [readingArticle, setReadingArticle] = useState<Article | null>(null);
   const [searchQ, setSearchQ] = useState('');

@@ -181,7 +181,7 @@ export default function AdminPage() {
     if (!isUnlocked) return;
     if (tab === 'users') fetchUsers(1, usersSearch, usersRoleFilter);
     if (tab === 'appointments') fetchAppointments(1, apptsStatusFilter);
-    if (tab === 'analytics') fetchAnalytics();
+    if (tab === 'analytics' || tab === 'overview') fetchAnalytics();
   }, [tab, isUnlocked]);
 
   // ─── Auth ───────────────────────────────────────────

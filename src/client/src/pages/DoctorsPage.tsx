@@ -1,14 +1,15 @@
 // @ts-nocheck
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAyurvedaStore } from '../stores/ayurvedaStore';
+import { api } from '../services/api';
 
 const CATS = ['All', 'Ayurveda', 'Gynecologist', 'Obstetrician', 'Fertility', 'Dermatologist', 'Nutritionist', 'Homeopathy'];
 const CITIES = ['All', 'Mumbai', 'Delhi', 'Bangalore', 'Chennai'];
 
 export default function DoctorsPage() {
   const nav = useNavigate();
-  const { doctors, getChiefDoctor } = useAyurvedaStore();
+  const store = useAyurvedaStore();
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('All');
   const [city, setCity] = useState('All');
@@ -18,6 +19,42 @@ export default function DoctorsPage() {
   const [sortBy, setSortBy] = useState<'rating' | 'fee_low' | 'fee_high' | 'experience'>('rating');
   const [showFilters, setShowFilters] = useState(false);
   const [sel, setSel] = useState<any>(null);
+  const [doctorsLoading, setDoctorsLoading] = useState(true);
+
+  // Fetch doctors from API, fall back to zustand defaults
+  const [apiDoctors, setApiDoctors] = useState<any[] | null>(null);
+  useEffect(() => {
+    api.get('/doctors')
+      .then(r => {
+        const items = r.data.data || r.data.doctors || [];
+        if (items.length > 0) {
+          // Map API doctor fields to match the format expected by UI
+          const mapped = items.map((d: any) => ({
+            ...d,
+            name: d.fullName || d.name || '',
+            experience: d.experienceYears || d.experience || 0,
+            fee: d.consultationFee || d.fee || 0,
+            qualification: (d.qualifications || []).join(', ') || d.qualification || '',
+            reviews: d.totalReviews || d.reviews || 0,
+            about: d.bio || d.about || '',
+            isPublished: d.isAvailable !== false,
+            isChief: false,
+            isPromoted: false,
+            feeFreeForPoor: false,
+            tags: d.tags || [],
+            languages: d.languages || [],
+            avatarUrl: d.avatarUrl || d.photoUrl || null,
+            photoUrl: d.photoUrl || d.avatarUrl || null,
+          }));
+          setApiDoctors(mapped);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setDoctorsLoading(false));
+  }, []);
+
+  const doctors = apiDoctors || store.doctors;
+  const getChiefDoctor = store.getChiefDoctor;
 
   const published = doctors.filter(d => d.isPublished);
   const chief = getChiefDoctor();

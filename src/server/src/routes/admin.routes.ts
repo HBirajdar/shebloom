@@ -402,6 +402,17 @@ r.delete('/doctors/:id', (req: Request, res: Response) => {
   res.json({ success: true });
 });
 
+// ─── Stats ──────────────────────────────────────────
+r.get('/stats', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const [users, appointments] = await Promise.all([
+      prisma.user.count(),
+      prisma.appointment.count().catch(() => 0),
+    ]);
+    res.json({ success: true, data: { users, appointments } });
+  } catch (e) { next(e); }
+});
+
 // ─── Test Email ─────────────────────────────────────
 r.post('/test-email', async (req: Request, res: Response) => {
   const { email } = req.body;

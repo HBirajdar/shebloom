@@ -1,8 +1,9 @@
 // @ts-nocheck
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAyurvedaStore } from '../stores/ayurvedaStore';
 import { useAuthStore } from '../stores/authStore';
+import { api } from '../services/api';
 // Bug A fix: import and use the useAppointments hook
 import { useAppointments } from '../hooks/useAppointments';
 import toast from 'react-hot-toast';
@@ -12,8 +13,39 @@ const reasons = ['General Consultation', 'PCOD/PCOS', 'Period Problems', 'Fertil
 
 export default function AppointmentsPage() {
   const nav = useNavigate();
-  const { doctors } = useAyurvedaStore();
+  const store = useAyurvedaStore();
   const user = useAuthStore(s => s.user);
+
+  // Fetch doctors from API, fall back to zustand defaults
+  const [apiDoctors, setApiDoctors] = useState<any[] | null>(null);
+  useEffect(() => {
+    api.get('/doctors')
+      .then(r => {
+        const items = r.data.data || r.data.doctors || [];
+        if (items.length > 0) {
+          const mapped = items.map((d: any) => ({
+            ...d,
+            name: d.fullName || d.name || '',
+            experience: d.experienceYears || d.experience || 0,
+            fee: d.consultationFee || d.fee || 0,
+            qualification: (d.qualifications || []).join(', ') || d.qualification || '',
+            reviews: d.totalReviews || d.reviews || 0,
+            about: d.bio || d.about || '',
+            isPublished: d.isAvailable !== false,
+            isChief: false,
+            isPromoted: false,
+            feeFreeForPoor: false,
+            tags: d.tags || [],
+            languages: d.languages || [],
+            avatarUrl: d.avatarUrl || d.photoUrl || null,
+          }));
+          setApiDoctors(mapped);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const doctors = apiDoctors || store.doctors;
   const pubDoctors = doctors.filter(d => d.isPublished);
   const chief = pubDoctors.find(d => d.isChief);
 

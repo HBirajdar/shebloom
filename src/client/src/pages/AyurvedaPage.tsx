@@ -1,9 +1,10 @@
 // @ts-nocheck
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAyurvedaStore } from '../stores/ayurvedaStore';
 import { useCycleStore } from '../stores/cycleStore';
 import { useAuthStore } from '../stores/authStore';
+import { api } from '../services/api';
 import type { ProductCategory, AyurvedaProduct, DIYRecipe } from '../stores/ayurvedaStore';
 import BottomNav from '../components/BottomNav';
 import toast from 'react-hot-toast';
@@ -38,9 +39,36 @@ const Stars = ({ r }: { r: number }) => (
 
 export default function AyurvedaPage() {
   const nav = useNavigate();
-  const { products, recipes, doctors, isAdminUnlocked, getChiefDoctor } = useAyurvedaStore();
+  const store = useAyurvedaStore();
+  const { recipes, isAdminUnlocked, getChiefDoctor } = store;
   const { phase, goal } = useCycleStore();
   const user = useAuthStore(s => s.user);
+
+  // Fetch products from API, fall back to zustand defaults
+  const [apiProducts, setApiProducts] = useState<AyurvedaProduct[] | null>(null);
+  const [productsLoading, setProductsLoading] = useState(true);
+  useEffect(() => {
+    api.get('/products')
+      .then(r => {
+        const items = r.data.data || r.data.products || [];
+        if (items.length > 0) setApiProducts(items);
+      })
+      .catch(() => {})
+      .finally(() => setProductsLoading(false));
+  }, []);
+  const products = apiProducts || store.products;
+
+  // Fetch doctors from API, fall back to zustand defaults
+  const [apiDoctors, setApiDoctors] = useState<any[] | null>(null);
+  useEffect(() => {
+    api.get('/doctors')
+      .then(r => {
+        const items = r.data.data || r.data.doctors || [];
+        if (items.length > 0) setApiDoctors(items);
+      })
+      .catch(() => {});
+  }, []);
+  const doctors = apiDoctors || store.doctors;
 
   const [view, setView] = useState<'shop' | 'diy' | 'doctor'>('shop');
   const [cat, setCat] = useState<ProductCategory | 'all'>('all');
