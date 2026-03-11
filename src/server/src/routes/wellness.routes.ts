@@ -128,4 +128,98 @@ r.post('/log', authenticate, async (q: AuthRequest, s: Response, n: NextFunction
   } catch (e) { n(e); }
 });
 
+// ─── Authenticated: wellness history ──────────────
+r.get('/history', authenticate, async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const uid = q.user!.id;
+    const days = Math.min(Math.max(parseInt(String(q.query.days)) || 30, 1), 90);
+
+    const MOOD_EMOJI: Record<string, string> = { GREAT: '🤩', GOOD: '😊', OKAY: '😐', LOW: '😔', BAD: '😭' };
+    const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    // Build date range
+    const now = new Date();
+    const startDate = new Date();
+    startDate.setDate(now.getDate() - (days - 1));
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date();
+    endDate.setHours(23, 59, 59, 999);
+
+    // Query all logs in parallel
+    const [waterLogs, moodLogs, symptomLogs] = await Promise.all([
+      prisma.waterLog.findMany({ where: { userId: uid, logDate: { gte: startDate, lte: endDate } } }),
+      prisma.moodLog.findMany({ where: { userId: uid, logDate: { gte: startDate, lte: endDate } }, orderBy: { logDate: 'desc' } }),
+      prisma.symptomLog.findMany({ where: { userId: uid, logDate: { gte: startDate, lte: endDate } }, orderBy: { logDate: 'desc' } }),
+    ]);
+
+    // Index logs by date string (YYYY-MM-DD)
+    const toDateKey = (d: Date) => d.toISOString().slice(0, 10);
+
+    const waterByDate: Record<string, typeof waterLogs[0]> = {};
+    waterLogs.forEach(l => { waterByDate[toDateKey(new Date(l.logDate))] = l; });
+
+    const moodByDate: Record<string, typeof moodLogs[0]> = {};
+    moodLogs.forEach(l => { const k = toDateKey(new Date(l.logDate)); if (!moodByDate[k]) moodByDate[k] = l; });
+
+    const symptomsByDate: Record<string, typeof symptomLogs> = {};
+    symptomLogs.forEach(l => {
+      const k = toDateKey(new Date(l.logDate));
+      if (!symptomsByDate[k]) symptomsByDate[k] = [];
+      symptomsByDate[k].push(l);
+    });
+
+    const todayKey = toDateKey(now);
+
+    // Build daily records
+    const result = [];
+    for (let i = 0; i < days; i++) {
+      const d = new Date();
+      d.setDate(now.getDate() - i);
+      d.setHours(0, 0, 0, 0);
+      const key = toDateKey(d);
+      const dayLabel = DAY_LABELS[d.getDay()];
+
+      // Water
+      const wl = waterByDate[key];
+      const glasses = wl?.glasses ?? 0;
+      const target = wl?.targetGlasses ?? 8;
+      const waterPct = Math.round((glasses / target) * 100);
+
+      // Mood
+      const ml = moodByDate[key];
+
+      // Sleep & exercise from symptom logs
+      let sleepHours = 0;
+      let exerciseDone = false;
+      const daySymptoms = symptomsByDate[key] || [];
+      daySymptoms.forEach(log => {
+        (log.symptoms || []).forEach((sym: string) => {
+          if (sym.startsWith('sleep:')) sleepHours = parseFloat(sym.split(':')[1]) || 0;
+          else if (sym.startsWith('exercise:')) exerciseDone = true;
+        });
+      });
+
+      // Score: water(30) + mood(25) + sleep(25) + exercise(20)
+      const waterScore = Math.min(30, Math.round((glasses / 8) * 30));
+      const moodScore = ml ? 25 : 0;
+      const sleepScore = sleepHours > 0 ? 25 : 0;
+      const exerciseScore = exerciseDone ? 20 : 0;
+      const score = waterScore + moodScore + sleepScore + exerciseScore;
+
+      result.push({
+        date: key,
+        dayLabel,
+        water: { glasses, target, pct: waterPct },
+        sleep: { hours: sleepHours, logged: sleepHours > 0 },
+        exercise: { done: exerciseDone },
+        mood: ml ? { value: ml.mood, emoji: MOOD_EMOJI[ml.mood as string] || '😐' } : null,
+        score,
+        isToday: key === todayKey,
+      });
+    }
+
+    s.json({ success: true, data: result });
+  } catch (e) { n(e); }
+});
+
 export default r;

@@ -288,6 +288,11 @@ export default function WellnessPage() {
             <h1 className="text-base font-extrabold text-gray-900">Wellness Hub 🧘</h1>
             <p className="text-[9px] text-gray-400">{pd.emoji} {pd.name} phase · Day {cycleDay}</p>
           </div>
+          <button onClick={() => nav('/wellness/history')}
+            className="flex items-center gap-1 bg-rose-50 px-2.5 py-1 rounded-xl border border-rose-100 active:scale-95 transition-transform">
+            <span className="text-xs">📊</span>
+            <span className="text-[10px] font-extrabold text-rose-600">History</span>
+          </button>
           {streak > 0 && (
             <div className="flex items-center gap-1 bg-orange-50 px-2.5 py-1 rounded-xl border border-orange-100">
               <span className="text-xs">🔥</span>

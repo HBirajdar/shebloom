@@ -104,6 +104,7 @@ export const wellnessAPI = {
   list: (p?: any) => api.get('/wellness', { params: p }),
   dailyScore: () => api.get('/wellness/daily-score'),
   log: (d: any) => api.post('/wellness/log', d),
+  history: (days: number) => api.get(`/wellness/history?days=${days}`),
 };
 
 export const notificationAPI = {

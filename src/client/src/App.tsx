@@ -25,6 +25,7 @@ const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const DebugPage = lazy(() => import('./pages/DebugPage'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 const ReportsPage = lazy(() => import('./pages/ReportsPage'));
+const WellnessHistoryPage = lazy(() => import('./pages/WellnessHistoryPage'));
 
 // Loading spinner
 const LoadingScreen = () => (
@@ -61,6 +62,7 @@ export default function App() {
           <Route path="/doctors" element={<ProtectedRoute><DoctorsPage /></ProtectedRoute>} />
           <Route path="/hospitals" element={<ProtectedRoute><HospitalsPage /></ProtectedRoute>} />
           <Route path="/wellness" element={<ProtectedRoute><WellnessPage /></ProtectedRoute>} />
+          <Route path="/wellness/history" element={<ProtectedRoute><WellnessHistoryPage /></ProtectedRoute>} />
           <Route path="/articles" element={<ProtectedRoute><ArticlesPage /></ProtectedRoute>} />
           <Route path="/articles/:slug" element={<ProtectedRoute><ArticleDetailPage /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
