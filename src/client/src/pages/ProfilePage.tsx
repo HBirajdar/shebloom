@@ -375,6 +375,13 @@ export default function ProfilePage() {
             </div>
           ))}
 
+          {(user?.role === 'DOCTOR' || user?.role === 'ADMIN') && (
+            <button onClick={() => nav('/doctor-dashboard')} className="w-full flex items-center gap-3 px-5 py-3.5 bg-white rounded-3xl shadow-lg text-left active:bg-gray-50 transition-colors">
+              <span className="text-lg">{'\u{1FA7A}'}</span>
+              <span className="flex-1 text-sm font-semibold text-gray-700">Doctor Portal</span>
+              <span className="text-gray-300">{'\u{203A}'}</span>
+            </button>
+          )}
           <button onClick={() => setShowLogout(true)} className="w-full py-4 bg-white border-2 border-rose-200 text-rose-600 rounded-2xl font-bold text-sm active:scale-95 transition-transform">Sign Out</button>
           <div className="text-center py-4">
             <button onClick={() => { const n = secretTaps + 1; setSecretTaps(n); if (n >= 5) { setShowAdminHint(true); setSecretTaps(0); }}} className="text-[10px] text-gray-300 select-none">VedaClue v2.1</button>

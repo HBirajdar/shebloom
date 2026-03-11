@@ -41,6 +41,7 @@ import reportsRoutes from './routes/reports.routes';
 import callbackRoutes from './routes/callback.routes';
 import prescriptionRoutes from './routes/prescription.routes';
 import paymentRoutes from './routes/payment.routes';
+import doctorDashboardRoutes from './routes/doctor-dashboard.routes';
 
 const app = express();
 
@@ -202,6 +203,7 @@ app.use('/api/v1/reports', reportsRoutes);
 app.use('/api/v1/callbacks', callbackRoutes);
 app.use('/api/v1/prescriptions', prescriptionRoutes);
 app.use('/api/v1/payments', paymentRoutes);
+app.use('/api/v1/doctor', doctorDashboardRoutes);
 if (process.env.NODE_ENV !== 'production') {
   app.use('/api/v1/debug', debugRoutes);
 }

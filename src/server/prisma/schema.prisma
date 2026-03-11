@@ -104,6 +104,8 @@ model User {
   refreshTokens    RefreshToken[]
   prescriptions    Prescription[]
   orders           Order[]
+  doctorProfile    Doctor?          @relation("DoctorUser")
+  doctorReviews    DoctorReview[]
 
   @@index([email])
   @@index([phone])
@@ -257,6 +259,7 @@ model PregnancyChecklist {
 model Doctor {
   id              String     @id @default(cuid())
   userId          String?    @unique
+  user            User?      @relation("DoctorUser", fields: [userId], references: [id], onDelete: SetNull)
   fullName        String
   specialization  String
   qualifications  String[]
@@ -321,6 +324,7 @@ model DoctorReview {
   createdAt DateTime @default(now())
 
   doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([doctorId])
   @@map("doctor_reviews")

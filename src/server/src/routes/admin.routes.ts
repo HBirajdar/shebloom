@@ -524,6 +524,41 @@ r.post('/doctors', async (req: Request, res: Response, next: NextFunction) => {
         status: 'pending', hospitalName: b.hospitalName || null, location: b.location || null,
       },
     });
+    // If doctor has an email in the request, create linked User account
+    if (b.email) {
+      try {
+        const crypto = require('crypto');
+        const bcrypt = require('bcryptjs');
+        const tempPassword = crypto.randomBytes(8).toString('hex');
+        const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+        // Check if user with this email already exists
+        const existingUser = await prisma.user.findUnique({ where: { email: b.email } });
+        if (!existingUser) {
+          const doctorUser = await prisma.user.create({
+            data: {
+              email: b.email,
+              fullName: b.name || 'Doctor',
+              passwordHash,
+              role: 'DOCTOR',
+              isActive: true,
+            },
+          });
+          // Link user to doctor
+          await prisma.doctor.update({
+            where: { id: doctor.id },
+            data: { userId: doctorUser.id },
+          });
+          // Send welcome email with credentials
+          // (fire-and-forget)
+          // sendDoctorWelcomeEmail({ email: b.email, name: b.name, tempPassword }).catch(() => {});
+        }
+      } catch (linkErr) {
+        // Non-fatal: doctor was created, just linking failed
+        console.error('Failed to create doctor user account:', linkErr);
+      }
+    }
+
     successResponse(res, mapDoctor(doctor), 'Doctor created', 201);
   } catch (e) { next(e); }
 });

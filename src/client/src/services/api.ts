@@ -173,6 +173,18 @@ export const paymentAPI = {
   getOrder: (id: string) => api.get('/payments/orders/' + id),
 };
 
+export const doctorDashAPI = {
+  getDashboard: () => api.get('/doctor/dashboard'),
+  getAppointments: (params?: any) => api.get('/doctor/appointments', { params }),
+  acceptAppointment: (id: string) => api.patch(`/doctor/appointments/${id}/accept`),
+  rejectAppointment: (id: string, reason: string) => api.patch(`/doctor/appointments/${id}/reject`, { reason }),
+  completeAppointment: (id: string) => api.patch(`/doctor/appointments/${id}/complete`),
+  getProfile: () => api.get('/doctor/profile'),
+  updateProfile: (d: any) => api.patch('/doctor/profile', d),
+  getPrescriptions: () => api.get('/doctor/prescriptions'),
+  getReviews: () => api.get('/doctor/reviews'),
+};
+
 export const adminAPI = {
   dashboard: () => api.get('/admin/dashboard'),
   stats: () => api.get('/admin/stats'),

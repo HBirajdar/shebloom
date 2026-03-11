@@ -33,6 +33,7 @@ const ShopHistoryPage = lazy(() => import('./pages/ShopHistoryPage'));
 const CheckoutPage = lazy(() => import('./pages/CheckoutPage'));
 const OrderSuccessPage = lazy(() => import('./pages/OrderSuccessPage'));
 const MyOrdersPage = lazy(() => import('./pages/MyOrdersPage'));
+const DoctorDashboard = lazy(() => import('./pages/DoctorDashboard'));
 
 // Loading spinner
 const LoadingScreen = () => (
@@ -50,6 +51,14 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   if (!isAuthenticated) return <Navigate to="/auth" replace />;
   return <>{children}</>;
 };
+
+// Doctor Route wrapper (DOCTOR or ADMIN only)
+function DoctorRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, user } = useAuthStore();
+  if (!isAuthenticated) return <Navigate to="/auth" replace />;
+  if (user?.role !== 'DOCTOR' && user?.role !== 'ADMIN') return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}
 
 export default function App() {
   return (
@@ -80,6 +89,7 @@ export default function App() {
           <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
           <Route path="/order-success" element={<ProtectedRoute><OrderSuccessPage /></ProtectedRoute>} />
           <Route path="/my-orders" element={<ProtectedRoute><MyOrdersPage /></ProtectedRoute>} />
+          <Route path="/doctor-dashboard" element={<DoctorRoute><DoctorDashboard /></DoctorRoute>} />
           <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
           <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
           <Route path="/programs" element={<ProtectedRoute><ProgramsPage /></ProtectedRoute>} />

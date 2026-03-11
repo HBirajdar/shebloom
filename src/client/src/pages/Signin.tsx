@@ -45,13 +45,21 @@ export default function AuthPage() {
     return body?.error || body?.message || `Error ${status}. Please try again.`;
   };
 
-  const go = async (promise: Promise<any>, to: string) => {
+  const go = async (promise: Promise<any>, defaultTo: string) => {
     setLoading(true); setErr('');
     try {
       const r = await promise;
       const d = r.data.data;
       setAuth(d.user, d.accessToken, d.refreshToken);
-      nav(to);
+      // Role-based redirect
+      const role = d.user?.role;
+      if (role === 'ADMIN') {
+        nav('/admin');
+      } else if (role === 'DOCTOR') {
+        nav('/doctor-dashboard');
+      } else {
+        nav(defaultTo);
+      }
     } catch (e: any) {
       setErr(parseErr(e));
     }
