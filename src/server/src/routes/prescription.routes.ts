@@ -2,13 +2,14 @@
 import { Router, Response, NextFunction } from 'express';
 import prisma from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { requireDoctor } from '../middleware/roles.middleware';
 import { successResponse, errorResponse } from '../utils/response.utils';
 
 const r = Router();
 r.use(authenticate);
 
 // POST / — doctor creates prescription for a completed appointment
-r.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
+r.post('/', requireDoctor, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { appointmentId, diagnosis, medicines, instructions, followUpDate } = req.body;
     if (!appointmentId || !diagnosis || !medicines) {

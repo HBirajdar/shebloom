@@ -2,7 +2,7 @@
 // Payment Routes — Razorpay + COD orders
 // ══════════════════════════════════════════════════════
 
-import { Router, Response, NextFunction } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import prisma from '../config/database';
@@ -11,6 +11,60 @@ import { successResponse, errorResponse } from '../utils/response.utils';
 import { sendOrderConfirmation } from '../services/email.service';
 
 const r = Router();
+
+// POST /payments/webhook — Razorpay server-to-server webhook
+// NOTE: This route must be BEFORE r.use(authenticate)
+// and needs raw body — registered separately in app.ts
+r.post('/webhook', async (req: Request, res: Response) => {
+  try {
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    if (!webhookSecret) { res.status(200).json({ received: true }); return; }
+
+    const signature = req.headers['x-razorpay-signature'] as string;
+    const body = JSON.stringify(req.body);
+
+    const expectedSignature = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(body)
+      .digest('hex');
+
+    if (signature !== expectedSignature) {
+      res.status(400).json({ error: 'Invalid webhook signature' }); return;
+    }
+
+    const event = req.body;
+    if (event.event === 'payment.captured') {
+      const paymentId = event.payload?.payment?.entity?.id;
+      const razorpayOrderId = event.payload?.payment?.entity?.order_id;
+
+      if (razorpayOrderId) {
+        // Find and update the order
+        const order = await prisma.order.findFirst({
+          where: { razorpayOrderId, paymentStatus: 'PENDING' },
+          include: { items: true },
+        });
+        if (order) {
+          await prisma.order.update({
+            where: { id: order.id },
+            data: { paymentStatus: 'PAID', paymentId, orderStatus: 'CONFIRMED' },
+          });
+          // Reduce stock
+          for (const item of order.items) {
+            await prisma.product.update({
+              where: { id: item.productId },
+              data: { stock: { decrement: item.quantity } },
+            }).catch(() => {});
+          }
+        }
+      }
+    }
+
+    res.status(200).json({ received: true });
+  } catch (e) {
+    res.status(200).json({ received: true }); // Always return 200 to Razorpay
+  }
+});
+
 r.use(authenticate);
 
 const razorpay = new Razorpay({
@@ -124,9 +178,9 @@ r.post('/verify', async (q: AuthRequest, s: Response, n: NextFunction) => {
       },
     });
 
-    // Reduce stock (best-effort, fire-and-forget)
+    // Reduce stock for each ordered item
     for (const item of order.items) {
-      prisma.product.update({
+      await prisma.product.update({
         where: { id: item.productId },
         data: { stock: { decrement: item.quantity } },
       }).catch(() => {});
@@ -192,6 +246,14 @@ r.post('/cod', async (q: AuthRequest, s: Response, n: NextFunction) => {
       },
       include: { items: true, user: { select: { email: true, fullName: true } } },
     });
+
+    // Reduce stock for COD orders too
+    for (const item of orderItems) {
+      await prisma.product.update({
+        where: { id: item.productId },
+        data: { stock: { decrement: item.quantity } },
+      }).catch(() => {});
+    }
 
     // Send order confirmation email (best-effort)
     if (order.user.email) {

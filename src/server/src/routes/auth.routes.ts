@@ -21,12 +21,13 @@ router.post('/login', validate(loginSchema), async (req: Request, res: Response,
 router.post('/otp/send', validate(otpSendSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const result = await auth.sendOtp(req.body.phone);
+    // Only expose OTP in development (NEVER in production)
+    const debugInfo = process.env.NODE_ENV !== 'production' ? { debugOtp: result.debugOtp } : {};
     res.json({
       success: true,
       message: result.smsSent ? 'OTP sent via SMS' : 'OTP generated (SMS unavailable)',
       smsSent: result.smsSent,
-      // debugOtp returned when SMS not available so users can still login
-      ...(result.debugOtp ? { debugOtp: result.debugOtp } : {}),
+      ...(result.debugOtp ? debugInfo : {}),
     });
   } catch (e) { next(e); }
 });

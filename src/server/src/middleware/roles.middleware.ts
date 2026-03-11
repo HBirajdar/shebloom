@@ -3,8 +3,17 @@ import { AuthRequest } from './auth';
 
 export const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
   const user = (req as AuthRequest).user;
-  if (!user || (user.role !== 'ADMIN' && user.role !== 'DOCTOR')) {
+  if (!user || user.role !== 'ADMIN') {
     res.status(403).json({ success: false, error: 'Admin access required' });
+    return;
+  }
+  next();
+};
+
+export const requireDoctor = (req: Request, res: Response, next: NextFunction) => {
+  const user = (req as AuthRequest).user;
+  if (!user || (user.role !== 'DOCTOR' && user.role !== 'ADMIN')) {
+    res.status(403).json({ success: false, error: 'Doctor access required' });
     return;
   }
   next();

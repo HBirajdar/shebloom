@@ -61,35 +61,25 @@ app.use(helmet({
 
 // ─── CORS ───────────────────────────────────────────
 const allowedOrigins = [
-  'https://vedaclue.com',
-  'https://www.vedaclue.com',
   'http://localhost:5173',
-  'http://localhost:4173',
   'http://localhost:3000',
-  process.env.RAILWAY_STATIC_URL,
-  process.env.FRONTEND_URL,
-  ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map(o => o.trim()) : []),
+  'https://shebloom.vercel.app',
+  'https://shebloom.netlify.app',
+  process.env.CLIENT_URL,
 ].filter(Boolean) as string[];
 
-app.use(cors({
+const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, Postman)
     if (!origin) return callback(null, true);
-    if (
-      allowedOrigins.includes(origin) ||
-      origin.endsWith('.railway.app') ||
-      origin.endsWith('.up.railway.app')
-    ) {
-      return callback(null, true);
-    }
-    // Log blocked origins for debugging
-    console.log('[CORS] Blocked origin:', origin);
-    // TEMPORARILY allow all to debug - remove after fixing
-    return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS: origin ${origin} not allowed`));
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'X-Request-ID'],
-}));
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+app.use(cors(corsOptions));
 
 // Handle preflight explicitly
 app.options('*', cors());
@@ -102,11 +92,13 @@ const uploadsDir = path.resolve(__dirname, '../uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 app.use('/uploads', express.static(uploadsDir));
 
-// Debug request logger
-app.use((req, _res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} Auth: ${req.headers.authorization ? 'YES' : 'NO'}`);
-  next();
-});
+// Debug request logger (development only)
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, _res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+    next();
+  });
+}
 
 // ─── Logging ────────────────────────────────────────
 if (process.env.NODE_ENV !== 'test') {
@@ -127,7 +119,7 @@ const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 60, // increased from 20 — allows normal testing without hitting limit
   message: { error: 'Too many auth attempts. Please try after 15 minutes.' },
-  skip: (req) => process.env.NODE_ENV !== 'production', // no limit in dev
+  skip: (req) => process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test',
 });
 
 app.use('/api/', generalLimiter);
@@ -166,19 +158,21 @@ app.get('/api/v1/health', (_req, res) => {
 });
 
 // ─── DB Test Route ───────────────────────────────────
-app.get('/api/v1/test-db', async (_req, res) => {
-  try {
-    const [products, doctors, articles, users] = await Promise.all([
-      prisma.product.count(),
-      prisma.doctor.count(),
-      prisma.article.count(),
-      prisma.user.count(),
-    ]);
-    res.json({ success: true, products, doctors, articles, users });
-  } catch (err: any) {
-    res.json({ success: false, error: err.message });
-  }
-});
+if (process.env.NODE_ENV !== 'production') {
+  app.get('/api/v1/test-db', async (_req, res) => {
+    try {
+      const [products, doctors, articles, users] = await Promise.all([
+        prisma.product.count(),
+        prisma.doctor.count(),
+        prisma.article.count(),
+        prisma.user.count(),
+      ]);
+      res.json({ success: true, products, doctors, articles, users });
+    } catch (err: any) {
+      res.json({ success: false, error: err.message });
+    }
+  });
+}
 
 // ─── API Documentation ──────────────────────────────
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
@@ -208,7 +202,9 @@ app.use('/api/v1/reports', reportsRoutes);
 app.use('/api/v1/callbacks', callbackRoutes);
 app.use('/api/v1/prescriptions', prescriptionRoutes);
 app.use('/api/v1/payments', paymentRoutes);
-app.use('/api/v1/debug', debugRoutes);
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api/v1/debug', debugRoutes);
+}
 
 // ─── Serve React Client (production) ────────────────
 // Path from compiled server (src/server/dist/) to client build (src/client/dist/)
@@ -230,7 +226,7 @@ app.use(errorHandler);
 
 // Global error handler
 app.use((err: any, req: any, res: any, next: any) => {
-  console.error('[Global Error]', err.message, err.stack);
+  if (process.env.NODE_ENV !== 'production') console.error('[Global Error]', err.message, err.stack);
   if (err.code === 'LIMIT_FILE_SIZE') {
     return res.status(400).json({ success: false, error: 'File too large. Max 5MB for images.' });
   }

@@ -2,7 +2,7 @@ import { Router, Response, NextFunction } from 'express';
 import prisma from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { requireAdmin } from '../middleware/roles.middleware';
-import { sendBookingConfirmation, sendDoctorNotification } from '../services/email.service';
+import { sendBookingConfirmation, sendDoctorNotification, sendCancellationEmail } from '../services/email.service';
 import { successResponse, errorResponse } from '../utils/response.utils';
 
 const r = Router();
@@ -107,6 +107,10 @@ r.get('/:id', async (q: AuthRequest, s: Response, n: NextFunction) => {
       include: { doctor: { select: { id: true, fullName: true, specialization: true, avatarUrl: true, consultationFee: true } } },
     });
     if (!appt) { errorResponse(s, 'Appointment not found', 404); return; }
+    // Ownership check: patient sees own appointments, admin/doctor sees all
+    if (appt.userId !== q.user!.id && q.user!.role !== 'ADMIN' && q.user!.role !== 'DOCTOR') {
+      errorResponse(s, 'Not authorized', 403); return;
+    }
     successResponse(s, {
       ...appt,
       videoLink: appt.meetingLink,
@@ -127,6 +131,24 @@ r.patch('/:id/cancel', async (q: AuthRequest, s: Response, n: NextFunction) => {
       where: { id: q.params.id },
       data: { status: 'CANCELLED', cancellationReason: q.body.reason },
     });
+
+    // Send cancellation email (fire-and-forget)
+    try {
+      const user = await prisma.user.findUnique({ where: { id: q.user!.id }, select: { fullName: true, email: true } });
+      if (user?.email) {
+        const dateStr = new Date(existing.scheduledAt).toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        const timeStr = new Date(existing.scheduledAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+        sendCancellationEmail(user.email, {
+          patientName: user.fullName || 'Patient',
+          doctorName: existing.doctorName || 'Doctor',
+          date: dateStr,
+          time: timeStr,
+          appointmentId: appt.id,
+          reason: q.body.reason || undefined,
+        }).catch(() => {});
+      }
+    } catch (_) {}
+
     successResponse(s, appt, 'Appointment cancelled');
   } catch (e) { n(e); }
 });

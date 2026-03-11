@@ -3,7 +3,11 @@ dist/
 build/
 .env
 .env.local
+.env.*.local
 .env.production
+src/server/.env
+src/client/.env
+src/client/.env.local
 *.log
 npm-debug.log*
 coverage/

@@ -80,9 +80,9 @@ export class AuthService {
     otpSet(`otp:${normalized}`, otp, 300);
     await prisma.otpStore.deleteMany({ where: { phone: normalized } }).catch(() => {});
     await prisma.otpStore.create({ data: { phone: normalized, otp, expiresAt } }).catch(() => {});
-    console.log('============================');
-    console.log(`[OTP] Sending to: ${normalized}, OTP: ${otp}`);
-    console.log('============================');
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[OTP] Sending to: ${normalized}, OTP: ${otp}`);
+    }
     const twilioReady = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER);
     if (twilioReady) {
       try {

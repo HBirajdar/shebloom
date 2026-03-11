@@ -45,8 +45,8 @@ async function generateSmartNotifications(userId: string) {
 // ─── GET / ───────────────────────────────────────────
 r.get('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
-    // Generate smart notifications on each fetch (idempotent)
-    generateSmartNotifications(q.user!.id);
+    // Generate smart notifications on each fetch (idempotent, fire-and-forget)
+    generateSmartNotifications(q.user!.id).catch(() => {});
     const notifications = await prisma.notification.findMany({
       where: { userId: q.user!.id },
       orderBy: { createdAt: 'desc' },
