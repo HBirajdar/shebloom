@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAyurvedaStore } from '../stores/ayurvedaStore';
 import { api } from '../services/api';
+import DoctorCarousel from '../components/DoctorCarousel';
+import type { Doctor as CarouselDoctor } from '../components/DoctorCarousel';
 
 const CATS = ['All', 'Ayurveda', 'Gynecologist', 'Obstetrician', 'Fertility', 'Dermatologist', 'Nutritionist', 'Homeopathy'];
 const CITIES = ['All', 'Mumbai', 'Delhi', 'Bangalore', 'Chennai'];
@@ -270,48 +272,29 @@ export default function DoctorsPage() {
           </button>
         )}
 
-        {/* Featured Doctors Section */}
+        {/* Featured Doctors Carousel */}
         {filteredPromoted.length > 0 && (
-          <>
-            <div className="flex items-center gap-2 pt-1">
-              <span className="text-sm">{'\u2B50'}</span>
-              <h3 className="text-sm font-extrabold text-gray-800">Featured Doctors</h3>
-              <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">{filteredPromoted.length}</span>
-            </div>
-            {filteredPromoted.map(d => (
-              <button key={d.id} onClick={() => setSel(d)} className="w-full bg-white rounded-3xl p-4 shadow-lg text-left active:scale-[0.98] transition-transform border-2 border-amber-200 relative">
-                <div className="absolute top-3 right-3">
-                  <span className="text-[9px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200">{'\u2B50'} Featured</span>
-                </div>
-                <div className="flex gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm overflow-hidden">
-                    {(d.photoUrl || d.avatarUrl) ? <img src={d.photoUrl || d.avatarUrl} alt={d.name} className="w-full h-full object-cover" /> : d.name.split(' ').map(w => w[0]).join('').slice(0, 2)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-gray-800 text-sm">{d.name}</p>
-                    <p className="text-[10px] text-gray-500">{d.specialization} {d.city ? `\u2022 ${d.city}` : ''} {'\u2022'} {d.experience} yrs</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-amber-500 font-bold">{'\u2605'} {d.rating}</span>
-                      <span className="text-[10px] text-gray-400">({d.reviews} reviews)</span>
-                    </div>
-                    <div className="flex gap-1 mt-1.5 flex-wrap">
-                      {d.tags.map(t => <span key={t} className="text-[9px] px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full font-medium">{'\uD83C\uDFF7\uFE0F'} {t}</span>)}
-                    </div>
-                    {d.availability && <p className="text-[10px] text-gray-400 mt-1">{'\uD83D\uDD50'} {d.availability}</p>}
-                    {d.languages && <p className="text-[10px] text-gray-400">{'\uD83D\uDDE3\uFE0F'} {d.languages.join(', ')}</p>}
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-lg font-extrabold text-emerald-600">{'\u20B9'}{d.fee}</p>
-                    <p className="text-[9px] text-gray-400">/visit</p>
-                    {d.feeFreeForPoor && <p className="text-[8px] text-rose-500 font-bold mt-0.5">{'\u2764\uFE0F'} Free for needy</p>}
-                  </div>
-                </div>
-                <div className="mt-3 flex justify-end">
-                  <span className="text-[10px] font-bold text-rose-500">Book Appointment {'\u2192'}</span>
-                </div>
-              </button>
-            ))}
-          </>
+          <DoctorCarousel
+            title="Featured Doctors"
+            doctors={filteredPromoted.map((d: any): CarouselDoctor => ({
+              id: d.id,
+              fullName: d.name,
+              specialization: d.specialization,
+              rating: d.rating,
+              totalReviews: d.reviews || 0,
+              experienceYears: d.experience,
+              avatarUrl: d.avatarUrl,
+              photoUrl: d.photoUrl,
+              hospitalName: d.city || undefined,
+              consultationFee: d.fee,
+              isVerified: true,
+              isChief: d.isChief,
+            }))}
+            onBookNow={(doc) => {
+              const original = filteredPromoted.find((d: any) => d.id === doc.id);
+              if (original) setSel(original);
+            }}
+          />
         )}
 
         {/* Results count */}

@@ -4,8 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useCycleStore } from '../stores/cycleStore';
 import type { UserGoal } from '../stores/cycleStore';
-import { cycleAPI, moodAPI, userAPI, wellnessAPI, notificationAPI } from '../services/api';
+import { cycleAPI, moodAPI, userAPI, wellnessAPI, notificationAPI, doctorAPI } from '../services/api';
 import BottomNav from '../components/BottomNav';
+import DoctorCarousel from '../components/DoctorCarousel';
+import type { Doctor as CarouselDoctor } from '../components/DoctorCarousel';
 import toast from 'react-hot-toast';
 
 /* ═══════════════════════════════════════════════════════
@@ -144,6 +146,8 @@ export default function DashboardPage() {
   const [notifCount, setNotifCount] = useState(0);
   const [dashLoading, setDashLoading] = useState(true);
   const [tipIdx, setTipIdx] = useState(0);
+  const [carouselDoctors, setCarouselDoctors] = useState<CarouselDoctor[]>([]);
+  const [doctorsLoading, setDoctorsLoading] = useState(true);
 
   const theme = phaseThemes[phase] || phaseThemes.follicular;
   const ovDay = cycleLength - 14;
@@ -203,6 +207,25 @@ export default function DashboardPage() {
     notificationAPI.list().then(r => {
       setNotifCount(r.data.unreadCount || 0);
     }).catch(() => {});
+    // Load top doctors for carousel
+    doctorAPI.search({ isPublished: true, limit: 10 }).then(r => {
+      const items = r.data.data || r.data.doctors || [];
+      const mapped: CarouselDoctor[] = items.map((d: any) => ({
+        id: d._id || d.id,
+        fullName: d.fullName || d.name || '',
+        specialization: d.specialization || '',
+        rating: d.rating || 0,
+        totalReviews: d.totalReviews || d.reviews || 0,
+        experienceYears: d.experienceYears || d.experience || 0,
+        avatarUrl: d.avatarUrl || d.photoUrl || undefined,
+        photoUrl: d.photoUrl || d.avatarUrl || undefined,
+        hospitalName: d.hospitalName || d.city || undefined,
+        consultationFee: d.consultationFee || d.fee || undefined,
+        isVerified: d.isVerified ?? d.isAvailable !== false,
+        isChief: d.isChief || false,
+      }));
+      setCarouselDoctors(mapped);
+    }).catch(() => {}).finally(() => setDoctorsLoading(false));
   }, []);
 
   const logMood = (key: string) => {
@@ -448,6 +471,14 @@ export default function DashboardPage() {
             </button>
           ))}
         </div>
+
+        {/* ─── Top Doctors Carousel ─── */}
+        <DoctorCarousel
+          title="Top Doctors"
+          doctors={carouselDoctors}
+          loading={doctorsLoading}
+          onBookNow={(doctor) => nav('/doctors')}
+        />
 
         {/* ─── Phase Insight + Daily Tip ─── */}
         {hasRealData && (goal === 'periods' || goal === 'wellness' || goal === 'fertility') && (
