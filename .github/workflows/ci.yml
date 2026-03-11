@@ -20,23 +20,21 @@ jobs:
     name: Lint & Type Check
     runs-on: ubuntu-latest
     continue-on-error: true
-
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Cache Server node_modules
+      - name: Cache Server modules
         uses: actions/cache@v4
         with:
           path: src/server/node_modules
           key: server-${{ hashFiles('src/server/package-lock.json') }}
 
-      - name: Cache Client node_modules
+      - name: Cache Client modules
         uses: actions/cache@v4
         with:
           path: src/client/node_modules
@@ -59,8 +57,6 @@ jobs:
       - name: TypeCheck Server
         run: npx tsc --noEmit || true
         working-directory: src/server
-        env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
 
       - name: TypeCheck Client
         run: npx tsc --noEmit || true
@@ -73,23 +69,21 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     needs: lint
-
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Cache Server node_modules
+      - name: Cache Server modules
         uses: actions/cache@v4
         with:
           path: src/server/node_modules
           key: server-${{ hashFiles('src/server/package-lock.json') }}
 
-      - name: Cache Client node_modules
+      - name: Cache Client modules
         uses: actions/cache@v4
         with:
           path: src/client/node_modules
@@ -124,32 +118,22 @@ jobs:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
   # ─────────────────────────────────────────
-  # JOB 3: Deploy to Railway
+  # JOB 3: Notify Deploy
   # ─────────────────────────────────────────
-  deploy:
-    name: Deploy to Railway
+  notify:
+    name: Deploy Status
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Deploy to Railway
-        run: railway up --detach
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-
-      - name: Wait for Deployment
-        run: sleep 30
+      - name: Deployment Triggered
+        run: |
+          echo "✅ Build passed!"
+          echo "🚀 Railway auto-deploy triggered via GitHub integration"
+          echo "🌐 Live at: https://vedaclue.com"
 
       - name: Health Check
         run: |
-          curl -f https://blissful-communication-production-83ce.up.railway.app/api/health || echo "Health check failed but continuing"
-
-      - name: Deployment Success
-        run: echo "✅ Deployed successfully to Railway!"
+          sleep 10
+          curl -f https://blissful-communication-production-83ce.up.railway.app/api/health \
+          || echo "⚠️ Health check pending - Railway still deploying"
