@@ -14,6 +14,9 @@ import { notFoundHandler } from './middleware/notFoundHandler';
 import { requestLogger } from './middleware/requestLogger';
 import path from 'path';
 import fs from 'fs';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 // Route imports
 import authRoutes from './routes/auth.routes';
@@ -149,7 +152,27 @@ app.get('/api/ready', async (_req, res) => {
 
 // ─── Versioned Health Check ─────────────────────────
 app.get('/api/v1/health', (_req, res) => {
-  res.json({ success: true, message: 'VedaClue API running', timestamp: new Date().toISOString() });
+  res.json({
+    success: true,
+    message: 'VedaClue API running',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+  });
+});
+
+// ─── DB Test Route ───────────────────────────────────
+app.get('/api/v1/test-db', async (_req, res) => {
+  try {
+    const [products, doctors, articles, users] = await Promise.all([
+      prisma.product.count(),
+      prisma.doctor.count(),
+      prisma.article.count(),
+      prisma.user.count(),
+    ]);
+    res.json({ success: true, products, doctors, articles, users });
+  } catch (err: any) {
+    res.json({ success: false, error: err.message });
+  }
 });
 
 // ─── API Documentation ──────────────────────────────
