@@ -225,7 +225,7 @@ export default function OnboardingPage() {
             </div>
             <div className="bg-rose-50 rounded-2xl p-4 border border-rose-100 mb-6">
               <p className="text-[10px] text-rose-700 font-bold mb-2">🌸 What's waiting for you</p>
-              {['Personalized cycle predictions', 'Phase-specific Ayurveda picks', 'AI wellness coach', 'Expert doctor network'].map(f => (
+              {['Personalized cycle predictions', 'Phase-specific Ayurveda picks', 'Wellness activity tracking', 'Expert doctor network'].map(f => (
                 <p key={f} className="text-[10px] text-rose-600 mb-1">✓ {f}</p>
               ))}
             </div>

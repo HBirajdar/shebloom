@@ -181,9 +181,6 @@ const apiService = {
   getDailyScore: () => fetch(`${BASE_URL}/api/v1/wellness/daily-score`, { headers: getHeaders() }).then(handleResponse),
   logWellness: (body: any) => fetch(`${BASE_URL}/api/v1/wellness/log`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(body) }).then(handleResponse),
 
-  // AI COACH
-  chatWithCoach: (body: any) => fetch(`${BASE_URL}/api/v1/ai/chat`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(body) }).then(handleResponse),
-
   // REPORTS
   getReportSummary: () => fetch(`${BASE_URL}/api/v1/reports/summary`, { headers: getHeaders() }).then(handleResponse),
 

@@ -116,11 +116,6 @@ export const notificationAPI = {
   markAllRead: () => api.put('/notifications/read-all'),
 };
 
-export const coachAPI = {
-  chat: (d: { message: string; context: { cycleDay: number; phase: string; goal: string; lastSymptoms?: string[] } }) =>
-    api.post('/ai/chat', d),
-};
-
 export const cartAPI = {
   list: () => api.get('/cart'),
   add: (d: any) => api.post('/cart/add', d),
