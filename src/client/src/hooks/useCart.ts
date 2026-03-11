@@ -1,7 +1,16 @@
 // @ts-nocheck
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { cartAPI } from '../services/api';
 import toast from 'react-hot-toast';
+
+const LS_KEY = 'sb_cart';
+
+function loadLocal(): CartItem[] {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch { return []; }
+}
+function saveLocal(items: CartItem[]) {
+  localStorage.setItem(LS_KEY, JSON.stringify(items));
+}
 
 export interface CartItem {
   id: string;
@@ -26,43 +35,62 @@ interface UseCartReturn {
 }
 
 export function useCart(): UseCartReturn {
-  const [items, setItems] = useState<CartItem[]>([]);
+  const [items, setItems] = useState<CartItem[]>(loadLocal);
   const [loading, setLoading] = useState(false);
 
   const total = items.reduce((sum, i) => sum + i.price * i.qty, 0);
   const count = items.reduce((sum, i) => sum + i.qty, 0);
 
+  // Persist to localStorage whenever items change
+  useEffect(() => {
+    saveLocal(items);
+  }, [items]);
+
   const fetchCart = useCallback(async () => {
+    // Load from localStorage immediately (instant, no flicker)
+    setItems(loadLocal());
+    // Then try to sync from server (best-effort)
     try {
       setLoading(true);
       const res = await cartAPI.list();
-      setItems(res.data?.data?.items ?? []);
+      const serverItems: CartItem[] = res.data?.data?.items ?? [];
+      if (serverItems.length > 0) {
+        // Merge: server items win for shared ids, keep any local-only items
+        const serverIds = new Set(serverItems.map(i => i.productId));
+        const localOnly = loadLocal().filter(i => !serverIds.has(i.productId));
+        const merged = [...serverItems, ...localOnly];
+        setItems(merged);
+        saveLocal(merged);
+      }
     } catch {
-      // Cart is also managed locally — silent fail is acceptable
+      // Server unavailable — localStorage is the source of truth
     } finally {
       setLoading(false);
     }
   }, []);
 
   const addToCart = useCallback(async (product: { productId: string; name: string; price: number; image?: string; qty?: number }) => {
-    // Optimistic local update
     setItems(prev => {
       const existing = prev.find(i => i.productId === product.productId);
+      let next: CartItem[];
       if (existing) {
-        return prev.map(i => i.productId === product.productId
+        next = prev.map(i => i.productId === product.productId
           ? { ...i, qty: Math.min(i.qty + (product.qty || 1), 10) }
           : i
         );
+      } else {
+        next = [...prev, {
+          id: `local-${product.productId}-${Date.now()}`,
+          productId: product.productId,
+          name: product.name,
+          price: product.price,
+          image: product.image || '',
+          qty: product.qty || 1,
+          addedAt: new Date().toISOString(),
+        }];
       }
-      return [...prev, {
-        id: `local-${product.productId}-${Date.now()}`,
-        productId: product.productId,
-        name: product.name,
-        price: product.price,
-        image: product.image || '',
-        qty: product.qty || 1,
-        addedAt: new Date().toISOString(),
-      }];
+      saveLocal(next);
+      return next;
     });
     toast.success(`${product.name} added to cart 🛍️`);
 
@@ -70,31 +98,36 @@ export function useCart(): UseCartReturn {
     try {
       await cartAPI.add(product);
     } catch {
-      // Already optimistically added — server sync failure is non-critical
+      // localStorage already updated — non-critical
     }
   }, []);
 
   const removeFromCart = useCallback(async (id: string) => {
-    const prevItems = items;
-    setItems(prev => prev.filter(i => i.id !== id));
+    setItems(prev => {
+      const next = prev.filter(i => i.id !== id);
+      saveLocal(next);
+      return next;
+    });
     try {
       await cartAPI.remove(id);
     } catch {
-      setItems(prevItems);
-      toast.error('Failed to remove item');
+      // Already removed from localStorage — non-critical
     }
-  }, [items]);
+  }, []);
 
   const updateQty = useCallback((id: string, qty: number) => {
-    if (qty < 1) {
-      setItems(prev => prev.filter(i => i.id !== id));
-    } else {
-      setItems(prev => prev.map(i => i.id === id ? { ...i, qty: Math.min(qty, 10) } : i));
-    }
+    setItems(prev => {
+      const next = qty < 1
+        ? prev.filter(i => i.id !== id)
+        : prev.map(i => i.id === id ? { ...i, qty: Math.min(qty, 10) } : i);
+      saveLocal(next);
+      return next;
+    });
   }, []);
 
   const clearCart = useCallback(() => {
     setItems([]);
+    saveLocal([]);
   }, []);
 
   return { items, total, count, loading, addToCart, removeFromCart, updateQty, clearCart, fetchCart };
