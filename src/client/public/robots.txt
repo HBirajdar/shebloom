@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# Disallow private/admin routes
+Disallow: /admin
+Disallow: /debug
+Disallow: /setup
+Disallow: /api/
+
+# Sitemap
+Sitemap: https://vedaclue.com/sitemap.xml
+
+# Crawl delay
+Crawl-delay: 1
