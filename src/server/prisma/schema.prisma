@@ -72,37 +72,37 @@ enum Language {
 // ─── USER ───────────────────────────────────────────
 
 model User {
-  id              String       @id @default(cuid())
-  email           String?      @unique
-  phone           String?      @unique
-  passwordHash    String?
-  fullName        String
-  avatarUrl       String?
-  photoUrl        String?
-  dateOfBirth     DateTime?
-  role            Role         @default(USER)
-  authProvider    AuthProvider  @default(EMAIL)
-  isVerified      Boolean      @default(false)
-  isActive        Boolean      @default(true)
-  language        Language     @default(ENGLISH)
-  timezone        String       @default("Asia/Kolkata")
-  fcmToken        String?      // Firebase Cloud Messaging
-  lastLoginAt     DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id           String       @id @default(cuid())
+  email        String?      @unique
+  phone        String?      @unique
+  passwordHash String?
+  fullName     String
+  avatarUrl    String?
+  photoUrl     String?
+  dateOfBirth  DateTime?
+  role         Role         @default(USER)
+  authProvider AuthProvider @default(EMAIL)
+  isVerified   Boolean      @default(false)
+  isActive     Boolean      @default(true)
+  language     Language     @default(ENGLISH)
+  timezone     String       @default("Asia/Kolkata")
+  fcmToken     String? // Firebase Cloud Messaging
+  lastLoginAt  DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   // Relations
-  profile         UserProfile?
-  cycles          Cycle[]
-  moodLogs        MoodLog[]
-  symptomLogs     SymptomLog[]
-  pregnancies     Pregnancy[]
-  appointments    Appointment[]
+  profile          UserProfile?
+  cycles           Cycle[]
+  moodLogs         MoodLog[]
+  symptomLogs      SymptomLog[]
+  pregnancies      Pregnancy[]
+  appointments     Appointment[]
   articleBookmarks ArticleBookmark[]
-  waterLogs       WaterLog[]
-  notifications   Notification[]
-  refreshTokens   RefreshToken[]
-  prescriptions   Prescription[]
+  waterLogs        WaterLog[]
+  notifications    Notification[]
+  refreshTokens    RefreshToken[]
+  prescriptions    Prescription[]
 
   @@index([email])
   @@index([phone])
@@ -111,38 +111,38 @@ model User {
 }
 
 model UserProfile {
-  id                  String   @id @default(cuid())
-  userId              String   @unique
-  cycleLength         Int      @default(28)
-  periodLength        Int      @default(5)
+  id                  String    @id @default(cuid())
+  userId              String    @unique
+  cycleLength         Int       @default(28)
+  periodLength        Int       @default(5)
   lastPeriodDate      DateTime?
-  primaryGoal         String?    // track_periods, pregnancy, wellness, fertility
-  interests           String[]   // Array of interest tags
-  height              Float?     // cm
-  weight              Float?     // kg
+  primaryGoal         String? // track_periods, pregnancy, wellness, fertility
+  interests           String[] // Array of interest tags
+  height              Float? // cm
+  weight              Float? // kg
   bloodGroup          String?
   medicalConditions   String[]
   allergies           String[]
-  isPregnant          Boolean  @default(false)
+  isPregnant          Boolean   @default(false)
   pregnancyWeek       Int?
   contraceptiveMethod String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_profiles")
 }
 
 model RefreshToken {
-  id          String   @id @default(cuid())
-  userId      String
-  token       String   @unique
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
-  isRevoked   Boolean  @default(false)
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  isRevoked Boolean  @default(false)
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([token])
   @@index([userId])
@@ -152,35 +152,35 @@ model RefreshToken {
 // ─── CYCLE TRACKING ─────────────────────────────────
 
 model Cycle {
-  id              String     @id @default(cuid())
-  userId          String
-  startDate       DateTime
-  endDate         DateTime?
-  cycleLength     Int?
-  periodLength    Int?
-  ovulationDate   DateTime?
-  fertileStart    DateTime?
-  fertileEnd      DateTime?
-  isPredicted     Boolean    @default(false)
-  notes           String?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  id            String    @id @default(cuid())
+  userId        String
+  startDate     DateTime
+  endDate       DateTime?
+  cycleLength   Int?
+  periodLength  Int?
+  ovulationDate DateTime?
+  fertileStart  DateTime?
+  fertileEnd    DateTime?
+  isPredicted   Boolean   @default(false)
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, startDate])
   @@map("cycles")
 }
 
 model MoodLog {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
   mood      MoodLevel
   notes     String?
-  logDate   DateTime @default(now())
-  createdAt DateTime @default(now())
+  logDate   DateTime  @default(now())
+  createdAt DateTime  @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, logDate])
   @@map("mood_logs")
@@ -189,27 +189,27 @@ model MoodLog {
 model SymptomLog {
   id        String   @id @default(cuid())
   userId    String
-  symptoms  String[]  // Array of symptom names
-  severity  Int?      @default(5) // 1-10 scale
+  symptoms  String[] // Array of symptom names
+  severity  Int?     @default(5) // 1-10 scale
   notes     String?
-  logDate   DateTime  @default(now())
-  createdAt DateTime  @default(now())
+  logDate   DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, logDate])
   @@map("symptom_logs")
 }
 
 model WaterLog {
-  id        String   @id @default(cuid())
-  userId    String
-  glasses   Int      @default(0)
-  targetGlasses Int  @default(8)
-  logDate   DateTime @default(now())
-  createdAt DateTime @default(now())
+  id            String   @id @default(cuid())
+  userId        String
+  glasses       Int      @default(0)
+  targetGlasses Int      @default(8)
+  logDate       DateTime @default(now())
+  createdAt     DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, logDate])
   @@map("water_logs")
@@ -218,34 +218,34 @@ model WaterLog {
 // ─── PREGNANCY ──────────────────────────────────────
 
 model Pregnancy {
-  id                String              @id @default(cuid())
-  userId            String
-  dueDate           DateTime
-  conceptionDate    DateTime?
-  currentWeek       Int                 @default(1)
-  isActive          Boolean             @default(true)
-  notes             String?
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  id             String    @id @default(cuid())
+  userId         String
+  dueDate        DateTime
+  conceptionDate DateTime?
+  currentWeek    Int       @default(1)
+  isActive       Boolean   @default(true)
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  checklistItems    PregnancyChecklist[]
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  checklistItems PregnancyChecklist[]
 
   @@index([userId])
   @@map("pregnancies")
 }
 
 model PregnancyChecklist {
-  id            String    @id @default(cuid())
-  pregnancyId   String
-  week          Int
-  title         String
-  description   String?
-  isCompleted   Boolean   @default(false)
-  completedAt   DateTime?
-  createdAt     DateTime  @default(now())
+  id          String    @id @default(cuid())
+  pregnancyId String
+  week        Int
+  title       String
+  description String?
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
 
-  pregnancy     Pregnancy @relation(fields: [pregnancyId], references: [id], onDelete: Cascade)
+  pregnancy Pregnancy @relation(fields: [pregnancyId], references: [id], onDelete: Cascade)
 
   @@index([pregnancyId, week])
   @@map("pregnancy_checklists")
@@ -254,43 +254,43 @@ model PregnancyChecklist {
 // ─── DOCTORS ────────────────────────────────────────
 
 model Doctor {
-  id                String        @id @default(cuid())
-  userId            String?       @unique
-  fullName          String
-  specialization    String
-  qualifications    String[]
-  experienceYears   Int
-  hospitalName      String?
-  hospitalId        String?
-  consultationFee   Float
-  rating            Float         @default(0)
-  totalReviews      Int           @default(0)
-  languages         Language[]
-  tags              String[]
-  bio               String?
-  avatarUrl         String?
-  photoUrl          String?
-  clinicPhotos      String[]      @default([])
-  introVideoUrl     String?
-  isAvailable       Boolean       @default(true)
-  isVerified        Boolean       @default(false)
-  isPublished       Boolean       @default(false)
-  isChief           Boolean       @default(false)
-  isPromoted        Boolean       @default(false)
-  approvedBy        String?
-  approvedAt        DateTime?
-  publishedAt       DateTime?
-  status            String        @default("pending")
-  location          String?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  id              String     @id @default(cuid())
+  userId          String?    @unique
+  fullName        String
+  specialization  String
+  qualifications  String[]
+  experienceYears Int
+  hospitalName    String?
+  hospitalId      String?
+  consultationFee Float
+  rating          Float      @default(0)
+  totalReviews    Int        @default(0)
+  languages       Language[]
+  tags            String[]
+  bio             String?
+  avatarUrl       String?
+  photoUrl        String?
+  clinicPhotos    String[]   @default([])
+  introVideoUrl   String?
+  isAvailable     Boolean    @default(true)
+  isVerified      Boolean    @default(false)
+  isPublished     Boolean    @default(false)
+  isChief         Boolean    @default(false)
+  isPromoted      Boolean    @default(false)
+  approvedBy      String?
+  approvedAt      DateTime?
+  publishedAt     DateTime?
+  status          String     @default("pending")
+  location        String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
-  hospital          Hospital?     @relation(fields: [hospitalId], references: [id])
-  appointments      Appointment[]
-  articles          Article[]
-  reviews           DoctorReview[]
-  availableSlots    DoctorSlot[]
-  prescriptions     Prescription[]
+  hospital       Hospital?      @relation(fields: [hospitalId], references: [id])
+  appointments   Appointment[]
+  articles       Article[]
+  reviews        DoctorReview[]
+  availableSlots DoctorSlot[]
+  prescriptions  Prescription[]
 
   @@index([specialization])
   @@index([rating])
@@ -299,14 +299,14 @@ model Doctor {
 }
 
 model DoctorSlot {
-  id          String   @id @default(cuid())
-  doctorId    String
-  dayOfWeek   Int      // 0=Sun, 6=Sat
-  startTime   String   // "09:00"
-  endTime     String   // "17:00"
-  isActive    Boolean  @default(true)
+  id        String  @id @default(cuid())
+  doctorId  String
+  dayOfWeek Int // 0=Sun, 6=Sat
+  startTime String // "09:00"
+  endTime   String // "17:00"
+  isActive  Boolean @default(true)
 
-  doctor      Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 
   @@map("doctor_slots")
 }
@@ -319,33 +319,33 @@ model DoctorReview {
   comment   String?
   createdAt DateTime @default(now())
 
-  doctor    Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 
   @@index([doctorId])
   @@map("doctor_reviews")
 }
 
 model Appointment {
-  id              String            @id @default(cuid())
-  userId          String
-  doctorId        String?           // Changed: was String (required)
-  doctorName      String?           // Added: stores name for custom/admin doctors
-  scheduledAt     DateTime
-  duration        Int               @default(30)
-  status          AppointmentStatus @default(PENDING)
-  type            String            @default("consultation")
-  notes           String?
-  meetingLink     String?
-  paymentId       String?
-  amountPaid      Float?
+  id                 String            @id @default(cuid())
+  userId             String
+  doctorId           String? // Changed: was String (required)
+  doctorName         String? // Added: stores name for custom/admin doctors
+  scheduledAt        DateTime
+  duration           Int               @default(30)
+  status             AppointmentStatus @default(PENDING)
+  type               String            @default("consultation")
+  notes              String?
+  meetingLink        String?
+  paymentId          String?
+  amountPaid         Float?
   cancellationReason String?
-  rejectionReason String?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  rejectionReason    String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  doctor          Doctor?           @relation(fields: [doctorId], references: [id])  // Changed: was non-optional
-  prescription    Prescription?
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  doctor       Doctor?       @relation(fields: [doctorId], references: [id]) // Changed: was non-optional
+  prescription Prescription?
 
   @@index([userId])
   @@index([doctorId])
@@ -356,30 +356,30 @@ model Appointment {
 // ─── HOSPITALS ──────────────────────────────────────
 
 model Hospital {
-  id              String   @id @default(cuid())
-  name            String
-  address         String
-  city            String
-  state           String
-  pincode         String
-  latitude        Float?
-  longitude       Float?
-  phone           String?
-  email           String?
-  website         String?
-  rating          Float    @default(0)
-  totalBeds       Int?
-  hasEmergency    Boolean  @default(false)
-  category        String?  // budget, mid_range, premium
-  accreditation   String[] // NABH, JCI, etc.
-  specialties     String[]
-  imageUrls       String[]
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id            String   @id @default(cuid())
+  name          String
+  address       String
+  city          String
+  state         String
+  pincode       String
+  latitude      Float?
+  longitude     Float?
+  phone         String?
+  email         String?
+  website       String?
+  rating        Float    @default(0)
+  totalBeds     Int?
+  hasEmergency  Boolean  @default(false)
+  category      String? // budget, mid_range, premium
+  accreditation String[] // NABH, JCI, etc.
+  specialties   String[]
+  imageUrls     String[]
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  doctors         Doctor[]
-  prices          HospitalPrice[]
+  doctors Doctor[]
+  prices  HospitalPrice[]
 
   @@index([city])
   @@index([rating])
@@ -387,15 +387,15 @@ model Hospital {
 }
 
 model HospitalPrice {
-  id            String   @id @default(cuid())
-  hospitalId    String
-  serviceName   String   // "Consultation", "Normal Delivery", "C-Section", "Health Check-up"
-  minPrice      Float
-  maxPrice      Float?
-  currency      String   @default("INR")
-  lastUpdated   DateTime @default(now())
+  id          String   @id @default(cuid())
+  hospitalId  String
+  serviceName String // "Consultation", "Normal Delivery", "C-Section", "Health Check-up"
+  minPrice    Float
+  maxPrice    Float?
+  currency    String   @default("INR")
+  lastUpdated DateTime @default(now())
 
-  hospital      Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  hospital Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
 
   @@index([hospitalId])
   @@map("hospital_prices")
@@ -404,31 +404,31 @@ model HospitalPrice {
 // ─── ARTICLES ───────────────────────────────────────
 
 model Article {
-  id              String          @id @default(cuid())
+  id              String        @id @default(cuid())
   doctorId        String?
   title           String
-  slug            String          @unique
+  slug            String        @unique
   content         String
   excerpt         String?
-  category        String          // periods, pregnancy, pcod, wellness, nutrition, mental_health
+  category        String // periods, pregnancy, pcod, wellness, nutrition, mental_health
   tags            String[]
   coverImageUrl   String?
-  readTimeMinutes Int             @default(5)
-  emoji           String          @default("📝")
-  targetAudience  String[]        @default([])
-  status          ArticleStatus   @default(DRAFT)
-  viewCount       Int             @default(0)
-  likeCount       Int             @default(0)
-  isFeatured      Boolean         @default(false)
+  readTimeMinutes Int           @default(5)
+  emoji           String        @default("📝")
+  targetAudience  String[]      @default([])
+  status          ArticleStatus @default(DRAFT)
+  viewCount       Int           @default(0)
+  likeCount       Int           @default(0)
+  isFeatured      Boolean       @default(false)
   publishedAt     DateTime?
   approvedBy      String?
   approvedAt      DateTime?
-  authorName      String          @default("VedaClue Team")
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  authorName      String        @default("VedaClue Team")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
-  doctor          Doctor?         @relation(fields: [doctorId], references: [id])
-  bookmarks       ArticleBookmark[]
+  doctor    Doctor?           @relation(fields: [doctorId], references: [id])
+  bookmarks ArticleBookmark[]
 
   @@index([category])
   @@index([status])
@@ -442,8 +442,8 @@ model ArticleBookmark {
   articleId String
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
 
   @@unique([userId, articleId])
   @@map("article_bookmarks")
@@ -456,12 +456,12 @@ model Notification {
   userId    String
   title     String
   body      String
-  type      String   // period_reminder, appointment, article, wellness_tip
+  type      String // period_reminder, appointment, article, wellness_tip
   data      Json?
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, isRead])
   @@map("notifications")
@@ -470,19 +470,19 @@ model Notification {
 // ─── WELLNESS ───────────────────────────────────────
 
 model WellnessActivity {
-  id              String   @id @default(cuid())
+  id              String       @id @default(cuid())
   title           String
   description     String?
-  category        String   // meditation, yoga, stress_management, breathing
+  category        String // meditation, yoga, stress_management, breathing
   durationMinutes Int
-  difficulty      String   @default("beginner") // beginner, intermediate, advanced
+  difficulty      String       @default("beginner") // beginner, intermediate, advanced
   cyclePhases     CyclePhase[] // recommended during these phases
   imageUrl        String?
   audioUrl        String?
   videoUrl        String?
   instructions    Json?
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
 
   @@index([category])
   @@map("wellness_activities")
@@ -504,15 +504,15 @@ model OtpStore {
 // ─── AUDIT LOG ──────────────────────────────────────
 
 model AuditLog {
-  id          String   @id @default(cuid())
-  userId      String?
-  action      String   // login, logout, data_access, data_update, data_delete
-  resource    String   // user, cycle, appointment, etc.
-  resourceId  String?
-  ipAddress   String?
-  userAgent   String?
-  metadata    Json?
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String // login, logout, data_access, data_update, data_delete
+  resource   String // user, cycle, appointment, etc.
+  resourceId String?
+  ipAddress  String?
+  userAgent  String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
 
   @@index([userId])
   @@index([action])
@@ -523,7 +523,7 @@ model AuditLog {
 // ─── PRODUCTS (Ayurveda Shop) ──────────────────────
 
 model Product {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   name           String
   category       String
   price          Int
@@ -533,27 +533,27 @@ model Product {
   benefits       String[]
   howToUse       String
   size           String
-  emoji          String   @default("🌿")
-  rating         Float    @default(5.0)
-  reviews        Int      @default(0)
-  inStock        Boolean  @default(true)
-  isPublished    Boolean  @default(false)
-  isFeatured     Boolean  @default(false)
+  emoji          String    @default("🌿")
+  rating         Float     @default(5.0)
+  reviews        Int       @default(0)
+  inStock        Boolean   @default(true)
+  isPublished    Boolean   @default(false)
+  isFeatured     Boolean   @default(false)
   targetAudience String[]
   tags           String[]
   imageUrl       String?
-  galleryImages  String[] @default([])
+  galleryImages  String[]  @default([])
   videoUrl       String?
   ownerEmail     String?
   ownerPhone     String?
-  status         String   @default("draft")
+  status         String    @default("draft")
   publishedAt    DateTime?
   approvedBy     String?
   approvedAt     DateTime?
-  stock          Int      @default(0)
-  unit           String   @default("piece")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  stock          Int       @default(0)
+  unit           String    @default("piece")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([category])
   @@index([isPublished])
@@ -573,7 +573,7 @@ model CallbackRequest {
   ownerEmail  String?
   ownerPhone  String?
   message     String?
-  status      String   @default("PENDING")  // PENDING | CALLED | RESOLVED
+  status      String   @default("PENDING") // PENDING | CALLED | RESOLVED
   adminNotes  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -586,20 +586,20 @@ model CallbackRequest {
 // ─── PRESCRIPTIONS ──────────────────────────────────
 
 model Prescription {
-  id            String      @id @default(cuid())
-  appointmentId String      @unique
+  id            String    @id @default(cuid())
+  appointmentId String    @unique
   doctorId      String?
   userId        String
   diagnosis     String
-  medicines     Json        // [{name, dosage, frequency, duration}]
+  medicines     Json // [{name, dosage, frequency, duration}]
   instructions  String?
   followUpDate  DateTime?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
-  doctor        Doctor?     @relation(fields: [doctorId], references: [id])
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  doctor      Doctor?     @relation(fields: [doctorId], references: [id])
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([doctorId])
