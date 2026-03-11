@@ -144,6 +144,7 @@ export default function AyurvedaPage() {
             {isAdminUnlocked && (
               <button onClick={() => nav('/admin')} className="text-[9px] font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full active:scale-95">🛡️ Admin</button>
             )}
+            <button onClick={() => nav('/shop/history')} className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-lg active:scale-95 transition-transform">📦</button>
             <button onClick={() => setShowCart(true)} className="relative w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-lg active:scale-95 transition-transform">
               🛒
               {cartCount > 0 && (
@@ -533,7 +534,19 @@ export default function AyurvedaPage() {
                     <span className="text-base font-extrabold text-emerald-700">₹{cartTotal}</span>
                   </div>
                 </div>
-                <button onClick={() => { toast.success('Callback requested for your order! 📞'); setShowCart(false); setCart([]); }}
+                <button onClick={() => {
+                  const existing = JSON.parse(localStorage.getItem('sb_order_history') || '[]');
+                  const order = {
+                    id: 'SB' + Date.now(),
+                    items: cart.map(i => ({ name: i.product.name, price: i.product.discountPrice || i.product.price, qty: i.qty || 1, emoji: i.product.emoji || '🌿' })),
+                    total: cartTotal,
+                    date: new Date().toISOString(),
+                    status: 'Processing',
+                  };
+                  localStorage.setItem('sb_order_history', JSON.stringify([order, ...existing].slice(0, 50)));
+                  toast.success('Order placed! We\'ll call you shortly 📞');
+                  setShowCart(false); setCart([]);
+                }}
                   className="w-full py-4 rounded-2xl text-white font-extrabold text-sm active:scale-95 transition-transform mb-5"
                   style={{ background: 'linear-gradient(135deg,#059669,#10B981)' }}>
                   📞 Request Callback to Order

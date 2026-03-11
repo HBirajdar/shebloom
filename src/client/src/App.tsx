@@ -28,6 +28,8 @@ const ReportsPage = lazy(() => import('./pages/ReportsPage'));
 const WellnessHistoryPage = lazy(() => import('./pages/WellnessHistoryPage'));
 const CycleHistoryPage = lazy(() => import('./pages/CycleHistoryPage'));
 const MoodHistoryPage = lazy(() => import('./pages/MoodHistoryPage'));
+const AppointmentHistoryPage = lazy(() => import('./pages/AppointmentHistoryPage'));
+const ShopHistoryPage = lazy(() => import('./pages/ShopHistoryPage'));
 
 // Loading spinner
 const LoadingScreen = () => (
@@ -69,7 +71,9 @@ export default function App() {
           <Route path="/articles/:slug" element={<ProtectedRoute><ArticleDetailPage /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/appointments" element={<ProtectedRoute><AppointmentsPage /></ProtectedRoute>} />
+          <Route path="/appointments/history" element={<ProtectedRoute><AppointmentHistoryPage /></ProtectedRoute>} />
           <Route path="/ayurveda" element={<ProtectedRoute><AyurvedaPage /></ProtectedRoute>} />
+          <Route path="/shop/history" element={<ProtectedRoute><ShopHistoryPage /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
           <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
           <Route path="/programs" element={<ProtectedRoute><ProgramsPage /></ProtectedRoute>} />
