@@ -3,23 +3,36 @@ import { DoctorService } from '../services/doctor.service';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { requireAdmin } from '../middleware/roles.middleware';
 import prisma from '../config/database';
+import { successResponse, errorResponse } from '../utils/response.utils';
 
 const r = Router();
 const s = new DoctorService();
 
-// GET / — public search
-r.get('/', async (q: Request, r: Response, n: NextFunction) => {
+// GET / — public, only published doctors
+r.get('/', async (q: Request, res: Response, n: NextFunction) => {
   try {
-    r.json({ success: true, ...await s.search(q.query) });
+    const doctors = await prisma.doctor.findMany({
+      where: { isPublished: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    successResponse(res, doctors);
   } catch (e) { n(e); }
 });
 
-// GET /:id — single doctor
-r.get('/:id', async (q: Request, r: Response, n: NextFunction) => {
+// GET /all — auth required, all doctors including unpublished
+r.get('/all', authenticate, async (_req: AuthRequest, res: Response, n: NextFunction) => {
+  try {
+    const doctors = await prisma.doctor.findMany({ orderBy: { createdAt: 'desc' } });
+    successResponse(res, doctors);
+  } catch (e) { n(e); }
+});
+
+// GET /:id — public, single doctor
+r.get('/:id', async (q: Request, res: Response, n: NextFunction) => {
   try {
     const d = await s.getById(q.params.id);
-    if (!d) r.status(404).json({ error: 'Not found' });
-    else r.json({ success: true, data: d });
+    if (!d) { errorResponse(res, 'Not found', 404); return; }
+    successResponse(res, d);
   } catch (e) { n(e); }
 });
 
@@ -47,7 +60,7 @@ r.post('/', authenticate, requireAdmin, async (req: AuthRequest, res: Response, 
         isVerified: true,
       },
     });
-    res.status(201).json({ success: true, data: doctor });
+    successResponse(res, doctor, 'Doctor created', 201);
   } catch (e) { next(e); }
 });
 
@@ -64,6 +77,9 @@ r.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response
     if (req.body.consultationFee !== undefined) data.consultationFee = Number(req.body.consultationFee);
     if (req.body.isAvailable !== undefined) data.isAvailable = req.body.isAvailable;
     if (req.body.isVerified !== undefined) data.isVerified = req.body.isVerified;
+    if (req.body.isPublished !== undefined) data.isPublished = req.body.isPublished;
+    if (req.body.isPromoted !== undefined) data.isPromoted = req.body.isPromoted;
+    if (req.body.isChief !== undefined) data.isChief = req.body.isChief;
     if (req.body.qualifications !== undefined) {
       data.qualifications = Array.isArray(req.body.qualifications) ? req.body.qualifications : (req.body.qualifications || '').split(',').map((s: string) => s.trim()).filter(Boolean);
     }
@@ -74,9 +90,9 @@ r.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response
     if (req.body.clinicPhotos !== undefined) data.clinicPhotos = req.body.clinicPhotos;
 
     const doctor = await prisma.doctor.update({ where: { id }, data });
-    res.json({ success: true, data: doctor });
+    successResponse(res, doctor);
   } catch (e: any) {
-    if (e.code === 'P2025') { res.status(404).json({ success: false, error: 'Doctor not found' }); return; }
+    if (e.code === 'P2025') { errorResponse(res, 'Doctor not found', 404); return; }
     next(e);
   }
 });
@@ -85,9 +101,9 @@ r.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response
 r.delete('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     await prisma.doctor.delete({ where: { id: req.params.id } });
-    res.json({ success: true });
+    successResponse(res, null, 'Doctor deleted');
   } catch (e: any) {
-    if (e.code === 'P2025') { res.status(404).json({ success: false, error: 'Doctor not found' }); return; }
+    if (e.code === 'P2025') { errorResponse(res, 'Doctor not found', 404); return; }
     next(e);
   }
 });

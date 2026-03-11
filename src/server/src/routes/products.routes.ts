@@ -2,6 +2,7 @@ import { Router, Response, NextFunction, Request } from 'express';
 import prisma from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { requireAdmin } from '../middleware/roles.middleware';
+import { successResponse, errorResponse } from '../utils/response.utils';
 
 const r = Router();
 
@@ -17,7 +18,7 @@ r.get('/', async (req: Request, res: Response, next: NextFunction) => {
       take: Number(req.query.limit) || 50,
       skip: Number(req.query.offset) || 0,
     });
-    res.json({ success: true, data: products });
+    successResponse(res, products);
   } catch (e) { next(e); }
 });
 
@@ -25,7 +26,7 @@ r.get('/', async (req: Request, res: Response, next: NextFunction) => {
 r.get('/all', authenticate, requireAdmin, async (_req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const products = await prisma.product.findMany({ orderBy: { createdAt: 'desc' } });
-    res.json({ success: true, data: products });
+    successResponse(res, products);
   } catch (e) { next(e); }
 });
 
@@ -55,7 +56,7 @@ r.post('/', authenticate, requireAdmin, async (req: AuthRequest, res: Response, 
         videoUrl: videoUrl || null,
       },
     });
-    res.status(201).json({ success: true, data: product });
+    successResponse(res, product, 'Product created', 201);
   } catch (e) { next(e); }
 });
 
@@ -86,9 +87,9 @@ r.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response
     if (req.body.galleryImages !== undefined) data.galleryImages = req.body.galleryImages;
 
     const product = await prisma.product.update({ where: { id }, data });
-    res.json({ success: true, data: product });
+    successResponse(res, product);
   } catch (e: any) {
-    if (e.code === 'P2025') { res.status(404).json({ success: false, error: 'Product not found' }); return; }
+    if (e.code === 'P2025') { errorResponse(res, 'Product not found', 404); return; }
     next(e);
   }
 });
@@ -97,9 +98,9 @@ r.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response
 r.delete('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     await prisma.product.delete({ where: { id: req.params.id } });
-    res.json({ success: true });
+    successResponse(res, null, 'Product deleted');
   } catch (e: any) {
-    if (e.code === 'P2025') { res.status(404).json({ success: false, error: 'Product not found' }); return; }
+    if (e.code === 'P2025') { errorResponse(res, 'Product not found', 404); return; }
     next(e);
   }
 });
@@ -108,12 +109,12 @@ r.delete('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Respo
 r.post('/:id/toggle-publish', authenticate, requireAdmin, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const product = await prisma.product.findUnique({ where: { id: req.params.id } });
-    if (!product) { res.status(404).json({ success: false, error: 'Product not found' }); return; }
+    if (!product) { errorResponse(res, 'Product not found', 404); return; }
     const updated = await prisma.product.update({
       where: { id: req.params.id },
       data: { isPublished: !product.isPublished },
     });
-    res.json({ success: true, data: updated });
+    successResponse(res, updated);
   } catch (e) { next(e); }
 });
 

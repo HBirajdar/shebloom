@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { adminAPI } from '../services/api';
+import apiService from '../services/api.service';
 import ImageUpload from '../components/ImageUpload';
 import MultiImageUpload from '../components/MultiImageUpload';
 import toast from 'react-hot-toast';
@@ -135,14 +135,17 @@ export default function AdminPage() {
   const fetchUsers = async (page = 1, search = usersSearch, role = usersRoleFilter) => {
     setUsersLoading(true);
     try {
-      const res = await adminAPI.users({ page, limit: 20, search: search || undefined, role: role || undefined });
-      const d = res.data.data;
+      const params: any = { page: String(page), limit: '20' };
+      if (search) params.search = search;
+      if (role) params.role = role;
+      const res = await apiService.getAdminUsers(params);
+      const d = res.data;
       setUsers(d.users);
       setUsersTotal(d.total);
       setUsersPage(d.page);
       setUsersTotalPages(d.totalPages);
     } catch (e: any) {
-      toast.error(e.response?.data?.error || 'Failed to load users');
+      toast.error(e.message || 'Failed to load users');
     } finally {
       setUsersLoading(false);
     }
@@ -151,14 +154,16 @@ export default function AdminPage() {
   const fetchAppointments = async (page = 1, status = apptsStatusFilter) => {
     setApptsLoading(true);
     try {
-      const res = await adminAPI.appointments({ page, status: status || undefined });
-      const d = res.data.data;
+      const params: any = { page: String(page) };
+      if (status) params.status = status;
+      const res = await apiService.getAdminAppointments(params);
+      const d = res.data;
       setAppts(d.appointments);
       setApptsTotal(d.total);
       setApptsPage(d.page);
       setApptsTotalPages(d.totalPages);
     } catch (e: any) {
-      toast.error(e.response?.data?.error || 'Failed to load appointments');
+      toast.error(e.message || 'Failed to load appointments');
     } finally {
       setApptsLoading(false);
     }
@@ -167,10 +172,10 @@ export default function AdminPage() {
   const fetchAnalytics = async () => {
     setAnalyticsLoading(true);
     try {
-      const res = await adminAPI.analytics();
-      setAnalytics(res.data.data);
+      const res = await apiService.getAnalytics();
+      setAnalytics(res.data);
     } catch (e: any) {
-      toast.error(e.response?.data?.error || 'Failed to load analytics');
+      toast.error(e.message || 'Failed to load analytics');
     } finally {
       setAnalyticsLoading(false);
     }
@@ -197,13 +202,13 @@ export default function AdminPage() {
     toast.success('Welcome, Admin!');
     setDashLoading(true);
     try {
-      const res = await adminAPI.dashboard();
-      const data = res.data.data;
+      const res = await apiService.getDashboard();
+      const data = res.data;
       setProducts(data.products || []);
       setArticles(data.articles || []);
       setDoctors(data.doctors || []);
     } catch (e: any) {
-      toast.error(e.response?.data?.error || 'Failed to load dashboard');
+      toast.error(e.message || 'Failed to load dashboard');
     } finally {
       setDashLoading(false);
     }
@@ -261,11 +266,22 @@ export default function AdminPage() {
   const pubArticles = articles.filter(a => a.isPublished).length;
   const pubDoctors = doctors.filter(d => d.isPublished).length;
 
+  // Helper: reload all CMS data from dashboard
+  const reloadDashboard = async () => {
+    try {
+      const res = await apiService.getDashboard();
+      const data = res.data;
+      setProducts(data.products || []);
+      setArticles(data.articles || []);
+      setDoctors(data.doctors || []);
+    } catch {}
+  };
+
   // ─── CRUD Handlers ──────────────────────────────────
   const handleAddProduct = async () => {
     if (!np.name || np.price <= 0) { toast.error('Name and price required'); return; }
     try {
-      const res = await adminAPI.createProduct({
+      const res = await apiService.adminCreateProduct({
         ...np,
         discountPrice: np.discountPrice > 0 ? np.discountPrice : undefined,
         ingredients: np.ingredients.split(',').map(s => s.trim()).filter(Boolean),
@@ -276,117 +292,117 @@ export default function AdminPage() {
         imageUrl: np.imageUrl || undefined,
         galleryImages: np.galleryImages || [],
       });
-      setProducts(prev => [res.data.data, ...prev]);
+      setProducts(prev => [res.data, ...prev]);
       toast.success('Product added as draft!');
       setNp({ name: '', category: 'hair_oil', price: 0, discountPrice: 0, description: '', ingredients: '', benefits: '', howToUse: '', size: '', emoji: '\u{1F33F}', targetAudience: ['all'], doctorNote: '', preparationMethod: '', imageUrl: '', galleryImages: [] });
       setTab('products');
-    } catch (e: any) { toast.error(e.response?.data?.error || 'Failed to add product'); }
+    } catch (e: any) { toast.error(e.message || 'Failed to add product'); }
   };
 
   const handleToggleProductPublish = async (id: string) => {
     try {
-      const res = await adminAPI.toggleProductPublish(id);
-      setProducts(prev => prev.map(p => p.id === id ? res.data.data : p));
-    } catch (e: any) { toast.error(e.response?.data?.error || 'Failed'); }
+      const res = await apiService.adminToggleProductPublish(id);
+      setProducts(prev => prev.map(p => p.id === id ? res.data : p));
+    } catch (e: any) { toast.error(e.message || 'Failed'); }
   };
 
   const handleDeleteProduct = async (id: string) => {
     try {
-      await adminAPI.deleteProduct(id);
+      await apiService.adminDeleteProduct(id);
       setProducts(prev => prev.filter(p => p.id !== id));
       toast.success('Deleted');
-    } catch (e: any) { toast.error(e.response?.data?.error || 'Failed to delete'); }
+    } catch (e: any) { toast.error(e.message || 'Failed to delete'); }
   };
 
   const handleAddArticle = async () => {
     if (!na.title || !na.content) { toast.error('Title and content required'); return; }
     try {
-      const res = await adminAPI.createArticle({ ...na, author: 'chief', imageUrl: na.imageUrl || undefined });
-      setArticles(prev => [res.data.data, ...prev]);
+      const res = await apiService.adminCreateArticle({ ...na, author: 'chief', imageUrl: na.imageUrl || undefined });
+      setArticles(prev => [res.data, ...prev]);
       toast.success('Article saved as draft!');
       setNa({ title: '', content: '', category: '', readTime: '5 min', emoji: '\u{1F4DD}', targetAudience: ['all'], imageUrl: '' });
       setTab('articles');
-    } catch (e: any) { toast.error(e.response?.data?.error || 'Failed to add article'); }
+    } catch (e: any) { toast.error(e.message || 'Failed to add article'); }
   };
 
   const handleToggleArticlePublish = async (id: string) => {
     try {
-      const res = await adminAPI.toggleArticlePublish(id);
-      setArticles(prev => prev.map(a => a.id === id ? res.data.data : a));
-    } catch (e: any) { toast.error(e.response?.data?.error || 'Failed'); }
+      const res = await apiService.adminToggleArticlePublish(id);
+      setArticles(prev => prev.map(a => a.id === id ? res.data : a));
+    } catch (e: any) { toast.error(e.message || 'Failed'); }
   };
 
   const handleDeleteArticle = async (id: string) => {
     try {
-      await adminAPI.deleteArticle(id);
+      await apiService.adminDeleteArticle(id);
       setArticles(prev => prev.filter(a => a.id !== id));
       toast.success('Deleted');
-    } catch (e: any) { toast.error(e.response?.data?.error || 'Failed to delete'); }
+    } catch (e: any) { toast.error(e.message || 'Failed to delete'); }
   };
 
   const handleAddDoctor = async () => {
     if (!nd.name) { toast.error('Name required'); return; }
     try {
-      const res = await adminAPI.createDoctor({
+      const res = await apiService.adminCreateDoctor({
         name: nd.name, specialization: nd.specialization, experience: nd.experience,
         fee: nd.fee, qualification: nd.qualification, about: nd.about,
         tags: nd.tags.split(',').map(s => s.trim()).filter(Boolean),
         languages: nd.languages.split(',').map(s => s.trim()).filter(Boolean),
         avatarUrl: nd.avatarUrl || undefined,
       });
-      setDoctors(prev => [res.data.data, ...prev]);
+      setDoctors(prev => [res.data, ...prev]);
       toast.success('Doctor added!');
       setNd({ name: '', specialization: '', experience: 0, fee: 0, qualification: '', about: '', tags: '', languages: '', avatarUrl: '' });
       setTab('doctors');
-    } catch (e: any) { toast.error(e.response?.data?.error || 'Failed to add doctor'); }
+    } catch (e: any) { toast.error(e.message || 'Failed to add doctor'); }
   };
 
   const handleToggleDoctorPublish = async (id: string) => {
     try {
-      const res = await adminAPI.toggleDoctorPublish(id);
-      setDoctors(prev => prev.map(d => d.id === id ? res.data.data : d));
-    } catch (e: any) { toast.error(e.response?.data?.error || 'Failed'); }
+      const res = await apiService.adminToggleDoctorPublish(id);
+      setDoctors(prev => prev.map(d => d.id === id ? res.data : d));
+    } catch (e: any) { toast.error(e.message || 'Failed'); }
   };
 
   const handleToggleDoctorPromote = async (id: string) => {
     try {
-      const res = await adminAPI.toggleDoctorPromote(id);
-      setDoctors(prev => prev.map(d => d.id === id ? res.data.data : d));
-    } catch (e: any) { toast.error(e.response?.data?.error || 'Failed'); }
+      const res = await apiService.adminToggleDoctorPromote(id);
+      setDoctors(prev => prev.map(d => d.id === id ? res.data : d));
+    } catch (e: any) { toast.error(e.message || 'Failed'); }
   };
 
   const handleDeleteDoctor = async (id: string) => {
     try {
-      await adminAPI.deleteDoctor(id);
+      await apiService.adminDeleteDoctor(id);
       setDoctors(prev => prev.filter(d => d.id !== id));
       toast.success('Deleted');
-    } catch (e: any) { toast.error(e.response?.data?.error || 'Failed to delete'); }
+    } catch (e: any) { toast.error(e.message || 'Failed to delete'); }
   };
 
   // User management handlers
   const handleUpdateUserRole = async (id: string, role: string) => {
     try {
-      const res = await adminAPI.updateUser(id, { role });
-      setUsers(prev => prev.map(u => u.id === id ? res.data.data : u));
+      const res = await apiService.updateUser(id, { role });
+      setUsers(prev => prev.map(u => u.id === id ? res.data : u));
       toast.success('Role updated');
-    } catch (e: any) { toast.error(e.response?.data?.error || 'Failed to update role'); }
+    } catch (e: any) { toast.error(e.message || 'Failed to update role'); }
   };
 
   const handleToggleUserActive = async (id: string, currentlyActive: boolean) => {
     try {
-      const res = await adminAPI.updateUser(id, { isActive: !currentlyActive });
-      setUsers(prev => prev.map(u => u.id === id ? res.data.data : u));
+      const res = await apiService.updateUser(id, { isActive: !currentlyActive });
+      setUsers(prev => prev.map(u => u.id === id ? res.data : u));
       toast.success(currentlyActive ? 'User banned' : 'User activated');
-    } catch (e: any) { toast.error(e.response?.data?.error || 'Failed'); }
+    } catch (e: any) { toast.error(e.message || 'Failed'); }
   };
 
   // Appointment status handler
   const handleUpdateApptStatus = async (id: string, status: string) => {
     try {
-      const res = await adminAPI.updateAppointment(id, { status });
-      setAppts(prev => prev.map(a => a.id === id ? res.data.data : a));
+      const res = await apiService.adminUpdateAppointment(id, { status });
+      setAppts(prev => prev.map(a => a.id === id ? res.data : a));
       toast.success('Status updated');
-    } catch (e: any) { toast.error(e.response?.data?.error || 'Failed'); }
+    } catch (e: any) { toast.error(e.message || 'Failed'); }
   };
 
   // Settings handlers

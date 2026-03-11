@@ -2,6 +2,7 @@ import { Router, Response, NextFunction } from 'express';
 import prisma from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { sendBookingConfirmation, sendDoctorNotification } from '../services/email.service';
+import { successResponse, errorResponse } from '../utils/response.utils';
 
 const r = Router();
 r.use(authenticate);
@@ -71,19 +72,16 @@ r.post('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
       console.error('[Appointment] Email sending failed (non-fatal):', emailErr);
     }
 
-    s.status(201).json({
-      success: true,
-      data: {
-        ...appt,
-        videoLink,
-        jitsiRoomId,
-        doctor: appt.doctor || { fullName: resolvedDoctorName, specialization: '' },
-      },
-    });
+    successResponse(res, {
+      ...appt,
+      videoLink,
+      jitsiRoomId,
+      doctor: appt.doctor || { fullName: resolvedDoctorName, specialization: '' },
+    }, 'Appointment created', 201);
   } catch (e) { n(e); }
 });
 
-// GET / — list user's appointments
+// GET / — list user's OWN appointments
 r.get('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const data = await prisma.appointment.findMany({
@@ -96,7 +94,7 @@ r.get('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
       videoLink: a.meetingLink,
       doctor: a.doctor || { fullName: a.doctorName || 'Doctor', specialization: '' },
     }));
-    s.json({ success: true, data: result });
+    successResponse(s, result);
   } catch (e) { n(e); }
 });
 
@@ -107,28 +105,28 @@ r.get('/:id', async (q: AuthRequest, s: Response, n: NextFunction) => {
       where: { id: q.params.id },
       include: { doctor: { select: { fullName: true, specialization: true } } },
     });
-    if (!appt) { s.status(404).json({ success: false, error: 'Appointment not found' }); return; }
-    s.json({
-      success: true,
-      data: {
-        ...appt,
-        videoLink: appt.meetingLink,
-        doctor: appt.doctor || { fullName: appt.doctorName || 'Doctor', specialization: '' },
-      },
+    if (!appt) { errorResponse(s, 'Appointment not found', 404); return; }
+    successResponse(s, {
+      ...appt,
+      videoLink: appt.meetingLink,
+      doctor: appt.doctor || { fullName: appt.doctorName || 'Doctor', specialization: '' },
     });
   } catch (e) { n(e); }
 });
 
-// PATCH /:id/cancel — cancel appointment
+// PATCH /:id/cancel — cancel appointment (verify belongs to user)
 r.patch('/:id/cancel', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
-    s.json({
-      success: true,
-      data: await prisma.appointment.update({
-        where: { id: q.params.id },
-        data: { status: 'CANCELLED', cancellationReason: q.body.reason },
-      }),
+    // Verify ownership
+    const existing = await prisma.appointment.findUnique({ where: { id: q.params.id } });
+    if (!existing) { errorResponse(s, 'Appointment not found', 404); return; }
+    if (existing.userId !== q.user!.id) { errorResponse(s, 'Not your appointment', 403); return; }
+
+    const appt = await prisma.appointment.update({
+      where: { id: q.params.id },
+      data: { status: 'CANCELLED', cancellationReason: q.body.reason },
     });
+    successResponse(s, appt, 'Appointment cancelled');
   } catch (e) { n(e); }
 });
 
@@ -137,14 +135,13 @@ r.patch('/:id/status', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const { status } = q.body;
     if (!status || !['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'].includes(status)) {
-      s.status(400).json({ success: false, error: 'Invalid status' });
-      return;
+      errorResponse(s, 'Invalid status'); return;
     }
     const appt = await prisma.appointment.update({
       where: { id: q.params.id },
       data: { status },
     });
-    s.json({ success: true, data: appt });
+    successResponse(s, appt);
   } catch (e) { n(e); }
 });
 
