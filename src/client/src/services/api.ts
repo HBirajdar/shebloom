@@ -1,11 +1,11 @@
 import axios from 'axios';
 
-// In production (Railway), client is served by the same Express server → use relative URL.
-// In local dev, fall back to VITE_API_URL or localhost:8000.
+// Production: VITE_API_URL points to the Railway backend.
+// Local dev: falls back to localhost:8000.
 const BASE =
   import.meta.env.VITE_API_URL ||
   (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
-    ? ''
+    ? 'https://blissful-communication-production-83ce.up.railway.app'
     : 'http://localhost:8000');
 
 export const api = axios.create({
