@@ -42,12 +42,9 @@ router.post('/me/mobile/send-otp', async (req: AuthRequest, res: Response) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // Upsert OTP record
-    await prisma.otpStore.upsert({
-      where: { phone },
-      update: { otp, expiresAt },
-      create: { phone, otp, expiresAt },
-    });
+    // Delete any existing OTP for this phone, then create fresh
+    await prisma.otpStore.deleteMany({ where: { phone } });
+    await prisma.otpStore.create({ data: { phone, otp, expiresAt } });
 
     // In production, send via SMS. For now log it.
     console.log(`[OTP] Mobile verification for user ${req.user!.id}: phone=${phone} otp=${otp}`);
@@ -66,7 +63,7 @@ router.post('/me/mobile/confirm', async (req: AuthRequest, res: Response) => {
     const { phone, otp } = req.body;
     if (!phone || !otp) return res.status(400).json({ success: false, error: 'Phone and OTP are required' });
 
-    const record = await prisma.otpStore.findUnique({ where: { phone } });
+    const record = await prisma.otpStore.findFirst({ where: { phone } });
     if (!record) return res.status(400).json({ success: false, error: 'No OTP found for this number. Please request a new one.' });
     if (record.expiresAt < new Date()) return res.status(400).json({ success: false, error: 'OTP has expired. Please request a new one.' });
     if (record.otp !== otp) return res.status(400).json({ success: false, error: 'Invalid OTP. Please try again.' });
@@ -79,7 +76,7 @@ router.post('/me/mobile/confirm', async (req: AuthRequest, res: Response) => {
     });
 
     // Clean up OTP
-    await prisma.otpStore.delete({ where: { phone } }).catch(() => {});
+    await prisma.otpStore.deleteMany({ where: { phone } }).catch(() => {});
 
     return res.json({ success: true, message: 'Mobile number verified and saved', data: updated });
   } catch (err: any) {

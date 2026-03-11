@@ -485,12 +485,11 @@ model WellnessActivity {
 
 model OtpStore {
   id        String   @id @default(cuid())
-  phone     String
+  phone     String   @unique
   otp       String
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  @@index([phone])
   @@map("otp_store")
 }
 
