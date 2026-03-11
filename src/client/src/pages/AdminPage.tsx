@@ -2,8 +2,39 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import apiService from '../services/api.service';
+import { adminAPI } from '../services/api';
 import ImageUpload from '../components/ImageUpload';
+
+// Adapter: normalises axios { data: { success, data: X } } → { success, data: X }
+// so all existing res.data access patterns work unchanged.
+const wrap = (p: Promise<any>) => p.then((r: any) => r.data);
+const apiService = {
+  getDashboard:              ()              => wrap(adminAPI.dashboard()),
+  getAdminUsers:             (p?: any)       => wrap(adminAPI.users(p)),
+  getAdminAppointments:      (p?: any)       => wrap(adminAPI.appointments(p)),
+  getAnalytics:              ()              => wrap(adminAPI.analytics()),
+  adminGetCallbacks:         ()              => wrap(adminAPI.getCallbacks()),
+  adminUpdateCallback:       (id: string, d: any) => wrap(adminAPI.updateCallback(id, d)),
+  adminDeleteCallback:       (id: string)    => wrap(adminAPI.deleteCallback(id)),
+  getAdminProductAnalytics:  ()              => wrap(adminAPI.productAnalytics()),
+  getAdminDoctorAnalytics:   ()              => wrap(adminAPI.doctorAnalytics()),
+  getAdminPrescriptions:     ()              => wrap(adminAPI.getPrescriptions()),
+  adminCreateProduct:        (d: any)        => wrap(adminAPI.createProduct(d)),
+  adminUpdateProduct:        (id: string, d: any) => wrap(adminAPI.updateProduct(id, d)),
+  adminToggleProductPublish: (id: string)    => wrap(adminAPI.toggleProductPublish(id)),
+  adminDeleteProduct:        (id: string)    => wrap(adminAPI.deleteProduct(id)),
+  adminCreateArticle:        (d: any)        => wrap(adminAPI.createArticle(d)),
+  adminUpdateArticle:        (id: string, d: any) => wrap(adminAPI.updateArticle(id, d)),
+  adminToggleArticlePublish: (id: string)    => wrap(adminAPI.toggleArticlePublish(id)),
+  adminDeleteArticle:        (id: string)    => wrap(adminAPI.deleteArticle(id)),
+  adminCreateDoctor:         (d: any)        => wrap(adminAPI.createDoctor(d)),
+  adminUpdateDoctor:         (id: string, d: any) => wrap(adminAPI.updateDoctor(id, d)),
+  adminToggleDoctorPublish:  (id: string)    => wrap(adminAPI.toggleDoctorPublish(id)),
+  adminToggleDoctorPromote:  (id: string)    => wrap(adminAPI.toggleDoctorPromote(id)),
+  adminDeleteDoctor:         (id: string)    => wrap(adminAPI.deleteDoctor(id)),
+  updateUser:                (id: string, d: any) => wrap(adminAPI.updateUser(id, d)),
+  adminUpdateAppointment:    (id: string, d: any) => wrap(adminAPI.updateAppointment(id, d)),
+};
 import MultiImageUpload from '../components/MultiImageUpload';
 import toast from 'react-hot-toast';
 

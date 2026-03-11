@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect, useCallback } from 'react';
-import apiService from '../services/api.service';
+import { appointmentAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
 const LS_KEY = 'sb_bookings';
@@ -15,8 +15,8 @@ export function useAppointments() {
   const fetchBookings = useCallback(async () => {
     const local = getLocal();
     try {
-      const result = await apiService.getMyAppointments();
-      const apiData = (result.data || []).map((b: any) => ({
+      const result = await appointmentAPI.list();
+      const apiData = (result.data?.data || []).map((b: any) => ({
         id: b.id, doctorId: b.doctorId, doctorName: b.doctor?.fullName || b.doctorName || 'Doctor',
         date: b.scheduledAt?.split('T')[0] || '', time: b.scheduledAt?.split('T')[1]?.substring(0, 5) || '',
         reason: b.notes?.split(' | ')[0] || '', notes: b.notes?.split(' | ')[1] || '',
@@ -44,10 +44,10 @@ export function useAppointments() {
     const scheduledAt = data.date + 'T' + convertTo24h(data.time) + ':00';
     // Try API first
     try {
-      const result = await apiService.createAppointment({ doctorId: data.doctorId, doctorName: data.doctorName, scheduledAt, reason: data.reason, notes: data.notes });
+      const result = await appointmentAPI.create({ doctorId: data.doctorId, doctorName: data.doctorName, scheduledAt, reason: data.reason, notes: data.notes });
       toast.success('Appointment booked!');
       await fetchBookings();
-      const apptData = result.data;
+      const apptData = result.data?.data || result.data;
       return { ...apptData, videoLink: apptData.videoLink || apptData.meetingLink || '' };
     } catch {
       // API failed (doctor not in DB) — save to localStorage
@@ -63,7 +63,7 @@ export function useAppointments() {
 
   const cancelBooking = async (id: string) => {
     // Try API cancel
-    try { await apiService.cancelAppointment(id); } catch {}
+    try { await appointmentAPI.cancel(id); } catch {}
     // Also update localStorage
     const local = getLocal().map((b: any) => b.id === id ? { ...b, status: 'cancelled' } : b);
     setLocal(local);

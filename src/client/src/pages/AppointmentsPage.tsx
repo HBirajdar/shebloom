@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAyurvedaStore } from '../stores/ayurvedaStore';
 import { useAuthStore } from '../stores/authStore';
-import apiService from '../services/api.service';
+import { doctorAPI } from '../services/api';
 // Bug A fix: import and use the useAppointments hook
 import { useAppointments } from '../hooks/useAppointments';
 import { prescriptionAPI } from '../services/api';
@@ -20,10 +20,9 @@ export default function AppointmentsPage() {
   // Fetch doctors from API, fall back to zustand defaults
   const [apiDoctors, setApiDoctors] = useState<any[] | null>(null);
   useEffect(() => {
-    apiService.getDoctors()
+    doctorAPI.search({})
       .then(result => {
-        // apiService returns { success, data: [...] } directly (fetch, not axios)
-        const items = result.data || [];
+        const items = result.data?.data || [];
         if (items.length > 0) {
           // Backend mapDoctor already maps fields (name, experience, fee, etc.)
           setApiDoctors(items);
