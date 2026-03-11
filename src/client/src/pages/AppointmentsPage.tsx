@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAyurvedaStore } from '../stores/ayurvedaStore';
 import { useAuthStore } from '../stores/authStore';
-import { api } from '../services/api';
+import apiService from '../services/api.service';
 // Bug A fix: import and use the useAppointments hook
 import { useAppointments } from '../hooks/useAppointments';
 import toast from 'react-hot-toast';
@@ -19,27 +19,13 @@ export default function AppointmentsPage() {
   // Fetch doctors from API, fall back to zustand defaults
   const [apiDoctors, setApiDoctors] = useState<any[] | null>(null);
   useEffect(() => {
-    api.get('/doctors')
-      .then(r => {
-        const items = r.data.data || r.data.doctors || [];
+    apiService.getDoctors()
+      .then(result => {
+        // apiService returns { success, data: [...] } directly (fetch, not axios)
+        const items = result.data || [];
         if (items.length > 0) {
-          const mapped = items.map((d: any) => ({
-            ...d,
-            name: d.fullName || d.name || '',
-            experience: d.experienceYears || d.experience || 0,
-            fee: d.consultationFee || d.fee || 0,
-            qualification: (d.qualifications || []).join(', ') || d.qualification || '',
-            reviews: d.totalReviews || d.reviews || 0,
-            about: d.bio || d.about || '',
-            isPublished: d.isAvailable !== false,
-            isChief: false,
-            isPromoted: false,
-            feeFreeForPoor: false,
-            tags: d.tags || [],
-            languages: d.languages || [],
-            avatarUrl: d.avatarUrl || d.photoUrl || null,
-          }));
-          setApiDoctors(mapped);
+          // Backend mapDoctor already maps fields (name, experience, fee, etc.)
+          setApiDoctors(items);
         }
       })
       .catch(() => {});

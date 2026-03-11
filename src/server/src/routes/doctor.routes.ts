@@ -1,21 +1,50 @@
 import { Router, Response, NextFunction, Request } from 'express';
-import { DoctorService } from '../services/doctor.service';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { requireAdmin } from '../middleware/roles.middleware';
 import prisma from '../config/database';
 import { successResponse, errorResponse } from '../utils/response.utils';
 
 const r = Router();
-const s = new DoctorService();
+
+function mapDoctor(d: any) {
+  return {
+    id: d.id,
+    name: d.fullName,
+    specialization: d.specialization,
+    experience: d.experienceYears || 0,
+    fee: d.consultationFee || 0,
+    qualification: Array.isArray(d.qualifications) ? d.qualifications.join(', ') : (d.qualifications || ''),
+    about: d.bio || '',
+    rating: d.rating || 5.0,
+    reviews: d.totalReviews || 0,
+    isPublished: d.isPublished ?? false,
+    isVerified: d.isVerified ?? false,
+    isAvailable: d.isAvailable ?? true,
+    avatarUrl: d.avatarUrl || d.photoUrl || null,
+    tags: d.tags || [],
+    languages: d.languages || [],
+    hospitalName: d.hospitalName || null,
+    isChief: d.isChief ?? false,
+    isPromoted: d.isPromoted ?? false,
+  };
+}
 
 // GET / — public, only published doctors
 r.get('/', async (q: Request, res: Response, n: NextFunction) => {
   try {
+    const where: any = { isPublished: true };
+    if (q.query.specialization) where.specialization = { contains: q.query.specialization as string, mode: 'insensitive' };
+    if (q.query.search) where.OR = [
+      { fullName: { contains: q.query.search as string, mode: 'insensitive' } },
+      { specialization: { contains: q.query.search as string, mode: 'insensitive' } },
+    ];
     const doctors = await prisma.doctor.findMany({
-      where: { isPublished: true },
+      where,
       orderBy: { createdAt: 'desc' },
+      take: Number(q.query.limit) || 50,
+      skip: Number(q.query.offset) || 0,
     });
-    successResponse(res, doctors);
+    successResponse(res, doctors.map(mapDoctor));
   } catch (e) { n(e); }
 });
 
@@ -23,16 +52,16 @@ r.get('/', async (q: Request, res: Response, n: NextFunction) => {
 r.get('/all', authenticate, async (_req: AuthRequest, res: Response, n: NextFunction) => {
   try {
     const doctors = await prisma.doctor.findMany({ orderBy: { createdAt: 'desc' } });
-    successResponse(res, doctors);
+    successResponse(res, doctors.map(mapDoctor));
   } catch (e) { n(e); }
 });
 
 // GET /:id — public, single doctor
 r.get('/:id', async (q: Request, res: Response, n: NextFunction) => {
   try {
-    const d = await s.getById(q.params.id);
-    if (!d) { errorResponse(res, 'Not found', 404); return; }
-    successResponse(res, d);
+    const d = await prisma.doctor.findUnique({ where: { id: q.params.id } });
+    if (!d) { errorResponse(res, 'Doctor not found', 404); return; }
+    successResponse(res, mapDoctor(d));
   } catch (e) { n(e); }
 });
 

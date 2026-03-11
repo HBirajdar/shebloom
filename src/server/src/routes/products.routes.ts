@@ -30,6 +30,15 @@ r.get('/all', authenticate, requireAdmin, async (_req: AuthRequest, res: Respons
   } catch (e) { next(e); }
 });
 
+// GET /products/:id — public, single product
+r.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const product = await prisma.product.findUnique({ where: { id: req.params.id } });
+    if (!product) { errorResponse(res, 'Product not found', 404); return; }
+    successResponse(res, product);
+  } catch (e) { next(e); }
+});
+
 // POST /products — admin create
 r.post('/', authenticate, requireAdmin, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {

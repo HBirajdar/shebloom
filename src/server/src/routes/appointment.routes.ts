@@ -33,7 +33,7 @@ r.post('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
         notes: [reason, notes].filter(Boolean).join(' | ') || null,
         meetingLink: videoLink,
       },
-      include: { doctor: { select: { fullName: true, specialization: true } } },
+      include: { doctor: { select: { id: true, fullName: true, specialization: true, avatarUrl: true, consultationFee: true } } },
     });
 
     // Send emails (fire-and-forget, never crash)
@@ -72,7 +72,7 @@ r.post('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
       console.error('[Appointment] Email sending failed (non-fatal):', emailErr);
     }
 
-    successResponse(res, {
+    successResponse(s, {
       ...appt,
       videoLink,
       jitsiRoomId,
@@ -86,7 +86,7 @@ r.get('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const data = await prisma.appointment.findMany({
       where: { userId: q.user!.id },
-      include: { doctor: { select: { fullName: true, specialization: true } } },
+      include: { doctor: { select: { id: true, fullName: true, specialization: true, avatarUrl: true, consultationFee: true } } },
       orderBy: { scheduledAt: 'desc' },
     });
     const result = data.map((a: any) => ({
@@ -103,7 +103,7 @@ r.get('/:id', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const appt = await prisma.appointment.findUnique({
       where: { id: q.params.id },
-      include: { doctor: { select: { fullName: true, specialization: true } } },
+      include: { doctor: { select: { id: true, fullName: true, specialization: true, avatarUrl: true, consultationFee: true } } },
     });
     if (!appt) { errorResponse(s, 'Appointment not found', 404); return; }
     successResponse(s, {
