@@ -149,4 +149,12 @@ export const adminAPI = {
   createDoctor: (d: any) => api.post('/admin/doctors', d),
   toggleDoctorPublish: (id: string) => api.post(`/admin/doctors/${id}/toggle-publish`),
   deleteDoctor: (id: string) => api.delete(`/admin/doctors/${id}`),
+  toggleDoctorPromote: (id: string) => api.post(`/admin/doctors/${id}/toggle-promote`),
+  users: (params?: { page?: number; limit?: number; search?: string; role?: string }) => api.get('/admin/users', { params }),
+  updateUser: (id: string, d: { role?: string; isActive?: boolean }) => api.patch(`/admin/users/${id}`, d),
+  deleteUser: (id: string) => api.delete(`/admin/users/${id}`),
+  analytics: () => api.get('/admin/analytics'),
+  appointments: (params?: { status?: string; page?: number }) => api.get('/admin/appointments', { params }),
+  updateAppointment: (id: string, d: { status: string }) => api.patch(`/admin/appointments/${id}`, d),
+  upload: (formData: FormData) => api.post('/admin/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
 };
