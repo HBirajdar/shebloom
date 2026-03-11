@@ -439,8 +439,8 @@ export default function DashboardPage() {
           {[
             { l: 'Community', p: '/community', bg: '#FDF2F8', e: '💬', c: '#DB2777' },
             { l: 'Programs', p: '/programs', bg: '#F5F3FF', e: '🎯', c: '#7C3AED' },
-            { l: 'Wellness', p: '/wellness', bg: '#FEF3C7', e: '🧘', c: '#D97706' },
-            { l: 'Doctors', p: '/doctors', bg: '#EFF6FF', e: '👩‍⚕️', c: '#2563EB' },
+            { l: 'Articles', p: '/articles', bg: '#FFF7ED', e: '📰', c: '#EA580C' },
+            { l: 'Appointments', p: '/appointments', bg: '#EFF6FF', e: '📋', c: '#2563EB' },
           ].map(a => (
             <button key={a.l} onClick={() => nav(a.p)} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-sm" style={{ backgroundColor: a.bg }}>{a.e}</div>
