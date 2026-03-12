@@ -38,22 +38,28 @@ r.post('/webhook', async (req: Request, res: Response) => {
       const razorpayOrderId = event.payload?.payment?.entity?.order_id;
 
       if (razorpayOrderId) {
-        // Find and update the order
+        // Atomically find and update the order (only if still PENDING — prevents double processing)
         const order = await prisma.order.findFirst({
           where: { razorpayOrderId, paymentStatus: 'PENDING' },
           include: { items: true },
         });
         if (order) {
-          await prisma.order.update({
-            where: { id: order.id },
+          // Use updateMany with paymentStatus check as a guard against race with /verify
+          const updated = await prisma.order.updateMany({
+            where: { id: order.id, paymentStatus: 'PENDING' },
             data: { paymentStatus: 'PAID', paymentId, orderStatus: 'CONFIRMED' },
           });
-          // Reduce stock
-          for (const item of order.items) {
-            await prisma.product.update({
-              where: { id: item.productId },
-              data: { stock: { decrement: item.quantity } },
-            }).catch(() => {});
+          // Only decrement stock + record coupon if WE were the one who updated
+          if (updated.count > 0) {
+            for (const item of order.items) {
+              await prisma.product.update({
+                where: { id: item.productId },
+                data: { stock: { decrement: item.quantity } },
+              }).catch(() => {});
+            }
+            if (order.couponCode) {
+              await recordCouponRedemption(order.couponCode, order.userId, order.couponDiscount || 0, order.id).catch(() => {});
+            }
           }
         }
       }
@@ -91,9 +97,15 @@ async function applyCoupon(code: string, userId: string, amount: number, scope: 
   if (coupon.validFrom && now < coupon.validFrom) return { discount: 0, couponCode: null, error: 'Coupon not yet active' };
   if (coupon.validUntil && now > coupon.validUntil) return { discount: 0, couponCode: null, error: 'Coupon expired' };
   if (coupon.applicableTo !== 'ALL' && coupon.applicableTo !== scope) return { discount: 0, couponCode: null, error: `Coupon valid for ${coupon.applicableTo.toLowerCase()} only` };
-  if (amount < coupon.minOrderAmount) return { discount: 0, couponCode: null, error: `Min ₹${coupon.minOrderAmount} required` };
+  if (amount > 0 && amount < coupon.minOrderAmount) return { discount: 0, couponCode: null, error: `Min ₹${coupon.minOrderAmount} required` };
   if (coupon.maxUses && coupon.currentUses >= coupon.maxUses) return { discount: 0, couponCode: null, error: 'Coupon limit reached' };
   if (coupon.redemptions.length >= coupon.maxUsesPerUser) return { discount: 0, couponCode: null, error: 'Already used' };
+  // First-order-only check (like Zepto/PharmEasy)
+  if (coupon.firstOrderOnly) {
+    const hasOrders = await prisma.order.count({ where: { userId, paymentStatus: 'PAID' } });
+    const hasAppointments = await prisma.appointment.count({ where: { userId, status: { not: 'CANCELLED' } } });
+    if (hasOrders > 0 || hasAppointments > 0) return { discount: 0, couponCode: null, error: 'This coupon is for first-time users only' };
+  }
   if (doctorId && coupon.specificDoctorIds.length > 0 && !coupon.specificDoctorIds.includes(doctorId)) return { discount: 0, couponCode: null, error: 'Not valid for this doctor' };
   if (productIds?.length && coupon.specificProductIds.length > 0 && !productIds.some(pid => coupon.specificProductIds.includes(pid))) return { discount: 0, couponCode: null, error: 'Not valid for these products' };
 
@@ -140,7 +152,7 @@ r.post('/create-order', async (q: AuthRequest, s: Response, n: NextFunction) => 
     for (const item of items) {
       const product = products.find((p: any) => p.id === item.productId);
       if (!product) { errorResponse(s, `Product not found: ${item.productId}`, 400); return; }
-      const price = (product as any).discountPrice || (product as any).price;
+      const price = (product as any).discountPrice ?? (product as any).price;
       const totalPrice = price * item.quantity;
       subtotal += totalPrice;
       orderItems.push({ productId: product.id, productName: (product as any).name, quantity: item.quantity, price, totalPrice });
@@ -161,7 +173,7 @@ r.post('/create-order', async (q: AuthRequest, s: Response, n: NextFunction) => 
     const platformFee = Math.round((config.platformFeeFlat + (subtotal * config.platformFeePercent / 100)) * 100) / 100;
     const afterDiscount = subtotal - couponDiscount;
     const totalAmount = Math.max(0, afterDiscount + deliveryCharge + platformFee);
-    const orderNumber = `VC-${Date.now()}`;
+    const orderNumber = `VC-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
 
     // Create Razorpay order
     const rzpOrder = await razorpay.orders.create({
@@ -220,16 +232,21 @@ r.post('/verify', async (q: AuthRequest, s: Response, n: NextFunction) => {
       errorResponse(s, 'Payment verification failed', 400); return;
     }
 
-    // Fetch order with user
-    const order = await prisma.order.findUnique({
-      where: { id: orderId },
+    // Fetch order with user — verify it belongs to the requesting user
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, userId: q.user!.id },
       include: { items: true, user: { select: { email: true, fullName: true, phone: true } } },
     });
     if (!order) { errorResponse(s, 'Order not found', 404); return; }
 
-    // Update order
-    await prisma.order.update({
-      where: { id: orderId },
+    // Prevent re-verification of already paid/cancelled orders
+    if (order.paymentStatus !== 'PENDING') {
+      successResponse(s, { success: true, orderId, orderNumber: order.orderNumber, alreadyProcessed: true }); return;
+    }
+
+    // Atomically update order (guard against double processing from webhook race)
+    const updated = await prisma.order.updateMany({
+      where: { id: orderId, paymentStatus: 'PENDING' },
       data: {
         paymentStatus: 'PAID',
         paymentId: razorpayPaymentId,
@@ -238,17 +255,17 @@ r.post('/verify', async (q: AuthRequest, s: Response, n: NextFunction) => {
       },
     });
 
-    // Reduce stock for each ordered item
-    for (const item of order.items) {
-      await prisma.product.update({
-        where: { id: item.productId },
-        data: { stock: { decrement: item.quantity } },
-      }).catch(() => {});
-    }
-
-    // Record coupon redemption
-    if (order.couponCode) {
-      await recordCouponRedemption(order.couponCode, order.userId, order.couponDiscount || 0, order.id).catch(() => {});
+    // Only decrement stock + record coupon if WE were the one who updated
+    if (updated.count > 0) {
+      for (const item of order.items) {
+        await prisma.product.update({
+          where: { id: item.productId },
+          data: { stock: { decrement: item.quantity } },
+        }).catch(() => {});
+      }
+      if (order.couponCode) {
+        await recordCouponRedemption(order.couponCode, order.userId, order.couponDiscount || 0, order.id).catch(() => {});
+      }
     }
 
     // Send order confirmation email (best-effort)
@@ -277,6 +294,9 @@ r.post('/cod', async (q: AuthRequest, s: Response, n: NextFunction) => {
 
     if (!config.codEnabled) { errorResponse(s, 'Cash on Delivery is not available', 400); return; }
     if (!items?.length) { errorResponse(s, 'Cart is empty', 400); return; }
+    if (!deliveryAddress?.fullName || !deliveryAddress?.phone || !deliveryAddress?.addressLine1 || !deliveryAddress?.city || !deliveryAddress?.state || !deliveryAddress?.pincode) {
+      errorResponse(s, 'Complete delivery address required', 400); return;
+    }
 
     const productIds = items.map((i: any) => i.productId);
     const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
@@ -287,7 +307,7 @@ r.post('/cod', async (q: AuthRequest, s: Response, n: NextFunction) => {
     for (const item of items) {
       const product = products.find((p: any) => p.id === item.productId);
       if (!product) { errorResponse(s, `Product not found: ${item.productId}`, 400); return; }
-      const price = (product as any).discountPrice || (product as any).price;
+      const price = (product as any).discountPrice ?? (product as any).price;
       const totalPrice = price * item.quantity;
       subtotal += totalPrice;
       orderItems.push({ productId: product.id, productName: (product as any).name, quantity: item.quantity, price, totalPrice });
@@ -307,7 +327,7 @@ r.post('/cod', async (q: AuthRequest, s: Response, n: NextFunction) => {
     const codCharge = config.codExtraCharge || 0;
     const afterDiscount = subtotal - couponDiscount;
     const totalAmount = Math.max(0, afterDiscount + deliveryCharge + platformFee + codCharge);
-    const orderNumber = `VC-${Date.now()}`;
+    const orderNumber = `VC-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
 
     const order = await prisma.order.create({
       data: {
@@ -441,10 +461,11 @@ r.post('/appointment-order', async (q: AuthRequest, s: Response, n: NextFunction
   } catch (e) { n(e); }
 });
 
-// POST /payments/verify-appointment — Verify appointment payment
+// POST /payments/verify-appointment — Verify appointment payment + record coupon redemption
 r.post('/verify-appointment', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = q.body;
+    const uid = q.user!.id;
 
     // Verify signature
     const expectedSignature = crypto
@@ -454,6 +475,27 @@ r.post('/verify-appointment', async (q: AuthRequest, s: Response, n: NextFunctio
 
     if (expectedSignature !== razorpaySignature) {
       errorResponse(s, 'Payment verification failed', 400); return;
+    }
+
+    // Retrieve the Razorpay order to get coupon info from notes
+    let rzpOrder: any = null;
+    try {
+      rzpOrder = await razorpay.orders.fetch(razorpayOrderId);
+    } catch {}
+
+    const orderNotes = rzpOrder?.notes || {};
+    const couponCode = orderNotes.couponCode || null;
+    const doctorId = orderNotes.doctorId || null;
+
+    // Record coupon redemption (appointment financial data is set via appointment creation route)
+    if (couponCode) {
+      let couponDiscount = 0;
+      if (doctorId) {
+        const doctor = await prisma.doctor.findUnique({ where: { id: doctorId } });
+        const result = await applyCoupon(couponCode, uid, doctor?.consultationFee || 0, 'CONSULTATION', undefined, doctorId);
+        couponDiscount = result.discount;
+      }
+      await recordCouponRedemption(couponCode, uid, couponDiscount).catch(() => {});
     }
 
     successResponse(s, { verified: true, paymentId: razorpayPaymentId });

@@ -11,7 +11,7 @@ r.use(authenticate);
 // POST / — create appointment with Jitsi video link
 r.post('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
-    const { doctorId, doctorName, scheduledAt, reason, notes } = q.body;
+    const { doctorId, doctorName, scheduledAt, reason, notes, paymentId, couponCode, couponDiscount, platformFee, amountPaid, originalFee } = q.body;
 
     // Try to find doctor in DB
     const doctor = doctorId
@@ -30,7 +30,12 @@ r.post('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
         doctorId: doctor ? doctorId : null,
         doctorName: resolvedDoctorName,
         scheduledAt: new Date(scheduledAt),
-        amountPaid: doctor ? doctor.consultationFee : 0,
+        amountPaid: amountPaid ?? (doctor ? doctor.consultationFee : 0),
+        originalFee: originalFee ?? (doctor ? doctor.consultationFee : 0),
+        couponCode: couponCode || null,
+        couponDiscount: couponDiscount || 0,
+        platformFee: platformFee || 0,
+        paymentId: paymentId || null,
         notes: [reason, notes].filter(Boolean).join(' | ') || null,
         meetingLink: videoLink,
       },

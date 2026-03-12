@@ -162,6 +162,7 @@ function FinanceTab() {
     code: '', description: '', discountType: 'PERCENTAGE', discountValue: '', maxDiscountAmount: '',
     minOrderAmount: '0', applicableTo: 'ALL', maxUses: '', maxUsesPerUser: '1',
     validFrom: '', validUntil: '', isActive: true, firstOrderOnly: false,
+    specificDoctorIds: '' as string, specificProductIds: '' as string,
   });
 
   const fetchAll = useCallback(async () => {
@@ -198,6 +199,8 @@ function FinanceTab() {
         minOrderAmount: Number(couponForm.minOrderAmount) || 0,
         maxUses: couponForm.maxUses ? Number(couponForm.maxUses) : null,
         maxUsesPerUser: Number(couponForm.maxUsesPerUser) || 1,
+        specificDoctorIds: couponForm.specificDoctorIds ? couponForm.specificDoctorIds.split(',').map(s => s.trim()).filter(Boolean) : [],
+        specificProductIds: couponForm.specificProductIds ? couponForm.specificProductIds.split(',').map(s => s.trim()).filter(Boolean) : [],
       };
       if (editCoupon) {
         await financeAPI.updateCoupon(editCoupon.id, data);
@@ -207,7 +210,7 @@ function FinanceTab() {
         toast.success('Coupon created');
       }
       setView('coupons');
-      setCouponForm({ code: '', description: '', discountType: 'PERCENTAGE', discountValue: '', maxDiscountAmount: '', minOrderAmount: '0', applicableTo: 'ALL', maxUses: '', maxUsesPerUser: '1', validFrom: '', validUntil: '', isActive: true, firstOrderOnly: false });
+      setCouponForm({ code: '', description: '', discountType: 'PERCENTAGE', discountValue: '', maxDiscountAmount: '', minOrderAmount: '0', applicableTo: 'ALL', maxUses: '', maxUsesPerUser: '1', validFrom: '', validUntil: '', isActive: true, firstOrderOnly: false, specificDoctorIds: '', specificProductIds: '' });
       setEditCoupon(null);
       fetchAll();
     } catch (e: any) { toast.error(e?.response?.data?.message || 'Failed'); }
@@ -397,7 +400,7 @@ function FinanceTab() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-base font-extrabold text-gray-900">🎟️ Coupons ({coupons.length})</h3>
-            <button onClick={() => { setEditCoupon(null); setCouponForm({ code: '', description: '', discountType: 'PERCENTAGE', discountValue: '', maxDiscountAmount: '', minOrderAmount: '0', applicableTo: 'ALL', maxUses: '', maxUsesPerUser: '1', validFrom: '', validUntil: '', isActive: true, firstOrderOnly: false }); setView('add_coupon'); }}
+            <button onClick={() => { setEditCoupon(null); setCouponForm({ code: '', description: '', discountType: 'PERCENTAGE', discountValue: '', maxDiscountAmount: '', minOrderAmount: '0', applicableTo: 'ALL', maxUses: '', maxUsesPerUser: '1', validFrom: '', validUntil: '', isActive: true, firstOrderOnly: false, specificDoctorIds: '', specificProductIds: '' }); setView('add_coupon'); }}
               className="text-[10px] font-bold bg-emerald-500 text-white px-4 py-2 rounded-xl active:scale-95 shadow-md">+ New Coupon</button>
           </div>
 
@@ -428,7 +431,7 @@ function FinanceTab() {
                 {c.validUntil && <span className="text-[9px] text-gray-400">Expires: {new Date(c.validUntil).toLocaleDateString()}</span>}
               </div>
               <div className="flex gap-2 mt-3">
-                <button onClick={() => { setEditCoupon(c); setCouponForm({ code: c.code, description: c.description || '', discountType: c.discountType, discountValue: String(c.discountValue), maxDiscountAmount: c.maxDiscountAmount ? String(c.maxDiscountAmount) : '', minOrderAmount: String(c.minOrderAmount || 0), applicableTo: c.applicableTo, maxUses: c.maxUses ? String(c.maxUses) : '', maxUsesPerUser: String(c.maxUsesPerUser || 1), validFrom: c.validFrom ? c.validFrom.split('T')[0] : '', validUntil: c.validUntil ? c.validUntil.split('T')[0] : '', isActive: c.isActive, firstOrderOnly: c.firstOrderOnly }); setView('edit_coupon'); }}
+                <button onClick={() => { setEditCoupon(c); setCouponForm({ code: c.code, description: c.description || '', discountType: c.discountType, discountValue: String(c.discountValue), maxDiscountAmount: c.maxDiscountAmount ? String(c.maxDiscountAmount) : '', minOrderAmount: String(c.minOrderAmount || 0), applicableTo: c.applicableTo, maxUses: c.maxUses ? String(c.maxUses) : '', maxUsesPerUser: String(c.maxUsesPerUser || 1), validFrom: c.validFrom ? c.validFrom.split('T')[0] : '', validUntil: c.validUntil ? c.validUntil.split('T')[0] : '', isActive: c.isActive, firstOrderOnly: c.firstOrderOnly, specificDoctorIds: (c.specificDoctorIds || []).join(', '), specificProductIds: (c.specificProductIds || []).join(', ') }); setView('edit_coupon'); }}
                   className="text-[10px] font-bold bg-blue-50 text-blue-600 px-3 py-1.5 rounded-xl active:scale-95">Edit</button>
                 <button onClick={() => deleteCoupon(c.id)}
                   className="text-[10px] font-bold bg-red-50 text-red-500 px-3 py-1.5 rounded-xl active:scale-95">Delete</button>
@@ -536,6 +539,17 @@ function FinanceTab() {
                   className={'w-12 h-6 rounded-full transition-all ' + (couponForm.isActive ? 'bg-emerald-500' : 'bg-gray-300')}>
                   <div className={'w-5 h-5 rounded-full bg-white shadow-md transition-transform ' + (couponForm.isActive ? 'translate-x-6' : 'translate-x-0.5')} />
                 </button>
+              </div>
+              {/* Targeting: specific doctors / products (optional, comma-separated IDs) */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase">Specific Doctor IDs (optional, comma-separated)</label>
+                <input value={couponForm.specificDoctorIds} onChange={e => setCouponForm({ ...couponForm, specificDoctorIds: e.target.value })}
+                  placeholder="Leave blank for all doctors" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:border-emerald-400 focus:outline-none" />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase">Specific Product IDs (optional, comma-separated)</label>
+                <input value={couponForm.specificProductIds} onChange={e => setCouponForm({ ...couponForm, specificProductIds: e.target.value })}
+                  placeholder="Leave blank for all products" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:border-emerald-400 focus:outline-none" />
               </div>
             </div>
 

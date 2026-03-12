@@ -22,7 +22,30 @@ async function getConfig() {
 }
 
 // ═══════════════════════════════════════════════════════
-// PUBLIC: Validate & apply coupon (user-facing)
+// PUBLIC (no auth): Config values visible to all users
+// ═══════════════════════════════════════════════════════
+
+// GET /finance/config/public — Public config values (delivery charges, fees visible to user)
+// Must be BEFORE r.use(authenticate) so unauthenticated users can see fees
+r.get('/config/public', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const c = await getConfig();
+    successResponse(res, {
+      deliveryCharge: c.deliveryCharge,
+      freeDeliveryAbove: c.freeDeliveryAbove,
+      platformFeeFlat: c.platformFeeFlat,
+      platformFeePercent: c.platformFeePercent,
+      codEnabled: c.codEnabled,
+      codExtraCharge: c.codExtraCharge,
+      minOrderAmount: c.minOrderAmount,
+      gstRate: c.gstRate,
+      includeGstInPrice: c.includeGstInPrice,
+    });
+  } catch (e) { next(e); }
+});
+
+// ═══════════════════════════════════════════════════════
+// AUTHENTICATED: Validate coupon (user-facing)
 // ═══════════════════════════════════════════════════════
 
 r.use(authenticate);
@@ -56,8 +79,8 @@ r.post('/coupon/validate', async (req: AuthRequest, res: Response, next: NextFun
       }
     }
 
-    // Check min order amount
-    if (amount && amount < coupon.minOrderAmount) {
+    // Check min order amount (use > 0 to avoid skipping when amount is 0)
+    if (amount !== undefined && amount > 0 && amount < coupon.minOrderAmount) {
       errorResponse(res, `Minimum order of ₹${coupon.minOrderAmount} required for this coupon`, 400); return;
     }
 
@@ -99,6 +122,10 @@ r.post('/coupon/validate', async (req: AuthRequest, res: Response, next: NextFun
     } else {
       discount = coupon.discountValue;
     }
+    // Cap flat discount at order amount (never exceed what user pays)
+    if (amount !== undefined && amount > 0) {
+      discount = Math.min(discount, amount);
+    }
     discount = Math.round(discount * 100) / 100;
 
     successResponse(res, {
@@ -110,24 +137,6 @@ r.post('/coupon/validate', async (req: AuthRequest, res: Response, next: NextFun
       maxDiscountAmount: coupon.maxDiscountAmount,
       calculatedDiscount: discount,
       applicableTo: coupon.applicableTo,
-    });
-  } catch (e) { next(e); }
-});
-
-// GET /finance/config/public — Public config values (delivery charges, fees visible to user)
-r.get('/config/public', async (_req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const c = await getConfig();
-    successResponse(res, {
-      deliveryCharge: c.deliveryCharge,
-      freeDeliveryAbove: c.freeDeliveryAbove,
-      platformFeeFlat: c.platformFeeFlat,
-      platformFeePercent: c.platformFeePercent,
-      codEnabled: c.codEnabled,
-      codExtraCharge: c.codExtraCharge,
-      minOrderAmount: c.minOrderAmount,
-      gstRate: c.gstRate,
-      includeGstInPrice: c.includeGstInPrice,
     });
   } catch (e) { next(e); }
 });
@@ -158,10 +167,16 @@ r.put('/config', requireAdmin, async (req: Request, res: Response, next: NextFun
       'codEnabled', 'codExtraCharge',
       'minOrderAmount', 'refundProcessingDays',
     ];
+    const booleanFields = ['codEnabled', 'includeGstInPrice'];
     const data: any = {};
     for (const f of allowed) {
       if (req.body[f] !== undefined) {
-        data[f] = typeof req.body[f] === 'string' ? parseFloat(req.body[f]) : req.body[f];
+        if (booleanFields.includes(f)) {
+          // Boolean fields: handle "true"/"false" strings and actual booleans
+          data[f] = req.body[f] === true || req.body[f] === 'true';
+        } else {
+          data[f] = typeof req.body[f] === 'string' ? parseFloat(req.body[f]) : req.body[f];
+        }
       }
     }
     const config = await prisma.platformConfig.update({ where: { id: 'default' }, data });

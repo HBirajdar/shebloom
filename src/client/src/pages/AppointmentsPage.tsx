@@ -157,7 +157,7 @@ export default function AppointmentsPage() {
         code: couponCode.trim(),
         applicableTo: 'CONSULTATION',
         amount: consultFee,
-        doctorIds: selDoc ? [selDoc] : [],
+        doctorId: selDoc || undefined,
       });
       const data = res.data?.data || res.data;
       if (data.valid) {
@@ -182,6 +182,11 @@ export default function AppointmentsPage() {
     setCouponError('');
   };
 
+  // Reset coupon when doctor changes (discount may be invalid for new doctor/fee)
+  useEffect(() => {
+    if (appliedCoupon) removeCoupon();
+  }, [selDoc]);
+
   // Complete booking after payment (or directly if free)
   const completeBooking = async (paymentId?: string) => {
     const doc = pubDoctors.find(d => d.id === selDoc);
@@ -191,7 +196,13 @@ export default function AppointmentsPage() {
       date: selDate,
       time: selTime,
       reason: selReason,
-      notes: paymentId ? `${notes}${notes ? ' | ' : ''}Payment: ${paymentId}` : notes,
+      notes,
+      paymentId: paymentId || undefined,
+      couponCode: appliedCoupon || undefined,
+      couponDiscount: couponDiscount || undefined,
+      platformFee: platformFee || undefined,
+      amountPaid: totalPayable || undefined,
+      originalFee: consultFee || undefined,
     });
     setLastVideoLink(result?.videoLink || result?.meetingLink || '');
     setShowSuccess(true);

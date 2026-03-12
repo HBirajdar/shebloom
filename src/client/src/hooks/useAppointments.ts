@@ -34,7 +34,7 @@ export function useAppointments() {
     setLoading(false);
   }, []);
 
-  const createBooking = async (data: { doctorId: string; doctorName: string; date: string; time: string; reason: string; notes: string }) => {
+  const createBooking = async (data: { doctorId: string; doctorName: string; date: string; time: string; reason: string; notes: string; paymentId?: string; couponCode?: string; couponDiscount?: number; platformFee?: number; amountPaid?: number; originalFee?: number }) => {
     const convertTo24h = (t: string) => {
       const [time, meridiem] = t.split(' ');
       let [h, m] = time.split(':').map(Number);
@@ -45,7 +45,11 @@ export function useAppointments() {
     const scheduledAt = data.date + 'T' + convertTo24h(data.time) + ':00';
     // Try API first
     try {
-      const result = await appointmentAPI.create({ doctorId: data.doctorId, doctorName: data.doctorName, scheduledAt, reason: data.reason, notes: data.notes });
+      const result = await appointmentAPI.create({
+        doctorId: data.doctorId, doctorName: data.doctorName, scheduledAt, reason: data.reason, notes: data.notes,
+        paymentId: data.paymentId, couponCode: data.couponCode, couponDiscount: data.couponDiscount,
+        platformFee: data.platformFee, amountPaid: data.amountPaid, originalFee: data.originalFee,
+      });
       toast.success('Appointment booked!');
       await fetchBookings();
       const apptData = result.data?.data || result.data;

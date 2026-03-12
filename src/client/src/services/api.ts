@@ -36,7 +36,8 @@ api.interceptors.response.use(
           req.headers.Authorization = 'Bearer ' + resp.data.data.accessToken;
           return api(req);
         } catch {
-          localStorage.clear();
+          localStorage.removeItem('sb_token');
+          localStorage.removeItem('sb_refresh');
           window.location.href = '/auth';
         }
       }
@@ -186,7 +187,7 @@ export const paymentAPI = {
   myOrders: () => api.get('/payments/orders'),
   getOrder: (id: string) => api.get('/payments/orders/' + id),
   // Appointment payment
-  createAppointmentOrder: (d: { doctorId: string; amount: number }) => api.post('/payments/appointment-order', d),
+  createAppointmentOrder: (d: { doctorId: string; amount: number; couponCode?: string }) => api.post('/payments/appointment-order', d),
   verifyAppointmentPayment: (d: any) => api.post('/payments/verify-appointment', d),
 };
 
