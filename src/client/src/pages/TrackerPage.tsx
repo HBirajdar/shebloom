@@ -53,6 +53,23 @@ export default function TrackerPage() {
   const [customStartInput, setCustomStartInput] = useState('')
   const [customEndInput, setCustomEndInput] = useState('')
 
+  // Advanced fertility tracking state
+  const [bbtHistory, setBbtHistory] = useState([])
+  const [cmHistory, setCmHistory] = useState([])
+  const [fertilityDaily, setFertilityDaily] = useState([])
+  const [showFertilitySheet, setShowFertilitySheet] = useState(false)
+  const [fertLogDate, setFertLogDate] = useState(new Date().toISOString().slice(0, 10))
+  const [fertBBT, setFertBBT] = useState('')
+  const [fertCM, setFertCM] = useState('')
+  const [fertLH, setFertLH] = useState('')
+  const [fertIntercourse, setFertIntercourse] = useState(false)
+  const [fertNotes, setFertNotes] = useState('')
+  const [fertSaving, setFertSaving] = useState(false)
+
+  // Ayurvedic insights state
+  const [ayurvedaData, setAyurvedaData] = useState(null)
+  const [ayurvedaLoading, setAyurvedaLoading] = useState(false)
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
@@ -70,6 +87,56 @@ export default function TrackerPage() {
     }
     fetchData()
   }, [])
+
+  // Fetch fertility data when fertility tab is active
+  useEffect(() => {
+    if (tab !== 'fertility') return
+    Promise.all([
+      cycleAPI.getBBT(90).catch(() => ({ data: { data: [] } })),
+      cycleAPI.getCervicalMucus(90).catch(() => ({ data: { data: [] } })),
+      cycleAPI.getFertilityDaily(90).catch(() => ({ data: { data: [] } })),
+    ]).then(([bbt, cm, daily]) => {
+      setBbtHistory(bbt?.data?.data || [])
+      setCmHistory(cm?.data?.data || [])
+      setFertilityDaily(daily?.data?.data || [])
+    })
+  }, [tab])
+
+  // Fetch Ayurvedic insights when tab is active
+  useEffect(() => {
+    if (tab !== 'ayurveda') return
+    setAyurvedaLoading(true)
+    cycleAPI.getAyurvedicInsights()
+      .then(r => setAyurvedaData(r?.data?.data || null))
+      .catch(() => {})
+      .finally(() => setAyurvedaLoading(false))
+  }, [tab])
+
+  const saveFertilityLog = async () => {
+    if (!fertBBT && !fertCM && !fertLH && !fertIntercourse) {
+      toast.error('Please log at least one data point'); return
+    }
+    setFertSaving(true)
+    try {
+      await cycleAPI.logFertilityDaily({
+        logDate: fertLogDate,
+        bbt: fertBBT ? parseFloat(fertBBT) : undefined,
+        cervicalMucus: fertCM || undefined,
+        lhTestResult: fertLH || undefined,
+        intercourse: fertIntercourse,
+        notes: fertNotes || undefined,
+      })
+      toast.success('Fertility data logged!')
+      setShowFertilitySheet(false)
+      setFertBBT(''); setFertCM(''); setFertLH(''); setFertIntercourse(false); setFertNotes('')
+      // Refresh prediction + fertility data
+      cycleAPI.predict().then(r => setPrediction(r?.data?.data || null)).catch(() => {})
+      cycleAPI.getBBT(90).then(r => setBbtHistory(r?.data?.data || [])).catch(() => {})
+      cycleAPI.getCervicalMucus(90).then(r => setCmHistory(r?.data?.data || [])).catch(() => {})
+      cycleAPI.getFertilityDaily(90).then(r => setFertilityDaily(r?.data?.data || [])).catch(() => {})
+    } catch (e) { toast.error('Failed to save fertility data') }
+    setFertSaving(false)
+  }
 
   const today = useMemo(() => startOfDay(new Date()), [])
 
@@ -263,7 +330,7 @@ export default function TrackerPage() {
         lastPeriod = formatMonthDay(new Date(sorted[0].startDate))
       }
     }
-    return { count, avgCycle, avgDuration, lastPeriod, regularity: count > 1 ? 85 : 0 }
+    return { count, avgCycle, avgDuration, lastPeriod, regularity: prediction?.regularityScore || (count > 1 ? 50 : 0) }
   }, [cycles, prediction])
 
   const saveLog = async () => {
@@ -427,17 +494,17 @@ export default function TrackerPage() {
         </div>
         {/* Tabs */}
         <div className="flex px-5 gap-2 pb-3">
-          {['calendar', 'insights'].map(t => (
+          {[{ key: 'calendar', icon: '📅' }, { key: 'insights', icon: '💡' }, { key: 'fertility', icon: '🧬' }, { key: 'ayurveda', icon: '🌿' }].map(t => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`flex-1 py-2.5 text-sm font-bold capitalize transition-all rounded-2xl ${
-                tab === t
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`flex-1 py-2.5 text-xs font-bold capitalize transition-all rounded-2xl ${
+                tab === t.key
                   ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md shadow-rose-200'
                   : 'bg-white/60 text-gray-400'
               }`}
             >
-              {t === 'calendar' ? '📅 ' : '💡 '}{t.charAt(0).toUpperCase() + t.slice(1)}
+              {t.icon} {t.key.charAt(0).toUpperCase() + t.key.slice(1)}
             </button>
           ))}
         </div>
@@ -584,7 +651,7 @@ export default function TrackerPage() {
                   { icon: '📊', label: 'Avg Cycle', value: `${stats.avgCycle} days` },
                   { icon: '📅', label: 'Last Period', value: stats.lastPeriod },
                   { icon: '⏱️', label: 'Avg Duration', value: `${stats.avgDuration} days` },
-                  { icon: '📈', label: 'Regularity', value: stats.count > 1 ? '85%' : 'N/A' },
+                  { icon: '📈', label: 'Regularity', value: stats.regularity > 0 ? `${stats.regularity}%` : 'N/A' },
                   { icon: '🔢', label: 'Tracked', value: `${stats.count} cycles` },
                 ].map(card => (
                   <div
@@ -680,7 +747,7 @@ export default function TrackerPage() {
               )}
             </div>
           </>
-        ) : (
+        ) : tab === 'insights' ? (
           /* INSIGHTS TAB */
           <div className="px-5 py-4 space-y-3">
             {/* Current Phase Card */}
@@ -786,17 +853,78 @@ export default function TrackerPage() {
               </div>
             )}
 
-            {/* Hormone Levels */}
+            {/* Hormone Levels — uses API data when available */}
             <div className="bg-white rounded-3xl p-4 shadow-lg">
               <div className="text-sm font-bold text-gray-700 mb-3">Hormone Levels</div>
               <div className="flex gap-3">
-                <HormoneBar label="Estrogen" value={phaseInfo.estrogen} color="bg-rose-400" />
-                <HormoneBar label="Progesterone" value={phaseInfo.progesterone} color="bg-purple-400" />
-                <HormoneBar label="LH" value={phaseInfo.lh} color="bg-amber-400" />
-                <HormoneBar label="FSH" value={phaseInfo.fsh} color="bg-emerald-400" />
+                <HormoneBar label="Estrogen" value={prediction?.hormones?.estrogen ?? phaseInfo.estrogen} color="bg-rose-400" />
+                <HormoneBar label="Progesterone" value={prediction?.hormones?.progesterone ?? phaseInfo.progesterone} color="bg-purple-400" />
+                <HormoneBar label="LH" value={prediction?.hormones?.lh ?? phaseInfo.lh} color="bg-amber-400" />
+                <HormoneBar label="FSH" value={prediction?.hormones?.fsh ?? phaseInfo.fsh} color="bg-emerald-400" />
               </div>
-              <p className="text-xs text-gray-400 mt-2 text-center">Approximate relative levels</p>
+              <p className="text-xs text-gray-400 mt-2 text-center">
+                {prediction?.hormones ? 'Based on your cycle day & individual phase lengths' : 'Approximate relative levels'}
+              </p>
             </div>
+
+            {/* Confidence & Prediction Quality */}
+            {prediction?.confidence && (
+              <div className="bg-white rounded-3xl p-4 shadow-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-bold text-gray-700">Prediction Confidence</span>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                    prediction.confidence.score >= 70 ? 'bg-emerald-100 text-emerald-700' :
+                    prediction.confidence.score >= 50 ? 'bg-amber-100 text-amber-700' :
+                    'bg-gray-100 text-gray-600'
+                  }`}>{prediction.confidence.score}%</span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-2 mb-2">
+                  <div className={`h-2 rounded-full transition-all ${
+                    prediction.confidence.score >= 70 ? 'bg-emerald-500' :
+                    prediction.confidence.score >= 50 ? 'bg-amber-500' : 'bg-gray-400'
+                  }`} style={{ width: `${prediction.confidence.score}%` }} />
+                </div>
+                <div className="space-y-1">
+                  {prediction.confidence.factors?.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs text-gray-500">
+                      <span className="text-emerald-500">✓</span> {f}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Fertility Score (if available) */}
+            {prediction?.fertilityScore !== undefined && (
+              <div className={`rounded-2xl p-4 border ${
+                prediction.fertilityStatus === 'peak' ? 'bg-rose-50 border-rose-200' :
+                prediction.fertilityStatus === 'high' ? 'bg-amber-50 border-amber-200' :
+                prediction.fertilityStatus === 'moderate' ? 'bg-yellow-50 border-yellow-200' :
+                'bg-gray-50 border-gray-200'
+              }`}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-bold text-gray-700">Today's Fertility</span>
+                  <span className={`text-lg font-black ${
+                    prediction.fertilityStatus === 'peak' ? 'text-rose-600' :
+                    prediction.fertilityStatus === 'high' ? 'text-amber-600' :
+                    'text-gray-600'
+                  }`}>{prediction.fertilityScore}%</span>
+                </div>
+                <p className="text-xs text-gray-500">
+                  {prediction.fertilityStatus === 'peak' ? 'Peak fertility — highest chance of conception' :
+                   prediction.fertilityStatus === 'high' ? 'High fertility window' :
+                   prediction.fertilityStatus === 'moderate' ? 'Moderate fertility' :
+                   'Low fertility phase'}
+                </p>
+                {prediction.biomarkerSignals?.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {prediction.biomarkerSignals.map((s, i) => (
+                      <span key={i} className="text-[10px] font-bold bg-white/80 px-2 py-0.5 rounded-full text-gray-600">{s}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Phase Tips */}
             <div className="bg-white rounded-3xl p-4 shadow-lg">
@@ -823,7 +951,404 @@ export default function TrackerPage() {
               </div>
             </div>
           </div>
-        )}
+        ) : tab === 'fertility' ? (
+          /* FERTILITY TAB */
+          <div className="px-5 py-4 space-y-3">
+            {/* Fertility Score Hero */}
+            <div className="bg-gradient-to-br from-rose-50 to-purple-50 rounded-3xl p-5 border border-rose-100 shadow-lg">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-xs font-bold text-rose-500 uppercase tracking-wider">Today's Fertility</p>
+                  <p className="text-3xl font-black text-gray-900 mt-1">
+                    {prediction?.fertilityScore ?? '--'}
+                    <span className="text-sm font-bold text-gray-400">%</span>
+                  </p>
+                </div>
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl ${
+                  prediction?.fertilityStatus === 'peak' ? 'bg-rose-100' :
+                  prediction?.fertilityStatus === 'high' ? 'bg-amber-100' :
+                  prediction?.fertilityStatus === 'moderate' ? 'bg-yellow-100' : 'bg-gray-100'
+                }`}>
+                  {prediction?.fertilityStatus === 'peak' ? '🔥' :
+                   prediction?.fertilityStatus === 'high' ? '✨' :
+                   prediction?.fertilityStatus === 'moderate' ? '🌤️' : '🌙'}
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">
+                {prediction?.confirmedOvulation
+                  ? '🎯 Ovulation confirmed by BBT thermal shift'
+                  : prediction?.fertilityStatus === 'peak'
+                  ? 'Peak fertility — highest probability of conception (Wilcox et al.)'
+                  : prediction?.fertilityStatus === 'high'
+                  ? 'High fertility window — sperm survive up to 5 days'
+                  : 'Based on cycle analysis, BBT, cervical mucus & LH data'}
+              </p>
+              {prediction?.conceptionProbability > 0 && (
+                <div className="mt-3 bg-white/60 rounded-2xl p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-gray-600">Conception Probability</span>
+                    <span className="text-sm font-black text-rose-600">{Math.round(prediction.conceptionProbability * 100)}%</span>
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1">Per Wilcox et al. (1995 BMJ) day-specific rates</p>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Stats Row */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-white rounded-2xl p-3 shadow text-center">
+                <p className="text-lg font-black text-purple-600">{prediction?.lutealPhase || '--'}</p>
+                <p className="text-[10px] text-gray-400 font-bold">Luteal Phase</p>
+              </div>
+              <div className="bg-white rounded-2xl p-3 shadow text-center">
+                <p className="text-lg font-black text-gray-800">{prediction?.cycleVariability ? `±${prediction.cycleVariability}d` : '--'}</p>
+                <p className="text-[10px] text-gray-400 font-bold">Variability</p>
+              </div>
+              <div className="bg-white rounded-2xl p-3 shadow text-center">
+                <p className="text-lg font-black text-emerald-600">{prediction?.regularityScore ?? '--'}%</p>
+                <p className="text-[10px] text-gray-400 font-bold">Regularity</p>
+              </div>
+            </div>
+
+            {/* BBT Chart */}
+            <div className="bg-white rounded-3xl p-4 shadow-lg">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-bold text-gray-700">🌡️ BBT Chart</span>
+                <span className="text-[10px] text-gray-400">{bbtHistory.length} readings</span>
+              </div>
+              {bbtHistory.length > 0 ? (
+                <div>
+                  {/* Simple BBT chart using bars */}
+                  <div className="flex items-end gap-0.5 h-24 overflow-x-auto">
+                    {bbtHistory.slice(-30).map((entry, i) => {
+                      const temp = entry.temperature || 36.5
+                      const minT = 36.0, maxT = 37.5
+                      const pct = Math.max(5, Math.min(100, ((temp - minT) / (maxT - minT)) * 100))
+                      const isHigh = temp >= (prediction?.thermalShift?.coverlineTemp || 36.5) + 0.2
+                      return (
+                        <div key={i} className="flex-1 min-w-[8px] flex flex-col items-center" title={`${new Date(entry.logDate).toLocaleDateString()}: ${temp}°C`}>
+                          <div className={`w-full rounded-t-sm transition-all ${isHigh ? 'bg-rose-400' : 'bg-blue-300'}`}
+                            style={{ height: `${pct}%` }} />
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className="flex justify-between mt-1 text-[9px] text-gray-400">
+                    <span>36.0°C</span>
+                    {prediction?.thermalShift?.detected && (
+                      <span className="text-rose-500 font-bold">↑ Thermal shift detected</span>
+                    )}
+                    <span>37.5°C</span>
+                  </div>
+                  <div className="flex gap-3 mt-2">
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-blue-300 rounded-sm" /><span className="text-[10px] text-gray-400">Pre-ovulation</span></div>
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-rose-400 rounded-sm" /><span className="text-[10px] text-gray-400">Post-ovulation</span></div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <p className="text-3xl mb-2">🌡️</p>
+                  <p className="text-xs text-gray-400">No BBT data yet. Log your first reading!</p>
+                  <p className="text-[10px] text-gray-300 mt-1">BBT confirms ovulation with 97% accuracy (Baird 2005)</p>
+                </div>
+              )}
+            </div>
+
+            {/* Cervical Mucus Pattern */}
+            <div className="bg-white rounded-3xl p-4 shadow-lg">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-bold text-gray-700">💧 Cervical Mucus</span>
+                <span className="text-[10px] text-gray-400">{cmHistory.length} logs</span>
+              </div>
+              {cmHistory.length > 0 ? (
+                <div className="flex items-end gap-1 h-16">
+                  {cmHistory.slice(-30).map((entry, i) => {
+                    const cmColors = { dry: 'bg-gray-200', sticky: 'bg-yellow-300', creamy: 'bg-amber-200', watery: 'bg-blue-300', eggWhite: 'bg-emerald-400', spotting: 'bg-rose-300' }
+                    const cmHeights = { dry: '20%', sticky: '35%', creamy: '50%', watery: '70%', eggWhite: '95%', spotting: '25%' }
+                    return (
+                      <div key={i} className="flex-1 min-w-[8px] flex flex-col justify-end" title={`${new Date(entry.logDate).toLocaleDateString()}: ${entry.type}`}>
+                        <div className={`w-full rounded-t-sm ${cmColors[entry.type] || 'bg-gray-200'}`}
+                          style={{ height: cmHeights[entry.type] || '20%' }} />
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-xs text-gray-400">No CM data yet</p>
+                  <p className="text-[10px] text-gray-300 mt-1">Egg-white CM predicts ovulation with 94.5% sensitivity (Bigelow 2004)</p>
+                </div>
+              )}
+              <div className="flex flex-wrap gap-1 mt-2">
+                {[
+                  { type: 'dry', color: 'bg-gray-200', label: 'Dry' },
+                  { type: 'sticky', color: 'bg-yellow-300', label: 'Sticky' },
+                  { type: 'creamy', color: 'bg-amber-200', label: 'Creamy' },
+                  { type: 'watery', color: 'bg-blue-300', label: 'Watery' },
+                  { type: 'eggWhite', color: 'bg-emerald-400', label: 'Egg White' },
+                ].map(c => (
+                  <div key={c.type} className="flex items-center gap-1">
+                    <div className={`w-2 h-2 rounded-sm ${c.color}`} />
+                    <span className="text-[9px] text-gray-400">{c.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Prediction Windows */}
+            {prediction?.periodWindow && (
+              <div className="bg-white rounded-3xl p-4 shadow-lg">
+                <span className="text-sm font-bold text-gray-700 block mb-2">📊 Prediction Windows</span>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between bg-rose-50 rounded-xl px-3 py-2">
+                    <span className="text-xs text-rose-600 font-bold">Next Period</span>
+                    <span className="text-xs text-gray-600">
+                      {new Date(prediction.periodWindow.early).toLocaleDateString('en', { month: 'short', day: 'numeric' })}
+                      {' — '}
+                      {new Date(prediction.periodWindow.late).toLocaleDateString('en', { month: 'short', day: 'numeric' })}
+                    </span>
+                  </div>
+                  {prediction?.ovulationWindow && (
+                    <div className="flex items-center justify-between bg-amber-50 rounded-xl px-3 py-2">
+                      <span className="text-xs text-amber-600 font-bold">Ovulation</span>
+                      <span className="text-xs text-gray-600">
+                        {new Date(prediction.ovulationWindow.early).toLocaleDateString('en', { month: 'short', day: 'numeric' })}
+                        {' — '}
+                        {new Date(prediction.ovulationWindow.late).toLocaleDateString('en', { month: 'short', day: 'numeric' })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <p className="text-[10px] text-gray-400 mt-2 text-center">68% confidence interval based on your cycle variability</p>
+              </div>
+            )}
+
+            {/* Research Info */}
+            <div className="bg-indigo-50 rounded-3xl p-4 border border-indigo-100">
+              <p className="text-xs font-bold text-indigo-700 mb-2">🔬 Science Behind Your Predictions</p>
+              <div className="space-y-1.5 text-[10px] text-indigo-600">
+                <p>• <strong>Ovulation</strong>: Calculated from your individual luteal phase length ({prediction?.lutealPhase || 13}d), not the assumed 14 days (Lenton 1984)</p>
+                <p>• <strong>Fertile window</strong>: 6-day window based on sperm survival (5d) + egg life (1d) per Wilcox et al. 1995</p>
+                <p>• <strong>Cycle prediction</strong>: Weighted moving average — recent cycles matter more (Bull 2019, 612K cycles)</p>
+                <p>• <strong>BBT</strong>: 3-over-6 rule detects 0.2-0.5°C post-ovulation shift with 97% specificity (Baird 2005)</p>
+                <p>• <strong>Cervical mucus</strong>: Egg-white CM peak predicts ovulation with 94.5% sensitivity (Bigelow 2004)</p>
+              </div>
+            </div>
+
+            {/* Log Fertility Data Button */}
+            <button
+              onClick={() => setShowFertilitySheet(true)}
+              className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold text-sm py-3.5 rounded-2xl shadow-lg shadow-purple-200 active:scale-95 transition-transform"
+            >
+              🧬 Log Today's Fertility Data
+            </button>
+          </div>
+        ) : tab === 'ayurveda' ? (
+          <div className="px-4 py-4 space-y-4">
+            {ayurvedaLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-500 rounded-full animate-spin" />
+              </div>
+            ) : ayurvedaData ? (
+              <>
+                {/* Dosha Identity Card */}
+                <div className="rounded-3xl p-5 text-white" style={{ background: ayurvedaData.dosha === 'Vata' ? 'linear-gradient(135deg,#7C3AED,#A78BFA)' : ayurvedaData.dosha === 'Pitta' ? 'linear-gradient(135deg,#DC2626,#F97316)' : 'linear-gradient(135deg,#059669,#34D399)' }}>
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-4xl">{ayurvedaData.dosha === 'Vata' ? '🌬️' : ayurvedaData.dosha === 'Pitta' ? '🔥' : '🌿'}</span>
+                    <div>
+                      <p className="text-white/70 text-[10px] font-bold uppercase tracking-wider">Your Prakriti</p>
+                      <p className="text-2xl font-extrabold">{ayurvedaData.doshaDescription?.name}</p>
+                    </div>
+                  </div>
+                  <p className="text-white/80 text-xs leading-relaxed mb-2">{ayurvedaData.doshaDescription?.cyclePattern}</p>
+                  <div className="flex gap-2 mt-3">
+                    <div className="bg-white/20 rounded-xl px-3 py-1.5 flex-1 text-center">
+                      <p className="text-[10px] text-white/60">Phase</p>
+                      <p className="text-sm font-bold capitalize">{ayurvedaData.phase}</p>
+                    </div>
+                    <div className="bg-white/20 rounded-xl px-3 py-1.5 flex-1 text-center">
+                      <p className="text-[10px] text-white/60">Day</p>
+                      <p className="text-sm font-bold">{ayurvedaData.cycleDay}</p>
+                    </div>
+                    <div className="bg-white/20 rounded-xl px-3 py-1.5 flex-1 text-center">
+                      <p className="text-[10px] text-white/60">Balance</p>
+                      <p className="text-sm font-bold">{ayurvedaData.doshaBalance?.score}%</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Daily Personalized Tip */}
+                {ayurvedaData.dailyTip && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xl">{ayurvedaData.dailyTip.emoji}</span>
+                      <p className="text-sm font-extrabold text-amber-800">{ayurvedaData.dailyTip.title}</p>
+                    </div>
+                    <p className="text-xs text-amber-700 leading-relaxed">{ayurvedaData.dailyTip.body}</p>
+                  </div>
+                )}
+
+                {/* Dosha Balance Assessment */}
+                {ayurvedaData.doshaBalance && (
+                  <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                    <p className="text-xs font-extrabold text-gray-800 mb-3">Dosha Balance</p>
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all" style={{ width: `${ayurvedaData.doshaBalance.score}%`, background: ayurvedaData.doshaBalance.score >= 70 ? 'linear-gradient(90deg,#10B981,#34D399)' : ayurvedaData.doshaBalance.score >= 40 ? 'linear-gradient(90deg,#F59E0B,#FBBF24)' : 'linear-gradient(90deg,#EF4444,#F87171)' }} />
+                      </div>
+                      <span className="text-xs font-bold text-gray-600">{ayurvedaData.doshaBalance.status}</span>
+                    </div>
+                    {ayurvedaData.doshaBalance.dominantImbalance !== 'None' && (
+                      <p className="text-[11px] text-gray-500 leading-relaxed">{ayurvedaData.doshaBalance.tip}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Phase Guidance: Diet */}
+                {ayurvedaData.guidance?.diet?.length > 0 && (
+                  <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                    <p className="text-xs font-extrabold text-gray-800 mb-1">🍽️ Diet — {ayurvedaData.phase} phase</p>
+                    <p className="text-[10px] text-gray-400 mb-3">{ayurvedaData.guidance.dominantDosha}</p>
+                    <div className="space-y-2">
+                      {ayurvedaData.guidance.diet.map((tip, i) => (
+                        <div key={i} className="flex gap-2">
+                          <span className="text-emerald-500 text-xs mt-0.5">●</span>
+                          <p className="text-[11px] text-gray-600 leading-relaxed">{tip}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Phase Guidance: Herbs */}
+                {ayurvedaData.guidance?.herbs?.length > 0 && (
+                  <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                    <p className="text-xs font-extrabold text-gray-800 mb-3">🌿 Ayurvedic Herbs</p>
+                    <div className="space-y-2">
+                      {ayurvedaData.guidance.herbs.map((herb, i) => (
+                        <div key={i} className="flex gap-2">
+                          <span className="text-purple-500 text-xs mt-0.5">●</span>
+                          <p className="text-[11px] text-gray-600 leading-relaxed">{herb}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Phase Guidance: Yoga */}
+                {ayurvedaData.guidance?.yoga?.length > 0 && (
+                  <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                    <p className="text-xs font-extrabold text-gray-800 mb-3">🧘 Yoga & Pranayama</p>
+                    <div className="space-y-2">
+                      {ayurvedaData.guidance.yoga.map((pose, i) => (
+                        <div key={i} className="flex gap-2">
+                          <span className="text-indigo-500 text-xs mt-0.5">●</span>
+                          <p className="text-[11px] text-gray-600 leading-relaxed">{pose}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Phase Guidance: Lifestyle */}
+                {ayurvedaData.guidance?.lifestyle?.length > 0 && (
+                  <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                    <p className="text-xs font-extrabold text-gray-800 mb-3">🌸 Lifestyle (Dinacharya)</p>
+                    <div className="space-y-2">
+                      {ayurvedaData.guidance.lifestyle.map((tip, i) => (
+                        <div key={i} className="flex gap-2">
+                          <span className="text-rose-400 text-xs mt-0.5">●</span>
+                          <p className="text-[11px] text-gray-600 leading-relaxed">{tip}</p>
+                        </div>
+                      ))}
+                    </div>
+                    {ayurvedaData.guidance.avoid?.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <p className="text-[10px] font-bold text-red-500 mb-1">⚠️ Avoid</p>
+                        <p className="text-[11px] text-gray-500">{ayurvedaData.guidance.avoid.join(' • ')}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Symptom Insights (Ayurvedic interpretation) */}
+                {ayurvedaData.symptomInsights?.length > 0 && (
+                  <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4">
+                    <p className="text-xs font-extrabold text-violet-800 mb-3">🔍 Your Symptoms — Ayurvedic Lens</p>
+                    <div className="space-y-2">
+                      {ayurvedaData.symptomInsights.map((insight, i) => (
+                        <p key={i} className="text-[11px] text-violet-700 leading-relaxed">• {insight}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Conception Guide (TTC users only) */}
+                {ayurvedaData.conceptionGuide && (
+                  <div className="bg-pink-50 border border-pink-200 rounded-2xl p-4">
+                    <p className="text-xs font-extrabold text-pink-800 mb-2">🤰 Conception Guide — Ritu Kala + Modern Science</p>
+                    <p className="text-[11px] text-pink-700 leading-relaxed mb-3">{ayurvedaData.conceptionGuide.rituKala}</p>
+                    <p className="text-[10px] font-bold text-pink-600 mb-1">Shukra Dhatu (Reproductive Tissue):</p>
+                    <div className="space-y-1 mb-3">
+                      {ayurvedaData.conceptionGuide.shukraDhatuTips?.map((tip, i) => (
+                        <p key={i} className="text-[11px] text-pink-600">• {tip}</p>
+                      ))}
+                    </div>
+                    <p className="text-[10px] font-bold text-pink-600 mb-1">Garbhadhana Diet (Pre-conception):</p>
+                    <div className="space-y-1 mb-3">
+                      {ayurvedaData.conceptionGuide.diet?.map((d, i) => (
+                        <p key={i} className="text-[11px] text-pink-600">• {d}</p>
+                      ))}
+                    </div>
+                    <p className="text-[10px] font-bold text-pink-600 mb-1">Modern Timing Science:</p>
+                    <div className="space-y-1">
+                      {ayurvedaData.conceptionGuide.timing?.map((t, i) => (
+                        <p key={i} className="text-[11px] text-pink-600">• {t}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Seasonal (Ritu) Adjustment */}
+                {ayurvedaData.seasonalAdjustment && (
+                  <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4">
+                    <p className="text-xs font-extrabold text-teal-800 mb-1">🍃 Seasonal Wisdom (Ritucharya)</p>
+                    <p className="text-[10px] text-teal-600 mb-3">{ayurvedaData.seasonalAdjustment.currentRitu} — {ayurvedaData.seasonalAdjustment.dominantDosha} season</p>
+                    <div className="space-y-1.5">
+                      {ayurvedaData.seasonalAdjustment.adjustment?.map((adj, i) => (
+                        <p key={i} className="text-[11px] text-teal-700 leading-relaxed">• {adj}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Modern Science Correlation */}
+                {ayurvedaData.guidance?.modernCorrelation && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+                    <p className="text-xs font-extrabold text-blue-800 mb-2">🔬 Modern Science Says</p>
+                    <p className="text-[11px] text-blue-700 leading-relaxed">{ayurvedaData.guidance.modernCorrelation}</p>
+                  </div>
+                )}
+
+                {/* Research References */}
+                {ayurvedaData.references?.length > 0 && (
+                  <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200">
+                    <p className="text-[10px] font-bold text-gray-500 mb-2">📚 Research References</p>
+                    {ayurvedaData.references.map((ref, i) => (
+                      <p key={i} className="text-[10px] text-gray-400 leading-relaxed">• {ref}</p>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-16">
+                <span className="text-5xl block mb-4">🌿</span>
+                <p className="text-sm font-bold text-gray-700 mb-1">Complete your Dosha quiz first</p>
+                <p className="text-xs text-gray-400">Your Ayurvedic insights will be personalized to your constitution</p>
+              </div>
+            )}
+          </div>
+        ) : null}
       </div>
 
       {/* Log Period Button — fixed above BottomNav */}
@@ -1052,6 +1577,105 @@ export default function TrackerPage() {
                 ) : (
                   '🌸 Save Period Log'
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fertility Logging Bottom Sheet */}
+      {showFertilitySheet && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end" style={{ maxWidth: 430, left: '50%', transform: 'translateX(-50%)' }}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowFertilitySheet(false)} />
+          <div className="relative bg-white rounded-t-3xl shadow-2xl max-h-[85vh] overflow-y-auto z-10">
+            <div className="flex justify-center pt-3 pb-1"><div className="w-10 h-1 bg-gray-200 rounded-full" /></div>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+              <h2 className="text-lg font-black text-gray-900">Log Fertility Data</h2>
+              <button onClick={() => setShowFertilitySheet(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">✕</button>
+            </div>
+            <div className="px-5 py-4 space-y-5">
+              {/* Date */}
+              <div>
+                <label className="text-sm font-bold text-gray-700 block mb-2">Date</label>
+                <input type="date" value={fertLogDate} onChange={e => setFertLogDate(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" />
+              </div>
+
+              {/* BBT */}
+              <div>
+                <label className="text-sm font-bold text-gray-700 block mb-2">🌡️ Basal Body Temperature (°C)</label>
+                <input type="number" step="0.01" min="35" max="39" value={fertBBT} onChange={e => setFertBBT(e.target.value)}
+                  placeholder="e.g. 36.45" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" />
+                <p className="text-[10px] text-gray-400 mt-1">Measure immediately upon waking, before any activity</p>
+              </div>
+
+              {/* Cervical Mucus */}
+              <div>
+                <label className="text-sm font-bold text-gray-700 block mb-2">💧 Cervical Mucus</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: 'dry', label: 'Dry', emoji: '⚪', desc: 'No mucus' },
+                    { value: 'sticky', label: 'Sticky', emoji: '🟡', desc: 'Tacky, crumbly' },
+                    { value: 'creamy', label: 'Creamy', emoji: '🟠', desc: 'Lotion-like' },
+                    { value: 'watery', label: 'Watery', emoji: '🔵', desc: 'Clear, thin' },
+                    { value: 'eggWhite', label: 'Egg White', emoji: '🟢', desc: 'Stretchy, clear' },
+                    { value: 'spotting', label: 'Spotting', emoji: '🔴', desc: 'Blood-tinged' },
+                  ].map(opt => (
+                    <button key={opt.value} onClick={() => setFertCM(fertCM === opt.value ? '' : opt.value)}
+                      className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 transition-all ${
+                        fertCM === opt.value ? 'border-purple-500 bg-purple-50' : 'border-gray-100 bg-gray-50'
+                      }`}>
+                      <span className="text-xl">{opt.emoji}</span>
+                      <span className="text-[10px] font-bold text-gray-700">{opt.label}</span>
+                      <span className="text-[9px] text-gray-400">{opt.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* LH Test */}
+              <div>
+                <label className="text-sm font-bold text-gray-700 block mb-2">🧪 LH Test Strip</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { value: 'negative', label: 'Negative', emoji: '⬜' },
+                    { value: 'faint', label: 'Faint', emoji: '🟨' },
+                    { value: 'positive', label: 'Positive', emoji: '🟧' },
+                    { value: 'peak', label: 'Peak', emoji: '🟥' },
+                  ].map(opt => (
+                    <button key={opt.value} onClick={() => setFertLH(fertLH === opt.value ? '' : opt.value)}
+                      className={`flex flex-col items-center gap-1 p-2 rounded-xl border-2 transition-all ${
+                        fertLH === opt.value ? 'border-purple-500 bg-purple-50' : 'border-gray-100 bg-gray-50'
+                      }`}>
+                      <span className="text-xl">{opt.emoji}</span>
+                      <span className="text-[10px] font-bold text-gray-700">{opt.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Intercourse */}
+              <div>
+                <label className="text-sm font-bold text-gray-700 block mb-2">💑 Intercourse</label>
+                <button onClick={() => setFertIntercourse(!fertIntercourse)}
+                  className={`px-4 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${
+                    fertIntercourse ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 bg-gray-50 text-gray-600'
+                  }`}>
+                  {fertIntercourse ? '✓ Yes' : 'No'}
+                </button>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="text-sm font-bold text-gray-700 block mb-2">Notes</label>
+                <textarea value={fertNotes} onChange={e => setFertNotes(e.target.value)} placeholder="Any observations..."
+                  rows={2} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-purple-400 resize-none" />
+              </div>
+
+              {/* Save */}
+              <button onClick={saveFertilityLog} disabled={fertSaving}
+                className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-black text-base py-4 rounded-2xl shadow-lg shadow-purple-200 active:scale-95 transition-transform disabled:opacity-60 mb-2">
+                {fertSaving ? 'Saving...' : '🧬 Save Fertility Log'}
               </button>
             </div>
           </div>

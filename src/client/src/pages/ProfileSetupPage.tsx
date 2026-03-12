@@ -32,7 +32,8 @@ export default function ProfileSetupPage() {
   const finish = async () => {
     setBusy(true);
     try {
-      await userAPI.updateProfile({ primaryGoal: goal, cycleLength: cycle, periodLength: period, interests: sel });
+      const dosha = localStorage.getItem('sb_dosha') || undefined;
+      await userAPI.updateProfile({ primaryGoal: goal, cycleLength: cycle, periodLength: period, interests: sel, dosha });
       if (goal) setGoal(goal as UserGoal);
       setCycleData({ cycleLength: cycle, periodLength: period });
       if (goal === 'pregnancy') setCycleData({ pregnancyWeek: pregWeek });

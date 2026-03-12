@@ -96,6 +96,9 @@ model User {
   cycles           Cycle[]
   moodLogs         MoodLog[]
   symptomLogs      SymptomLog[]
+  bbtLogs          BBTLog[]
+  cervicalMucusLogs CervicalMucusLog[]
+  fertilityDailyLogs FertilityDailyLog[]
   pregnancies      Pregnancy[]
   appointments     Appointment[]
   articleBookmarks ArticleBookmark[]
@@ -131,6 +134,7 @@ model UserProfile {
   isPregnant          Boolean   @default(false)
   pregnancyWeek       Int?
   contraceptiveMethod String?
+  dosha               String?   // Ayurvedic constitution: Vata, Pitta, Kapha
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
@@ -204,6 +208,64 @@ model SymptomLog {
 
   @@index([userId, logDate])
   @@map("symptom_logs")
+}
+
+// ─── ADVANCED FERTILITY TRACKING ────────────────────
+// Based on: Wilcox et al. (1995 BMJ), Fehring et al. (2006),
+// Bull et al. (2019 npj Digital Medicine), ACOG guidelines
+
+model BBTLog {
+  id          String   @id @default(cuid())
+  userId      String
+  temperature Float    // Celsius, e.g. 36.45
+  time        String?  // "06:30" — time of measurement
+  method      String   @default("oral") // oral, vaginal, tympanic
+  notes       String?
+  logDate     DateTime
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, logDate])
+  @@index([userId, logDate])
+  @@map("bbt_logs")
+}
+
+model CervicalMucusLog {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // dry, sticky, creamy, watery, eggWhite, spotting
+  amount    String?  // none, light, moderate, heavy
+  notes     String?
+  logDate   DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, logDate])
+  @@index([userId, logDate])
+  @@map("cervical_mucus_logs")
+}
+
+model FertilityDailyLog {
+  id               String   @id @default(cuid())
+  userId           String
+  logDate          DateTime
+  bbt              Float?   // BBT reading
+  cervicalMucus    String?  // CM type
+  cervicalPosition String?  // low-firm-closed, mid-medium-partial, high-soft-open
+  lhTestResult     String?  // negative, faint, positive, peak
+  intercourse      Boolean  @default(false)
+  fertilityScore   Float?   // 0-100 computed fertility probability
+  phase            String?  // menstrual, follicular, ovulation, luteal
+  notes            String?
+  createdAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, logDate])
+  @@index([userId, logDate])
+  @@map("fertility_daily_logs")
 }
 
 model WaterLog {

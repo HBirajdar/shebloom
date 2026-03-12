@@ -37,10 +37,10 @@ const phaseTips: Record<string, string[]> = {
 };
 
 // ─── Animated SVG Cycle Ring ─────────────────────
-const CycleHeroRing = ({ day, total, phase, periodLength }: { day: number; total: number; phase: string; periodLength: number }) => {
+const CycleHeroRing = ({ day, total, phase, periodLength, luteal }: { day: number; total: number; phase: string; periodLength: number; luteal?: number }) => {
   const cx = 120, cy = 120, r = 100, sw = 18;
   const theme = phaseThemes[phase] || phaseThemes.follicular;
-  const ov = total - 14;
+  const ov = total - (luteal || 13); // Use individual luteal phase (Lenton 1984)
   const fS = Math.max(1, ov - 5), fE = Math.min(total, ov + 1);
   const arcPath = (s: number, e: number) => {
     const sA = ((s - 1) / total) * 360 - 90, eA = (e / total) * 360 - 90;
@@ -148,9 +148,12 @@ export default function DashboardPage() {
   const [tipIdx, setTipIdx] = useState(0);
   const [carouselDoctors, setCarouselDoctors] = useState<CarouselDoctor[]>([]);
   const [doctorsLoading, setDoctorsLoading] = useState(true);
+  const [predictionData, setPredictionData] = useState<any>(null);
 
   const theme = phaseThemes[phase] || phaseThemes.follicular;
-  const ovDay = cycleLength - 14;
+  // Use individual luteal phase from API (Lenton 1984), fallback to old estimate
+  const lutealPhase = predictionData?.lutealPhase || 13;
+  const ovDay = predictionData?.ovulationDay || (cycleLength - lutealPhase);
   const fertStart = Math.max(1, ovDay - 5);
   const fertEnd = Math.min(cycleLength, ovDay + 1);
   const isFertile = cycleDay >= fertStart && cycleDay <= fertEnd;
@@ -159,7 +162,17 @@ export default function DashboardPage() {
   const pmsStart = Math.max(1, cycleLength - 7);
   const daysToPMS = pmsStart > cycleDay ? pmsStart - cycleDay : 0;
 
+  // Use Wilcox et al. 1995 day-specific rates from API when available
   const conception = useMemo(() => {
+    if (predictionData?.fertilityScore !== undefined) {
+      const score = predictionData.fertilityScore;
+      const status = predictionData.fertilityStatus;
+      return {
+        pct: score,
+        label: status === 'peak' ? 'Peak' : status === 'high' ? 'High' : status === 'moderate' ? 'Moderate' : score <= 5 ? 'Very Low' : 'Low',
+      };
+    }
+    // Fallback to local calculation
     const diff = Math.abs(cycleDay - ovDay);
     if (diff === 0) return { pct: 33, label: 'Very High' };
     if (diff === 1) return { pct: 26, label: 'High' };
@@ -167,7 +180,7 @@ export default function DashboardPage() {
     if (diff === 3) return { pct: 10, label: 'Low' };
     if (diff <= 5) return { pct: 5, label: 'Very Low' };
     return { pct: 1, label: 'Minimal' };
-  }, [cycleDay, ovDay]);
+  }, [cycleDay, ovDay, predictionData]);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
@@ -193,6 +206,7 @@ export default function DashboardPage() {
       const d = r.data.data;
       if (d && typeof d.cycleDay === 'number') {
         set({ cycleDay: d.cycleDay, phase: d.phase, daysUntilPeriod: d.daysUntilPeriod, cycleLength: d.cycleLength || 28, periodLength: d.periodLength || 5, hasRealData: true });
+        setPredictionData(d); // Store full prediction for advanced features
       } else { set({ hasRealData: false }); }
     }).catch(() => {}).finally(() => setDashLoading(false));
     // Load today's wellness data — restore all logged items after refresh
@@ -353,7 +367,7 @@ export default function DashboardPage() {
 
                   {/* Big centered ring with overlay */}
                   <div className="relative w-56 h-56 mx-auto mb-4">
-                    <CycleHeroRing day={cycleDay} total={cycleLength} phase={phase} periodLength={periodLength} />
+                    <CycleHeroRing day={cycleDay} total={cycleLength} phase={phase} periodLength={periodLength} luteal={lutealPhase} />
                     {/* Center overlay content */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                       <span className="text-5xl font-black leading-none" style={{ color: theme.color }}>{cycleDay}</span>

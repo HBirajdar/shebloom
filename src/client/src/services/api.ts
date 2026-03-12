@@ -69,6 +69,15 @@ export const cycleAPI = {
   log: (d: any) => api.post('/cycles/log', d),
   predict: () => api.get('/cycles/predict'),
   logSymptoms: (d: any) => api.post('/cycles/symptoms', d),
+  // Advanced fertility tracking
+  logBBT: (d: { temperature: number; time?: string; method?: string; logDate: string; notes?: string }) => api.post('/cycles/bbt', d),
+  getBBT: (days?: number) => api.get('/cycles/bbt', { params: { days } }),
+  logCervicalMucus: (d: { type: string; amount?: string; logDate: string; notes?: string }) => api.post('/cycles/cervical-mucus', d),
+  getCervicalMucus: (days?: number) => api.get('/cycles/cervical-mucus', { params: { days } }),
+  logFertilityDaily: (d: any) => api.post('/cycles/fertility-daily', d),
+  getFertilityDaily: (days?: number) => api.get('/cycles/fertility-daily', { params: { days } }),
+  getFertilityInsights: () => api.get('/cycles/fertility-insights'),
+  getAyurvedicInsights: () => api.get('/cycles/ayurvedic-insights'),
 };
 
 export const moodAPI = {

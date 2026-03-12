@@ -245,6 +245,12 @@ export function useAppInit() {
           authStore.setUser({ ...user, fullName: profile.fullName || user.fullName, email: profile.email || user.email });
         }
 
+        // Sync dosha from localStorage to backend if not yet persisted
+        const localDosha = localStorage.getItem('sb_dosha');
+        if (localDosha && profile?.profile && !profile.profile.dosha) {
+          try { await userAPI.updateProfile({ dosha: localDosha }); } catch {}
+        }
+
         // Fetch cycle predictions
         const cycleRes = await cycleAPI.predict();
         const cycle = cycleRes.data.data;
