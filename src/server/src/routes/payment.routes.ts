@@ -60,6 +60,15 @@ r.post('/webhook', async (req: Request, res: Response) => {
             if (order.couponCode) {
               await recordCouponRedemption(order.couponCode, order.userId, order.couponDiscount || 0, order.id).catch(() => {});
             }
+            // Audit log: webhook captured
+            auditLog({
+              userId: order.userId, eventType: 'WEBHOOK_CAPTURED', orderId: order.id,
+              orderNumber: order.orderNumber, razorpayOrderId, razorpayPaymentId: paymentId,
+              subtotal: order.subtotal, couponCode: order.couponCode || undefined,
+              couponDiscount: order.couponDiscount, platformFee: order.platformFee,
+              deliveryCharge: order.deliveryCharge, totalAmount: order.totalAmount,
+              paymentMethod: 'razorpay', metadata: { source: 'razorpay_webhook' },
+            });
           }
         }
       }
@@ -128,6 +137,22 @@ async function recordCouponRedemption(couponCode: string, userId: string, discou
     data: { couponId: coupon.id, userId, orderId, appointmentId, discount },
   });
   await prisma.coupon.update({ where: { id: coupon.id }, data: { currentUses: { increment: 1 } } });
+}
+
+// Helper: write immutable payment audit log entry
+async function auditLog(entry: {
+  userId: string; eventType: string;
+  orderId?: string; appointmentId?: string; orderNumber?: string;
+  razorpayOrderId?: string; razorpayPaymentId?: string;
+  subtotal?: number; couponCode?: string; couponDiscount?: number;
+  platformFee?: number; deliveryCharge?: number; codCharge?: number;
+  gstAmount?: number; totalAmount?: number;
+  paymentMethod?: string; currency?: string; doctorId?: string;
+  commissionRate?: number; ipAddress?: string; userAgent?: string; metadata?: any;
+}) {
+  await prisma.paymentAuditLog.create({ data: entry as any }).catch((e) => {
+    console.error('[AuditLog] Failed to write:', e.message);
+  });
 }
 
 // POST /payments/create-order
@@ -205,6 +230,15 @@ r.post('/create-order', async (q: AuthRequest, s: Response, n: NextFunction) => 
       include: { items: true },
     });
 
+    // Audit log: order created
+    auditLog({
+      userId: uid, eventType: 'ORDER_CREATED', orderId: order.id, orderNumber,
+      razorpayOrderId: rzpOrder.id, subtotal, couponCode: couponResult.couponCode || undefined,
+      couponDiscount, platformFee, deliveryCharge, totalAmount,
+      paymentMethod: 'razorpay', ipAddress: q.ip || undefined,
+      userAgent: q.headers['user-agent'] || undefined,
+    });
+
     successResponse(s, {
       orderId: order.id,
       orderNumber: order.orderNumber,
@@ -266,6 +300,15 @@ r.post('/verify', async (q: AuthRequest, s: Response, n: NextFunction) => {
       if (order.couponCode) {
         await recordCouponRedemption(order.couponCode, order.userId, order.couponDiscount || 0, order.id).catch(() => {});
       }
+      // Audit log: order paid
+      auditLog({
+        userId: order.userId, eventType: 'ORDER_PAID', orderId: order.id,
+        orderNumber: order.orderNumber, razorpayOrderId, razorpayPaymentId,
+        subtotal: order.subtotal, couponCode: order.couponCode || undefined,
+        couponDiscount: order.couponDiscount, platformFee: order.platformFee,
+        deliveryCharge: order.deliveryCharge, totalAmount: order.totalAmount,
+        paymentMethod: 'razorpay', ipAddress: q.ip || undefined,
+      });
     }
 
     // Send order confirmation email (best-effort)
@@ -363,6 +406,15 @@ r.post('/cod', async (q: AuthRequest, s: Response, n: NextFunction) => {
       }).catch(() => {});
     }
 
+    // Audit log: COD order placed
+    auditLog({
+      userId: uid, eventType: 'ORDER_COD', orderId: order.id, orderNumber,
+      subtotal, couponCode: couponResult.couponCode || undefined,
+      couponDiscount, platformFee, deliveryCharge, codCharge, totalAmount,
+      paymentMethod: 'COD', ipAddress: q.ip || undefined,
+      userAgent: q.headers['user-agent'] || undefined,
+    });
+
     // Send order confirmation email
     if (order.user.email) {
       const addr = order.deliveryAddress as any;
@@ -440,6 +492,16 @@ r.post('/appointment-order', async (q: AuthRequest, s: Response, n: NextFunction
       errorResponse(s, rzpErr?.error?.description || 'Payment gateway error. Please try again later.', 502); return;
     }
 
+    // Audit log: appointment order created
+    auditLog({
+      userId: uid, eventType: 'APPOINTMENT_ORDER_CREATED', doctorId,
+      razorpayOrderId: rzpOrder.id, subtotal: originalFee,
+      couponCode: couponResult.couponCode || undefined, couponDiscount,
+      platformFee, totalAmount: finalAmount, paymentMethod: 'razorpay',
+      commissionRate, ipAddress: q.ip || undefined,
+      userAgent: q.headers['user-agent'] || undefined,
+    });
+
     successResponse(s, {
       razorpayOrderId: rzpOrder.id,
       amount: rzpOrder.amount,
@@ -488,8 +550,8 @@ r.post('/verify-appointment', async (q: AuthRequest, s: Response, n: NextFunctio
     const doctorId = orderNotes.doctorId || null;
 
     // Record coupon redemption (appointment financial data is set via appointment creation route)
+    let couponDiscount = 0;
     if (couponCode) {
-      let couponDiscount = 0;
       if (doctorId) {
         const doctor = await prisma.doctor.findUnique({ where: { id: doctorId } });
         const result = await applyCoupon(couponCode, uid, doctor?.consultationFee || 0, 'CONSULTATION', undefined, doctorId);
@@ -497,6 +559,17 @@ r.post('/verify-appointment', async (q: AuthRequest, s: Response, n: NextFunctio
       }
       await recordCouponRedemption(couponCode, uid, couponDiscount).catch(() => {});
     }
+
+    // Audit log: appointment paid
+    const paidAmount = rzpOrder ? (rzpOrder.amount / 100) : 0;
+    auditLog({
+      userId: uid, eventType: 'APPOINTMENT_PAID', doctorId: doctorId || undefined,
+      razorpayOrderId, razorpayPaymentId,
+      couponCode: couponCode || undefined, couponDiscount,
+      totalAmount: paidAmount, paymentMethod: 'razorpay',
+      ipAddress: q.ip || undefined,
+      userAgent: q.headers['user-agent'] || undefined,
+    });
 
     successResponse(s, { verified: true, paymentId: razorpayPaymentId });
   } catch (e) { n(e); }

@@ -1036,3 +1036,48 @@ model ProductPayout {
   @@index([createdAt])
   @@map("product_payouts")
 }
+
+// ─── PAYMENT AUDIT LOG ──────────────────────────────
+// Immutable ledger of every payment event — protects during disputes,
+// chargebacks, refund claims, and regulatory audits. Never deleted.
+
+model PaymentAuditLog {
+  id              String   @id @default(cuid())
+  // Who & what
+  userId          String
+  eventType       String                // ORDER_CREATED, ORDER_PAID, ORDER_COD, APPOINTMENT_PAID, REFUND, WEBHOOK_CAPTURED
+  // Payment identifiers
+  orderId         String?               // Internal order ID (for product orders)
+  appointmentId   String?               // Internal appointment ID (for consultations)
+  orderNumber     String?               // Human-readable order number (VC-xxxx)
+  razorpayOrderId String?               // Razorpay order ID
+  razorpayPaymentId String?             // Razorpay payment ID (pay_xxxx)
+  // Financial snapshot (immutable at time of event)
+  subtotal        Float    @default(0)  // Original amount before any discounts/fees
+  couponCode      String?               // Coupon applied (if any)
+  couponDiscount  Float    @default(0)  // Discount from coupon
+  platformFee     Float    @default(0)  // Platform/convenience fee charged
+  deliveryCharge  Float    @default(0)  // Delivery fee (products only)
+  codCharge       Float    @default(0)  // COD extra charge (if applicable)
+  gstAmount       Float    @default(0)  // GST charged
+  totalAmount     Float    @default(0)  // Final amount charged/collected
+  // Context
+  paymentMethod   String?               // razorpay, COD, free
+  currency        String   @default("INR")
+  doctorId        String?               // Doctor (for appointment payments)
+  commissionRate  Float?                // Platform commission % at time of payment
+  // Metadata
+  ipAddress       String?               // Client IP for fraud detection
+  userAgent       String?               // Browser/device info
+  metadata        Json?                 // Any extra context (Razorpay response, notes, etc.)
+  // Timestamps
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+  @@index([eventType])
+  @@index([orderId])
+  @@index([appointmentId])
+  @@index([razorpayPaymentId])
+  @@index([createdAt])
+  @@map("payment_audit_logs")
+}
