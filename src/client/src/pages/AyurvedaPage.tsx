@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/authStore';
 import { api, productAPI } from '../services/api';
 import type { ProductCategory, AyurvedaProduct, DIYRecipe } from '../stores/ayurvedaStore';
 import { useChiefDoctor } from '../hooks/useChiefDoctor';
+import { useCart } from '../hooks/useCart';
 import BottomNav from '../components/BottomNav';
 import toast from 'react-hot-toast';
 
@@ -55,9 +56,10 @@ const StockBadge = ({ stock, inStock }: { stock: number; inStock: boolean }) => 
 export default function AyurvedaPage() {
   const nav = useNavigate();
   const store = useAyurvedaStore();
-  const { recipes, isAdminUnlocked } = store;
+  const { recipes } = store;
   const { phase, goal } = useCycleStore();
   const user = useAuthStore(s => s.user);
+  const isAdminUnlocked = user?.role === 'ADMIN';
 
   // Fetch products from API
   const [apiProducts, setApiProducts] = useState<AyurvedaProduct[] | null>(null);
@@ -77,9 +79,12 @@ export default function AyurvedaPage() {
   const [selProduct, setSelProduct] = useState<AyurvedaProduct | null>(null);
   const [selRecipe, setSelRecipe] = useState<DIYRecipe | null>(null);
 
-  // Cart state
-  const [cart, setCart] = useState<{ product: AyurvedaProduct; qty: number }[]>([]);
+  // Shared cart (persisted via useCart hook — same data CheckoutPage reads)
+  const { items: cartItems, count: cartCount, total: cartTotal, addToCart: hookAddToCart, removeFromCart: hookRemoveFromCart, updateQty: hookUpdateQty, fetchCart } = useCart();
   const [showCart, setShowCart] = useState(false);
+
+  // Fetch server cart on mount
+  useEffect(() => { fetchCart(); }, [fetchCart]);
 
   // Wishlist state (server-synced)
   const [wishlistIds, setWishlistIds] = useState<Set<string>>(new Set());
@@ -179,29 +184,22 @@ export default function AyurvedaPage() {
 
   const visibleRecipes = useMemo(() => recipes.filter(r => r.isPublished).filter(r => r.targetAudience.includes('all') || r.targetAudience.includes(goal as any)), [recipes, goal]);
 
-  // Cart helpers
+  // Cart helpers — delegate to shared useCart hook so CheckoutPage sees same items
   const addToCart = (product: AyurvedaProduct) => {
     if (!product.inStock || (product as any).stock <= 0) { toast.error('This product is out of stock'); return; }
-    setCart(prev => {
-      const existing = prev.find(item => item.product.id === product.id);
-      if (existing) {
-        if (existing.qty >= ((product as any).stock || 10)) { toast.error('Maximum available quantity reached'); return prev; }
-        return prev.map(item => item.product.id === product.id ? { ...item, qty: item.qty + 1 } : item);
-      }
-      return [...prev, { product, qty: 1 }];
+    hookAddToCart({
+      productId: product.id,
+      name: product.name,
+      price: product.discountPrice || product.price,
+      image: (product as any).imageUrl || product.emoji || '',
+      qty: 1,
     });
-    toast.success(`Added to cart!`);
   };
-  const removeFromCart = (id: string) => setCart(prev => prev.filter(item => item.product.id !== id));
+  const removeFromCart = (id: string) => hookRemoveFromCart(id);
   const updateQty = (id: string, delta: number) => {
-    setCart(prev => prev.map(item => {
-      if (item.product.id !== id) return item;
-      const newQty = Math.max(1, Math.min(item.qty + delta, (item.product as any).stock || 10));
-      return { ...item, qty: newQty };
-    }));
+    const item = cartItems.find(i => i.id === id || i.productId === id);
+    if (item) hookUpdateQty(item.id, item.qty + delta);
   };
-  const cartTotal = cart.reduce((sum, item) => sum + (item.product.discountPrice || item.product.price) * item.qty, 0);
-  const cartCount = cart.reduce((sum, item) => sum + item.qty, 0);
 
   // Wishlist helpers (server-synced)
   const toggleWishlist = async (id: string) => {
@@ -920,7 +918,7 @@ export default function AyurvedaPage() {
               <h3 className="text-lg font-extrabold text-gray-900">Your Cart {'\u{1F6D2}'}</h3>
               <button onClick={() => setShowCart(false)} className="text-gray-400 active:scale-90">{'\u2715'}</button>
             </div>
-            {cart.length === 0 ? (
+            {cartItems.length === 0 ? (
               <div className="py-16 text-center px-5">
                 <span className="text-5xl block mb-3">{'\u{1F6D2}'}</span>
                 <p className="text-sm font-bold text-gray-400">Your cart is empty</p>
@@ -928,20 +926,20 @@ export default function AyurvedaPage() {
               </div>
             ) : (
               <div className="px-5 space-y-3">
-                {cart.map(item => (
-                  <div key={item.product.id} className="flex items-center gap-3 bg-gray-50 rounded-2xl p-3">
+                {cartItems.map(item => (
+                  <div key={item.id} className="flex items-center gap-3 bg-gray-50 rounded-2xl p-3">
                     <div className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden" style={{ backgroundColor: '#ECFDF5' }}>
-                      {item.product.imageUrl ? <img src={item.product.imageUrl} alt="" className="w-full h-full object-cover" /> : item.product.emoji}
+                      {item.image ? <img src={item.image} alt="" className="w-full h-full object-cover" /> : '\u{1F33F}'}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-gray-800 line-clamp-1">{item.product.name}</p>
-                      <p className="text-sm font-extrabold text-emerald-700 mt-0.5">{'\u20B9'}{(item.product.discountPrice || item.product.price) * item.qty}</p>
+                      <p className="text-xs font-bold text-gray-800 line-clamp-1">{item.name}</p>
+                      <p className="text-sm font-extrabold text-emerald-700 mt-0.5">{'\u20B9'}{item.price * item.qty}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button onClick={() => updateQty(item.product.id, -1)} className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center font-bold text-sm active:scale-90 transition-transform">{'\u2212'}</button>
+                      <button onClick={() => updateQty(item.id, -1)} className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center font-bold text-sm active:scale-90 transition-transform">{'\u2212'}</button>
                       <span className="text-sm font-extrabold w-5 text-center">{item.qty}</span>
-                      <button onClick={() => updateQty(item.product.id, 1)} className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm active:scale-90 transition-transform">+</button>
-                      <button onClick={() => removeFromCart(item.product.id)} className="w-7 h-7 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center text-xs active:scale-90 transition-transform ml-1">{'\u2715'}</button>
+                      <button onClick={() => updateQty(item.id, 1)} className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm active:scale-90 transition-transform">+</button>
+                      <button onClick={() => removeFromCart(item.id)} className="w-7 h-7 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center text-xs active:scale-90 transition-transform ml-1">{'\u2715'}</button>
                     </div>
                   </div>
                 ))}

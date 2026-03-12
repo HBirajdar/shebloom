@@ -166,9 +166,6 @@ const STORE_VERSION = 4;
 
 interface StoreState {
   _version: number;
-  adminPin: string; isAdminUnlocked: boolean;
-  unlockAdmin: (pin: string) => boolean; lockAdmin: () => void;
-  changePin: (o: string, n: string) => boolean;
   products: AyurvedaProduct[]; articles: Article[]; recipes: DIYRecipe[];
   addProduct: (p: AyurvedaProduct) => void; updateProduct: (id: string, d: Partial<AyurvedaProduct>) => void;
   deleteProduct: (id: string) => void; togglePublish: (id: string) => void; toggleFeatured: (id: string) => void;
@@ -181,10 +178,6 @@ export const useAyurvedaStore = create<StoreState>()(
   persist(
     (set, get) => ({
       _version: STORE_VERSION,
-      adminPin: 'VedaClue@2024#Admin', isAdminUnlocked: false,
-      unlockAdmin: (pin) => { if (pin === get().adminPin) { set({ isAdminUnlocked: true }); return true; } return false; },
-      lockAdmin: () => set({ isAdminUnlocked: false }),
-      changePin: (o, n) => { if (o === get().adminPin && n.length >= 8) { set({ adminPin: n }); return true; } return false; },
       products: defaultProducts, articles: defaultArticles, recipes: defaultRecipes,
       addProduct: (p) => set((s) => ({ products: [...s.products, p] })),
       updateProduct: (id, d) => set((s) => ({ products: s.products.map(p => p.id === id ? { ...p, ...d } : p) })),

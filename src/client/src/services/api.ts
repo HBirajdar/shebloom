@@ -20,27 +20,40 @@ api.interceptors.request.use((c) => {
   return c;
 });
 
+// Global refresh lock — prevents multiple concurrent 401s from triggering parallel refreshes
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshToken(): Promise<string | null> {
+  const rt = localStorage.getItem('sb_refresh');
+  if (!rt) return null;
+  try {
+    const resp = await axios.post(BASE + '/api/v1/auth/refresh', { refreshToken: rt });
+    const newToken = resp.data.data.accessToken;
+    localStorage.setItem('sb_token', newToken);
+    localStorage.setItem('sb_refresh', resp.data.data.refreshToken);
+    return newToken;
+  } catch {
+    localStorage.removeItem('sb_token');
+    localStorage.removeItem('sb_refresh');
+    window.location.href = '/auth';
+    return null;
+  }
+}
+
 api.interceptors.response.use(
   (r) => r,
   async (err) => {
     const req = err.config;
-    if (err.response?.status === 401 && !req._retry && !req._retryCount) {
+    if (err.response?.status === 401 && !req._retry) {
       req._retry = true;
-      req._retryCount = (req._retryCount || 0) + 1;
-      const rt = localStorage.getItem('sb_refresh');
-      if (rt) {
-        try {
-          const refreshUrl = BASE + '/api/v1/auth/refresh';
-          const resp = await axios.post(refreshUrl, { refreshToken: rt });
-          localStorage.setItem('sb_token', resp.data.data.accessToken);
-          localStorage.setItem('sb_refresh', resp.data.data.refreshToken);
-          req.headers.Authorization = 'Bearer ' + resp.data.data.accessToken;
-          return api(req);
-        } catch {
-          localStorage.removeItem('sb_token');
-          localStorage.removeItem('sb_refresh');
-          window.location.href = '/auth';
-        }
+      // All concurrent 401s share the same refresh promise
+      if (!refreshPromise) {
+        refreshPromise = refreshToken().finally(() => { refreshPromise = null; });
+      }
+      const newToken = await refreshPromise;
+      if (newToken) {
+        req.headers.Authorization = 'Bearer ' + newToken;
+        return api(req);
       }
     }
     return Promise.reject(err);

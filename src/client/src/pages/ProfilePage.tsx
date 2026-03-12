@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useCycleStore } from '../stores/cycleStore';
@@ -98,8 +98,13 @@ export default function ProfilePage() {
   const [showEmailTip, setShowEmailTip] = useState(false);
 
   const [avatarUploading, setAvatarUploading] = useState(false);
-  const avatarInputRef = (typeof window !== 'undefined') ? document.createElement('input') : null;
-  if (avatarInputRef) { avatarInputRef.type = 'file'; avatarInputRef.accept = 'image/jpeg,image/png,image/webp'; }
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  if (typeof window !== 'undefined' && !avatarInputRef.current) {
+    const el = document.createElement('input');
+    el.type = 'file';
+    el.accept = 'image/jpeg,image/png,image/webp';
+    avatarInputRef.current = el;
+  }
 
   const [doshaData, setDoshaData] = useState<any>(null);
   useEffect(() => {
@@ -222,8 +227,8 @@ export default function ProfilePage() {
   };
 
   const handleAvatarUpload = async () => {
-    if (!avatarInputRef) return;
-    avatarInputRef.onchange = async (ev: any) => {
+    if (!avatarInputRef.current) return;
+    avatarInputRef.current.onchange = async (ev: any) => {
       const file = ev.target?.files?.[0];
       if (!file) return;
       if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
@@ -239,7 +244,7 @@ export default function ProfilePage() {
       } catch { toast.error('Upload failed'); }
       setAvatarUploading(false);
     };
-    avatarInputRef.click();
+    avatarInputRef.current.click();
   };
 
   const handleItem = (action: string) => {
