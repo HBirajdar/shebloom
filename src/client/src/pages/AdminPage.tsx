@@ -1578,7 +1578,7 @@ export default function AdminPage() {
             </div>
             <div>
               <label className="text-[10px] font-bold text-gray-500 uppercase">Owner WhatsApp/Phone (for callback notifications)</label>
-              <input type="tel" value={np.ownerPhone || ''} onChange={e => setNp({...np, ownerPhone: e.target.value})} placeholder="+91 98765 43210"
+              <input type="tel" value={np.ownerPhone || ''} onChange={e => setNp({...np, ownerPhone: e.target.value})} placeholder="+91 9405424185"
                 className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-rose-400 focus:outline-none" />
             </div>
             <FormCheckbox label="Featured Product" checked={np.isFeatured} onChange={v => setNp({...np, isFeatured: v})} />
@@ -1612,7 +1612,7 @@ export default function AdminPage() {
             </div>
             <div>
               <label className="text-[10px] font-bold text-gray-500 uppercase">Owner WhatsApp/Phone (for callback notifications)</label>
-              <input type="tel" value={ep.ownerPhone || ''} onChange={e => setEp({...ep, ownerPhone: e.target.value})} placeholder="+91 98765 43210"
+              <input type="tel" value={ep.ownerPhone || ''} onChange={e => setEp({...ep, ownerPhone: e.target.value})} placeholder="+91 9405424185"
                 className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-rose-400 focus:outline-none" />
             </div>
             <FormCheckbox label="Featured Product" checked={ep.isFeatured} onChange={v => setEp({...ep, isFeatured: v})} />
@@ -1671,7 +1671,7 @@ export default function AdminPage() {
           {tab === 'add_doctor' && (<>
             <div className="flex items-center gap-2 mb-1"><button onClick={() => setTab('doctors')} className="text-gray-400 text-sm">{'\u2190'}</button><h3 className="text-sm font-extrabold">Add Doctor</h3></div>
             <ImageUpload label="Doctor Photo" value={nd.avatarUrl} onChange={url => setNd({...nd, avatarUrl: url})} />
-            <FormField label="Full Name *" value={nd.name} onChange={v => setNd({...nd, name: v})} placeholder="Dr. Priya Sharma" />
+            <FormField label="Full Name *" value={nd.name} onChange={v => setNd({...nd, name: v})} placeholder="Dr. Shruthi R" />
             <FormField label="Specialization *" value={nd.specialization} onChange={v => setNd({...nd, specialization: v})} placeholder="Gynecologist" />
             <FormField label="Qualification" value={nd.qualification} onChange={v => setNd({...nd, qualification: v})} placeholder="MBBS, MS" />
             <div className="grid grid-cols-2 gap-2"><FormNumField label="Experience (yrs)" value={nd.experience} onChange={v => setNd({...nd, experience: v})} /><FormNumField label="Fee" value={nd.fee} onChange={v => setNd({...nd, fee: v})} /></div>
@@ -1692,7 +1692,7 @@ export default function AdminPage() {
           {tab === 'edit_doctor' && editDoctor && (<>
             <div className="flex items-center gap-2 mb-1"><button onClick={() => { setEditDoctor(null); setTab('doctors'); }} className="text-gray-400 text-sm">{'\u2190'}</button><h3 className="text-sm font-extrabold">Edit Doctor</h3></div>
             <ImageUpload label="Doctor Photo" value={ed.avatarUrl} onChange={url => setEd({...ed, avatarUrl: url})} />
-            <FormField label="Full Name *" value={ed.name} onChange={v => setEd({...ed, name: v})} placeholder="Dr. Name" />
+            <FormField label="Full Name *" value={ed.name} onChange={v => setEd({...ed, name: v})} placeholder="Dr. Shruthi R" />
             <FormField label="Specialization *" value={ed.specialization} onChange={v => setEd({...ed, specialization: v})} placeholder="Gynecologist" />
             <FormField label="Qualification" value={ed.qualification} onChange={v => setEd({...ed, qualification: v})} placeholder="MBBS, MS" />
             <div className="grid grid-cols-2 gap-2"><FormNumField label="Experience (yrs)" value={ed.experience} onChange={v => setEd({...ed, experience: v})} /><FormNumField label="Fee" value={ed.fee} onChange={v => setEd({...ed, fee: v})} /></div>

@@ -629,9 +629,9 @@ export default function AyurvedaPage() {
               )}
               <div className="space-y-3">
                 <div><label className="text-[10px] font-bold text-gray-500 uppercase">Your Name *</label>
-                  <input value={cbName} onChange={e => setCbName(e.target.value)} placeholder="Your full name" className="w-full mt-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-emerald-400 focus:outline-none" /></div>
+                  <input value={cbName} onChange={e => setCbName(e.target.value)} placeholder="Sugandhika" className="w-full mt-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-emerald-400 focus:outline-none" /></div>
                 <div><label className="text-[10px] font-bold text-gray-500 uppercase">Phone Number *</label>
-                  <input value={cbPhone} onChange={e => setCbPhone(e.target.value)} placeholder="+91 98765 43210" type="tel" className="w-full mt-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-emerald-400 focus:outline-none" /></div>
+                  <input value={cbPhone} onChange={e => setCbPhone(e.target.value)} placeholder="+91 9405424185" type="tel" className="w-full mt-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-emerald-400 focus:outline-none" /></div>
                 <div><label className="text-[10px] font-bold text-gray-500 uppercase">Message (optional)</label>
                   <textarea value={cbMessage} onChange={e => setCbMessage(e.target.value)} className="w-full mt-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-emerald-400 focus:outline-none resize-none" rows={3} /></div>
               </div>

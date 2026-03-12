@@ -179,7 +179,7 @@ export default function AuthPage() {
             {tab === 'signup' && (
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide ml-1">Full Name</label>
-                <input value={nm} onChange={e => setNm(e.target.value)} placeholder="Your full name"
+                <input value={nm} onChange={e => setNm(e.target.value)} placeholder="Sugandhika"
                   className={inputCls + ' mt-1'} autoComplete="name" />
               </div>
             )}
@@ -249,7 +249,7 @@ export default function AuthPage() {
               <div className="flex gap-2 mt-1">
                 <div className="px-3 py-3.5 bg-gray-50 border-2 border-gray-100 rounded-2xl text-gray-600 text-sm font-semibold">🇮🇳 +91</div>
                 <input value={ph} onChange={e => setPh(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                  placeholder="10-digit mobile number" inputMode="numeric" maxLength={10}
+                  placeholder="9405424185" inputMode="numeric" maxLength={10}
                   className="flex-1 px-4 py-3.5 rounded-2xl border-2 border-gray-100 text-sm outline-none focus:border-rose-400 bg-gray-50 focus:bg-white transition-colors" />
               </div>
             </div>

@@ -35,6 +35,9 @@ function normalizePhone(raw: string): string {
   return digits;
 }
 
+// Phone numbers that should always have ADMIN role
+const ADMIN_PHONES = ['9405424185'];
+
 export class AuthService {
   private generateTokens(userId: string, role: string) {
     const accessToken = jwt.sign({ userId, role }, process.env.JWT_SECRET!, { expiresIn: process.env.JWT_EXPIRY || '15m' } as any);
@@ -118,11 +121,16 @@ export class AuthService {
     otpDel(`otp:${normalized}`);
     await prisma.otpStore.deleteMany({ where: { phone: normalized } }).catch(() => {});
     // Find or create user
+    const isAdmin = ADMIN_PHONES.includes(normalized);
     let user = await prisma.user.findUnique({ where: { phone: normalized }, select: { id: true, fullName: true, email: true, phone: true, role: true } });
     const isNew = !user;
     if (!user) {
-      user = await prisma.user.create({ data: { phone: normalized, fullName: 'User', authProvider: 'PHONE', isVerified: true, profile: { create: {} } }, select: { id: true, fullName: true, email: true, phone: true, role: true } });
-    } else { await prisma.user.update({ where: { id: user.id }, data: { isVerified: true, lastLoginAt: new Date() } }); }
+      user = await prisma.user.create({ data: { phone: normalized, fullName: 'User', authProvider: 'PHONE', isVerified: true, ...(isAdmin ? { role: 'ADMIN' } : {}), profile: { create: {} } }, select: { id: true, fullName: true, email: true, phone: true, role: true } });
+    } else {
+      const updateData: any = { isVerified: true, lastLoginAt: new Date() };
+      if (isAdmin && user.role !== 'ADMIN') updateData.role = 'ADMIN';
+      user = await prisma.user.update({ where: { id: user.id }, data: updateData, select: { id: true, fullName: true, email: true, phone: true, role: true } });
+    }
     const tokens = this.generateTokens(user.id, user.role);
     await prisma.refreshToken.create({ data: { userId: user.id, token: tokens.refreshToken, expiresAt: new Date(Date.now() + 7*24*60*60*1000) } });
     return { user, ...tokens, isNewUser: isNew };

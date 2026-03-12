@@ -462,7 +462,7 @@ export default function ProfilePage() {
               {/* Full Name — always editable */}
               <div>
                 <label className="text-[10px] font-bold text-gray-500 uppercase">Full Name</label>
-                <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Your name"
+                <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Sugandhika"
                   className="w-full mt-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none" />
               </div>
 
@@ -537,7 +537,7 @@ export default function ProfilePage() {
                     {mobileStep === 'idle' ? (
                       <div className="flex gap-2">
                         <input type="tel" value={newPhone} onChange={e => setNewPhone(e.target.value)}
-                          placeholder="+91 98765 43210"
+                          placeholder="+91 9405424185"
                           className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none" />
                         {newPhone !== phone && newPhone.trim().length >= 10 && (
                           <button onClick={sendMobileOtp} disabled={otpLoading}

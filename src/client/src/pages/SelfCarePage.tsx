@@ -251,8 +251,8 @@ export default function SelfCarePage() {
               </div>
             ))}
             <div className="flex gap-2 mt-3">
-              <input value={sosName} onChange={e => setSosName(e.target.value)} placeholder="Name" className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none" />
-              <input value={sosPhone} onChange={e => setSosPhone(e.target.value)} placeholder="Phone" className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none" />
+              <input value={sosName} onChange={e => setSosName(e.target.value)} placeholder="Sugandhika" className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none" />
+              <input value={sosPhone} onChange={e => setSosPhone(e.target.value)} placeholder="9405424185" className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none" />
               <button onClick={addSosContact} className="px-3 py-2 rounded-xl bg-rose-500 text-white text-xs font-bold active:scale-95">+</button>
             </div>
           </div>
