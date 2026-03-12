@@ -161,6 +161,17 @@ export const wellnessAPI = {
   history: (days: number) => api.get(`/wellness/history?days=${days}`),
 };
 
+export const programAPI = {
+  list: (p?: any) => api.get('/programs', { params: p }),
+  get: (id: string) => api.get(`/programs/${id}`),
+  myEnrolled: () => api.get('/programs/me/enrolled'),
+  myEnrollment: (programId: string) => api.get(`/programs/me/enrolled/${programId}`),
+  enroll: (id: string) => api.post(`/programs/${id}/enroll`),
+  enrollPaid: (id: string, d: any) => api.post(`/programs/${id}/enroll-paid`, d),
+  markProgress: (d: { programId: string; contentId: string }) => api.post('/programs/me/progress', d),
+  leave: (id: string) => api.post(`/programs/${id}/leave`),
+};
+
 export const notificationAPI = {
   list: () => api.get('/notifications'),
   markRead: (id: string) => api.put('/notifications/' + id + '/read'),
@@ -344,6 +355,17 @@ export const adminAPI = {
   updateWellness: (id: string, d: any) => api.put(`/admin/wellness/${id}`, d),
   toggleWellnessPublish: (id: string) => api.post(`/admin/wellness/${id}/toggle-publish`),
   deleteWellness: (id: string) => api.delete(`/admin/wellness/${id}`),
+  // Programs
+  getPrograms: () => api.get('/admin/programs'),
+  createProgram: (d: any) => api.post('/admin/programs', d),
+  updateProgram: (id: string, d: any) => api.put(`/admin/programs/${id}`, d),
+  toggleProgramPublish: (id: string) => api.post(`/admin/programs/${id}/toggle-publish`),
+  deleteProgram: (id: string) => api.delete(`/admin/programs/${id}`),
+  getProgramContents: (id: string) => api.get(`/admin/programs/${id}/contents`),
+  addProgramContent: (id: string, d: any) => api.post(`/admin/programs/${id}/contents`, d),
+  updateProgramContent: (contentId: string, d: any) => api.put(`/admin/programs/contents/${contentId}`, d),
+  deleteProgramContent: (contentId: string) => api.delete(`/admin/programs/contents/${contentId}`),
+  getProgramEnrollments: (id: string) => api.get(`/admin/programs/${id}/enrollments`),
 };
 
 // ─── Finance (Coupons, Config, Analytics) ────────────

@@ -48,6 +48,16 @@ const apiService = {
   updateWellness:            (id: string, d: any) => wrap(adminAPI.updateWellness(id, d)),
   toggleWellnessPublish:     (id: string)    => wrap(adminAPI.toggleWellnessPublish(id)),
   deleteWellness:            (id: string)    => wrap(adminAPI.deleteWellness(id)),
+  // Programs
+  getPrograms:               ()              => wrap(adminAPI.getPrograms()),
+  createProgram:             (d: any)        => wrap(adminAPI.createProgram(d)),
+  updateProgram:             (id: string, d: any) => wrap(adminAPI.updateProgram(id, d)),
+  toggleProgramPublish:      (id: string)    => wrap(adminAPI.toggleProgramPublish(id)),
+  deleteProgram:             (id: string)    => wrap(adminAPI.deleteProgram(id)),
+  getProgramContents:        (id: string)    => wrap(adminAPI.getProgramContents(id)),
+  addProgramContent:         (id: string, d: any) => wrap(adminAPI.addProgramContent(id, d)),
+  updateProgramContent:      (cId: string, d: any) => wrap(adminAPI.updateProgramContent(cId, d)),
+  deleteProgramContent:      (cId: string)   => wrap(adminAPI.deleteProgramContent(cId)),
 };
 import MultiImageUpload from '../components/MultiImageUpload';
 import toast from 'react-hot-toast';
@@ -153,7 +163,7 @@ const FormCheckbox = ({ label, checked, onChange }: { label: string; checked: bo
 );
 type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'NO_SHOW' | 'CANCELLED';
 
-type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness';
+type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness' | 'programs' | 'add_program' | 'edit_program' | 'program_content';
 
 // ─── Finance Admin Tab ──────────────────────────────────
 // Platform config, coupons, revenue analytics — like Practo/Zomato/Amazon admin
@@ -1084,6 +1094,47 @@ export default function AdminPage() {
   const [wfInstructions, setWfInstructions] = useState('');
   const [wfSaving, setWfSaving] = useState(false);
 
+  // Programs state
+  const [adminPrograms, setAdminPrograms] = useState<any[]>([]);
+  const [programsLoading, setProgramsLoading] = useState(false);
+  const [programSearch, setProgramSearch] = useState('');
+  const [programCatFilter, setProgramCatFilter] = useState('');
+  const [editProgram, setEditProgram] = useState<any>(null);
+  const [programContents, setProgramContents] = useState<any[]>([]);
+  const [contentProgramId, setContentProgramId] = useState('');
+  // Program form
+  const [pfTitle, setPfTitle] = useState('');
+  const [pfSubtitle, setPfSubtitle] = useState('');
+  const [pfDescription, setPfDescription] = useState('');
+  const [pfEmoji, setPfEmoji] = useState('🌸');
+  const [pfImageUrl, setPfImageUrl] = useState('');
+  const [pfCategory, setPfCategory] = useState('pcod');
+  const [pfDuration, setPfDuration] = useState('30 days');
+  const [pfDurationDays, setPfDurationDays] = useState('30');
+  const [pfIsFree, setPfIsFree] = useState(true);
+  const [pfPrice, setPfPrice] = useState('0');
+  const [pfDiscountPrice, setPfDiscountPrice] = useState('');
+  const [pfDifficulty, setPfDifficulty] = useState('beginner');
+  const [pfHighlights, setPfHighlights] = useState('');
+  const [pfWhatYouGet, setPfWhatYouGet] = useState('');
+  const [pfPrerequisites, setPfPrerequisites] = useState('');
+  const [pfDoctorName, setPfDoctorName] = useState('');
+  const [pfSaving, setPfSaving] = useState(false);
+  // Content form
+  const [cfTitle, setCfTitle] = useState('');
+  const [cfDescription, setCfDescription] = useState('');
+  const [cfType, setCfType] = useState('video');
+  const [cfWeek, setCfWeek] = useState('1');
+  const [cfDay, setCfDay] = useState('');
+  const [cfSort, setCfSort] = useState('0');
+  const [cfVideoUrl, setCfVideoUrl] = useState('');
+  const [cfAudioUrl, setCfAudioUrl] = useState('');
+  const [cfImageUrl, setCfImageUrl] = useState('');
+  const [cfBody, setCfBody] = useState('');
+  const [cfDuration, setCfDuration] = useState('');
+  const [cfIsFree, setCfIsFree] = useState(false);
+  const [cfSaving, setCfSaving] = useState(false);
+
   // Search states for all tabs (client-side filtering)
   const [doctorSearch, setDoctorSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
@@ -1342,6 +1393,81 @@ export default function AdminPage() {
     finally { setWfSaving(false); }
   };
 
+  // ─── Programs fetcher ───────────────────────────────────
+  const fetchPrograms = async () => {
+    if (!ensureToken()) return;
+    setProgramsLoading(true);
+    try {
+      const res = await apiService.getPrograms();
+      setAdminPrograms(res.data || []);
+    } catch { toast.error('Failed to load programs'); }
+    finally { setProgramsLoading(false); }
+  };
+  const fetchProgramContents = async (programId: string) => {
+    try {
+      const res = await apiService.getProgramContents(programId);
+      setProgramContents(res.data || []);
+      setContentProgramId(programId);
+    } catch { toast.error('Failed to load content'); }
+  };
+  const resetProgramForm = () => {
+    setPfTitle(''); setPfSubtitle(''); setPfDescription(''); setPfEmoji('🌸');
+    setPfImageUrl(''); setPfCategory('pcod'); setPfDuration('30 days');
+    setPfDurationDays('30'); setPfIsFree(true); setPfPrice('0'); setPfDiscountPrice('');
+    setPfDifficulty('beginner'); setPfHighlights(''); setPfWhatYouGet('');
+    setPfPrerequisites(''); setPfDoctorName(''); setEditProgram(null);
+  };
+  const resetContentForm = () => {
+    setCfTitle(''); setCfDescription(''); setCfType('video'); setCfWeek('1');
+    setCfDay(''); setCfSort('0'); setCfVideoUrl(''); setCfAudioUrl('');
+    setCfImageUrl(''); setCfBody(''); setCfDuration(''); setCfIsFree(false);
+  };
+  const handleSaveProgram = async () => {
+    if (!pfTitle.trim()) { toast.error('Title is required'); return; }
+    setPfSaving(true);
+    try {
+      const payload = {
+        title: pfTitle.trim(), subtitle: pfSubtitle.trim(), description: pfDescription.trim(),
+        emoji: pfEmoji, imageUrl: pfImageUrl || null, category: pfCategory,
+        duration: pfDuration, durationDays: parseInt(pfDurationDays) || 30,
+        isFree: pfIsFree, price: parseFloat(pfPrice) || 0,
+        discountPrice: pfDiscountPrice ? parseFloat(pfDiscountPrice) : null,
+        difficulty: pfDifficulty,
+        highlights: pfHighlights ? pfHighlights.split('\n').filter(Boolean) : [],
+        whatYouGet: pfWhatYouGet ? pfWhatYouGet.split('\n').filter(Boolean) : [],
+        prerequisites: pfPrerequisites || null, doctorName: pfDoctorName || null,
+      };
+      if (editProgram) {
+        await apiService.updateProgram(editProgram.id, payload);
+        toast.success('Program updated!');
+      } else {
+        await apiService.createProgram(payload);
+        toast.success('Program created!');
+      }
+      resetProgramForm();
+      setTab('programs');
+      fetchPrograms();
+    } catch (e: any) { toast.error(e?.response?.data?.error || 'Save failed'); }
+    finally { setPfSaving(false); }
+  };
+  const handleSaveContent = async () => {
+    if (!cfTitle.trim() || !contentProgramId) { toast.error('Title is required'); return; }
+    setCfSaving(true);
+    try {
+      await apiService.addProgramContent(contentProgramId, {
+        title: cfTitle.trim(), description: cfDescription.trim(), contentType: cfType,
+        weekNumber: parseInt(cfWeek) || 1, dayNumber: cfDay ? parseInt(cfDay) : null,
+        sortOrder: parseInt(cfSort) || 0, videoUrl: cfVideoUrl || null,
+        audioUrl: cfAudioUrl || null, imageUrl: cfImageUrl || null,
+        body: cfBody || null, duration: cfDuration || null, isFree: cfIsFree,
+      });
+      toast.success('Content added!');
+      resetContentForm();
+      fetchProgramContents(contentProgramId);
+    } catch (e: any) { toast.error(e?.response?.data?.error || 'Save failed'); }
+    finally { setCfSaving(false); }
+  };
+
   // Load data when tab changes
   useEffect(() => {
     if (!isUnlocked) return;
@@ -1356,6 +1482,7 @@ export default function AdminPage() {
     if (tab === 'prescriptions') fetchPrescriptions();
     if (tab === 'payouts') { fetchPayoutSummary(); fetchPayoutList(); }
     if (tab === 'wellness') fetchWellness();
+    if (tab === 'programs') fetchPrograms();
   }, [tab, isUnlocked]);
 
   // ─── Auth ───────────────────────────────────────────
@@ -1776,6 +1903,7 @@ export default function AdminPage() {
     { id: 'ayurveda', icon: '☯️', label: 'Ayurveda' },
     { id: 'payouts', icon: '\u{1F4B0}', label: 'Payouts' },
     { id: 'wellness', icon: '🧘', label: 'Wellness' },
+    { id: 'programs', icon: '🎓', label: 'Programs' },
     { id: 'finance', icon: '🏦', label: 'Finance' },
     { id: 'audit_log', icon: '\u{1F4CB}', label: 'Audit Log' },
   ];
@@ -3133,6 +3261,288 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
+          </>)}
+
+          {/* ════════ PROGRAMS MANAGEMENT ════════ */}
+          {tab === 'programs' && (<>
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-extrabold text-gray-900">🎓 Programs</h3>
+              <button onClick={() => { resetProgramForm(); setTab('add_program'); }}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[10px] font-bold active:scale-95 shadow-sm transition-all">
+                + Create Program
+              </button>
+            </div>
+            <AdminSearchBar value={programSearch} onChange={setProgramSearch} placeholder="Search programs..." />
+            <div className="flex gap-2 flex-wrap">
+              {[{ k: '', l: 'All' }, { k: 'pcod', l: '🩺 PCOD' }, { k: 'fertility', l: '🤰 Fertility' }, { k: 'menopause', l: '🌿 Menopause' }, { k: 'cycle_sync', l: '🌸 Cycle Sync' }, { k: 'wellness', l: '🧘 Wellness' }, { k: 'weight', l: '⚖️ Weight' }, { k: 'skin_hair', l: '✨ Skin/Hair' }, { k: 'postpartum', l: '👶 Postpartum' }].map(c => (
+                <button key={c.k} onClick={() => setProgramCatFilter(c.k)}
+                  className={'px-3 py-1.5 rounded-full text-[10px] font-bold transition-all ' + (programCatFilter === c.k ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-500')}>
+                  {c.l}
+                </button>
+              ))}
+            </div>
+            {programsLoading ? (
+              <div className="flex justify-center py-12"><div className="animate-spin w-8 h-8 border-4 border-emerald-400 border-t-transparent rounded-full" /></div>
+            ) : (
+              <div className="space-y-3">
+                {adminPrograms
+                  .filter(p => (!programCatFilter || p.category === programCatFilter) && (!programSearch || p.title.toLowerCase().includes(programSearch.toLowerCase())))
+                  .map(p => (
+                  <div key={p.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                    <div className="flex items-start gap-3">
+                      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 flex items-center justify-center text-2xl flex-shrink-0">
+                        {p.emoji || '🌸'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-extrabold text-gray-900 truncate">{p.title}</p>
+                          <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full ${p.isPublished ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                            {p.isPublished ? 'Published' : 'Draft'}
+                          </span>
+                          {p.isFeatured && <span className="text-[8px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Featured</span>}
+                        </div>
+                        <p className="text-[10px] text-gray-500 mt-0.5">{p.subtitle || p.category}</p>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <span className="text-[8px] font-bold bg-teal-50 text-teal-600 px-2 py-0.5 rounded-full">{p.category}</span>
+                          <span className="text-[8px] font-bold bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{p.duration || `${p.durationDays}d`}</span>
+                          <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full ${p.isFree ? 'bg-green-50 text-green-600' : 'bg-rose-50 text-rose-600'}`}>
+                            {p.isFree ? 'Free' : `₹${p.discountPrice || p.price}`}
+                          </span>
+                          <span className="text-[8px] font-bold bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full">{p.contentCount || 0} items</span>
+                          <span className="text-[8px] font-bold bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full">{p.enrolledCount || 0} enrolled</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-3 border-t border-gray-50 pt-3">
+                      <button onClick={() => { setContentProgramId(p.id); fetchProgramContents(p.id); setTab('program_content'); }}
+                        className="flex-1 py-2 rounded-xl bg-purple-50 text-purple-600 text-[10px] font-bold active:scale-95">
+                        📋 Content
+                      </button>
+                      <button onClick={async () => {
+                        await apiService.toggleProgramPublish(p.id);
+                        toast.success(p.isPublished ? 'Unpublished' : 'Published');
+                        fetchPrograms();
+                      }} className={`flex-1 py-2 rounded-xl text-[10px] font-bold active:scale-95 ${p.isPublished ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                        {p.isPublished ? 'Unpublish' : 'Publish'}
+                      </button>
+                      <button onClick={() => {
+                        setEditProgram(p);
+                        setPfTitle(p.title); setPfSubtitle(p.subtitle || ''); setPfDescription(p.description || '');
+                        setPfEmoji(p.emoji || '🌸'); setPfImageUrl(p.imageUrl || ''); setPfCategory(p.category);
+                        setPfDuration(p.duration || ''); setPfDurationDays(String(p.durationDays));
+                        setPfIsFree(p.isFree); setPfPrice(String(p.price || 0)); setPfDiscountPrice(p.discountPrice ? String(p.discountPrice) : '');
+                        setPfDifficulty(p.difficulty || 'beginner');
+                        setPfHighlights(Array.isArray(p.highlights) ? p.highlights.join('\n') : '');
+                        setPfWhatYouGet(Array.isArray(p.whatYouGet) ? p.whatYouGet.join('\n') : '');
+                        setPfPrerequisites(p.prerequisites || ''); setPfDoctorName(p.doctorName || '');
+                        setTab('edit_program');
+                      }} className="flex-1 py-2 rounded-xl bg-blue-50 text-blue-600 text-[10px] font-bold active:scale-95">Edit</button>
+                      <button onClick={async () => {
+                        if (!confirm('Delete this program and all its content?')) return;
+                        await apiService.deleteProgram(p.id);
+                        toast.success('Deleted'); fetchPrograms();
+                      }} className="py-2 px-3 rounded-xl bg-rose-50 text-rose-600 text-[10px] font-bold active:scale-95">Del</button>
+                    </div>
+                  </div>
+                ))}
+                {adminPrograms.filter(p => (!programCatFilter || p.category === programCatFilter)).length === 0 && (
+                  <div className="text-center py-12 bg-white rounded-2xl">
+                    <p className="text-3xl mb-2">🎓</p>
+                    <p className="text-sm font-bold text-gray-600">No programs yet</p>
+                    <p className="text-[10px] text-gray-400">Create PCOD, fertility, or wellness programs</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </>)}
+
+          {/* ════════ ADD / EDIT PROGRAM ════════ */}
+          {(tab === 'add_program' || tab === 'edit_program') && (<>
+            <div className="flex items-center gap-3">
+              <button onClick={() => { resetProgramForm(); setTab('programs'); }} className="text-gray-400 text-lg active:scale-90">←</button>
+              <h3 className="text-base font-extrabold text-gray-900">{editProgram ? 'Edit Program' : 'Create Program'}</h3>
+            </div>
+            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+              <div className="grid grid-cols-[60px_1fr] gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Emoji</label>
+                  <input value={pfEmoji} onChange={e => setPfEmoji(e.target.value)} className="w-full mt-1 px-2 py-2.5 border border-gray-200 rounded-xl text-2xl text-center" />
+                </div>
+                <FormField label="Title" value={pfTitle} onChange={setPfTitle} placeholder="e.g. PCOD Reversal Program" />
+              </div>
+              <FormField label="Subtitle" value={pfSubtitle} onChange={setPfSubtitle} placeholder="90-Day Ayurvedic Protocol" />
+              <FormField label="Description" value={pfDescription} onChange={setPfDescription} placeholder="Full program description..." multiline />
+              {/* Category */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase">Category</label>
+                <div className="flex gap-2 mt-1 flex-wrap">
+                  {[{ k: 'pcod', l: '🩺 PCOD' }, { k: 'fertility', l: '🤰 Fertility' }, { k: 'menopause', l: '🌿 Menopause' }, { k: 'cycle_sync', l: '🌸 Cycle Sync' }, { k: 'wellness', l: '🧘 Wellness' }, { k: 'weight', l: '⚖️ Weight' }, { k: 'skin_hair', l: '✨ Skin/Hair' }, { k: 'postpartum', l: '👶 Postpartum' }].map(c => (
+                    <button key={c.k} onClick={() => setPfCategory(c.k)}
+                      className={'px-3 py-1.5 rounded-full text-[10px] font-bold transition-all border-2 ' + (pfCategory === c.k ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-500')}>
+                      {c.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Duration & Difficulty */}
+              <div className="grid grid-cols-3 gap-3">
+                <FormField label="Duration Label" value={pfDuration} onChange={setPfDuration} placeholder="30 days" />
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Days</label>
+                  <input type="number" value={pfDurationDays} onChange={e => setPfDurationDays(e.target.value)}
+                    className="w-full mt-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Difficulty</label>
+                  <select value={pfDifficulty} onChange={e => setPfDifficulty(e.target.value)}
+                    className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none">
+                    <option value="beginner">Beginner</option>
+                    <option value="intermediate">Intermediate</option>
+                    <option value="advanced">Advanced</option>
+                  </select>
+                </div>
+              </div>
+              {/* Pricing */}
+              <div className="bg-emerald-50 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-extrabold text-emerald-700 uppercase">💰 Pricing</p>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <span className="text-[10px] font-bold text-gray-600">{pfIsFree ? 'Free' : 'Paid'}</span>
+                    <input type="checkbox" checked={!pfIsFree} onChange={e => setPfIsFree(!e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+                  </label>
+                </div>
+                {!pfIsFree && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField label="Price (₹)" value={pfPrice} onChange={setPfPrice} placeholder="999" />
+                    <FormField label="Sale Price (₹)" value={pfDiscountPrice} onChange={setPfDiscountPrice} placeholder="499" />
+                  </div>
+                )}
+              </div>
+              {/* What you get & highlights */}
+              <FormField label="Highlights (one per line)" value={pfHighlights} onChange={setPfHighlights} placeholder="Doctor-designed protocol&#10;Personalized diet plans&#10;Weekly live Q&A" multiline />
+              <FormField label="What You Get (one per line)" value={pfWhatYouGet} onChange={setPfWhatYouGet} placeholder="12 video lessons&#10;Diet plan PDF&#10;Private community access" multiline />
+              <FormField label="Prerequisites / Who Should Join" value={pfPrerequisites} onChange={setPfPrerequisites} placeholder="Women aged 18-45 with PCOD symptoms" />
+              <FormField label="Expert / Doctor Name" value={pfDoctorName} onChange={setPfDoctorName} placeholder="Dr. Shruthi R" />
+              <FormField label="Cover Image URL" value={pfImageUrl} onChange={setPfImageUrl} placeholder="https://..." />
+              <button onClick={handleSaveProgram} disabled={pfSaving}
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold text-sm disabled:opacity-50 active:scale-95 shadow-sm transition-all">
+                {pfSaving ? 'Saving...' : editProgram ? 'Update Program' : 'Create Program'}
+              </button>
+            </div>
+          </>)}
+
+          {/* ════════ PROGRAM CONTENT MANAGER ════════ */}
+          {tab === 'program_content' && (<>
+            <div className="flex items-center gap-3">
+              <button onClick={() => setTab('programs')} className="text-gray-400 text-lg active:scale-90">←</button>
+              <h3 className="text-base font-extrabold text-gray-900">📋 Program Content</h3>
+            </div>
+            {/* Add content form */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+              <p className="text-[10px] font-extrabold text-emerald-700 uppercase">+ Add Content Item</p>
+              <FormField label="Title" value={cfTitle} onChange={setCfTitle} placeholder="e.g. Introduction to PCOD" />
+              <FormField label="Description" value={cfDescription} onChange={setCfDescription} placeholder="Brief description..." />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Type</label>
+                  <select value={cfType} onChange={e => setCfType(e.target.value)}
+                    className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none">
+                    <option value="video">🎬 Video</option>
+                    <option value="audio">🎵 Audio</option>
+                    <option value="article">📄 Article</option>
+                    <option value="task">✅ Task</option>
+                    <option value="diet_plan">🥗 Diet Plan</option>
+                    <option value="yoga">🧘 Yoga</option>
+                    <option value="live_class">📡 Live Class</option>
+                    <option value="recipe">🍲 Recipe</option>
+                    <option value="quiz">❓ Quiz</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Week</label>
+                    <input type="number" value={cfWeek} onChange={e => setCfWeek(e.target.value)} min="1"
+                      className="w-full mt-1 px-2 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Day</label>
+                    <input type="number" value={cfDay} onChange={e => setCfDay(e.target.value)} placeholder="-"
+                      className="w-full mt-1 px-2 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Order</label>
+                    <input type="number" value={cfSort} onChange={e => setCfSort(e.target.value)}
+                      className="w-full mt-1 px-2 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none" />
+                  </div>
+                </div>
+              </div>
+              {(cfType === 'video' || cfType === 'yoga' || cfType === 'live_class') && (
+                <FormField label="Video URL" value={cfVideoUrl} onChange={setCfVideoUrl} placeholder="https://..." />
+              )}
+              {(cfType === 'audio') && (
+                <FormField label="Audio URL" value={cfAudioUrl} onChange={setCfAudioUrl} placeholder="https://..." />
+              )}
+              <FormField label="Thumbnail Image" value={cfImageUrl} onChange={setCfImageUrl} placeholder="https://..." />
+              <FormField label="Duration" value={cfDuration} onChange={setCfDuration} placeholder="15 min" />
+              {(cfType === 'article' || cfType === 'diet_plan' || cfType === 'recipe' || cfType === 'task') && (
+                <FormField label="Content Body (markdown)" value={cfBody} onChange={setCfBody} placeholder="Write content here..." multiline />
+              )}
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={cfIsFree} onChange={e => setCfIsFree(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-emerald-600" />
+                <span className="text-[10px] font-bold text-gray-600">Free preview (visible to non-enrolled users)</span>
+              </label>
+              <button onClick={handleSaveContent} disabled={cfSaving}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold text-sm disabled:opacity-50 active:scale-95">
+                {cfSaving ? 'Saving...' : '+ Add Content'}
+              </button>
+            </div>
+            {/* Existing content list */}
+            <div className="space-y-2">
+              {programContents.length === 0 ? (
+                <div className="text-center py-8 bg-white rounded-2xl">
+                  <p className="text-2xl mb-2">📋</p>
+                  <p className="text-xs font-bold text-gray-500">No content yet. Add videos, articles, tasks above.</p>
+                </div>
+              ) : (
+                (() => {
+                  const weeks = [...new Set(programContents.map(c => c.weekNumber))].sort((a, b) => a - b);
+                  return weeks.map(w => (
+                    <div key={w} className="bg-white rounded-2xl overflow-hidden shadow-sm">
+                      <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100">
+                        <p className="text-[10px] font-extrabold text-emerald-700 uppercase">Week {w}</p>
+                      </div>
+                      {programContents.filter(c => c.weekNumber === w).map(c => (
+                        <div key={c.id} className="flex items-center gap-3 px-4 py-3 border-b border-gray-50 last:border-0">
+                          <span className="text-lg">{
+                            c.contentType === 'video' ? '🎬' : c.contentType === 'audio' ? '🎵' :
+                            c.contentType === 'article' ? '📄' : c.contentType === 'task' ? '✅' :
+                            c.contentType === 'diet_plan' ? '🥗' : c.contentType === 'yoga' ? '🧘' :
+                            c.contentType === 'live_class' ? '📡' : c.contentType === 'recipe' ? '🍲' : '📋'
+                          }</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-gray-800 truncate">{c.title}</p>
+                            <div className="flex gap-1 mt-0.5">
+                              <span className="text-[8px] font-bold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{c.contentType}</span>
+                              {c.dayNumber && <span className="text-[8px] font-bold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">Day {c.dayNumber}</span>}
+                              {c.duration && <span className="text-[8px] font-bold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{c.duration}</span>}
+                              {c.isFree && <span className="text-[8px] font-bold bg-green-100 text-green-600 px-1.5 py-0.5 rounded">Free</span>}
+                            </div>
+                          </div>
+                          <button onClick={async () => {
+                            if (!confirm('Delete this content?')) return;
+                            await apiService.deleteProgramContent(c.id);
+                            toast.success('Deleted');
+                            fetchProgramContents(contentProgramId);
+                          }} className="text-rose-400 text-xs active:scale-90">🗑️</button>
+                        </div>
+                      ))}
+                    </div>
+                  ));
+                })()
+              )}
+            </div>
           </>)}
 
           {/* ════════ WELLNESS MANAGEMENT ════════ */}

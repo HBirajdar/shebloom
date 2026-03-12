@@ -1286,4 +1286,168 @@ r.delete('/wellness/:id', async (req: Request, res: Response, next: NextFunction
   }
 });
 
+// ═══════════════════════════════════════════════════════════
+// ─── Programs Management ─────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+
+// GET /admin/programs — list all programs
+r.get('/programs', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const programs = await prisma.program.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        _count: { select: { contents: true, enrollments: true } },
+      },
+    });
+    successResponse(res, programs.map(p => ({
+      ...p, contentCount: p._count.contents, enrolledCount: p._count.enrollments, _count: undefined,
+    })));
+  } catch (e) { next(e); }
+});
+
+// POST /admin/programs — create program
+r.post('/programs', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { title, subtitle, description, emoji, imageUrl, category, duration, durationDays,
+            isFree, price, discountPrice, targetAudiences, doshaTypes, difficulty,
+            highlights, whatYouGet, prerequisites, doctorName, doctorId } = req.body;
+    if (!title || !category) { errorResponse(res, 'title and category are required', 400); return; }
+    const program = await prisma.program.create({
+      data: {
+        title, subtitle, description, emoji: emoji || '🌸', imageUrl,
+        category, duration, durationDays: parseInt(durationDays) || 30,
+        isFree: isFree ?? true, price: parseFloat(price) || 0, discountPrice: discountPrice ? parseFloat(discountPrice) : null,
+        targetAudiences: targetAudiences || [], doshaTypes: doshaTypes || [],
+        difficulty: difficulty || 'beginner',
+        highlights: highlights || [], whatYouGet: whatYouGet || [],
+        prerequisites, doctorName, doctorId,
+      },
+    });
+    successResponse(res, program, 'Program created');
+  } catch (e) { next(e); }
+});
+
+// PUT /admin/programs/:id — update program
+r.put('/programs/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const d: any = {};
+    const fields = ['title', 'subtitle', 'description', 'emoji', 'imageUrl', 'category', 'duration',
+      'durationDays', 'isFree', 'price', 'discountPrice', 'targetAudiences', 'doshaTypes',
+      'difficulty', 'highlights', 'whatYouGet', 'prerequisites', 'doctorName', 'doctorId', 'isFeatured'];
+    for (const k of fields) { if (req.body[k] !== undefined) d[k] = req.body[k]; }
+    if (d.durationDays) d.durationDays = parseInt(d.durationDays) || 30;
+    if (d.price !== undefined) d.price = parseFloat(d.price) || 0;
+    if (d.discountPrice !== undefined) d.discountPrice = d.discountPrice ? parseFloat(d.discountPrice) : null;
+    const program = await prisma.program.update({ where: { id: req.params.id }, data: d });
+    successResponse(res, program, 'Program updated');
+  } catch (e: any) {
+    if (e.code === 'P2025') { errorResponse(res, 'Program not found', 404); return; }
+    next(e);
+  }
+});
+
+// POST /admin/programs/:id/toggle-publish
+r.post('/programs/:id/toggle-publish', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const existing = await prisma.program.findUnique({ where: { id: req.params.id } });
+    if (!existing) { errorResponse(res, 'Program not found', 404); return; }
+    const program = await prisma.program.update({
+      where: { id: req.params.id },
+      data: {
+        isPublished: !existing.isPublished,
+        status: !existing.isPublished ? 'PUBLISHED' : 'DRAFT',
+        publishedAt: !existing.isPublished ? new Date() : null,
+      },
+    });
+    successResponse(res, program, program.isPublished ? 'Program published' : 'Program unpublished');
+  } catch (e) { next(e); }
+});
+
+// DELETE /admin/programs/:id
+r.delete('/programs/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await prisma.program.delete({ where: { id: req.params.id } });
+    successResponse(res, null, 'Program deleted');
+  } catch (e: any) {
+    if (e.code === 'P2025') { errorResponse(res, 'Program not found', 404); return; }
+    next(e);
+  }
+});
+
+// ─── Program Content CRUD ──────────────────────────────
+
+// GET /admin/programs/:id/contents
+r.get('/programs/:id/contents', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const contents = await prisma.programContent.findMany({
+      where: { programId: req.params.id },
+      orderBy: [{ weekNumber: 'asc' }, { sortOrder: 'asc' }],
+    });
+    successResponse(res, contents);
+  } catch (e) { next(e); }
+});
+
+// POST /admin/programs/:id/contents — add content item
+r.post('/programs/:id/contents', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { title, description, contentType, weekNumber, dayNumber, sortOrder,
+            videoUrl, audioUrl, imageUrl, articleUrl, articleId, body,
+            duration, instructions, metadata, isFree, isLocked } = req.body;
+    if (!title || !contentType) { errorResponse(res, 'title and contentType are required', 400); return; }
+    const content = await prisma.programContent.create({
+      data: {
+        programId: req.params.id, title, description, contentType,
+        weekNumber: parseInt(weekNumber) || 1, dayNumber: dayNumber ? parseInt(dayNumber) : null,
+        sortOrder: parseInt(sortOrder) || 0,
+        videoUrl, audioUrl, imageUrl, articleUrl, articleId,
+        body, duration, instructions, metadata,
+        isFree: isFree ?? false, isLocked: isLocked ?? false,
+      },
+    });
+    successResponse(res, content, 'Content added');
+  } catch (e) { next(e); }
+});
+
+// PUT /admin/programs/contents/:contentId — update content
+r.put('/programs/contents/:contentId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const d: any = {};
+    const fields = ['title', 'description', 'contentType', 'weekNumber', 'dayNumber', 'sortOrder',
+      'videoUrl', 'audioUrl', 'imageUrl', 'articleUrl', 'articleId', 'body',
+      'duration', 'instructions', 'metadata', 'isFree', 'isLocked'];
+    for (const k of fields) { if (req.body[k] !== undefined) d[k] = req.body[k]; }
+    if (d.weekNumber) d.weekNumber = parseInt(d.weekNumber) || 1;
+    if (d.dayNumber !== undefined) d.dayNumber = d.dayNumber ? parseInt(d.dayNumber) : null;
+    if (d.sortOrder !== undefined) d.sortOrder = parseInt(d.sortOrder) || 0;
+    const content = await prisma.programContent.update({ where: { id: req.params.contentId }, data: d });
+    successResponse(res, content, 'Content updated');
+  } catch (e: any) {
+    if (e.code === 'P2025') { errorResponse(res, 'Content not found', 404); return; }
+    next(e);
+  }
+});
+
+// DELETE /admin/programs/contents/:contentId
+r.delete('/programs/contents/:contentId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await prisma.programContent.delete({ where: { id: req.params.contentId } });
+    successResponse(res, null, 'Content deleted');
+  } catch (e: any) {
+    if (e.code === 'P2025') { errorResponse(res, 'Content not found', 404); return; }
+    next(e);
+  }
+});
+
+// GET /admin/programs/:id/enrollments — list enrollments for a program
+r.get('/programs/:id/enrollments', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const enrollments = await prisma.programEnrollment.findMany({
+      where: { programId: req.params.id },
+      include: { user: { select: { id: true, fullName: true, email: true, phone: true, avatarUrl: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    successResponse(res, enrollments);
+  } catch (e) { next(e); }
+});
+
 export default r;

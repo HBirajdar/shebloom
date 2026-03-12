@@ -130,6 +130,7 @@ model User {
   doctorReviews    DoctorReview[]
   productReviews   ProductReview[]
   wishlistItems    WishlistItem[]
+  programEnrollments ProgramEnrollment[]
 
   @@index([role])
   @@map("users")
@@ -1139,4 +1140,130 @@ model PaymentAuditLog {
   @@index([razorpayPaymentId])
   @@index([createdAt])
   @@map("payment_audit_logs")
+}
+
+// ═══════════════════════════════════════════════════════
+// ─── PROGRAMS / COURSES ───────────────────────────────
+// ═══════════════════════════════════════════════════════
+
+model Program {
+  id              String    @id @default(cuid())
+  title           String
+  subtitle        String?
+  description     String?   @db.Text
+  emoji           String    @default("🌸")
+  imageUrl        String?
+  category        String    // pcod, fertility, menopause, cycle_sync, postpartum, wellness, weight, skin_hair
+  duration        String?   // e.g. "90 days", "28 days", "12 weeks"
+  durationDays    Int       @default(30)
+
+  // Pricing
+  isFree          Boolean   @default(true)
+  price           Float     @default(0)      // INR — 0 for free programs
+  discountPrice   Float?                     // Sale price (optional)
+
+  // Targeting
+  targetAudiences String[]  @default([])     // fertility, periods, pregnancy, wellness, etc.
+  doshaTypes      String[]  @default([])     // Vata, Pitta, Kapha — empty = all
+  difficulty      String    @default("beginner")
+
+  // Content structure
+  highlights      String[]  @default([])     // Key benefits shown on card
+  whatYouGet      String[]  @default([])     // "12 video lessons", "Diet plan", "Live Q&A"
+  prerequisites   String?                    // Who should join
+  doctorName      String?                    // Expert who designed it
+  doctorId        String?                    // Link to Doctor if applicable
+
+  // Status & publishing
+  status          String    @default("DRAFT") // DRAFT, PUBLISHED, ARCHIVED
+  isPublished     Boolean   @default(false)
+  isFeatured      Boolean   @default(false)
+  publishedAt     DateTime?
+  totalEnrolled   Int       @default(0)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  contents        ProgramContent[]
+  enrollments     ProgramEnrollment[]
+
+  @@index([category])
+  @@index([status])
+  @@index([isFeatured])
+  @@map("programs")
+}
+
+model ProgramContent {
+  id          String  @id @default(cuid())
+  programId   String
+  program     Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  // Ordering & structure
+  weekNumber  Int     @default(1)            // Week 1, 2, 3...
+  dayNumber   Int?                           // Day within week (optional)
+  sortOrder   Int     @default(0)            // Display order within week/day
+  title       String
+  description String? @db.Text
+
+  // Content type
+  contentType String  // video, article, audio, live_class, task, diet_plan, yoga, recipe, quiz
+  // Media
+  videoUrl    String?
+  audioUrl    String?
+  imageUrl    String?
+  articleUrl  String?                        // Link to an Article or external URL
+  articleId   String?                        // Link to internal Article
+
+  // Rich content
+  body        String? @db.Text              // Markdown/HTML for text content
+  duration    String?                        // "15 min", "30 min"
+  instructions Json?                         // Step-by-step JSON
+  metadata    Json?                          // Extra data (recipe ingredients, diet chart, etc.)
+
+  // Access control
+  isFree      Boolean @default(false)        // Free preview content (even in paid programs)
+  isLocked    Boolean @default(false)        // Locked until certain progress
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([programId, weekNumber, sortOrder])
+  @@map("program_contents")
+}
+
+model ProgramEnrollment {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  programId   String
+  program     Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  // Status
+  status      String   @default("ACTIVE")   // ACTIVE, COMPLETED, PAUSED, CANCELLED
+  startDate   DateTime @default(now())
+  endDate     DateTime?
+  completedAt DateTime?
+
+  // Payment (for paid programs)
+  isPaid      Boolean  @default(false)
+  amountPaid  Float    @default(0)
+  paymentId   String?                        // Razorpay payment ID
+  razorpayOrderId String?
+  couponCode  String?
+  couponDiscount Float @default(0)
+
+  // Progress tracking
+  progress    Json?    @default("{}")        // { "completed": ["contentId1", "contentId2"], "currentWeek": 2 }
+  completedCount Int   @default(0)           // Number of content items completed
+  lastAccessedAt DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, programId])
+  @@index([userId])
+  @@index([programId])
+  @@index([status])
+  @@map("program_enrollments")
 }
