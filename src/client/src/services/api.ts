@@ -37,7 +37,8 @@ async function refreshToken(): Promise<string | null> {
   } catch {
     localStorage.removeItem('sb_token');
     localStorage.removeItem('sb_refresh');
-    window.location.href = '/auth';
+    // Defer redirect so pending requests resolve with proper error instead of being aborted
+    setTimeout(() => { window.location.href = '/auth'; }, 100);
     return null;
   }
 }
@@ -61,6 +62,8 @@ api.interceptors.response.use(
     // Attach readable error message for catch blocks
     const serverMsg = err.response?.data?.error || err.response?.data?.message;
     if (serverMsg) err.message = serverMsg;
+    else if (err.code === 'ECONNABORTED') err.message = 'Request timed out — server may be starting up, try again';
+    else if (err.response?.status === 429) err.message = 'Too many requests — please wait a minute';
     else if (!err.response) err.message = 'Network error — check your connection';
     return Promise.reject(err);
   }

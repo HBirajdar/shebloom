@@ -949,12 +949,18 @@ function AyurvedaAdminTab() {
 export default function AdminPage() {
   const nav = useNavigate();
   const user = useAuthStore(s => s.user);
+  const isAuthenticated = useAuthStore(s => s.isAuthenticated);
 
-  if (user && user.role !== 'ADMIN') {
+  // Must be logged in to access admin
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/auth" replace />;
+  }
+  // Must have ADMIN role
+  if (user.role !== 'ADMIN') {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Auth state
+  // Auth state (PIN is additional security layer on top of JWT auth)
   const [isUnlocked, setIsUnlocked] = useState(() => sessionStorage.getItem('sb_admin_unlocked') === '1');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);

@@ -6,7 +6,7 @@
  *   - HTML navigation: Network-first, fallback to cached shell
  */
 
-const CACHE_NAME = 'vedaclue-v1';
+const CACHE_NAME = 'vedaclue-v2';
 const SHELL_URL  = '/';
 
 // Assets to pre-cache on install (shell)
@@ -50,16 +50,17 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Static hashed assets (JS/CSS bundles have hash in filename) → cache-first
+  // Static hashed assets (JS/CSS bundles) → stale-while-revalidate
+  // (always fetch fresh on deploy, serve cached while updating)
   if (
     url.pathname.startsWith('/assets/') ||
     url.pathname.match(/\.(js|css|woff2?|ttf|otf|eot)$/)
   ) {
-    event.respondWith(cacheFirst(request));
+    event.respondWith(staleWhileRevalidate(request));
     return;
   }
 
-  // Images → cache-first (with background revalidate)
+  // Images → stale-while-revalidate
   if (url.pathname.match(/\.(png|jpg|jpeg|webp|gif|svg|ico)$/)) {
     event.respondWith(staleWhileRevalidate(request));
     return;
