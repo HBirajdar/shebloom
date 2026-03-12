@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import { OAuth2Client } from 'google-auth-library';
 import prisma from '../config/database';
 import { cacheSet, cacheGet, cacheDel } from '../config/redis';
 import { logger } from '../config/logger';
@@ -157,6 +158,63 @@ export class AuthService {
     const token = jwt.sign({ userId: user.id, type: 'reset' }, process.env.JWT_SECRET!, { expiresIn: '1h' } as any);
     await cacheSet(`reset:${user.id}`, token, 3600);
     logger.info(`Password reset for: ${email}`);
+  }
+
+  async loginWithGoogle(idToken: string) {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (!clientId) throw new AppError('Google Sign-In is not configured', 500);
+    let payload: any;
+    // Try as ID token first, then as access token
+    try {
+      const client = new OAuth2Client(clientId);
+      const ticket = await client.verifyIdToken({ idToken, audience: clientId });
+      payload = ticket.getPayload();
+    } catch {
+      // Might be an access token — verify via Google userinfo API
+      try {
+        const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${idToken}` },
+        });
+        if (!res.ok) throw new Error('Invalid token');
+        payload = await res.json();
+        // Map userinfo fields to match ID token payload shape
+        payload.name = payload.name || `${payload.given_name || ''} ${payload.family_name || ''}`.trim();
+      } catch {
+        throw new AppError('Invalid Google token', 401);
+      }
+    }
+    if (!payload?.email) throw new AppError('Google account has no email', 400);
+    // Find or create user
+    let user = await prisma.user.findUnique({
+      where: { email: payload.email },
+      select: { id: true, fullName: true, email: true, phone: true, role: true, isActive: true },
+    });
+    const isNew = !user;
+    if (user) {
+      if (!user.isActive) throw new AppError('Account deactivated', 403);
+      // Update name/avatar if missing
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date(), authProvider: 'GOOGLE', avatarUrl: payload.picture || undefined },
+      });
+    } else {
+      user = await prisma.user.create({
+        data: {
+          fullName: payload.name || payload.email.split('@')[0],
+          email: payload.email,
+          authProvider: 'GOOGLE',
+          isVerified: true,
+          avatarUrl: payload.picture || null,
+          profile: { create: {} },
+        },
+        select: { id: true, fullName: true, email: true, phone: true, role: true, isActive: true },
+      });
+    }
+    const tokens = this.generateTokens(user.id, user.role);
+    await prisma.refreshToken.create({ data: { userId: user.id, token: tokens.refreshToken, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) } });
+    logger.info(`Google login: ${user.email} (${isNew ? 'new' : 'existing'})`);
+    const { isActive: _, ...safe } = user as any;
+    return { user: safe, ...tokens, isNewUser: isNew };
   }
 
   async resetPassword(token: string, newPassword: string) {

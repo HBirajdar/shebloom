@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useGoogleLogin } from '@react-oauth/google';
 import { useAuthStore } from '../stores/authStore';
 import { authAPI } from '../services/api';
 
@@ -108,7 +109,7 @@ export default function AuthPage() {
   };
 
   const handleVerifyOtp = () => {
-    if (otp.length !== 4) { setErr('Enter the 4-digit OTP'); return; }
+    if (otp.length !== 6) { setErr('Enter the 6-digit OTP'); return; }
     go(authAPI.verifyOtp(ph, otp), '/dashboard');
   };
 
@@ -122,6 +123,40 @@ export default function AuthPage() {
       setErr(parseErr(e));
     }
     setForgotLoading(false);
+  };
+
+  const googleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setLoading(true); setErr('');
+      try {
+        // Exchange Google access token for user info, then send ID token to our backend
+        const userInfo = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+        }).then(r => r.json());
+        // Send the access_token to our backend which will verify with Google
+        const r = await authAPI.google(tokenResponse.access_token);
+        const d = r.data.data;
+        setAuth(d.user, d.accessToken, d.refreshToken);
+        const role = d.user?.role;
+        if (role === 'ADMIN') nav('/admin');
+        else if (role === 'DOCTOR') nav('/doctor-dashboard');
+        else if (d.isNewUser) nav('/setup');
+        else nav('/dashboard');
+      } catch (e: any) {
+        setErr(parseErr(e));
+      }
+      setLoading(false);
+    },
+    onError: () => setErr('Google Sign-In failed. Please try again.'),
+  });
+
+  const handleGoogleLogin = () => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      setErr('Google Sign-In is not configured yet. Please use Phone or Email login.');
+      return;
+    }
+    googleLogin();
   };
 
   const handleEmailAuth = () => {
@@ -278,9 +313,9 @@ export default function AuthPage() {
                 )}
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide ml-1">Enter OTP</label>
-                  <input value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                    placeholder="_ _ _ _" inputMode="numeric" maxLength={4}
-                    className="w-full mt-1 px-4 py-4 rounded-2xl border-2 border-gray-100 text-2xl text-center tracking-[0.5em] font-extrabold outline-none focus:border-rose-400 bg-gray-50 focus:bg-white transition-colors" />
+                  <input value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="_ _ _ _ _ _" inputMode="numeric" maxLength={6}
+                    className="w-full mt-1 px-4 py-4 rounded-2xl border-2 border-gray-100 text-2xl text-center tracking-[0.3em] font-extrabold outline-none focus:border-rose-400 bg-gray-50 focus:bg-white transition-colors" />
                 </div>
                 <button disabled={loading} onClick={handleVerifyOtp}
                   className="w-full py-4 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-2xl font-bold text-sm disabled:opacity-60 active:scale-95 transition-all shadow-md shadow-rose-200">
@@ -323,13 +358,14 @@ export default function AuthPage() {
           <div className="relative flex justify-center"><span className="bg-white px-3 text-[10px] text-gray-400 font-medium">or continue with</span></div>
         </div>
         <div className="flex gap-3">
-          <button onClick={() => alert('Google Sign-In: Add GOOGLE_CLIENT_ID to your Railway environment variables to enable.')}
-            className="flex-1 py-3 border-2 border-gray-100 rounded-2xl text-sm font-semibold text-gray-600 active:scale-95 transition-all flex items-center justify-center gap-2 bg-gray-50">
-            <span>🔵</span> Google
+          <button onClick={handleGoogleLogin} disabled={loading}
+            className="flex-1 py-3 border-2 border-gray-100 rounded-2xl text-sm font-semibold text-gray-600 active:scale-95 transition-all flex items-center justify-center gap-2 bg-gray-50 disabled:opacity-50">
+            <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.1 24.1 0 0 0 0 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+            Google
           </button>
           <button onClick={() => alert('Apple Sign-In coming soon!')}
             className="flex-1 py-3 border-2 border-gray-100 rounded-2xl text-sm font-semibold text-gray-600 active:scale-95 transition-all flex items-center justify-center gap-2 bg-gray-50">
-            <span>🍎</span> Apple
+            <span></span> Apple
           </button>
         </div>
       </div>

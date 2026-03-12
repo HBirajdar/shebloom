@@ -43,6 +43,14 @@ router.post('/logout', authenticate, async (req: AuthRequest, res: Response, nex
   try { await auth.logout(req.user!.id); successResponse(res, null, 'Logged out'); } catch (e) { next(e); }
 });
 
+router.post('/google', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { idToken } = req.body;
+    if (!idToken) { res.status(400).json({ success: false, error: 'idToken is required' }); return; }
+    successResponse(res, await auth.loginWithGoogle(idToken), 'Google login successful');
+  } catch (e) { next(e); }
+});
+
 router.post('/forgot-password', async (req: Request, res: Response, next: NextFunction) => {
   try { await auth.forgotPassword(req.body.email); successResponse(res, null, 'Reset email sent if account exists'); } catch (e) { next(e); }
 });
