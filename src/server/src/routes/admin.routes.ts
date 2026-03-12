@@ -989,6 +989,7 @@ r.get('/payouts/summary', async (_req: Request, res: Response, next: NextFunctio
         specialization: true,
         avatarUrl: true,
         consultationFee: true,
+        commissionRate: true,
         appointments: {
           where: { status: 'COMPLETED' },
           select: { id: true, amountPaid: true, scheduledAt: true, paymentId: true },
@@ -999,7 +1000,9 @@ r.get('/payouts/summary', async (_req: Request, res: Response, next: NextFunctio
       },
     });
 
-    const defaultCommission = 20; // 20% platform fee
+    // Get platform default commission from config
+    let platformConfig = await prisma.platformConfig.findUnique({ where: { id: 'default' } });
+    const defaultCommission = platformConfig?.defaultDoctorCommission ?? 20;
 
     const summary = doctors.map(doc => {
       const totalEarned = doc.appointments.reduce((sum, a) => sum + (a.amountPaid || 0), 0);
@@ -1009,15 +1012,14 @@ r.get('/payouts/summary', async (_req: Request, res: Response, next: NextFunctio
       const totalPending = doc.payouts
         .filter(p => p.status === 'PENDING')
         .reduce((sum, p) => sum + p.netPayout, 0);
-      const settledAppointmentCount = doc.payouts.reduce((sum, p) => {
-        // Count appointments that fall within settled periods
-        return sum;
-      }, 0);
+
+      // Per-doctor commission rate (Practo model: different rate per doctor)
+      const docCommission = (doc as any).commissionRate ?? defaultCommission;
 
       // Calculate unsettled: total earned minus gross of all payouts
       const totalPayoutGross = doc.payouts.reduce((sum, p) => sum + p.totalEarnings, 0);
       const unsettledGross = totalEarned - totalPayoutGross;
-      const platformFee = unsettledGross * (defaultCommission / 100);
+      const platformFee = unsettledGross * (docCommission / 100);
       const unsettledNet = unsettledGross - platformFee;
 
       return {
@@ -1026,6 +1028,7 @@ r.get('/payouts/summary', async (_req: Request, res: Response, next: NextFunctio
         specialization: doc.specialization,
         avatarUrl: doc.avatarUrl,
         consultationFee: doc.consultationFee,
+        commissionRate: docCommission,
         totalAppointments: doc.appointments.length,
         totalEarned,
         totalSettled,
@@ -1076,11 +1079,15 @@ r.get('/payouts', async (req: Request, res: Response, next: NextFunction) => {
 // ─── POST /admin/payouts/generate — Generate settlement for a doctor ──
 r.post('/payouts/generate', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { doctorId, commissionRate = 20 } = req.body;
+    const { doctorId, commissionRate: overrideRate } = req.body;
     if (!doctorId) { errorResponse(res, 'doctorId is required', 400); return; }
 
     const doctor = await prisma.doctor.findUnique({ where: { id: doctorId } });
     if (!doctor) { errorResponse(res, 'Doctor not found', 404); return; }
+
+    // Priority: admin override > doctor's rate > platform default
+    let pConfig = await prisma.platformConfig.findUnique({ where: { id: 'default' } });
+    const commissionRate = overrideRate ?? doctor.commissionRate ?? pConfig?.defaultDoctorCommission ?? 20;
 
     // Find the last payout end date for this doctor
     const lastPayout = await prisma.doctorPayout.findFirst({

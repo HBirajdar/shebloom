@@ -285,6 +285,27 @@ export const adminAPI = {
   deleteDoshaQuestion: (id: string) => api.delete(`/admin/dosha/questions/${id}`),
 };
 
+// ─── Finance (Coupons, Config, Analytics) ────────────
+export const financeAPI = {
+  // Coupon validation (user-facing)
+  validateCoupon: (d: { code: string; applicableTo?: string; amount?: number; doctorId?: string; productIds?: string[] }) => api.post('/finance/coupon/validate', d),
+  getPublicConfig: () => api.get('/finance/config/public'),
+  // Admin: platform config
+  getConfig: () => api.get('/finance/config'),
+  updateConfig: (d: any) => api.put('/finance/config', d),
+  // Admin: coupons
+  getCoupons: (params?: { active?: string }) => api.get('/finance/coupons', { params }),
+  createCoupon: (d: any) => api.post('/finance/coupons', d),
+  updateCoupon: (id: string, d: any) => api.put(`/finance/coupons/${id}`, d),
+  deleteCoupon: (id: string) => api.delete(`/finance/coupons/${id}`),
+  // Admin: analytics
+  getAnalytics: () => api.get('/finance/analytics'),
+  // Admin: product payouts
+  getProductPayouts: (params?: { status?: string }) => api.get('/finance/product-payouts', { params }),
+  generateProductPayout: (d?: { commissionRate?: number }) => api.post('/finance/product-payouts/generate', d || {}),
+  updateProductPayout: (id: string, d: any) => api.patch(`/finance/product-payouts/${id}`, d),
+};
+
 // ─── Dosha Assessment ────────────────────────────────
 export const doshaAPI = {
   getQuestions: () => api.get('/dosha/questions'),

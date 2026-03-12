@@ -26,6 +26,7 @@ function mapDoctor(d: any) {
     hospitalName: d.hospitalName || null,
     isChief: d.isChief ?? false,
     isPromoted: d.isPromoted ?? false,
+    commissionRate: d.commissionRate ?? null,
   };
 }
 
@@ -118,6 +119,7 @@ r.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response
     }
     if (req.body.experienceYears !== undefined) data.experienceYears = Number(req.body.experienceYears);
     if (req.body.consultationFee !== undefined) data.consultationFee = Number(req.body.consultationFee);
+    if (req.body.commissionRate !== undefined) data.commissionRate = req.body.commissionRate === null || req.body.commissionRate === '' ? null : Number(req.body.commissionRate);
     if (req.body.isAvailable !== undefined) data.isAvailable = req.body.isAvailable;
     if (req.body.isVerified !== undefined) data.isVerified = req.body.isVerified;
     if (req.body.isPublished !== undefined) data.isPublished = req.body.isPublished;

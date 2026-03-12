@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { doctorAPI, paymentAPI } from '../services/api';
+import { doctorAPI, paymentAPI, financeAPI } from '../services/api';
 // Bug A fix: import and use the useAppointments hook
 import { useAppointments } from '../hooks/useAppointments';
 import { prescriptionAPI } from '../services/api';
@@ -129,6 +129,59 @@ export default function AppointmentsPage() {
   const selectedDoctor = pubDoctors.find(d => d.id === selDoc);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
 
+  // Platform config + coupon state
+  const [config, setConfig] = useState<any>(null);
+  useEffect(() => {
+    financeAPI.getPublicConfig().then(r => setConfig(r.data?.data || r.data)).catch(() => {});
+  }, []);
+
+  const [couponCode, setCouponCode] = useState('');
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState('');
+
+  const consultFee = selectedDoctor?.fee || 0;
+  const platformFee = config
+    ? Math.round(((config.platformFeeFlat || 0) + consultFee * ((config.platformFeePercent || 0) / 100)) * 100) / 100
+    : 0;
+  const afterDiscount = Math.max(0, consultFee - couponDiscount);
+  const totalPayable = afterDiscount + platformFee;
+
+  const applyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setCouponLoading(true);
+    setCouponError('');
+    try {
+      const res = await financeAPI.validateCoupon({
+        code: couponCode.trim(),
+        applicableTo: 'CONSULTATION',
+        amount: consultFee,
+        doctorIds: selDoc ? [selDoc] : [],
+      });
+      const data = res.data?.data || res.data;
+      if (data.valid) {
+        setCouponDiscount(data.calculatedDiscount);
+        setAppliedCoupon(data.code);
+        toast.success(`Coupon applied! \u20B9${data.calculatedDiscount} off`);
+      }
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || 'Invalid coupon';
+      setCouponError(msg);
+      setCouponDiscount(0);
+      setAppliedCoupon(null);
+      toast.error(msg);
+    }
+    setCouponLoading(false);
+  };
+
+  const removeCoupon = () => {
+    setCouponCode('');
+    setCouponDiscount(0);
+    setAppliedCoupon(null);
+    setCouponError('');
+  };
+
   // Complete booking after payment (or directly if free)
   const completeBooking = async (paymentId?: string) => {
     const doc = pubDoctors.find(d => d.id === selDoc);
@@ -166,7 +219,7 @@ export default function AppointmentsPage() {
     // Start Razorpay payment
     setPaymentProcessing(true);
     try {
-      const orderRes = await paymentAPI.createAppointmentOrder({ doctorId: selDoc, amount: fee });
+      const orderRes = await paymentAPI.createAppointmentOrder({ doctorId: selDoc, amount: fee, couponCode: appliedCoupon || undefined });
       const orderData = orderRes.data?.data || orderRes.data;
 
       // If backend says free (fee=0 in DB), book directly
@@ -366,7 +419,6 @@ export default function AppointmentsPage() {
                 { l: 'Date', v: new Date(selDate).toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric' }), e: '\u{1F4C5}' },
                 { l: 'Time', v: selTime, e: '\u{1F552}' },
                 { l: 'Reason', v: selReason, e: '\u{1F4CB}' },
-                { l: 'Fee', v: '\u20B9' + (selectedDoctor?.fee || 0), e: '\u{1F4B0}' },
               ].map(r => (
                 <div key={r.l} className="flex items-center gap-3">
                   <span className="text-lg">{r.e}</span>
@@ -379,18 +431,75 @@ export default function AppointmentsPage() {
                   className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-emerald-400 focus:outline-none resize-none" rows={3} />
               </div>
             </div>
-            {(selectedDoctor?.fee || 0) > 0 && (
+
+            {/* Coupon Input */}
+            {consultFee > 0 && (
+              <div className="bg-white rounded-2xl p-4 shadow-sm space-y-2">
+                <p className="text-[10px] font-bold text-gray-500 uppercase">Have a coupon?</p>
+                {appliedCoupon ? (
+                  <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">{'\uD83C\uDF89'}</span>
+                      <div>
+                        <p className="text-xs font-bold text-emerald-700">{appliedCoupon}</p>
+                        <p className="text-[10px] text-emerald-600">{'\u20B9'}{couponDiscount} off</p>
+                      </div>
+                    </div>
+                    <button onClick={removeCoupon} className="text-[10px] font-bold text-red-500 active:scale-95">{'\u2715'} Remove</button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input value={couponCode} onChange={e => { setCouponCode(e.target.value.toUpperCase()); setCouponError(''); }}
+                      placeholder="Enter coupon code"
+                      className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-xs font-bold uppercase focus:border-rose-400 focus:outline-none" />
+                    <button onClick={applyCoupon} disabled={couponLoading || !couponCode.trim()}
+                      className={'px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ' + (couponLoading ? 'bg-gray-100 text-gray-400' : 'bg-rose-500 text-white')}>
+                      {couponLoading ? '...' : 'Apply'}
+                    </button>
+                  </div>
+                )}
+                {couponError && <p className="text-[10px] text-red-500 font-medium">{couponError}</p>}
+              </div>
+            )}
+
+            {/* Price Breakdown */}
+            {consultFee > 0 && (
+              <div className="bg-white rounded-2xl p-4 shadow-sm space-y-2">
+                <p className="text-[10px] font-bold text-gray-500 uppercase">Payment Summary</p>
+                <div className="flex justify-between text-xs text-gray-600">
+                  <span>Consultation Fee</span><span>{'\u20B9'}{consultFee}</span>
+                </div>
+                {couponDiscount > 0 && (
+                  <div className="flex justify-between text-xs text-emerald-600 font-medium">
+                    <span>Coupon Discount</span><span>-{'\u20B9'}{couponDiscount}</span>
+                  </div>
+                )}
+                {platformFee > 0 && (
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>Platform Fee</span><span>{'\u20B9'}{platformFee}</span>
+                  </div>
+                )}
+                <div className="border-t border-gray-100 pt-2 flex justify-between text-sm font-extrabold text-gray-900">
+                  <span>Total</span><span>{'\u20B9'}{totalPayable}</span>
+                </div>
+                {couponDiscount > 0 && (
+                  <p className="text-[10px] text-emerald-600 font-bold text-center">{'\uD83C\uDF89'} You save {'\u20B9'}{couponDiscount}!</p>
+                )}
+              </div>
+            )}
+
+            {consultFee > 0 && (
               <div className="bg-emerald-50 rounded-2xl p-3 border border-emerald-100 flex items-center gap-2.5">
                 <span className="text-lg">{'\uD83D\uDD12'}</span>
                 <div>
                   <p className="text-[11px] font-bold text-emerald-800">Secure Payment via Razorpay</p>
-                  <p className="text-[10px] text-emerald-600">You'll be redirected to pay {'\u20B9'}{selectedDoctor?.fee} before the appointment is confirmed.</p>
+                  <p className="text-[10px] text-emerald-600">You'll be redirected to pay {'\u20B9'}{totalPayable} before the appointment is confirmed.</p>
                 </div>
               </div>
             )}
             <button onClick={handleConfirmBooking} disabled={paymentProcessing}
               className={'w-full py-3.5 rounded-2xl text-white font-bold text-sm transition-transform shadow-md shadow-rose-200 bg-gradient-to-r from-rose-500 to-pink-500 ' + (paymentProcessing ? 'opacity-70 cursor-not-allowed' : 'active:scale-95')}>
-              {paymentProcessing ? 'Processing Payment...' : (selectedDoctor?.fee || 0) > 0 ? `Pay \u20B9${selectedDoctor?.fee} & Book` : 'Confirm Appointment \u2713'}
+              {paymentProcessing ? 'Processing Payment...' : consultFee > 0 ? `Pay \u20B9${totalPayable} & Book` : 'Confirm Appointment \u2713'}
             </button>
           </>)}
         </>)}

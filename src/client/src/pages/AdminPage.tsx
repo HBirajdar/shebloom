@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { adminAPI, doshaAPI } from '../services/api';
+import { adminAPI, doshaAPI, financeAPI } from '../services/api';
 import ImageUpload from '../components/ImageUpload';
 
 // Adapter: normalises axios { data: { success, data: X } } → { success, data: X }
@@ -147,7 +147,409 @@ const FormCheckbox = ({ label, checked, onChange }: { label: string; checked: bo
 );
 type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'NO_SHOW' | 'CANCELLED';
 
-type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts';
+type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance';
+
+// ─── Finance Admin Tab ──────────────────────────────────
+// Platform config, coupons, revenue analytics — like Practo/Zomato/Amazon admin
+function FinanceTab() {
+  const [view, setView] = useState<'overview' | 'config' | 'coupons' | 'add_coupon' | 'edit_coupon'>('overview');
+  const [config, setConfig] = useState<any>(null);
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [coupons, setCoupons] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editCoupon, setEditCoupon] = useState<any>(null);
+  const [couponForm, setCouponForm] = useState({
+    code: '', description: '', discountType: 'PERCENTAGE', discountValue: '', maxDiscountAmount: '',
+    minOrderAmount: '0', applicableTo: 'ALL', maxUses: '', maxUsesPerUser: '1',
+    validFrom: '', validUntil: '', isActive: true, firstOrderOnly: false,
+  });
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [configRes, analyticsRes, couponsRes] = await Promise.all([
+        financeAPI.getConfig().then(r => r.data),
+        financeAPI.getAnalytics().then(r => r.data),
+        financeAPI.getCoupons().then(r => r.data),
+      ]);
+      setConfig(configRes.data || configRes);
+      setAnalytics(analyticsRes.data || analyticsRes);
+      setCoupons(couponsRes.data || couponsRes || []);
+    } catch { toast.error('Failed to load finance data'); }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  const saveConfig = async () => {
+    try {
+      await financeAPI.updateConfig(config);
+      toast.success('Config saved');
+      fetchAll();
+    } catch { toast.error('Failed to save'); }
+  };
+
+  const saveCoupon = async () => {
+    try {
+      const data = {
+        ...couponForm,
+        discountValue: Number(couponForm.discountValue),
+        maxDiscountAmount: couponForm.maxDiscountAmount ? Number(couponForm.maxDiscountAmount) : null,
+        minOrderAmount: Number(couponForm.minOrderAmount) || 0,
+        maxUses: couponForm.maxUses ? Number(couponForm.maxUses) : null,
+        maxUsesPerUser: Number(couponForm.maxUsesPerUser) || 1,
+      };
+      if (editCoupon) {
+        await financeAPI.updateCoupon(editCoupon.id, data);
+        toast.success('Coupon updated');
+      } else {
+        await financeAPI.createCoupon(data);
+        toast.success('Coupon created');
+      }
+      setView('coupons');
+      setCouponForm({ code: '', description: '', discountType: 'PERCENTAGE', discountValue: '', maxDiscountAmount: '', minOrderAmount: '0', applicableTo: 'ALL', maxUses: '', maxUsesPerUser: '1', validFrom: '', validUntil: '', isActive: true, firstOrderOnly: false });
+      setEditCoupon(null);
+      fetchAll();
+    } catch (e: any) { toast.error(e?.response?.data?.message || 'Failed'); }
+  };
+
+  const deleteCoupon = async (id: string) => {
+    if (!confirm('Delete this coupon?')) return;
+    try { await financeAPI.deleteCoupon(id); toast.success('Deleted'); fetchAll(); }
+    catch { toast.error('Failed'); }
+  };
+
+  if (loading) return <div className="text-center py-10 text-gray-400 text-xs">Loading finance data...</div>;
+
+  const a = analytics;
+  const cfgFields = [
+    { key: 'defaultDoctorCommission', label: 'Doctor Commission %', desc: 'Platform keeps this % from appointments (like Practo 15-25%)' },
+    { key: 'defaultProductCommission', label: 'Product Commission %', desc: 'Platform keeps this % from product sales (like Amazon 5-20%)' },
+    { key: 'platformFeePercent', label: 'Platform Fee %', desc: 'Convenience fee charged to customer (like Zomato 2-5%)' },
+    { key: 'platformFeeFlat', label: 'Platform Fee Flat ₹', desc: 'Fixed convenience fee per order' },
+    { key: 'deliveryCharge', label: 'Delivery Charge ₹', desc: 'Standard delivery fee' },
+    { key: 'freeDeliveryAbove', label: 'Free Delivery Above ₹', desc: 'Orders above this get free delivery' },
+    { key: 'gstRate', label: 'GST Rate %', desc: 'Goods & Services Tax' },
+    { key: 'codExtraCharge', label: 'COD Extra Charge ₹', desc: 'Extra fee for Cash on Delivery' },
+    { key: 'minOrderAmount', label: 'Min Order Amount ₹', desc: 'Minimum cart value to place order' },
+    { key: 'cancellationWindowHours', label: 'Free Cancel Window (hrs)', desc: 'Hours within which free cancellation allowed' },
+    { key: 'cancellationPenalty', label: 'Cancel Penalty %', desc: '% deducted on late cancellation' },
+    { key: 'refundProcessingDays', label: 'Refund Processing Days', desc: 'Days to process refund' },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {/* Sub-nav */}
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {[
+          { id: 'overview', icon: '📊', label: 'Revenue' },
+          { id: 'config', icon: '⚙️', label: 'Config' },
+          { id: 'coupons', icon: '🎟️', label: 'Coupons' },
+        ].map(t => (
+          <button key={t.id} onClick={() => setView(t.id as any)}
+            className={'px-3 py-2 rounded-xl text-[10px] font-bold whitespace-nowrap transition-all active:scale-95 ' + (view === t.id || (view === 'add_coupon' && t.id === 'coupons') || (view === 'edit_coupon' && t.id === 'coupons') ? 'bg-emerald-500 text-white shadow-md' : 'bg-white text-gray-600 shadow-sm')}>
+            {t.icon} {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ─── Revenue Analytics ─── */}
+      {view === 'overview' && a && (
+        <div className="space-y-4">
+          <h3 className="text-base font-extrabold text-gray-900">🏦 Revenue Dashboard</h3>
+
+          {/* Platform Total */}
+          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-5 text-white">
+            <p className="text-xs text-white/70 font-bold">Total Platform Revenue</p>
+            <p className="text-3xl font-extrabold mt-1">₹{(a.platformTotal?.total || 0).toLocaleString()}</p>
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <div className="bg-white/15 rounded-xl p-2.5">
+                <p className="text-[9px] text-white/60">Dr Commissions</p>
+                <p className="text-sm font-bold">₹{(a.platformTotal?.fromDoctorCommissions || 0).toLocaleString()}</p>
+              </div>
+              <div className="bg-white/15 rounded-xl p-2.5">
+                <p className="text-[9px] text-white/60">Product Fees</p>
+                <p className="text-sm font-bold">₹{(a.platformTotal?.fromProductFees || 0).toLocaleString()}</p>
+              </div>
+              <div className="bg-white/15 rounded-xl p-2.5">
+                <p className="text-[9px] text-white/60">Platform Fees</p>
+                <p className="text-sm font-bold">₹{(a.platformTotal?.fromAppointmentFees || 0).toLocaleString()}</p>
+              </div>
+              <div className="bg-white/15 rounded-xl p-2.5">
+                <p className="text-[9px] text-white/60">Delivery Charges</p>
+                <p className="text-sm font-bold">₹{(a.platformTotal?.fromDeliveryCharges || 0).toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Product & Appointment Revenue */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <p className="text-[9px] font-bold text-gray-400 uppercase">Product Sales</p>
+              <p className="text-lg font-extrabold text-gray-900 mt-1">₹{(a.productRevenue?.totalSales || 0).toLocaleString()}</p>
+              <p className="text-[9px] text-gray-500 mt-1">{a.productRevenue?.orderCount || 0} orders</p>
+              <p className="text-[9px] text-emerald-600 font-bold">Discounts: ₹{(a.productRevenue?.totalDiscounts || 0).toLocaleString()}</p>
+            </div>
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <p className="text-[9px] font-bold text-gray-400 uppercase">Consultations</p>
+              <p className="text-lg font-extrabold text-gray-900 mt-1">₹{(a.appointmentRevenue?.totalEarned || 0).toLocaleString()}</p>
+              <p className="text-[9px] text-gray-500 mt-1">{a.appointmentRevenue?.appointmentCount || 0} completed</p>
+              <p className="text-[9px] text-emerald-600 font-bold">Discounts: ₹{(a.appointmentRevenue?.totalDiscounts || 0).toLocaleString()}</p>
+            </div>
+          </div>
+
+          {/* Payout Summary */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm">
+            <p className="text-[9px] font-bold text-gray-400 uppercase mb-3">Payout Summary</p>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="text-center">
+                <p className="text-lg font-extrabold text-emerald-600">₹{(a.payoutSummary?.totalSettled || 0).toLocaleString()}</p>
+                <p className="text-[9px] text-gray-500">Settled</p>
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-extrabold text-amber-500">₹{(a.payoutSummary?.totalPending || 0).toLocaleString()}</p>
+                <p className="text-[9px] text-gray-500">Pending</p>
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-extrabold text-purple-600">₹{(a.payoutSummary?.totalPlatformCommission || 0).toLocaleString()}</p>
+                <p className="text-[9px] text-gray-500">Commission</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Coupon Stats */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[9px] font-bold text-gray-400 uppercase">Coupon Impact</p>
+              <p className="text-sm font-extrabold text-gray-900 mt-1">{a.coupons?.totalRedemptions || 0} redemptions</p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-extrabold text-red-500">-₹{(a.coupons?.totalDiscountGiven || 0).toLocaleString()}</p>
+              <p className="text-[9px] text-gray-500">Total discount given</p>
+            </div>
+          </div>
+
+          {/* Current Rates */}
+          <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
+            <p className="text-[9px] font-bold text-gray-400 uppercase">Active Rates</p>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { l: 'Dr Commission', v: `${a.config?.doctorCommission || 0}%` },
+                { l: 'Product Fee', v: `${a.config?.productCommission || 0}%` },
+                { l: 'Platform Fee', v: `${a.config?.platformFeePercent || 0}%` },
+                { l: 'Delivery', v: `₹${a.config?.deliveryCharge || 0}` },
+                { l: 'Free Above', v: `₹${a.config?.freeDeliveryAbove || 0}` },
+                { l: 'Flat Fee', v: `₹${a.config?.platformFeeFlat || 0}` },
+              ].map(r => (
+                <div key={r.l} className="bg-white rounded-xl p-2 text-center">
+                  <p className="text-[8px] text-gray-400">{r.l}</p>
+                  <p className="text-xs font-extrabold text-gray-800">{r.v}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Platform Config ─── */}
+      {view === 'config' && config && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-base font-extrabold text-gray-900">⚙️ Platform Configuration</h3>
+            <button onClick={saveConfig} className="text-[10px] font-bold bg-emerald-500 text-white px-4 py-2 rounded-xl active:scale-95 shadow-md">Save Changes</button>
+          </div>
+          <p className="text-[10px] text-gray-500">Configure fees, commissions, and delivery charges. Changes apply to all new orders & appointments.</p>
+
+          <div className="space-y-3">
+            {cfgFields.map(f => (
+              <div key={f.key} className="bg-white rounded-2xl p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-gray-700">{f.label}</label>
+                  <input type="number" step="any" value={config[f.key] ?? ''}
+                    onChange={e => setConfig({ ...config, [f.key]: e.target.value })}
+                    className="w-24 px-3 py-2 border border-gray-200 rounded-xl text-sm text-right font-bold focus:border-emerald-400 focus:outline-none" />
+                </div>
+                <p className="text-[9px] text-gray-400">{f.desc}</p>
+              </div>
+            ))}
+
+            {/* Boolean toggles */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+              {[
+                { key: 'codEnabled', label: 'Cash on Delivery Enabled' },
+                { key: 'includeGstInPrice', label: 'GST Included in Price' },
+              ].map(t => (
+                <div key={t.key} className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-700">{t.label}</span>
+                  <button onClick={() => setConfig({ ...config, [t.key]: !config[t.key] })}
+                    className={'w-12 h-6 rounded-full transition-all ' + (config[t.key] ? 'bg-emerald-500' : 'bg-gray-300')}>
+                    <div className={'w-5 h-5 rounded-full bg-white shadow-md transition-transform ' + (config[t.key] ? 'translate-x-6' : 'translate-x-0.5')} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Coupons List ─── */}
+      {view === 'coupons' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-base font-extrabold text-gray-900">🎟️ Coupons ({coupons.length})</h3>
+            <button onClick={() => { setEditCoupon(null); setCouponForm({ code: '', description: '', discountType: 'PERCENTAGE', discountValue: '', maxDiscountAmount: '', minOrderAmount: '0', applicableTo: 'ALL', maxUses: '', maxUsesPerUser: '1', validFrom: '', validUntil: '', isActive: true, firstOrderOnly: false }); setView('add_coupon'); }}
+              className="text-[10px] font-bold bg-emerald-500 text-white px-4 py-2 rounded-xl active:scale-95 shadow-md">+ New Coupon</button>
+          </div>
+
+          {coupons.length === 0 && <p className="text-center text-gray-400 text-xs py-10">No coupons yet. Create your first!</p>}
+
+          {coupons.map((c: any) => (
+            <div key={c.id} className={'bg-white rounded-2xl p-4 shadow-sm border-l-4 ' + (c.isActive ? 'border-emerald-400' : 'border-gray-300')}>
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-extrabold text-gray-900 font-mono tracking-wider">{c.code}</span>
+                    <span className={'text-[8px] font-bold px-1.5 py-0.5 rounded-full ' + (c.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500')}>{c.isActive ? 'ACTIVE' : 'INACTIVE'}</span>
+                    {c.firstOrderOnly && <span className="text-[8px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">1st Order</span>}
+                  </div>
+                  <p className="text-[10px] text-gray-500 mt-1">{c.description || 'No description'}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-extrabold text-emerald-600">
+                    {c.discountType === 'PERCENTAGE' ? `${c.discountValue}% OFF` : `₹${c.discountValue} OFF`}
+                  </p>
+                  {c.maxDiscountAmount && <p className="text-[9px] text-gray-400">Max ₹{c.maxDiscountAmount}</p>}
+                </div>
+              </div>
+              <div className="flex items-center gap-3 mt-3 flex-wrap">
+                <span className="text-[9px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{c.applicableTo}</span>
+                <span className="text-[9px] text-gray-400">Min ₹{c.minOrderAmount}</span>
+                <span className="text-[9px] text-gray-400">Used: {c.currentUses || 0}{c.maxUses ? `/${c.maxUses}` : ''}</span>
+                {c.validUntil && <span className="text-[9px] text-gray-400">Expires: {new Date(c.validUntil).toLocaleDateString()}</span>}
+              </div>
+              <div className="flex gap-2 mt-3">
+                <button onClick={() => { setEditCoupon(c); setCouponForm({ code: c.code, description: c.description || '', discountType: c.discountType, discountValue: String(c.discountValue), maxDiscountAmount: c.maxDiscountAmount ? String(c.maxDiscountAmount) : '', minOrderAmount: String(c.minOrderAmount || 0), applicableTo: c.applicableTo, maxUses: c.maxUses ? String(c.maxUses) : '', maxUsesPerUser: String(c.maxUsesPerUser || 1), validFrom: c.validFrom ? c.validFrom.split('T')[0] : '', validUntil: c.validUntil ? c.validUntil.split('T')[0] : '', isActive: c.isActive, firstOrderOnly: c.firstOrderOnly }); setView('edit_coupon'); }}
+                  className="text-[10px] font-bold bg-blue-50 text-blue-600 px-3 py-1.5 rounded-xl active:scale-95">Edit</button>
+                <button onClick={() => deleteCoupon(c.id)}
+                  className="text-[10px] font-bold bg-red-50 text-red-500 px-3 py-1.5 rounded-xl active:scale-95">Delete</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ─── Add/Edit Coupon Form ─── */}
+      {(view === 'add_coupon' || view === 'edit_coupon') && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <button onClick={() => setView('coupons')} className="text-gray-400 text-sm font-bold active:scale-95">←</button>
+            <h3 className="text-base font-extrabold text-gray-900">{editCoupon ? 'Edit Coupon' : 'New Coupon'}</h3>
+          </div>
+
+          <div className="space-y-3">
+            <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Code *</label>
+                <input value={couponForm.code} onChange={e => setCouponForm({ ...couponForm, code: e.target.value.toUpperCase() })} placeholder="FIRST50" disabled={!!editCoupon}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm font-mono font-bold focus:border-emerald-400 focus:outline-none disabled:bg-gray-50" />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Description</label>
+                <input value={couponForm.description} onChange={e => setCouponForm({ ...couponForm, description: e.target.value })} placeholder="50% off on first order"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-emerald-400 focus:outline-none" />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+              <p className="text-[10px] font-bold text-gray-400 uppercase">Discount</p>
+              <div className="flex gap-2">
+                {['PERCENTAGE', 'FLAT'].map(t => (
+                  <button key={t} onClick={() => setCouponForm({ ...couponForm, discountType: t })}
+                    className={'flex-1 py-2 rounded-xl text-[10px] font-bold transition-all ' + (couponForm.discountType === t ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-600')}>
+                    {t === 'PERCENTAGE' ? '% Percent' : '₹ Flat'}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[9px] text-gray-500">Value *</label>
+                  <input type="number" value={couponForm.discountValue} onChange={e => setCouponForm({ ...couponForm, discountValue: e.target.value })} placeholder={couponForm.discountType === 'PERCENTAGE' ? '20' : '100'}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm font-bold focus:border-emerald-400 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="text-[9px] text-gray-500">Max Discount ₹</label>
+                  <input type="number" value={couponForm.maxDiscountAmount} onChange={e => setCouponForm({ ...couponForm, maxDiscountAmount: e.target.value })} placeholder="200"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm font-bold focus:border-emerald-400 focus:outline-none" />
+                </div>
+              </div>
+              <div>
+                <label className="text-[9px] text-gray-500">Min Order Amount ₹</label>
+                <input type="number" value={couponForm.minOrderAmount} onChange={e => setCouponForm({ ...couponForm, minOrderAmount: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm font-bold focus:border-emerald-400 focus:outline-none" />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+              <p className="text-[10px] font-bold text-gray-400 uppercase">Scope & Limits</p>
+              <div className="flex gap-2">
+                {['ALL', 'CONSULTATION', 'PRODUCTS'].map(s => (
+                  <button key={s} onClick={() => setCouponForm({ ...couponForm, applicableTo: s })}
+                    className={'flex-1 py-2 rounded-xl text-[10px] font-bold transition-all ' + (couponForm.applicableTo === s ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-600')}>
+                    {s === 'ALL' ? '🌐 All' : s === 'CONSULTATION' ? '👩‍⚕️ Doctor' : '📦 Products'}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[9px] text-gray-500">Max Uses (total)</label>
+                  <input type="number" value={couponForm.maxUses} onChange={e => setCouponForm({ ...couponForm, maxUses: e.target.value })} placeholder="Unlimited"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm font-bold focus:border-emerald-400 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="text-[9px] text-gray-500">Max Uses/User</label>
+                  <input type="number" value={couponForm.maxUsesPerUser} onChange={e => setCouponForm({ ...couponForm, maxUsesPerUser: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm font-bold focus:border-emerald-400 focus:outline-none" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[9px] text-gray-500">Valid From</label>
+                  <input type="date" value={couponForm.validFrom} onChange={e => setCouponForm({ ...couponForm, validFrom: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:border-emerald-400 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="text-[9px] text-gray-500">Valid Until</label>
+                  <input type="date" value={couponForm.validUntil} onChange={e => setCouponForm({ ...couponForm, validUntil: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:border-emerald-400 focus:outline-none" />
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-gray-700">First Order Only</span>
+                <button onClick={() => setCouponForm({ ...couponForm, firstOrderOnly: !couponForm.firstOrderOnly })}
+                  className={'w-12 h-6 rounded-full transition-all ' + (couponForm.firstOrderOnly ? 'bg-emerald-500' : 'bg-gray-300')}>
+                  <div className={'w-5 h-5 rounded-full bg-white shadow-md transition-transform ' + (couponForm.firstOrderOnly ? 'translate-x-6' : 'translate-x-0.5')} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-gray-700">Active</span>
+                <button onClick={() => setCouponForm({ ...couponForm, isActive: !couponForm.isActive })}
+                  className={'w-12 h-6 rounded-full transition-all ' + (couponForm.isActive ? 'bg-emerald-500' : 'bg-gray-300')}>
+                  <div className={'w-5 h-5 rounded-full bg-white shadow-md transition-transform ' + (couponForm.isActive ? 'translate-x-6' : 'translate-x-0.5')} />
+                </button>
+              </div>
+            </div>
+
+            <button onClick={saveCoupon} disabled={!couponForm.code || !couponForm.discountValue}
+              className="w-full py-4 rounded-2xl text-white font-extrabold text-sm active:scale-95 transition-transform shadow-lg disabled:opacity-40"
+              style={{ background: 'linear-gradient(135deg,#059669,#10B981)' }}>
+              {editCoupon ? 'Update Coupon' : 'Create Coupon'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Ayurveda Admin Sub-Tab ────────────────────────────
 function AyurvedaAdminTab() {
@@ -358,7 +760,7 @@ export default function AdminPage() {
   // Form states
   const emptyProduct = { name: '', category: 'hair_oil' as ProductCategory, price: 0, discountPrice: 0, description: '', ingredients: '', benefits: '', howToUse: '', size: '', emoji: '\u{1F33F}', targetAudience: ['all'] as TargetAudience[], doctorNote: '', preparationMethod: '', imageUrl: '', galleryImages: [] as string[], isFeatured: false, stock: 0, unit: 'piece', tags: '', ownerEmail: '', ownerPhone: '' };
   const emptyArticle = { title: '', content: '', category: '', readTime: '5 min', emoji: '\u{1F4DD}', targetAudience: ['all'] as TargetAudience[], imageUrl: '', excerpt: '', isFeatured: false, authorName: 'VedaClue Team', tags: '' };
-  const emptyDoctor = { name: '', specialization: '', experience: 0, fee: 0, qualification: '', about: '', tags: '', languages: '', avatarUrl: '', isChief: false, isPromoted: false, hospitalName: '', location: '' };
+  const emptyDoctor = { name: '', specialization: '', experience: 0, fee: 0, qualification: '', about: '', tags: '', languages: '', avatarUrl: '', isChief: false, isPromoted: false, hospitalName: '', location: '', commissionRate: '' };
 
   const [np, setNp] = useState(emptyProduct);
   const [na, setNa] = useState(emptyArticle);
@@ -832,6 +1234,7 @@ export default function AdminPage() {
         avatarUrl: nd.avatarUrl || undefined,
         isChief: nd.isChief, isPromoted: nd.isPromoted,
         hospitalName: nd.hospitalName || undefined, location: nd.location || undefined,
+        commissionRate: nd.commissionRate ? Number(nd.commissionRate) : null,
       });
       setDoctors(prev => [res.data, ...prev]);
       toast.success('Doctor added!');
@@ -853,6 +1256,7 @@ export default function AdminPage() {
         avatarUrl: ed.avatarUrl || undefined,
         isChief: ed.isChief, isPromoted: ed.isPromoted,
         hospitalName: ed.hospitalName || undefined, location: ed.location || undefined,
+        commissionRate: ed.commissionRate ? Number(ed.commissionRate) : null,
       });
       setDoctors(prev => prev.map(d => d.id === editDoctor.id ? res.data : d));
       toast.success('Doctor updated!');
@@ -935,6 +1339,7 @@ export default function AdminPage() {
       avatarUrl: d.avatarUrl || '',
       isChief: d.isChief || false, isPromoted: d.isPromoted || false,
       hospitalName: d.hospitalName || '', location: d.location || '',
+      commissionRate: (d as any).commissionRate != null ? String((d as any).commissionRate) : '',
     });
     setTab('edit_doctor');
   };
@@ -1013,6 +1418,7 @@ export default function AdminPage() {
     { id: 'prescriptions', icon: '\u{1F48A}', label: 'Rx' },
     { id: 'ayurveda', icon: '☯️', label: 'Ayurveda' },
     { id: 'payouts', icon: '\u{1F4B0}', label: 'Payouts' },
+    { id: 'finance', icon: '🏦', label: 'Finance' },
   ];
 
   const roleBadge = (role: string) => {
@@ -2003,7 +2409,7 @@ export default function AdminPage() {
             <FormField label="Full Name *" value={nd.name} onChange={v => setNd({...nd, name: v})} placeholder="Dr. Shruthi R" />
             <FormField label="Specialization *" value={nd.specialization} onChange={v => setNd({...nd, specialization: v})} placeholder="Gynecologist" />
             <FormField label="Qualification" value={nd.qualification} onChange={v => setNd({...nd, qualification: v})} placeholder="MBBS, MS" />
-            <div className="grid grid-cols-2 gap-3"><FormNumField label="Experience (yrs)" value={nd.experience} onChange={v => setNd({...nd, experience: v})} /><FormNumField label="Fee" value={nd.fee} onChange={v => setNd({...nd, fee: v})} /></div>
+            <div className="grid grid-cols-3 gap-3"><FormNumField label="Experience (yrs)" value={nd.experience} onChange={v => setNd({...nd, experience: v})} /><FormNumField label="Fee ₹" value={nd.fee} onChange={v => setNd({...nd, fee: v})} /><FormField label="Commission %" value={nd.commissionRate} onChange={v => setNd({...nd, commissionRate: v})} placeholder="Default" /></div>
             <FormField label="Hospital" value={nd.hospitalName} onChange={v => setNd({...nd, hospitalName: v})} placeholder="Hospital name" />
             <FormField label="Location" value={nd.location} onChange={v => setNd({...nd, location: v})} placeholder="City, State" />
             <FormField label="Tags (comma-sep)" value={nd.tags} onChange={v => setNd({...nd, tags: v})} placeholder="PCOD, IVF..." />
@@ -2026,7 +2432,7 @@ export default function AdminPage() {
             <FormField label="Full Name *" value={ed.name} onChange={v => setEd({...ed, name: v})} placeholder="Dr. Shruthi R" />
             <FormField label="Specialization *" value={ed.specialization} onChange={v => setEd({...ed, specialization: v})} placeholder="Gynecologist" />
             <FormField label="Qualification" value={ed.qualification} onChange={v => setEd({...ed, qualification: v})} placeholder="MBBS, MS" />
-            <div className="grid grid-cols-2 gap-3"><FormNumField label="Experience (yrs)" value={ed.experience} onChange={v => setEd({...ed, experience: v})} /><FormNumField label="Fee" value={ed.fee} onChange={v => setEd({...ed, fee: v})} /></div>
+            <div className="grid grid-cols-3 gap-3"><FormNumField label="Experience (yrs)" value={ed.experience} onChange={v => setEd({...ed, experience: v})} /><FormNumField label="Fee ₹" value={ed.fee} onChange={v => setEd({...ed, fee: v})} /><FormField label="Commission %" value={ed.commissionRate} onChange={v => setEd({...ed, commissionRate: v})} placeholder="Default" /></div>
             <FormField label="Hospital" value={ed.hospitalName} onChange={v => setEd({...ed, hospitalName: v})} placeholder="Hospital name" />
             <FormField label="Location" value={ed.location} onChange={v => setEd({...ed, location: v})} placeholder="City, State" />
             <FormField label="Tags (comma-sep)" value={ed.tags} onChange={v => setEd({...ed, tags: v})} placeholder="PCOD, IVF..." />
@@ -2366,6 +2772,9 @@ export default function AdminPage() {
               </div>
             )}
           </>)}
+
+          {/* ════════ FINANCE ════════ */}
+          {tab === 'finance' && (<FinanceTab />)}
 
           {/* ════════ SETTINGS ════════ */}
           {tab === 'settings' && (<>

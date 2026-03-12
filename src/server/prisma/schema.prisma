@@ -430,6 +430,7 @@ model Doctor {
   hospitalName    String?
   hospitalId      String?
   consultationFee Float
+  commissionRate  Float?     // Per-doctor override (null = use platform default). Like Practo — top docs get lower commission.
   rating          Float      @default(0)
   totalReviews    Int        @default(0)
   languages       Language[]
@@ -506,7 +507,11 @@ model Appointment {
   notes              String?
   meetingLink        String?
   paymentId          String?
-  amountPaid         Float?
+  amountPaid         Float?     // Final amount paid after all discounts
+  originalFee        Float?     // Doctor's original consultation fee
+  couponCode         String?    // Applied coupon code
+  couponDiscount     Float?     // Discount from coupon
+  platformFee        Float?     // Platform convenience fee
   cancellationReason String?
   rejectionReason    String?
   createdAt          DateTime          @default(now())
@@ -828,7 +833,11 @@ model Order {
   items             OrderItem[]
   subtotal          Float
   discount          Float       @default(0)
+  couponCode        String?                           // Applied coupon code
+  couponDiscount    Float       @default(0)           // Discount from coupon
+  platformFee       Float       @default(0)           // Platform/convenience fee
   deliveryCharge    Float       @default(0)
+  gstAmount         Float       @default(0)           // GST amount
   totalAmount       Float
   paymentMethod     String      @default("razorpay")
   paymentStatus     String      @default("PENDING")
@@ -898,4 +907,132 @@ enum PayoutStatus {
   PAID          // Successfully paid to doctor
   FAILED        // Payment failed
   ON_HOLD       // Held by admin (dispute etc.)
+}
+
+// ─── PLATFORM CONFIGURATION ──────────────────────────
+// Global settings for fees, commissions, delivery etc.
+// Like Practo/Apollo/Amazon — centralized config, admin editable.
+
+model PlatformConfig {
+  id                      String   @id @default("default")
+  // Doctor consultation commission
+  defaultDoctorCommission Float    @default(20)      // % platform keeps from doctor appointments
+  // Product sales commission
+  defaultProductCommission Float   @default(15)      // % platform keeps from product sales
+  // Delivery
+  deliveryCharge          Float    @default(49)
+  freeDeliveryAbove       Float    @default(499)
+  // Tax
+  gstRate                 Float    @default(18)       // GST % (India)
+  includeGstInPrice       Boolean  @default(true)     // If true, prices are GST-inclusive
+  // Convenience / platform fee
+  platformFeeFlat         Float    @default(0)        // Flat fee per order (like Zomato's platform fee)
+  platformFeePercent      Float    @default(2)        // % fee per order (like Zomato 2-5%)
+  // Cancellation
+  cancellationWindowHours Int      @default(24)       // Free cancellation within N hours of booking
+  cancellationPenalty     Float    @default(0)        // % deducted on late cancellation
+  // COD
+  codEnabled              Boolean  @default(true)
+  codExtraCharge          Float    @default(0)        // Extra charge for COD orders
+  // Minimum order
+  minOrderAmount          Float    @default(0)
+  // Refund
+  refundProcessingDays    Int      @default(7)
+  updatedAt               DateTime @updatedAt
+
+  @@map("platform_config")
+}
+
+// ─── COUPONS & DISCOUNTS ─────────────────────────────
+// Like Amazon/Flipkart/Zomato — promo codes for both consultations and products.
+
+model Coupon {
+  id                String       @id @default(cuid())
+  code              String       @unique              // e.g. "FIRST50", "DIWALI20"
+  description       String?
+  // Discount config
+  discountType      DiscountType @default(PERCENTAGE) // PERCENTAGE or FLAT
+  discountValue     Float                             // 20 means 20% or ₹20
+  maxDiscountAmount Float?                            // Cap: max ₹200 off (for % discounts)
+  minOrderAmount    Float        @default(0)          // Min cart/fee to apply coupon
+  // Scope
+  applicableTo      CouponScope  @default(ALL)        // ALL, CONSULTATION, PRODUCTS
+  // Targeting (like Zomato/Amazon — specific doctor/product/category)
+  specificDoctorIds String[]     @default([])          // Empty = all doctors
+  specificProductIds String[]    @default([])          // Empty = all products
+  specificCategories String[]    @default([])          // Empty = all categories
+  // Limits
+  maxUses           Int?                              // Total uses allowed (null = unlimited)
+  maxUsesPerUser    Int          @default(1)           // Uses per user
+  currentUses       Int          @default(0)           // Track total redemptions
+  // Validity
+  validFrom         DateTime     @default(now())
+  validUntil        DateTime?                          // null = no expiry
+  isActive          Boolean      @default(true)
+  // First-time user only (like PharmEasy, Zepto first-order coupons)
+  firstOrderOnly    Boolean      @default(false)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  redemptions       CouponRedemption[]
+
+  @@index([code])
+  @@index([isActive])
+  @@map("coupons")
+}
+
+model CouponRedemption {
+  id         String   @id @default(cuid())
+  couponId   String
+  userId     String
+  orderId    String?  // For product orders
+  appointmentId String? // For consultation bookings
+  discount   Float    // Actual discount applied
+  createdAt  DateTime @default(now())
+
+  coupon     Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+
+  @@index([couponId])
+  @@index([userId])
+  @@map("coupon_redemptions")
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FLAT
+}
+
+enum CouponScope {
+  ALL
+  CONSULTATION
+  PRODUCTS
+}
+
+// ─── PRODUCT PAYOUTS (seller/vendor settlement) ──────
+// For future marketplace: if products are sold by different sellers,
+// track their earnings separately. Currently VedaClue owns products
+// but this supports vendor onboarding (like Amazon/Flipkart seller model).
+
+model ProductPayout {
+  id              String        @id @default(cuid())
+  periodStart     DateTime
+  periodEnd       DateTime
+  totalSales      Float         // Gross sales in period
+  totalOrders     Int           // Number of orders
+  platformFee     Float         // Platform commission amount
+  netPayout       Float         // Amount after commission
+  commissionRate  Float         @default(15) // % platform keeps
+  gstCollected    Float         @default(0)  // GST collected
+  deliveryCharges Float         @default(0)  // Total delivery charges collected
+  status          PayoutStatus  @default(PENDING)
+  paymentMethod   String?
+  transactionId   String?
+  paidAt          DateTime?
+  adminNotes      String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("product_payouts")
 }
