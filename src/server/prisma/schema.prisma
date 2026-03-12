@@ -99,6 +99,8 @@ model User {
   pregnancies      Pregnancy[]
   appointments     Appointment[]
   articleBookmarks ArticleBookmark[]
+  articleLikes     ArticleLike[]
+  articleComments  ArticleComment[]
   waterLogs        WaterLog[]
   notifications    Notification[]
   refreshTokens    RefreshToken[]
@@ -434,6 +436,8 @@ model Article {
 
   doctor    Doctor?           @relation(fields: [doctorId], references: [id])
   bookmarks ArticleBookmark[]
+  likes     ArticleLike[]
+  comments  ArticleComment[]
 
   @@index([category])
   @@index([status])
@@ -452,6 +456,34 @@ model ArticleBookmark {
 
   @@unique([userId, articleId])
   @@map("article_bookmarks")
+}
+
+model ArticleLike {
+  id        String   @id @default(cuid())
+  userId    String
+  articleId String
+  type      String   @default("LIKE") // LIKE or DISLIKE
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, articleId])
+  @@map("article_likes")
+}
+
+model ArticleComment {
+  id        String   @id @default(cuid())
+  userId    String
+  articleId String
+  content   String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([articleId])
+  @@map("article_comments")
 }
 
 // ─── NOTIFICATIONS ──────────────────────────────────

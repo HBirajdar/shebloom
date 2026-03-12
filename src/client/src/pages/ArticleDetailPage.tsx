@@ -1,134 +1,269 @@
+// @ts-nocheck
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-
-const articleData: Record<string, { title: string; cat: string; by: string; initials: string; time: string; content: string[] }> = {
-  '1': {
-    title: 'Understanding PCOD: A Complete Guide', cat: 'PCOD', by: 'Dr. Priya Sharma', initials: 'PS', time: '8 min',
-    content: [
-      'Polycystic Ovarian Disease (PCOD) is one of the most common hormonal disorders affecting women of reproductive age. It affects approximately 1 in 5 women in India.',
-      '## What is PCOD?',
-      'PCOD is a condition where the ovaries produce many immature or partially mature eggs. Over time, these become cysts in the ovaries, leading to excess androgen production.',
-      '## Common Symptoms',
-      'Irregular periods, weight gain, acne, hair thinning, and difficulty conceiving are among the most common symptoms. Many women also experience mood swings and fatigue.',
-      '## Management Tips',
-      'Lifestyle changes including regular exercise, a balanced diet, adequate sleep, and stress management can significantly improve PCOD symptoms. Always consult a qualified gynecologist for personalized treatment.',
-    ],
-  },
-  '2': {
-    title: '5 Natural Remedies for Period Pain', cat: 'Periods', by: 'Dr. Kavitha Rao', initials: 'KR', time: '5 min',
-    content: [
-      'Period pain (dysmenorrhea) affects most women. Here are 5 natural remedies that can help.',
-      '## 1. Heat Therapy',
-      'A heating pad on your lower abdomen relaxes muscles and reduces cramping. Studies show it is as effective as OTC painkillers for many women.',
-      '## 2. Ginger Tea',
-      'Ginger has anti-inflammatory properties. Drink 2-3 cups during your period.',
-      '## 3. Light Exercise',
-      'Gentle yoga, walking, or stretching releases endorphins. Even 20 minutes helps.',
-      '## 4. Magnesium-Rich Foods',
-      'Dark chocolate, bananas, nuts, and leafy greens help relax muscles and reduce cramping.',
-      '## 5. Deep Breathing',
-      'Practicing deep breathing for 10 minutes can reduce pain perception and relax tense muscles.',
-    ],
-  },
-  '3': {
-    title: 'First Trimester: What to Expect', cat: 'Pregnancy', by: 'Dr. Anita Desai', initials: 'AD', time: '10 min',
-    content: [
-      'The first trimester (weeks 1-12) is a time of incredible change for both mother and baby.',
-      '## Common Symptoms',
-      'Morning sickness, fatigue, breast tenderness, and frequent urination are caused by rising hCG and progesterone levels.',
-      '## Baby\'s Development',
-      'By week 12, your baby has all major organs, a heartbeat, and is about the size of a lime.',
-      '## Important First Steps',
-      'Schedule your first prenatal visit around week 8. Start folic acid, avoid alcohol and raw foods, and stay hydrated.',
-    ],
-  },
-  '4': {
-    title: 'Yoga Poses for Menstrual Relief', cat: 'Wellness', by: 'Dr. Meera Nair', initials: 'MN', time: '6 min',
-    content: [
-      'Yoga is one of the most effective natural remedies for menstrual discomfort.',
-      '## Child\'s Pose (Balasana)',
-      'Gently stretches the lower back and hips. Hold for 1-3 minutes while breathing deeply.',
-      '## Supine Twist',
-      'Lying on your back, bring one knee across your body to massage internal organs and relieve back pain.',
-      '## Cat-Cow Pose',
-      'This flowing movement warms up the spine and can help with cramps. Move slowly for 10-15 rounds.',
-      '## Legs Up the Wall',
-      'This restorative inversion improves circulation and reduces bloating. Hold for 5-10 minutes.',
-    ],
-  },
-  '5': {
-    title: 'Hormonal Imbalance: 7 Warning Signs', cat: 'Health', by: 'Dr. Sunita Gupta', initials: 'SG', time: '7 min',
-    content: [
-      'Hormonal imbalances affect mood, metabolism, and more. Recognizing the signs early leads to better outcomes.',
-      '## 1. Irregular Periods',
-      'Cycles shorter than 21 days or longer than 35 days may indicate hormonal issues.',
-      '## 2. Persistent Acne',
-      'Hormonal acne along the jawline that worsens before periods.',
-      '## 3. Unexplained Weight Changes',
-      'Sudden gain or difficulty losing weight, especially around the midsection.',
-      '## 4. Chronic Fatigue',
-      'Exhaustion despite adequate sleep could indicate thyroid issues.',
-      '## 5. Mood Swings & Sleep Issues',
-      'Severe PMS, anxiety, or trouble sleeping that follows a cyclical pattern may be hormone-related.',
-      'If you experience several of these, consult an endocrinologist or gynecologist.',
-    ],
-  },
-  '6': {
-    title: 'Nutrition Tips During Your Period', cat: 'Nutrition', by: 'Dr. Sunita Gupta', initials: 'SG', time: '4 min',
-    content: [
-      'What you eat during your period significantly impacts how you feel.',
-      '## Foods to Embrace',
-      'Iron-rich foods (spinach, lentils) replace iron lost through menstruation. Omega-3 foods (salmon) reduce inflammation.',
-      '## Foods to Limit',
-      'Excess salt causes bloating. Caffeine worsens cramps. Processed sugar increases inflammation.',
-      '## Hydration is Key',
-      'Aim for 8-10 glasses daily. Chamomile and peppermint teas help with cramps and bloating.',
-    ],
-  },
-  '7': {
-    title: 'Mental Health and PMS Connection', cat: 'Mental Health', by: 'Dr. Priya Sharma', initials: 'PS', time: '9 min',
-    content: [
-      'The connection between your menstrual cycle and mental health is stronger than many realize.',
-      '## The Hormonal Rollercoaster',
-      'Estrogen and progesterone fluctuations directly affect serotonin and GABA, which regulate mood and sleep.',
-      '## PMS vs PMDD',
-      'While PMS affects up to 75% of women, PMDD is a severe form affecting 3-8% that causes debilitating emotional symptoms.',
-      '## Coping Strategies',
-      'Regular exercise, consistent sleep, stress management, and social support significantly reduce PMS mood changes.',
-      '## Tracking Your Patterns',
-      'Using VedaClue to track mood alongside your cycle can reveal patterns and help you prepare.',
-    ],
-  },
-};
+import { useAuthStore } from '../stores/authStore';
+import { articleAPI } from '../services/api';
+import toast from 'react-hot-toast';
 
 export default function ArticleDetailPage() {
   const nav = useNavigate();
   const { slug } = useParams();
-  const article = articleData[slug || '1'] || articleData['1'];
+  const user = useAuthStore(s => s.user);
+
+  const [article, setArticle] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [likes, setLikes] = useState(0);
+  const [dislikes, setDislikes] = useState(0);
+  const [userReaction, setUserReaction] = useState<string | null>(null);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [comments, setComments] = useState<any[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [commentLoading, setCommentLoading] = useState(false);
+
+  useEffect(() => {
+    if (!slug) return;
+    setLoading(true);
+    articleAPI.get(slug).then(res => {
+      const d = res.data.data || res.data;
+      setArticle(d);
+      setLikes(d.likes || 0);
+      setDislikes(d.dislikes || 0);
+      setUserReaction(d.userReaction || null);
+      setIsBookmarked(d.isBookmarked || false);
+      setComments(d.comments || []);
+    }).catch(() => toast.error('Article not found'))
+      .finally(() => setLoading(false));
+  }, [slug]);
+
+  const handleReaction = async (type: 'LIKE' | 'DISLIKE') => {
+    if (!article) return;
+    try {
+      const res = await articleAPI.like(article.id, type);
+      const d = res.data.data || res.data;
+      setLikes(d.likes);
+      setDislikes(d.dislikes);
+      setUserReaction(d.userReaction);
+    } catch { toast.error('Failed to react'); }
+  };
+
+  const handleBookmark = async () => {
+    if (!article) return;
+    try {
+      const res = await articleAPI.bookmark(article.id);
+      const d = res.data.data || res.data;
+      setIsBookmarked(d.bookmarked);
+      toast.success(d.bookmarked ? 'Bookmarked!' : 'Bookmark removed');
+    } catch { toast.error('Failed'); }
+  };
+
+  const handleAddComment = async () => {
+    if (!newComment.trim() || !article) return;
+    setCommentLoading(true);
+    try {
+      const res = await articleAPI.addComment(article.id, newComment.trim());
+      const d = res.data.data || res.data;
+      setComments(prev => [d, ...prev]);
+      setNewComment('');
+      toast.success('Comment added!');
+    } catch (e: any) {
+      const msg = e.response?.data?.error || 'Failed to comment';
+      toast.error(msg);
+    }
+    setCommentLoading(false);
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!article) return;
+    try {
+      await articleAPI.deleteComment(article.id, commentId);
+      setComments(prev => prev.filter(c => c.id !== commentId));
+      toast.success('Comment deleted');
+    } catch { toast.error('Failed'); }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-rose-200 border-t-rose-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!article) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-4">
+        <span className="text-5xl">📄</span>
+        <p className="text-sm font-bold text-gray-400">Article not found</p>
+        <button onClick={() => nav('/articles')} className="text-rose-500 text-xs font-bold">← Back to Articles</button>
+      </div>
+    );
+  }
+
+  const authorInitials = (article.authorName || 'VC').split(' ').map((w: string) => w[0]).join('').substring(0, 2).toUpperCase();
+  const canComment = user?.role === 'DOCTOR' || user?.role === 'ADMIN';
+
+  // Split content into paragraphs for rendering
+  const contentParts = (article.content || '').split('\n').filter((l: string) => l.trim());
 
   return (
     <div className="min-h-screen bg-white pb-10">
+      {/* Header */}
       <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-5 py-4 flex items-center gap-3 border-b border-gray-100">
         <button onClick={() => nav('/articles')} className="text-xl hover:text-rose-500 transition-colors">&#8592;</button>
-        <h1 className="text-lg font-bold">Article</h1>
+        <h1 className="text-sm font-bold text-gray-800 flex-1 truncate">{article.title}</h1>
+        <button onClick={handleBookmark} className="text-xl active:scale-90 transition-transform">
+          {isBookmarked ? '🔖' : '📑'}
+        </button>
       </div>
+
       <div className="px-5 pt-4">
-        <div className="bg-gradient-to-r from-rose-100 to-pink-100 rounded-2xl h-48 flex items-center justify-center text-6xl mb-6">&#128221;</div>
-        <span className="text-xs font-bold px-3 py-1 rounded-full bg-rose-50 text-rose-600">{article.cat}</span>
-        <h1 className="text-2xl font-bold text-gray-900 mt-3 leading-tight">{article.title}</h1>
+        {/* Cover Image or Emoji Banner */}
+        {article.coverImageUrl ? (
+          <img src={article.coverImageUrl} alt={article.title} className="w-full h-48 object-cover rounded-2xl mb-6" />
+        ) : (
+          <div className="bg-gradient-to-r from-rose-100 to-pink-100 rounded-2xl h-40 flex items-center justify-center text-5xl mb-6">
+            {article.emoji || '📝'}
+          </div>
+        )}
+
+        {/* Category badge */}
+        <span className="text-xs font-bold px-3 py-1 rounded-full bg-rose-50 text-rose-600">{article.category}</span>
+
+        {/* Title */}
+        <h1 className="text-xl font-extrabold text-gray-900 mt-3 leading-tight">{article.title}</h1>
+
+        {/* Author & Meta */}
         <div className="flex items-center gap-3 mt-4 pb-4 border-b border-gray-100">
-          <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center text-sm font-bold text-rose-600">{article.initials}</div>
-          <div>
-            <p className="text-sm font-semibold text-gray-800">{article.by}</p>
-            <p className="text-xs text-gray-400">{article.time} read</p>
+          <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center text-sm font-bold text-rose-600">
+            {article.doctor?.avatarUrl ? (
+              <img src={article.doctor.avatarUrl} className="w-full h-full rounded-full object-cover" />
+            ) : authorInitials}
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-gray-800">{article.authorName || 'VedaClue Team'}</p>
+            <p className="text-xs text-gray-400">
+              {article.readTimeMinutes || 5} min read
+              {article.publishedAt && <> · {new Date(article.publishedAt).toLocaleDateString('en', { day: 'numeric', month: 'short', year: 'numeric' })}</>}
+            </p>
+          </div>
+          <div className="flex items-center gap-1 text-[10px] text-gray-400">
+            <span>👁</span> {article.viewCount || 0}
           </div>
         </div>
-        <div className="mt-6 text-sm text-gray-600 leading-relaxed space-y-4">
-          {article.content.map((para, i) =>
+
+        {/* Like / Dislike Bar */}
+        <div className="flex items-center gap-3 mt-4 mb-6">
+          <button onClick={() => handleReaction('LIKE')}
+            className={'flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-bold active:scale-95 transition-all border-2 ' +
+              (userReaction === 'LIKE' ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'border-gray-100 bg-gray-50 text-gray-600')}>
+            <span className="text-base">👍</span> {likes}
+          </button>
+          <button onClick={() => handleReaction('DISLIKE')}
+            className={'flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-bold active:scale-95 transition-all border-2 ' +
+              (userReaction === 'DISLIKE' ? 'border-red-400 bg-red-50 text-red-700' : 'border-gray-100 bg-gray-50 text-gray-600')}>
+            <span className="text-base">👎</span> {dislikes}
+          </button>
+          <div className="flex-1" />
+          <button onClick={handleBookmark}
+            className={'px-4 py-2.5 rounded-2xl text-xs font-bold active:scale-95 transition-all border-2 ' +
+              (isBookmarked ? 'border-amber-400 bg-amber-50 text-amber-700' : 'border-gray-100 bg-gray-50 text-gray-600')}>
+            {isBookmarked ? '🔖 Saved' : '📑 Save'}
+          </button>
+        </div>
+
+        {/* Article Content */}
+        <div className="text-sm text-gray-600 leading-relaxed space-y-3">
+          {contentParts.map((para: string, i: number) =>
             para.startsWith('## ') ? (
-              <h3 key={i} className="text-base font-bold text-gray-900">{para.slice(3)}</h3>
+              <h3 key={i} className="text-base font-bold text-gray-900 mt-4">{para.slice(3)}</h3>
+            ) : para.startsWith('# ') ? (
+              <h2 key={i} className="text-lg font-extrabold text-gray-900 mt-4">{para.slice(2)}</h2>
             ) : (
               <p key={i}>{para}</p>
             )
+          )}
+        </div>
+
+        {/* Tags */}
+        {article.tags?.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-6">
+            {article.tags.map((tag: string) => (
+              <span key={tag} className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">#{tag}</span>
+            ))}
+          </div>
+        )}
+
+        {/* ─── Comments Section ─── */}
+        <div className="mt-8 pt-6 border-t border-gray-100">
+          <h3 className="text-sm font-extrabold text-gray-800 mb-4">
+            💬 Doctor Comments ({comments.length})
+          </h3>
+
+          {/* Comment Input — only for DOCTOR / ADMIN */}
+          {canComment && (
+            <div className="flex gap-2 mb-4">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+                {user?.fullName?.charAt(0) || 'D'}
+              </div>
+              <div className="flex-1 flex gap-2">
+                <input
+                  value={newComment}
+                  onChange={e => setNewComment(e.target.value)}
+                  placeholder="Add a doctor's comment..."
+                  className="flex-1 px-3 py-2 border-2 border-gray-100 rounded-xl text-xs focus:border-rose-400 focus:outline-none"
+                  onKeyDown={e => e.key === 'Enter' && handleAddComment()}
+                />
+                <button onClick={handleAddComment} disabled={commentLoading || !newComment.trim()}
+                  className="px-3 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs font-bold active:scale-95 disabled:opacity-50">
+                  {commentLoading ? '...' : 'Post'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!canComment && (
+            <p className="text-[10px] text-gray-400 mb-4 bg-gray-50 rounded-xl px-3 py-2">
+              Only verified doctors can comment on articles
+            </p>
+          )}
+
+          {/* Comments List */}
+          {comments.length === 0 ? (
+            <div className="text-center py-8">
+              <span className="text-3xl">💬</span>
+              <p className="text-xs text-gray-400 mt-2">No comments yet</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {comments.map(c => (
+                <div key={c.id} className="bg-gray-50 rounded-2xl p-3">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-[9px] font-bold">
+                      {c.user?.fullName?.charAt(0) || 'D'}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-bold text-gray-800">{c.user?.fullName || 'Doctor'}</span>
+                        {c.user?.role === 'DOCTOR' && (
+                          <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-600">Doctor</span>
+                        )}
+                        {c.user?.role === 'ADMIN' && (
+                          <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-600">Admin</span>
+                        )}
+                      </div>
+                      <span className="text-[9px] text-gray-400">
+                        {new Date(c.createdAt).toLocaleDateString('en', { day: 'numeric', month: 'short' })}
+                      </span>
+                    </div>
+                    {(c.user?.id === user?.id || user?.role === 'ADMIN') && (
+                      <button onClick={() => handleDeleteComment(c.id)}
+                        className="text-[10px] text-red-400 font-bold active:scale-95">Delete</button>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-700 leading-relaxed ml-9">{c.content}</p>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>

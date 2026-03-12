@@ -116,17 +116,115 @@ r.post('/:id/bookmark', authenticate, async (q: AuthRequest, res: Response, n: N
   } catch (e) { n(e); }
 });
 
+// ─── POST /articles/:id/like — toggle like/dislike (any authenticated user) ──
+r.post('/:id/like', authenticate, async (q: AuthRequest, res: Response, n: NextFunction) => {
+  try {
+    const uid = q.user!.id;
+    const articleId = q.params.id;
+    const type = q.body.type === 'DISLIKE' ? 'DISLIKE' : 'LIKE';
+
+    const existing = await prisma.articleLike.findUnique({
+      where: { userId_articleId: { userId: uid, articleId } },
+    });
+
+    if (existing) {
+      if (existing.type === type) {
+        // Same type → remove (un-like / un-dislike)
+        await prisma.articleLike.delete({ where: { id: existing.id } });
+        // Update counts
+        const counts = await getLikeCounts(articleId);
+        successResponse(res, { ...counts, userReaction: null }, 'Reaction removed');
+      } else {
+        // Switch type
+        await prisma.articleLike.update({ where: { id: existing.id }, data: { type } });
+        const counts = await getLikeCounts(articleId);
+        successResponse(res, { ...counts, userReaction: type }, 'Reaction updated');
+      }
+    } else {
+      await prisma.articleLike.create({ data: { userId: uid, articleId, type } });
+      const counts = await getLikeCounts(articleId);
+      successResponse(res, { ...counts, userReaction: type }, type === 'LIKE' ? 'Liked' : 'Disliked');
+    }
+  } catch (e) { n(e); }
+});
+
+// ─── GET /articles/:id/comments — get comments (public) ──
+r.get('/:id/comments', async (q: Request, res: Response, n: NextFunction) => {
+  try {
+    const comments = await prisma.articleComment.findMany({
+      where: { articleId: q.params.id },
+      orderBy: { createdAt: 'desc' },
+      include: { user: { select: { id: true, fullName: true, role: true, avatarUrl: true } } },
+    });
+    successResponse(res, comments);
+  } catch (e) { n(e); }
+});
+
+// ─── POST /articles/:id/comments — add comment (DOCTOR/ADMIN only) ──
+r.post('/:id/comments', authenticate, async (q: AuthRequest, res: Response, n: NextFunction) => {
+  try {
+    if (q.user!.role !== 'DOCTOR' && q.user!.role !== 'ADMIN') {
+      errorResponse(res, 'Only doctors can comment on articles', 403); return;
+    }
+    const { content } = q.body;
+    if (!content?.trim()) { errorResponse(res, 'Comment content is required', 400); return; }
+
+    const comment = await prisma.articleComment.create({
+      data: { userId: q.user!.id, articleId: q.params.id, content: content.trim() },
+      include: { user: { select: { id: true, fullName: true, role: true, avatarUrl: true } } },
+    });
+    successResponse(res, comment, 'Comment added', 201);
+  } catch (e) { n(e); }
+});
+
+// ─── DELETE /articles/:id/comments/:commentId — delete own comment ──
+r.delete('/:id/comments/:commentId', authenticate, async (q: AuthRequest, res: Response, n: NextFunction) => {
+  try {
+    const comment = await prisma.articleComment.findUnique({ where: { id: q.params.commentId } });
+    if (!comment) { errorResponse(res, 'Comment not found', 404); return; }
+    if (comment.userId !== q.user!.id && q.user!.role !== 'ADMIN') {
+      errorResponse(res, 'Not authorized', 403); return;
+    }
+    await prisma.articleComment.delete({ where: { id: q.params.commentId } });
+    successResponse(res, null, 'Comment deleted');
+  } catch (e) { n(e); }
+});
+
+// Helper: get like/dislike counts for an article
+async function getLikeCounts(articleId: string) {
+  const [likes, dislikes] = await Promise.all([
+    prisma.articleLike.count({ where: { articleId, type: 'LIKE' } }),
+    prisma.articleLike.count({ where: { articleId, type: 'DISLIKE' } }),
+  ]);
+  // Also update the denormalized likeCount on the article
+  await prisma.article.update({ where: { id: articleId }, data: { likeCount: likes } }).catch(() => {});
+  return { likes, dislikes };
+}
+
 // ─── GET /articles/:slug ─────────────────────────────
-r.get('/:slug', async (q: Request, res: Response, n: NextFunction) => {
+r.get('/:slug', optionalAuth, async (q: AuthRequest, res: Response, n: NextFunction) => {
   try {
     const article = await prisma.article.findUnique({
       where: { slug: q.params.slug },
-      include: { doctor: { select: { fullName: true, avatarUrl: true, specialization: true } } },
+      include: {
+        doctor: { select: { fullName: true, avatarUrl: true, specialization: true } },
+        comments: {
+          orderBy: { createdAt: 'desc' },
+          include: { user: { select: { id: true, fullName: true, role: true, avatarUrl: true } } },
+        },
+      },
     });
     if (!article) { errorResponse(res, 'Article not found', 404); return; }
     // Increment view count async (fire-and-forget)
     prisma.article.update({ where: { id: article.id }, data: { viewCount: { increment: 1 } } }).catch(() => {});
-    successResponse(res, article);
+    // Get like/dislike counts and user's reaction
+    const [likes, dislikes, userReaction] = await Promise.all([
+      prisma.articleLike.count({ where: { articleId: article.id, type: 'LIKE' } }),
+      prisma.articleLike.count({ where: { articleId: article.id, type: 'DISLIKE' } }),
+      q.user ? prisma.articleLike.findUnique({ where: { userId_articleId: { userId: q.user.id, articleId: article.id } } }) : null,
+    ]);
+    const isBookmarked = q.user ? !!(await prisma.articleBookmark.findUnique({ where: { userId_articleId: { userId: q.user.id, articleId: article.id } } })) : false;
+    successResponse(res, { ...article, likes, dislikes, userReaction: userReaction?.type || null, isBookmarked });
   } catch (e) { n(e); }
 });
 

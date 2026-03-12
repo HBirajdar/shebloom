@@ -93,6 +93,10 @@ export const articleAPI = {
   get: (slug: string) => api.get('/articles/' + slug),
   bookmark: (id: string) => api.post('/articles/' + id + '/bookmark'),
   bookmarked: () => api.get('/articles/bookmarked'),
+  like: (id: string, type: 'LIKE' | 'DISLIKE') => api.post('/articles/' + id + '/like', { type }),
+  getComments: (id: string) => api.get('/articles/' + id + '/comments'),
+  addComment: (id: string, content: string) => api.post('/articles/' + id + '/comments', { content }),
+  deleteComment: (id: string, commentId: string) => api.delete('/articles/' + id + '/comments/' + commentId),
 };
 
 export const appointmentAPI = {
