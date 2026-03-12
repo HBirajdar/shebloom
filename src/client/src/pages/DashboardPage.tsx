@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useCycleStore } from '../stores/cycleStore';
 import type { UserGoal } from '../stores/cycleStore';
-import { cycleAPI, moodAPI, userAPI, wellnessAPI, notificationAPI, doctorAPI } from '../services/api';
+import { cycleAPI, moodAPI, userAPI, wellnessAPI, notificationAPI, doctorAPI, articleAPI } from '../services/api';
 import BottomNav from '../components/BottomNav';
 import DoctorCarousel from '../components/DoctorCarousel';
 import type { Doctor as CarouselDoctor } from '../components/DoctorCarousel';
@@ -149,6 +149,7 @@ export default function DashboardPage() {
   const [carouselDoctors, setCarouselDoctors] = useState<CarouselDoctor[]>([]);
   const [doctorsLoading, setDoctorsLoading] = useState(true);
   const [predictionData, setPredictionData] = useState<any>(null);
+  const [ayurvedaData, setAyurvedaData] = useState<any>(null);
 
   const theme = phaseThemes[phase] || phaseThemes.follicular;
   // Use individual luteal phase from API (Lenton 1984), fallback to old estimate
@@ -209,6 +210,10 @@ export default function DashboardPage() {
         setPredictionData(d); // Store full prediction for advanced features
       } else { set({ hasRealData: false }); }
     }).catch(() => {}).finally(() => setDashLoading(false));
+    // Load Ayurvedic insights for personalized dashboard
+    cycleAPI.getAyurvedicInsights().then(r => {
+      setAyurvedaData(r?.data?.data || null);
+    }).catch(() => {});
     // Load today's wellness data — restore all logged items after refresh
     wellnessAPI.dailyScore().then(r => {
       const d = r.data.data;
@@ -381,9 +386,9 @@ export default function DashboardPage() {
                   <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
                     {[
                       { c: '#BE123C', l: 'Period', days: `Day 1\u2013${periodLength}` },
-                      { c: '#059669', l: 'Follicular', days: `Day ${periodLength + 1}\u2013${Math.max(1, cycleLength - 14 - 5)}` },
-                      { c: '#7C3AED', l: 'Fertile', days: `Day ${Math.max(1, cycleLength - 14 - 5)}\u2013${Math.min(cycleLength, cycleLength - 14 + 1)}` },
-                      { c: '#D97706', l: 'Luteal', days: `Day ${Math.min(cycleLength, cycleLength - 14 + 1) + 1}\u2013${cycleLength}` },
+                      { c: '#059669', l: 'Follicular', days: `Day ${periodLength + 1}\u2013${Math.max(1, fertStart - 1)}` },
+                      { c: '#7C3AED', l: 'Fertile', days: `Day ${fertStart}\u2013${fertEnd}` },
+                      { c: '#D97706', l: 'Luteal', days: `Day ${fertEnd + 1}\u2013${cycleLength}` },
                     ].map(p => (
                       <div key={p.l} className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl" style={{ backgroundColor: p.c + '15' }}>
                         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.c }} />
@@ -537,35 +542,32 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ─── Your Body Today ─── */}
+        {/* ─── Your Body Today (API-powered hormones) ─── */}
         {hasRealData && goal !== 'pregnancy' && (
           <div className="bg-white rounded-3xl p-4 shadow-lg">
             <h3 className="text-xs font-extrabold text-gray-800 mb-3">🧬 Your Body Today</h3>
-            {[
-              {
-                name: 'Estrogen', emoji: '💗',
-                level: theme.hormoneE,
-                pct: theme.hormoneE === 'Low' ? 15 : theme.hormoneE === 'Rising' ? 55 : theme.hormoneE === 'Peak' ? 90 : 35,
-                color: '#EC4899',
-              },
-              {
-                name: 'Progesterone', emoji: '🟡',
-                level: theme.hormoneP,
-                pct: theme.hormoneP === 'Low' ? 10 : theme.hormoneP === 'Rising' ? 40 : theme.hormoneP === 'High' ? 80 : 50,
-                color: '#F59E0B',
-              },
-            ].map(h => (
-              <div key={h.name} className="mb-3">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-1.5"><span className="text-xs">{h.emoji}</span><span className="text-[10px] font-bold text-gray-700">{h.name}</span></div>
-                  <span className="text-[9px] font-extrabold uppercase" style={{ color: h.color }}>{h.level}</span>
+            {(() => {
+              const h = predictionData?.hormones;
+              const hormones = [
+                { name: 'Estrogen', emoji: '💗', pct: h?.estrogen ?? (theme.hormoneE === 'Low' ? 15 : theme.hormoneE === 'Rising' ? 55 : theme.hormoneE === 'Peak' ? 90 : 35), color: '#EC4899', desc: h?.estrogen >= 70 ? 'High — skin glows, energy up' : h?.estrogen >= 40 ? 'Rising — building up' : 'Low — recovery phase' },
+                { name: 'Progesterone', emoji: '🟡', pct: h?.progesterone ?? (theme.hormoneP === 'Low' ? 10 : theme.hormoneP === 'Rising' ? 40 : theme.hormoneP === 'High' ? 80 : 50), color: '#F59E0B', desc: h?.progesterone >= 70 ? 'High — body temp up, calming' : h?.progesterone >= 30 ? 'Moderate — stabilizing' : 'Low — pre-follicular' },
+                { name: 'LH (Ovulation trigger)', emoji: '⚡', pct: h?.lh ?? 10, color: '#7C3AED', desc: h?.lh >= 70 ? 'SURGE — ovulation imminent!' : h?.lh >= 30 ? 'Rising — watch for peak' : 'Baseline' },
+                { name: 'FSH', emoji: '🧪', pct: h?.fsh ?? 15, color: '#2563EB', desc: h?.fsh >= 50 ? 'Elevated — follicle stimulation' : 'Baseline' },
+              ];
+              return hormones.map(item => (
+                <div key={item.name} className="mb-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1.5"><span className="text-xs">{item.emoji}</span><span className="text-[10px] font-bold text-gray-700">{item.name}</span></div>
+                    <span className="text-[9px] font-bold" style={{ color: item.color }}>{item.pct}%</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-2">
+                    <div className="h-2 rounded-full transition-all duration-700" style={{ width: item.pct + '%', backgroundColor: item.color }} />
+                  </div>
+                  <p className="text-[9px] text-gray-400 mt-0.5">{item.desc}</p>
                 </div>
-                <div className="w-full bg-gray-100 rounded-full h-2">
-                  <div className="h-2 rounded-full transition-all duration-700" style={{ width: h.pct + '%', backgroundColor: h.color }} />
-                </div>
-              </div>
-            ))}
-            <p className="text-[9px] text-gray-400 mt-1">Based on average cycle patterns for {phase} phase</p>
+              ));
+            })()}
+            <p className="text-[9px] text-gray-400 mt-1 italic">Estimated from your cycle day {cycleDay}, {phase} phase (Speroff & Fritz endocrinology model)</p>
           </div>
         )}
 
@@ -648,15 +650,182 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ─── Daily Tip ─── */}
-        <div className="bg-white rounded-3xl p-4 shadow-lg">
-          <h3 className="text-xs font-bold text-gray-800 mb-2">💡 Daily Tip</h3>
-          <p className="text-[11px] text-gray-600 leading-relaxed">
-            {!hasRealData && goal !== 'pregnancy' ? 'Log your first period to get personalized phase-based tips tailored to your body.' :
-             goal === 'pregnancy' ? "Stay consistent with prenatal vitamins. Your baby needs 600μg of folate daily. Also ensure you're getting enough Vitamin D — 15 minutes of morning sunlight helps!" :
-             tips[tipIdx]}
-          </p>
-        </div>
+        {/* ─── Ayurvedic Daily Insight (personalized) ─── */}
+        {ayurvedaData?.dailyTip ? (
+          <div className="rounded-3xl p-4 shadow-lg border" style={{
+            backgroundColor: ayurvedaData.dosha === 'Vata' ? '#F5F3FF' : ayurvedaData.dosha === 'Pitta' ? '#FFF7ED' : '#ECFDF5',
+            borderColor: ayurvedaData.dosha === 'Vata' ? '#DDD6FE' : ayurvedaData.dosha === 'Pitta' ? '#FED7AA' : '#A7F3D0',
+          }}>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xl">{ayurvedaData.dailyTip.emoji}</span>
+              <div className="flex-1">
+                <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: ayurvedaData.dosha === 'Vata' ? '#7C3AED' : ayurvedaData.dosha === 'Pitta' ? '#EA580C' : '#059669' }}>
+                  {ayurvedaData.dosha} • {ayurvedaData.dailyTip.category}
+                </p>
+                <p className="text-sm font-extrabold text-gray-800">{ayurvedaData.dailyTip.title}</p>
+              </div>
+            </div>
+            <p className="text-[11px] text-gray-600 leading-relaxed">{ayurvedaData.dailyTip.body}</p>
+            <button onClick={() => nav('/tracker')} className="mt-2.5 text-[10px] font-bold active:scale-95 transition-transform" style={{ color: ayurvedaData.dosha === 'Vata' ? '#7C3AED' : ayurvedaData.dosha === 'Pitta' ? '#EA580C' : '#059669' }}>
+              See full Ayurvedic insights →
+            </button>
+          </div>
+        ) : (
+          <div className="bg-white rounded-3xl p-4 shadow-lg">
+            <h3 className="text-xs font-bold text-gray-800 mb-2">💡 Daily Tip</h3>
+            <p className="text-[11px] text-gray-600 leading-relaxed">
+              {!hasRealData && goal !== 'pregnancy' ? 'Log your first period to get personalized phase-based tips tailored to your body.' :
+               goal === 'pregnancy' ? "Stay consistent with prenatal vitamins. Your baby needs 600μg of folate daily. Also ensure you're getting enough Vitamin D — 15 minutes of morning sunlight helps!" :
+               tips[tipIdx]}
+            </p>
+          </div>
+        )}
+
+        {/* ─── Ayurvedic Phase Guidance Quick View ─── */}
+        {ayurvedaData?.guidance && hasRealData && goal !== 'pregnancy' && (
+          <div className="bg-white rounded-3xl p-4 shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-extrabold text-gray-800">🌿 Ayurvedic Care — {phase} phase</h3>
+              <span className="text-[9px] px-2 py-0.5 rounded-full font-bold" style={{
+                backgroundColor: ayurvedaData.dosha === 'Vata' ? '#F5F3FF' : ayurvedaData.dosha === 'Pitta' ? '#FFF7ED' : '#ECFDF5',
+                color: ayurvedaData.dosha === 'Vata' ? '#7C3AED' : ayurvedaData.dosha === 'Pitta' ? '#EA580C' : '#059669',
+              }}>{ayurvedaData.dosha === 'Vata' ? '🌬️' : ayurvedaData.dosha === 'Pitta' ? '🔥' : '🌿'} {ayurvedaData.dosha}</span>
+            </div>
+
+            {/* Quick diet + herb highlights (first 2 each) */}
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="bg-emerald-50 rounded-xl p-2.5">
+                <p className="text-[9px] font-bold text-emerald-700 mb-1">🍽️ Eat</p>
+                {ayurvedaData.guidance.diet?.slice(0, 2).map((d, i) => (
+                  <p key={i} className="text-[10px] text-emerald-600 leading-relaxed mb-0.5">• {d.split('—')[0].trim()}</p>
+                ))}
+              </div>
+              <div className="bg-purple-50 rounded-xl p-2.5">
+                <p className="text-[9px] font-bold text-purple-700 mb-1">🌿 Herbs</p>
+                {ayurvedaData.guidance.herbs?.slice(0, 2).map((h, i) => (
+                  <p key={i} className="text-[10px] text-purple-600 leading-relaxed mb-0.5">• {h.split('—')[0].trim()}</p>
+                ))}
+              </div>
+            </div>
+
+            {/* Quick yoga + avoid */}
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="bg-indigo-50 rounded-xl p-2.5">
+                <p className="text-[9px] font-bold text-indigo-700 mb-1">🧘 Yoga</p>
+                {ayurvedaData.guidance.yoga?.slice(0, 2).map((y, i) => (
+                  <p key={i} className="text-[10px] text-indigo-600 leading-relaxed mb-0.5">• {y.split('—')[0].trim()}</p>
+                ))}
+              </div>
+              <div className="bg-red-50 rounded-xl p-2.5">
+                <p className="text-[9px] font-bold text-red-600 mb-1">⚠️ Avoid</p>
+                {ayurvedaData.guidance.avoid?.slice(0, 3).map((a, i) => (
+                  <p key={i} className="text-[10px] text-red-500 mb-0.5">• {a}</p>
+                ))}
+              </div>
+            </div>
+
+            {/* Modern science correlation */}
+            <div className="bg-blue-50 rounded-xl p-2.5 mb-2">
+              <p className="text-[9px] font-bold text-blue-700 mb-1">🔬 Science Says</p>
+              <p className="text-[10px] text-blue-600 leading-relaxed">{ayurvedaData.guidance.modernCorrelation?.slice(0, 150)}...</p>
+            </div>
+
+            <button onClick={() => { nav('/tracker'); setTimeout(() => {}, 100); }}
+              className="w-full text-center py-2 rounded-xl text-[10px] font-bold active:scale-95 transition-transform"
+              style={{
+                backgroundColor: ayurvedaData.dosha === 'Vata' ? '#F5F3FF' : ayurvedaData.dosha === 'Pitta' ? '#FFF7ED' : '#ECFDF5',
+                color: ayurvedaData.dosha === 'Vata' ? '#7C3AED' : ayurvedaData.dosha === 'Pitta' ? '#EA580C' : '#059669',
+              }}>
+              View full Ayurvedic guidance →
+            </button>
+          </div>
+        )}
+
+        {/* ─── Prediction Confidence (for data nerds) ─── */}
+        {predictionData?.confidence && hasRealData && goal !== 'pregnancy' && (
+          <div className="bg-white rounded-3xl p-4 shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-extrabold text-gray-800">📊 Prediction Confidence</h3>
+              <span className={'text-[10px] font-bold px-2 py-0.5 rounded-full ' + (predictionData.confidence.score >= 70 ? 'bg-emerald-100 text-emerald-700' : predictionData.confidence.score >= 40 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700')}>
+                {predictionData.confidence.score}% {predictionData.confidence.level.replace('_', ' ')}
+              </span>
+            </div>
+            <div className="w-full bg-gray-100 rounded-full h-2.5 mb-3">
+              <div className="h-2.5 rounded-full transition-all duration-700" style={{
+                width: predictionData.confidence.score + '%',
+                background: predictionData.confidence.score >= 70 ? 'linear-gradient(90deg,#10B981,#34D399)' : predictionData.confidence.score >= 40 ? 'linear-gradient(90deg,#F59E0B,#FBBF24)' : 'linear-gradient(90deg,#EF4444,#F87171)',
+              }} />
+            </div>
+            <div className="space-y-1">
+              {predictionData.confidence.factors?.map((f, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  <span className="text-emerald-500 text-[10px]">✓</span>
+                  <span className="text-[10px] text-gray-500">{f}</span>
+                </div>
+              ))}
+            </div>
+            {predictionData.regularityScore !== undefined && (
+              <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                <span className="text-[10px] text-gray-500">Cycle regularity</span>
+                <span className="text-[10px] font-bold text-gray-700">{predictionData.regularityScore}%</span>
+              </div>
+            )}
+            {predictionData.cycleVariability !== undefined && (
+              <div className="flex items-center justify-between mt-1">
+                <span className="text-[10px] text-gray-500">Cycle variability (SD)</span>
+                <span className="text-[10px] font-bold text-gray-700">±{predictionData.cycleVariability} days</span>
+              </div>
+            )}
+            {predictionData.lutealPhase && (
+              <div className="flex items-center justify-between mt-1">
+                <span className="text-[10px] text-gray-500">Your luteal phase</span>
+                <span className="text-[10px] font-bold text-gray-700">{predictionData.lutealPhase} days <span className="text-gray-400">(avg 12.4)</span></span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ─── Conception Quick Card (TTC users) ─── */}
+        {ayurvedaData?.conceptionGuide && hasRealData && (goal === 'fertility') && (
+          <div className="rounded-3xl p-4 shadow-lg bg-gradient-to-br from-pink-50 to-rose-50 border border-pink-200">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xl">🤰</span>
+              <div>
+                <p className="text-[9px] font-bold text-pink-500 uppercase tracking-wider">Ritu Kala Conception Guide</p>
+                <p className="text-sm font-extrabold text-gray-800">Ayurveda + Modern Science</p>
+              </div>
+            </div>
+            <p className="text-[11px] text-gray-600 leading-relaxed mb-3">{ayurvedaData.conceptionGuide.rituKala}</p>
+            <div className="bg-white/80 rounded-xl p-3 mb-2">
+              <p className="text-[9px] font-bold text-pink-600 mb-1">Today's fertility score: {ayurvedaData.conceptionGuide.currentFertilityScore}%</p>
+              <div className="w-full bg-gray-100 rounded-full h-2">
+                <div className="h-2 rounded-full" style={{
+                  width: ayurvedaData.conceptionGuide.currentFertilityScore + '%',
+                  background: ayurvedaData.conceptionGuide.currentFertilityScore >= 50 ? 'linear-gradient(90deg,#EC4899,#F43F5E)' : 'linear-gradient(90deg,#D1D5DB,#9CA3AF)',
+                }} />
+              </div>
+            </div>
+            <button onClick={() => nav('/tracker')} className="w-full text-center py-2 rounded-xl bg-pink-100 text-[10px] font-bold text-pink-700 active:scale-95 transition-transform">
+              Full conception guide →
+            </button>
+          </div>
+        )}
+
+        {/* ─── Seasonal Wisdom ─── */}
+        {ayurvedaData?.seasonalAdjustment && hasRealData && goal !== 'pregnancy' && (
+          <div className="bg-teal-50 rounded-3xl p-4 shadow-sm border border-teal-200">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg">🍃</span>
+              <div>
+                <p className="text-[9px] font-bold text-teal-500 uppercase tracking-wider">Seasonal Wisdom (Ritucharya)</p>
+                <p className="text-xs font-extrabold text-teal-800">{ayurvedaData.seasonalAdjustment.currentRitu}</p>
+              </div>
+            </div>
+            {ayurvedaData.seasonalAdjustment.adjustment?.slice(0, 2).map((adj, i) => (
+              <p key={i} className="text-[11px] text-teal-700 leading-relaxed mb-1">• {adj}</p>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ─── Sleep Picker Modal ─── */}
