@@ -3,7 +3,7 @@
 // ══════════════════════════════════════════════════════
 
 import express from 'express';
-import compression from 'compression';
+// compression removed — Railway CDN handles gzip; double-compression causes ERR_CONTENT_DECODING_FAILED
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -103,9 +103,6 @@ app.use(cors(corsOptions));
 
 // Handle preflight explicitly
 app.options('*', cors(corsOptions));
-
-// ─── Compression ────────────────────────────────────
-app.use(compression());
 
 // ─── Body Parsing ───────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
