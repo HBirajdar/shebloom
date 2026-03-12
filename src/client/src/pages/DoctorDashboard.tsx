@@ -238,11 +238,13 @@ export default function DoctorDashboard() {
 
   const handleSaveProfile = async () => {
     try {
-      await doctorDashAPI.updateProfile(profileForm);
+      // Send only editable fields, not the entire profile object
+      const { fullName, specialization, experienceYears, consultationFee, hospitalName, location, bio, languages } = profileForm;
+      await doctorDashAPI.updateProfile({ fullName, specialization, experienceYears, consultationFee, hospitalName, location, bio, languages });
       toast.success('Profile updated');
       setEditing(false);
       fetchProfile();
-    } catch (e: any) { toast.error(e.message || 'Failed to update'); }
+    } catch (e: any) { toast.error(e?.response?.data?.error || e.message || 'Failed to update'); }
   };
 
   const handleWritePrescription = async () => {

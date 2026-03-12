@@ -215,14 +215,26 @@ r.patch('/profile', async (q: AuthRequest, s: Response, n: NextFunction) => {
     if (!doctor) { errorResponse(s, 'Doctor profile not found', 404); return; }
 
     // Doctors can update their own profile fields but NOT admin-controlled fields
-    const allowed = ['fullName', 'specialization', 'experienceYears', 'consultationFee', 'bio', 'languages', 'avatarUrl', 'hospitalName', 'location'];
+    const allowed = ['fullName', 'specialization', 'bio', 'avatarUrl', 'hospitalName', 'location'];
     const data: any = {};
     for (const key of allowed) {
       if (q.body[key] !== undefined) data[key] = q.body[key];
     }
-    // Also accept frontend-friendly field names
-    if (q.body.experience !== undefined) data.experienceYears = Number(q.body.experience);
-    if (q.body.fee !== undefined) data.consultationFee = Number(q.body.fee);
+
+    // Numeric fields — coerce to correct types for Prisma
+    if (q.body.experienceYears !== undefined) data.experienceYears = parseInt(String(q.body.experienceYears), 10) || 0;
+    if (q.body.experience !== undefined) data.experienceYears = parseInt(String(q.body.experience), 10) || 0;
+    if (q.body.consultationFee !== undefined) data.consultationFee = parseFloat(String(q.body.consultationFee)) || 0;
+    if (q.body.fee !== undefined) data.consultationFee = parseFloat(String(q.body.fee)) || 0;
+
+    // Languages — ensure valid enum array
+    if (q.body.languages !== undefined) {
+      const validLangs = ['ENGLISH', 'HINDI', 'TAMIL', 'KANNADA', 'TELUGU', 'MARATHI', 'BENGALI', 'GUJARATI'];
+      const langs = Array.isArray(q.body.languages) ? q.body.languages : [];
+      data.languages = langs.filter((l: string) => validLangs.includes(l));
+    }
+
+    // Qualifications — accept comma-separated string or array
     if (q.body.qualification !== undefined) {
       data.qualifications = typeof q.body.qualification === 'string'
         ? q.body.qualification.split(',').map((s: string) => s.trim()).filter(Boolean) : [];

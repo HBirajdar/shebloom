@@ -275,14 +275,14 @@ r.post('/cod', async (q: AuthRequest, s: Response, n: NextFunction) => {
 // POST /payments/appointment-order — Create Razorpay order for doctor consultation
 r.post('/appointment-order', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
-    const { doctorId, amount } = q.body;
+    const { doctorId } = q.body;
     const uid = q.user!.id;
 
-    if (!doctorId || !amount || amount <= 0) {
-      errorResponse(s, 'Doctor ID and valid amount are required', 400); return;
+    if (!doctorId) {
+      errorResponse(s, 'Doctor ID is required', 400); return;
     }
 
-    // Verify doctor exists and fee matches
+    // Verify doctor exists
     const doctor = await prisma.doctor.findUnique({ where: { id: doctorId } });
     if (!doctor) { errorResponse(s, 'Doctor not found', 404); return; }
 
@@ -293,19 +293,30 @@ r.post('/appointment-order', async (q: AuthRequest, s: Response, n: NextFunction
       return;
     }
 
+    // Verify Razorpay credentials are configured
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      errorResponse(s, 'Payment gateway not configured. Please contact support.', 500); return;
+    }
+
     // Create Razorpay order
     const receipt = `APPT-${Date.now()}`;
-    const rzpOrder = await razorpay.orders.create({
-      amount: Math.round(fee * 100), // amount in paise
-      currency: 'INR',
-      receipt,
-      notes: {
-        type: 'appointment',
-        doctorId,
-        userId: uid,
-        doctorName: doctor.fullName,
-      },
-    });
+    let rzpOrder;
+    try {
+      rzpOrder = await razorpay.orders.create({
+        amount: Math.round(fee * 100), // amount in paise
+        currency: 'INR',
+        receipt,
+        notes: {
+          type: 'appointment',
+          doctorId: String(doctorId),
+          userId: String(uid),
+          doctorName: String(doctor.fullName || 'Doctor'),
+        },
+      });
+    } catch (rzpErr: any) {
+      console.error('[Razorpay] Order creation failed:', rzpErr?.error || rzpErr?.message || rzpErr);
+      errorResponse(s, rzpErr?.error?.description || 'Payment gateway error. Please try again later.', 502); return;
+    }
 
     successResponse(s, {
       razorpayOrderId: rzpOrder.id,

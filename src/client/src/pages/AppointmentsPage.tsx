@@ -159,6 +159,12 @@ export default function AppointmentsPage() {
       return;
     }
 
+    // Check if Razorpay SDK is loaded
+    if (!(window as any).Razorpay) {
+      toast.error('Payment gateway is loading. Please wait a moment and try again.');
+      return;
+    }
+
     // Start Razorpay payment
     setPaymentProcessing(true);
     try {
@@ -176,7 +182,7 @@ export default function AppointmentsPage() {
         key: orderData.keyId,
         amount: orderData.amount,
         currency: orderData.currency || 'INR',
-        name: 'VedaClue',
+        name: 'SheBloom',
         description: `Consultation with Dr. ${doc?.name || 'Doctor'}`,
         order_id: orderData.razorpayOrderId,
         handler: async (response: any) => {
@@ -216,7 +222,8 @@ export default function AppointmentsPage() {
       rzp.open();
     } catch (err: any) {
       setPaymentProcessing(false);
-      toast.error(err?.response?.data?.message || 'Could not initiate payment. Please try again.');
+      const msg = err?.response?.data?.error || err?.response?.data?.message || 'Could not initiate payment. Please try again.';
+      toast.error(msg);
     }
   };
 
