@@ -58,6 +58,26 @@ async function main() {
     await prisma.doctor.createMany({
       data: [
         {
+          fullName: 'Dr. Shruthi R',
+          specialization: 'Ayurvedic Women\'s Health & Wellness',
+          qualifications: ['BAMS', 'MD (Ayurveda — Streeroga & Prasuti Tantra)', 'Panchakarma Specialist', 'Certified Yoga Therapist'],
+          experienceYears: 10,
+          consultationFee: 500,
+          hospitalName: 'VedaClue Ayurveda Clinic',
+          bio: 'Dr. Shruthi R is the founder and chief Ayurvedic physician at VedaClue. With over 10 years of experience in Streeroga (Ayurvedic Gynecology), she specializes in PCOD/PCOS management, menstrual health, fertility support, and prenatal care through traditional Ayurvedic protocols. She personally formulates every product in the VedaClue range using herbs sourced from organic farms in Kerala and Karnataka. Her mission is to make authentic, science-backed Ayurveda accessible to every woman.',
+          tags: ['Ayurveda', 'PCOD', 'Fertility', 'Menstrual Health', 'Pregnancy', 'Panchakarma', 'Dosha', 'Herbal Medicine'],
+          languages: ['ENGLISH', 'HINDI', 'KANNADA', 'MARATHI'],
+          rating: 4.9,
+          totalReviews: 312,
+          isVerified: true,
+          isAvailable: true,
+          isPublished: true,
+          isChief: true,
+          isPromoted: true,
+          status: 'approved',
+          location: 'Pune, Maharashtra',
+        },
+        {
           fullName: 'Dr. Priya Sharma',
           specialization: 'Gynecologist & Obstetrician',
           qualifications: ['MBBS', 'MS (OBG)', 'Fellowship in Reproductive Medicine'],
@@ -71,6 +91,7 @@ async function main() {
           totalReviews: 234,
           isVerified: true,
           isAvailable: true,
+          isPublished: true,
         },
         {
           fullName: 'Dr. Kavita Reddy',
@@ -86,6 +107,7 @@ async function main() {
           totalReviews: 156,
           isVerified: true,
           isAvailable: true,
+          isPublished: true,
         },
         {
           fullName: 'Dr. Meena Iyer',
@@ -101,12 +123,45 @@ async function main() {
           totalReviews: 89,
           isVerified: true,
           isAvailable: true,
+          isPublished: true,
         },
       ],
     })
-    console.log('✅ 3 doctors inserted')
+    console.log('✅ 4 doctors inserted (Dr. Shruthi R as Chief)')
   } else {
     console.log(`⏭  Skipping doctors (${doctorCount} already exist)`)
+  }
+
+  // ─── ENSURE CHIEF DOCTOR EXISTS ────────────────────
+  // If doctors already existed but Dr. Shruti R isn't there yet, upsert her
+  const chiefExists = await prisma.doctor.findFirst({ where: { isChief: true } })
+  if (!chiefExists) {
+    console.log('Adding Dr. Shruthi R as Chief Doctor...')
+    await prisma.doctor.create({
+      data: {
+        fullName: 'Dr. Shruthi R',
+        specialization: 'Ayurvedic Women\'s Health & Wellness',
+        qualifications: ['BAMS', 'MD (Ayurveda — Streeroga & Prasuti Tantra)', 'Panchakarma Specialist', 'Certified Yoga Therapist'],
+        experienceYears: 10,
+        consultationFee: 500,
+        hospitalName: 'VedaClue Ayurveda Clinic',
+        bio: 'Dr. Shruthi R is the founder and chief Ayurvedic physician at VedaClue. With over 10 years of experience in Streeroga (Ayurvedic Gynecology), she specializes in PCOD/PCOS management, menstrual health, fertility support, and prenatal care through traditional Ayurvedic protocols. She personally formulates every product in the VedaClue range using herbs sourced from organic farms in Kerala and Karnataka. Her mission is to make authentic, science-backed Ayurveda accessible to every woman.',
+        tags: ['Ayurveda', 'PCOD', 'Fertility', 'Menstrual Health', 'Pregnancy', 'Panchakarma', 'Dosha', 'Herbal Medicine'],
+        languages: ['ENGLISH', 'HINDI', 'KANNADA', 'MARATHI'],
+        rating: 4.9,
+        totalReviews: 312,
+        isVerified: true,
+        isAvailable: true,
+        isPublished: true,
+        isChief: true,
+        isPromoted: true,
+        status: 'approved',
+        location: 'Pune, Maharashtra',
+      },
+    })
+    console.log('✅ Dr. Shruthi R added as Chief Doctor')
+  } else {
+    console.log(`⏭  Chief doctor already exists: ${chiefExists.fullName}`)
   }
 
   // ─── PRODUCTS ──────────────────────────────────────

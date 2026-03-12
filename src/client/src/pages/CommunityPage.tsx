@@ -35,7 +35,7 @@ const CAT_COLORS: Record<string, string> = {
 };
 
 const STORIES = [
-  { id: 's1', name: "Dr. Shruti's Tip", emoji: '👩‍⚕️', gradient: 'linear-gradient(135deg,#059669,#10B981)', new: true },
+  { id: 's1', name: "Dr. Shruthi's Tip", emoji: '👩‍⚕️', gradient: 'linear-gradient(135deg,#059669,#10B981)', new: true },
   { id: 's2', name: 'PCOS Journey', emoji: '🌿', gradient: 'linear-gradient(135deg,#7C3AED,#A78BFA)', new: true },
   { id: 's3', name: 'Pregnancy Diary', emoji: '🤰', gradient: 'linear-gradient(135deg,#EC4899,#F9A8D4)', new: false },
   { id: 's4', name: 'Period Truths', emoji: '🩸', gradient: 'linear-gradient(135deg,#E11D48,#F43F5E)', new: true },
@@ -46,12 +46,12 @@ const EXPERT_QA = [
   {
     id: 'eq1', question: 'Can I exercise during my period?',
     answer: 'Gentle exercise is actually beneficial during periods! Light yoga, walking, and stretching can reduce cramping by increasing blood flow. Avoid high-intensity workouts on Day 1–2 when flow is heaviest. Listen to your body.',
-    doctor: 'Dr. Shruti', specialty: 'Gynecologist', likes: 89,
+    doctor: 'Dr. Shruthi', specialty: 'Gynecologist', likes: 89,
   },
   {
     id: 'eq2', question: 'What\'s the difference between PCOD and PCOS?',
     answer: 'PCOD (Polycystic Ovarian Disease) is a condition where ovaries release immature eggs. PCOS (Syndrome) is more severe, involving hormonal imbalance affecting multiple body systems. Both are manageable with diet and Ayurveda.',
-    doctor: 'Dr. Shruti', specialty: 'Gynecologist', likes: 124,
+    doctor: 'Dr. Shruthi', specialty: 'Gynecologist', likes: 124,
   },
 ];
 
@@ -68,30 +68,30 @@ const WEEKLY_POLL = {
 const defaultPosts: Post[] = [
   { id: 'p1', category: 'pcod', content: 'I was diagnosed with PCOD 6 months ago. Started Shatavari and changed my diet — no sugar, no dairy. My periods are becoming regular for the first time in 3 years! Don\'t lose hope, sisters. 💚', anonymous: true, authorName: 'Anonymous', authorInitial: 'A', likes: 47, timestamp: '2h ago', isDoctor: false, isPinned: false,
     replies: [
-      { id: 'r1', content: 'This is wonderful progress! Shatavari combined with dietary changes is very effective for PCOD. I recommend also adding 30 minutes of walking daily and avoiding processed foods. Keep going!', authorName: 'Dr. Shruti', isDoctor: true, timestamp: '1h ago' },
+      { id: 'r1', content: 'This is wonderful progress! Shatavari combined with dietary changes is very effective for PCOD. I recommend also adding 30 minutes of walking daily and avoiding processed foods. Keep going!', authorName: 'Dr. Shruthi', isDoctor: true, timestamp: '1h ago' },
       { id: 'r2', content: 'Same here! 4 months in and my cycle is now 32 days instead of 45+. Diet change was the game changer for me.', authorName: 'Anonymous', isDoctor: false, timestamp: '1h ago' },
     ]},
   { id: 'p2', category: 'periods', content: 'Does anyone else get terrible cramps on day 2? I\'ve tried everything — hot water bottles, painkillers, nothing helps for more than an hour. Any ayurvedic remedies that actually work?', anonymous: true, authorName: 'Anonymous', authorInitial: 'A', likes: 32, timestamp: '4h ago', isDoctor: false, isPinned: false,
     replies: [
       { id: 'r3', content: 'Ajwain water is magic! Boil 1 tbsp ajwain in water, sip warm. Works in 15-20 minutes for me. Also try castor oil pack on lower abdomen with a hot water bottle.', authorName: 'Anonymous', isDoctor: false, timestamp: '3h ago' },
-      { id: 'r4', content: 'Severe cramps that don\'t respond to painkillers should be evaluated. It could be endometriosis. Please book a consultation and we can discuss your specific situation.', authorName: 'Dr. Shruti', isDoctor: true, timestamp: '2h ago' },
+      { id: 'r4', content: 'Severe cramps that don\'t respond to painkillers should be evaluated. It could be endometriosis. Please book a consultation and we can discuss your specific situation.', authorName: 'Dr. Shruthi', isDoctor: true, timestamp: '2h ago' },
     ]},
-  { id: 'p3', category: 'ask_doctor', content: 'Dr. Shruti, is it safe to take Ashwagandha while trying to conceive? My husband and I have been trying for 8 months.', anonymous: true, authorName: 'Anonymous', authorInitial: 'A', likes: 28, timestamp: '6h ago', isDoctor: false, isPinned: true,
+  { id: 'p3', category: 'ask_doctor', content: 'Dr. Shruthi, is it safe to take Ashwagandha while trying to conceive? My husband and I have been trying for 8 months.', anonymous: true, authorName: 'Anonymous', authorInitial: 'A', likes: 28, timestamp: '6h ago', isDoctor: false, isPinned: true,
     replies: [
-      { id: 'r5', content: 'Yes, Ashwagandha is safe and actually beneficial when TTC. It reduces cortisol which is one of the top causes of unexplained infertility. I recommend 500mg twice daily for both partners. For you, combine it with Shatavari. Please request a callback so I can create a personalized fertility protocol for you.', authorName: 'Dr. Shruti', isDoctor: true, timestamp: '5h ago' },
+      { id: 'r5', content: 'Yes, Ashwagandha is safe and actually beneficial when TTC. It reduces cortisol which is one of the top causes of unexplained infertility. I recommend 500mg twice daily for both partners. For you, combine it with Shatavari. Please request a callback so I can create a personalized fertility protocol for you.', authorName: 'Dr. Shruthi', isDoctor: true, timestamp: '5h ago' },
     ]},
   { id: 'p4', category: 'pregnancy', content: 'Just found out I\'m pregnant! 6 weeks along. Feeling nauseous all day. Any tips from moms who\'ve been through this? First time pregnancy and I\'m nervous. 🤰', anonymous: false, authorName: 'Priya M.', authorInitial: 'P', likes: 53, timestamp: '8h ago', isDoctor: false, isPinned: false,
     replies: [
       { id: 'r6', content: 'Congratulations! Ginger tea with honey helped me a lot. Also eat small meals every 2-3 hours instead of 3 big meals. It gets better after week 12!', authorName: 'Meera K.', isDoctor: false, timestamp: '7h ago' },
-      { id: 'r7', content: 'Congratulations! Nausea in first trimester is actually a good sign — strong hormones. Try ginger, vitamin B6, and keep dry crackers by bedside. Start prenatal vitamins with folic acid immediately if you haven\'t already.', authorName: 'Dr. Shruti', isDoctor: true, timestamp: '6h ago' },
+      { id: 'r7', content: 'Congratulations! Nausea in first trimester is actually a good sign — strong hormones. Try ginger, vitamin B6, and keep dry crackers by bedside. Start prenatal vitamins with folic acid immediately if you haven\'t already.', authorName: 'Dr. Shruthi', isDoctor: true, timestamp: '6h ago' },
     ]},
   { id: 'p5', category: 'mental', content: 'I feel so anxious and irritable for 10 days before my period every month. It affects my work and relationships. Is this normal or should I be worried?', anonymous: true, authorName: 'Anonymous', authorInitial: 'A', likes: 41, timestamp: '1d ago', isDoctor: false, isPinned: false,
     replies: [
-      { id: 'r8', content: '10 days of severe PMS symptoms could indicate PMDD (Premenstrual Dysphoric Disorder). This is a real medical condition, not "just PMS." Magnesium supplements, evening primrose oil, and reducing caffeine can help significantly. Please consult — there are effective treatments.', authorName: 'Dr. Shruti', isDoctor: true, timestamp: '22h ago' },
+      { id: 'r8', content: '10 days of severe PMS symptoms could indicate PMDD (Premenstrual Dysphoric Disorder). This is a real medical condition, not "just PMS." Magnesium supplements, evening primrose oil, and reducing caffeine can help significantly. Please consult — there are effective treatments.', authorName: 'Dr. Shruthi', isDoctor: true, timestamp: '22h ago' },
     ]},
   { id: 'p6', category: 'menopause', content: 'I\'m 47 and my periods have become irregular — sometimes 20 days, sometimes 45. Getting hot flashes at night. Is this perimenopause? What should I do?', anonymous: true, authorName: 'Anonymous', authorInitial: 'A', likes: 19, timestamp: '1d ago', isDoctor: false, isPinned: false,
     replies: [
-      { id: 'r9', content: 'Yes, this sounds like perimenopause. It\'s completely normal from age 40-45. Shatavari is excellent for managing symptoms naturally. For hot flashes, keep the room cool and avoid spicy food and caffeine. This transition can last 4-10 years. You\'re not alone — let\'s talk in a consultation.', authorName: 'Dr. Shruti', isDoctor: true, timestamp: '20h ago' },
+      { id: 'r9', content: 'Yes, this sounds like perimenopause. It\'s completely normal from age 40-45. Shatavari is excellent for managing symptoms naturally. For hot flashes, keep the room cool and avoid spicy food and caffeine. This transition can last 4-10 years. You\'re not alone — let\'s talk in a consultation.', authorName: 'Dr. Shruthi', isDoctor: true, timestamp: '20h ago' },
     ]},
 ];
 
@@ -134,7 +134,7 @@ export default function CommunityPage() {
     setPosts([post, ...posts]);
     setNewContent(''); setShowCompose(false);
     localStorage.setItem('sb_community_joined', '1');
-    toast.success('Posted! Dr. Shruti reviews posts daily.');
+    toast.success('Posted! Dr. Shruthi reviews posts daily.');
   };
 
   const submitReply = (postId: string) => {

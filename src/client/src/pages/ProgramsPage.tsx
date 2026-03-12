@@ -6,13 +6,13 @@ import { useChiefDoctor } from '../hooks/useChiefDoctor';
 
 const programs = [
   { id: 'pcod', title: 'PCOD/PCOS Reversal', subtitle: '90-Day Ayurvedic Protocol', emoji: '\u{1F33F}', duration: '90 days', color: '#059669', bg: '#ECFDF5',
-    desc: 'Complete lifestyle program designed by Dr. Shruti. Diet, herbs, yoga, and tracking — everything you need to manage PCOD naturally.',
+    desc: 'Complete lifestyle program designed by Dr. Shruthi. Diet, herbs, yoga, and tracking — everything you need to manage PCOD naturally.',
     who: 'Women diagnosed with PCOD/PCOS or experiencing irregular periods, acne, weight gain, or excess hair growth.',
     phases: [
       { week: '1-2', title: 'Detox & Reset', tasks: ['Eliminate sugar, dairy, processed foods', 'Start Triphala at bedtime', 'Morning warm lemon water', '30 min walk daily', 'Sleep by 10 PM'] },
       { week: '3-4', title: 'Herb Introduction', tasks: ['Start Shatavari (1 tsp with milk)', 'Add Ashwagandha (500mg twice daily)', 'Anti-inflammatory meals (turmeric, ginger)', 'Yoga: Butterfly pose, Supta Baddha Konasana', 'Track symptoms daily in app'] },
       { week: '5-8', title: 'Deep Healing', tasks: ['Continue herbs consistently', 'Add Kanchanar Guggulu (with doctor guidance)', 'Strength training 3x/week', 'Cinnamon daily (improves insulin sensitivity)', 'Reduce screen time, increase sunlight'] },
-      { week: '9-12', title: 'Sustain & Track', tasks: ['Monitor cycle regularity', 'Adjust herbs based on progress', 'Monthly check-in with Dr. Shruti', 'Maintain diet and exercise', 'Celebrate your progress!'] },
+      { week: '9-12', title: 'Sustain & Track', tasks: ['Monitor cycle regularity', 'Adjust herbs based on progress', 'Monthly check-in with Dr. Shruthi', 'Maintain diet and exercise', 'Celebrate your progress!'] },
     ],
     diet: ['No refined sugar (use jaggery, honey)', 'Minimize dairy (try almond/coconut milk)', 'Complex carbs: brown rice, oats, millets', 'Protein every meal: dal, paneer, eggs, nuts', 'Anti-inflammatory: turmeric, ginger, leafy greens', 'Cinnamon in tea daily', 'Avoid: packaged foods, white bread, maida'],
     herbs: ['Shatavari — hormone regulation', 'Ashwagandha — stress & cortisol', 'Triphala — detox & metabolism', 'Kanchanar Guggulu — cyst reduction', 'Lodhra — androgen balance', 'Guduchi — immune support'],
@@ -37,7 +37,7 @@ const programs = [
     phases: [
       { week: '1-4', title: 'Prepare & Detox', tasks: ['Both partners: stop alcohol, reduce caffeine', 'Start Shatavari + Ashwagandha', 'Folate-rich foods for both partners', 'Reduce stress: daily meditation 10 min', 'Track BBT and cervical mucus'] },
       { week: '5-8', title: 'Nourish', tasks: ['Saffron milk at bedtime', 'Dates with ghee daily', 'Pomegranate juice (improves uterine blood flow)', 'Partner: Safed Musli + zinc-rich foods', 'Time intercourse: Days 10-16 of cycle'] },
-      { week: '9-12', title: 'Optimize', tasks: ['Continue all herbs', 'BBT chart should show ovulation', 'Intercourse every 1-2 days during fertile window', 'Lie still 15 min after intercourse', 'If not pregnant, consult Dr. Shruti for next steps'] },
+      { week: '9-12', title: 'Optimize', tasks: ['Continue all herbs', 'BBT chart should show ovulation', 'Intercourse every 1-2 days during fertile window', 'Lie still 15 min after intercourse', 'If not pregnant, consult Dr. Shruthi for next steps'] },
     ],
     diet: ['Shatavari milk at bedtime', 'Dates with ghee (4-5 daily)', 'Pomegranate (improves uterine blood flow)', 'Soaked almonds (7 daily)', 'Black sesame seeds', 'A2 cow milk with turmeric', 'Avoid: excess caffeine, alcohol, soy, processed food'],
     herbs: ['Shatavari — #1 female fertility herb', 'Ashwagandha — reduces cortisol', 'Lodhra — regulates ovulation', 'Guduchi — immune balance', 'For him: Safed Musli + Shilajit'],
