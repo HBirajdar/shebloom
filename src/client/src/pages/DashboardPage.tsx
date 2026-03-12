@@ -432,13 +432,28 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* ─── Doctor/Admin Quick Access ─── */}
+        {(user?.role === 'DOCTOR' || user?.role === 'ADMIN') && (
+          <button onClick={() => nav(user?.role === 'ADMIN' ? '/admin' : '/doctor-dashboard')}
+            className="w-full flex items-center gap-3 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-3.5 shadow-lg active:scale-[0.98] transition-transform">
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl">
+              {user?.role === 'ADMIN' ? '🛡️' : '🩺'}
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-white text-sm font-extrabold">{user?.role === 'ADMIN' ? 'Admin Panel' : 'Doctor Dashboard'}</p>
+              <p className="text-white/70 text-[10px]">{user?.role === 'ADMIN' ? 'Manage users, products & doctors' : 'View appointments & patients'}</p>
+            </div>
+            <span className="text-white/80 text-sm font-bold">→</span>
+          </button>
+        )}
+
         {/* ─── Quick Actions Row 1 ─── */}
         <div className="grid grid-cols-4 gap-2.5">
           {(goal === 'periods' || goal === 'wellness' ? [
             { l: 'Tracker', p: '/tracker', bg: '#FFF1F2', e: '📅', c: '#E11D48' },
             { l: 'Ayurveda', p: '/ayurveda', bg: '#ECFDF5', e: '🌿', c: '#059669' },
             { l: 'Wellness', p: '/wellness', bg: '#FEF3C7', e: '🧘', c: '#D97706' },
-            { l: 'Articles', p: '/articles', bg: '#FFF7ED', e: '📰', c: '#EA580C' },
+            { l: 'Doctors', p: '/doctors', bg: '#EFF6FF', e: '👩‍⚕️', c: '#2563EB' },
           ] : goal === 'fertility' ? [
             { l: 'Tracker', p: '/tracker', bg: '#F5F3FF', e: '💜', c: '#7C3AED' },
             { l: 'Ayurveda', p: '/ayurveda', bg: '#ECFDF5', e: '🌿', c: '#059669' },

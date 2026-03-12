@@ -31,12 +31,12 @@ export default function BottomNav({ communityBadge }: BottomNavProps) {
                 onClick={() => nav(tab.path)}
                 className="flex flex-col items-center gap-0.5 active:scale-95 transition-all"
               >
-                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xl transition-all ${active ? 'bg-gradient-to-r from-rose-500 to-pink-500 shadow-md shadow-rose-200' : ''}`}>
-                  <span className={active ? 'brightness-0 invert' : 'grayscale opacity-40'} style={{ fontSize: 20 }}>
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xl transition-all ${active ? 'bg-gradient-to-r from-rose-500 to-pink-500 shadow-md shadow-rose-200' : 'bg-gray-50'}`}>
+                  <span className={active ? 'brightness-0 invert' : 'opacity-70'} style={{ fontSize: 20 }}>
                     {tab.emoji}
                   </span>
                 </div>
-                <span className={`font-bold transition-colors ${active ? 'text-rose-500' : 'text-gray-300'}`} style={{ fontSize: 10 }}>
+                <span className={`font-bold transition-colors ${active ? 'text-rose-500' : 'text-gray-500'}`} style={{ fontSize: 10 }}>
                   {tab.label}
                 </span>
               </button>
