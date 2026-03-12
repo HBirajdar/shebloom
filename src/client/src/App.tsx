@@ -34,6 +34,7 @@ const CheckoutPage = lazy(() => import('./pages/CheckoutPage'));
 const OrderSuccessPage = lazy(() => import('./pages/OrderSuccessPage'));
 const MyOrdersPage = lazy(() => import('./pages/MyOrdersPage'));
 const DoctorDashboard = lazy(() => import('./pages/DoctorDashboard'));
+const DoshaAssessmentPage = lazy(() => import('./pages/DoshaAssessmentPage'));
 
 // Loading spinner
 const LoadingScreen = () => (
@@ -93,6 +94,7 @@ export default function App() {
           <Route path="/appointments" element={<ProtectedRoute><AppointmentsPage /></ProtectedRoute>} />
           <Route path="/appointments/history" element={<ProtectedRoute><AppointmentHistoryPage /></ProtectedRoute>} />
           <Route path="/ayurveda" element={<ProtectedRoute><AyurvedaPage /></ProtectedRoute>} />
+          <Route path="/dosha-assessment" element={<ProtectedRoute><DoshaAssessmentPage /></ProtectedRoute>} />
           <Route path="/shop/history" element={<ProtectedRoute><ShopHistoryPage /></ProtectedRoute>} />
           <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
           <Route path="/order-success" element={<ProtectedRoute><OrderSuccessPage /></ProtectedRoute>} />

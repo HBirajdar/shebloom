@@ -2,10 +2,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { doctorDashAPI, prescriptionAPI } from '../services/api';
+import { doctorDashAPI, prescriptionAPI, doshaAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
-type Tab = 'overview' | 'appointments' | 'availability' | 'prescriptions' | 'articles' | 'profile' | 'reviews';
+type Tab = 'overview' | 'appointments' | 'availability' | 'prescriptions' | 'articles' | 'profile' | 'reviews' | 'ayurveda';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -19,6 +19,148 @@ const STATUS_COLORS: Record<string, string> = {
   CANCELLED:   'bg-red-100 text-red-600',
   NO_SHOW:     'bg-gray-100 text-gray-600',
 };
+
+// ─── Doctor Ayurveda Sub-Tab ──────────────────────────
+function DoctorAyurvedaTab() {
+  const [stats, setStats] = useState<any>(null);
+  const [selectedPatient, setSelectedPatient] = useState<string | null>(null);
+  const [patientDosha, setPatientDosha] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [clinicalForm, setClinicalForm] = useState({ primaryDosha: '', vataScore: 33, pittaScore: 34, kaphaScore: 33, notes: '' });
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    doctorDashAPI.getPatientDoshaStats().then(r => {
+      setStats(r.data?.data || null);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  const loadPatientDosha = async (userId: string) => {
+    setSelectedPatient(userId);
+    try {
+      const r = await doctorDashAPI.getPatientDosha(userId);
+      setPatientDosha(r.data?.data || null);
+    } catch { setPatientDosha(null); }
+  };
+
+  const submitClinical = async () => {
+    if (!selectedPatient || !clinicalForm.primaryDosha) return;
+    setSubmitting(true);
+    try {
+      await doctorDashAPI.submitClinicalDosha(selectedPatient, clinicalForm);
+      toast.success('Clinical dosha assessment saved!');
+      loadPatientDosha(selectedPatient);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || 'Failed to save');
+    }
+    setSubmitting(false);
+  };
+
+  const doshaEmoji = (d: string) => d?.includes('Vata') ? '🌬️' : d?.includes('Pitta') ? '🔥' : d?.includes('Kapha') ? '🌿' : '☯️';
+
+  if (loading) return <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-3 border-purple-400 border-t-transparent rounded-full" /></div>;
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-base font-extrabold text-gray-900">☯️ Patient Dosha Management</h3>
+
+      {/* Stats overview */}
+      {stats && (
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: 'Patients', value: stats.totalPatients, emoji: '👥' },
+            { label: 'Assessed', value: stats.assessedPatients, emoji: '☯️' },
+            { label: 'Verified', value: stats.verifiedPatients, emoji: '✅' },
+          ].map((s, i) => (
+            <div key={i} className="bg-white rounded-2xl p-3 shadow-sm text-center">
+              <span className="text-lg">{s.emoji}</span>
+              <p className="text-lg font-extrabold text-gray-800">{s.value}</p>
+              <p className="text-[8px] text-gray-500">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Distribution */}
+      {stats?.distribution && Object.keys(stats.distribution).length > 0 && (
+        <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <p className="text-xs font-bold text-gray-700 mb-2">Dosha Distribution</p>
+          {Object.entries(stats.distribution).map(([dosha, count]: any) => (
+            <div key={dosha} className="flex items-center gap-2 mb-1.5">
+              <span>{doshaEmoji(dosha)}</span>
+              <span className="text-[11px] text-gray-700 w-20">{dosha}</span>
+              <div className="flex-1 bg-gray-100 rounded-full h-2">
+                <div className="bg-purple-400 h-2 rounded-full" style={{ width: `${(count / stats.totalPatients) * 100}%` }} />
+              </div>
+              <span className="text-[10px] text-gray-500">{count}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Patient dosha detail (when selected from appointments) */}
+      {selectedPatient && patientDosha && (
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-purple-100">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-sm font-bold text-gray-800">{patientDosha.patient?.fullName}</p>
+              <p className="text-[10px] text-gray-500">{patientDosha.patient?.email || patientDosha.patient?.phone}</p>
+            </div>
+            <button onClick={() => setSelectedPatient(null)} className="text-gray-400 text-xs">✕</button>
+          </div>
+
+          {patientDosha.doshaProfile?.dosha ? (
+            <div className="mb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">{doshaEmoji(patientDosha.doshaProfile.dosha)}</span>
+                <div>
+                  <p className="text-sm font-bold">{patientDosha.doshaProfile.dosha}</p>
+                  <p className="text-[9px] text-gray-500">
+                    Confidence: {patientDosha.doshaProfile.confidence}% •
+                    {patientDosha.doshaProfile.verified ? ' ✅ Verified' : ' ⚠️ Self-assessed'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400 mb-3">No dosha assessment yet</p>
+          )}
+
+          {/* Clinical assessment form */}
+          <div className="border-t border-gray-100 pt-3 mt-3">
+            <p className="text-xs font-bold text-purple-700 mb-2">🩺 Clinical Prakriti Assessment</p>
+            <select value={clinicalForm.primaryDosha} onChange={e => setClinicalForm({ ...clinicalForm, primaryDosha: e.target.value })}
+              className="w-full text-sm px-3 py-2 rounded-xl border border-gray-200 mb-2">
+              <option value="">Select Primary Dosha</option>
+              <option value="VATA">Vata</option><option value="PITTA">Pitta</option><option value="KAPHA">Kapha</option>
+              <option value="VATA_PITTA">Vata-Pitta</option><option value="PITTA_KAPHA">Pitta-Kapha</option><option value="VATA_KAPHA">Vata-Kapha</option>
+              <option value="TRIDOSHIC">Tridoshic</option>
+            </select>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              {['vataScore', 'pittaScore', 'kaphaScore'].map(field => (
+                <div key={field}>
+                  <label className="text-[9px] text-gray-500 block">{field.replace('Score', '')} %</label>
+                  <input type="number" min={0} max={100} value={clinicalForm[field]}
+                    onChange={e => setClinicalForm({ ...clinicalForm, [field]: Number(e.target.value) })}
+                    className="w-full text-sm px-2 py-1.5 rounded-lg border border-gray-200" />
+                </div>
+              ))}
+            </div>
+            <textarea value={clinicalForm.notes} onChange={e => setClinicalForm({ ...clinicalForm, notes: e.target.value })}
+              placeholder="Clinical notes..." className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 mb-2 h-16 resize-none" />
+            <button onClick={submitClinical} disabled={!clinicalForm.primaryDosha || submitting}
+              className="w-full py-2.5 rounded-xl bg-purple-500 text-white text-xs font-bold disabled:opacity-40 active:scale-95 transition-transform">
+              {submitting ? 'Saving...' : 'Save Clinical Assessment'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <p className="text-[10px] text-gray-400 text-center">Select a patient from your Appointments tab, then come here to view/update their dosha profile.</p>
+    </div>
+  );
+}
 
 export default function DoctorDashboard() {
   const nav = useNavigate();
@@ -337,6 +479,7 @@ export default function DoctorDashboard() {
     { id: 'articles', label: 'Articles', emoji: '📝' },
     { id: 'profile', label: 'Profile', emoji: '👤' },
     { id: 'reviews', label: 'Reviews', emoji: '⭐' },
+    { id: 'ayurveda', label: 'Dosha', emoji: '☯️' },
   ];
 
   return (
@@ -1171,6 +1314,9 @@ export default function DoctorDashboard() {
             </>
           )
         )}
+
+        {/* ═══ PATIENT AYURVEDA / DOSHA TAB ═══ */}
+        {tab === 'ayurveda' && (<DoctorAyurvedaTab />)}
 
       </div>
 

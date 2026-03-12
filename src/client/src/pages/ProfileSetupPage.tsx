@@ -34,6 +34,14 @@ export default function ProfileSetupPage() {
     try {
       const dosha = localStorage.getItem('sb_dosha') || undefined;
       await userAPI.updateProfile({ primaryGoal: goal, cycleLength: cycle, periodLength: period, interests: sel, dosha });
+      // Migrate localStorage dosha to DB assessment
+      if (dosha) {
+        try {
+          const { doshaAPI } = await import('../services/api');
+          await doshaAPI.migrateLocal(dosha);
+          localStorage.removeItem('sb_dosha');
+        } catch {}
+      }
       if (goal) setGoal(goal as UserGoal);
       setCycleData({ cycleLength: cycle, periodLength: period });
       if (goal === 'pregnancy') setCycleData({ pregnancyWeek: pregWeek });

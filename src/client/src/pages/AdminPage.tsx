@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { adminAPI } from '../services/api';
+import { adminAPI, doshaAPI } from '../services/api';
 import ImageUpload from '../components/ImageUpload';
 
 // Adapter: normalises axios { data: { success, data: X } } → { success, data: X }
@@ -126,7 +126,163 @@ const FormCheckbox = ({ label, checked, onChange }: { label: string; checked: bo
 );
 type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'NO_SHOW' | 'CANCELLED';
 
-type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders';
+type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda';
+
+// ─── Ayurveda Admin Sub-Tab ────────────────────────────
+function AyurvedaAdminTab() {
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [subTab, setSubTab] = useState<'analytics' | 'profiles' | 'questions'>('analytics');
+  const [loading, setLoading] = useState(true);
+  const [profileFilter, setProfileFilter] = useState('');
+  const [verifiedFilter, setVerifiedFilter] = useState('');
+
+  useEffect(() => {
+    setLoading(true);
+    if (subTab === 'analytics') {
+      wrap(adminAPI.getDoshaAnalytics()).then(r => { setAnalytics(r.data); setLoading(false); }).catch(() => setLoading(false));
+    } else if (subTab === 'profiles') {
+      const params: any = { page: 1, limit: 50 };
+      if (profileFilter) params.dosha = profileFilter;
+      if (verifiedFilter) params.verified = verifiedFilter;
+      wrap(adminAPI.getDoshaProfiles(params)).then(r => { setProfiles(r.data?.profiles || []); setLoading(false); }).catch(() => setLoading(false));
+    } else {
+      wrap(adminAPI.getDoshaQuestions()).then(r => { setQuestions(r.data || []); setLoading(false); }).catch(() => setLoading(false));
+    }
+  }, [subTab, profileFilter, verifiedFilter]);
+
+  const doshaEmoji = (d: string) => d?.includes('VATA') ? '🌬️' : d?.includes('PITTA') ? '🔥' : d?.includes('KAPHA') ? '🌿' : '☯️';
+
+  return (<>
+    <h3 className="text-base font-extrabold text-gray-900 mb-3">☯️ Ayurveda Management</h3>
+    {/* Sub-tabs */}
+    <div className="flex gap-2 mb-4">
+      {(['analytics', 'profiles', 'questions'] as const).map(t => (
+        <button key={t} onClick={() => setSubTab(t)} className={`px-3 py-1.5 rounded-full text-[10px] font-bold ${subTab === t ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600'}`}>
+          {t === 'analytics' ? '📊 Analytics' : t === 'profiles' ? '👥 Dosha Profiles' : '❓ Questions'}
+        </button>
+      ))}
+    </div>
+
+    {loading ? (
+      <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-3 border-amber-400 border-t-transparent rounded-full" /></div>
+    ) : subTab === 'analytics' && analytics ? (
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { label: 'Total Users', value: analytics.totalUsers, emoji: '👥' },
+            { label: 'Assessed', value: analytics.assessedUsers, emoji: '☯️' },
+            { label: 'Verified (Dr/Admin)', value: analytics.verifiedUsers, emoji: '✅' },
+            { label: 'Unassessed', value: analytics.unassessedUsers, emoji: '❓' },
+          ].map((s, i) => (
+            <div key={i} className="bg-white rounded-2xl p-4 shadow-sm text-center">
+              <span className="text-xl">{s.emoji}</span>
+              <p className="text-lg font-extrabold text-gray-800 mt-1">{s.value}</p>
+              <p className="text-[9px] text-gray-500">{s.label}</p>
+            </div>
+          ))}
+        </div>
+        <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <p className="text-xs font-bold text-gray-700 mb-2">Dosha Distribution</p>
+          {analytics.doshaDistribution?.map((d: any) => (
+            <div key={d.dosha} className="flex items-center gap-2 mb-2">
+              <span>{doshaEmoji(d.dosha)}</span>
+              <span className="text-[11px] font-medium text-gray-700 w-24">{d.dosha}</span>
+              <div className="flex-1 bg-gray-100 rounded-full h-2">
+                <div className="bg-amber-400 h-2 rounded-full" style={{ width: `${d.percentage}%` }} />
+              </div>
+              <span className="text-[10px] text-gray-500 w-16 text-right">{d.count} ({d.percentage}%)</span>
+            </div>
+          ))}
+        </div>
+        <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <p className="text-xs font-bold text-gray-700 mb-2">Assessment Types</p>
+          {analytics.assessmentTypeDistribution?.map((a: any) => (
+            <div key={a.type} className="flex justify-between text-[11px] text-gray-600 mb-1">
+              <span>{a.type === 'SELF_QUICK' ? '🔹 Quick Quiz' : a.type === 'SELF_FULL' ? '🔸 Full Assessment' : a.type === 'DOCTOR_CLINICAL' ? '🩺 Doctor Clinical' : '🔧 Admin Override'}</span>
+              <span className="font-bold">{a.count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    ) : subTab === 'profiles' ? (
+      <div className="space-y-3">
+        <div className="flex gap-2 mb-2">
+          <select value={profileFilter} onChange={e => setProfileFilter(e.target.value)} className="text-[10px] px-2 py-1 rounded-lg border border-gray-200 bg-white">
+            <option value="">All Doshas</option>
+            <option value="VATA">Vata</option><option value="PITTA">Pitta</option><option value="KAPHA">Kapha</option>
+            <option value="VATA_PITTA">Vata-Pitta</option><option value="PITTA_KAPHA">Pitta-Kapha</option><option value="VATA_KAPHA">Vata-Kapha</option>
+          </select>
+          <select value={verifiedFilter} onChange={e => setVerifiedFilter(e.target.value)} className="text-[10px] px-2 py-1 rounded-lg border border-gray-200 bg-white">
+            <option value="">All</option><option value="true">Verified</option><option value="false">Unverified</option>
+          </select>
+        </div>
+        {profiles.length === 0 ? (
+          <p className="text-center text-sm text-gray-400 py-8">No profiles found</p>
+        ) : profiles.map((p: any) => (
+          <div key={p.id} className="bg-white rounded-2xl p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-gray-800">{p.user?.fullName || 'Unknown'}</p>
+                <p className="text-[10px] text-gray-500">{p.user?.email || p.user?.phone || ''}</p>
+              </div>
+              <div className="text-right">
+                <span className="text-lg">{doshaEmoji(p.doshaType)}</span>
+                <p className="text-[10px] font-bold text-gray-700">{p.dosha || 'Not set'}</p>
+                {p.doshaVerified ? (
+                  <span className="text-[8px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold">✅ Verified</span>
+                ) : (
+                  <span className="text-[8px] bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full font-bold">Unverified</span>
+                )}
+              </div>
+            </div>
+            {p.vataScore != null && (
+              <div className="flex gap-2 mt-2">
+                {[{ n: 'V', s: p.vataScore, c: 'bg-indigo-200' }, { n: 'P', s: p.pittaScore, c: 'bg-orange-200' }, { n: 'K', s: p.kaphaScore, c: 'bg-emerald-200' }].map(d => (
+                  <div key={d.n} className="flex-1">
+                    <div className="flex justify-between text-[8px] text-gray-500"><span>{d.n}</span><span>{d.s}%</span></div>
+                    <div className="w-full bg-gray-100 rounded-full h-1.5"><div className={`${d.c} h-1.5 rounded-full`} style={{ width: `${d.s}%` }} /></div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {p.doshaAssessments?.[0] && (
+              <p className="text-[9px] text-gray-400 mt-1">Last: {p.doshaAssessments[0].assessmentType} • {new Date(p.doshaAssessments[0].createdAt).toLocaleDateString()}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    ) : subTab === 'questions' ? (
+      <div className="space-y-3">
+        <p className="text-[10px] text-gray-500">{questions.length} questions in quiz bank</p>
+        {questions.map((q: any, i: number) => (
+          <div key={q.id} className="bg-white rounded-2xl p-4 shadow-sm">
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <p className="text-[10px] text-amber-600 font-bold uppercase">{q.questionCategory} • Weight: {q.weight}</p>
+                <p className="text-sm font-medium text-gray-800 mt-1">{q.questionText}</p>
+              </div>
+              <span className={`text-[8px] px-2 py-0.5 rounded-full font-bold ${q.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                {q.isActive ? 'Active' : 'Inactive'}
+              </span>
+            </div>
+            <div className="mt-2 space-y-1">
+              {(q.options || []).map((opt: any, j: number) => (
+                <div key={j} className="flex items-center gap-2 text-[10px] text-gray-600 bg-gray-50 rounded-lg px-2 py-1">
+                  <span className="flex-1">{opt.label}</span>
+                  <span className="text-indigo-500">V:{opt.vataScore}</span>
+                  <span className="text-orange-500">P:{opt.pittaScore}</span>
+                  <span className="text-emerald-500">K:{opt.kaphaScore}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : null}
+  </>);
+}
 
 export default function AdminPage() {
   const nav = useNavigate();
@@ -767,6 +923,7 @@ export default function AdminPage() {
     { id: 'analytics_doctors', icon: '\u{1FA7A}', label: 'Doc Stats' },
     { id: 'orders', icon: '\u{1F6D2}', label: 'Orders' },
     { id: 'prescriptions', icon: '\u{1F48A}', label: 'Rx' },
+    { id: 'ayurveda', icon: '☯️', label: 'Ayurveda' },
   ];
 
   const roleBadge = (role: string) => {
@@ -1597,6 +1754,9 @@ export default function AdminPage() {
               </div>
             </>)}
           </>)}
+
+          {/* ════════ AYURVEDA MANAGEMENT ════════ */}
+          {tab === 'ayurveda' && (<AyurvedaAdminTab />)}
 
           {/* ════════ ADD PRODUCT ════════ */}
           {tab === 'add_product' && (<>

@@ -69,6 +69,23 @@ enum Language {
   GUJARATI
 }
 
+enum DoshaType {
+  VATA
+  PITTA
+  KAPHA
+  VATA_PITTA
+  PITTA_KAPHA
+  VATA_KAPHA
+  TRIDOSHIC
+}
+
+enum AssessmentType {
+  SELF_QUICK     // 3-question onboarding quiz
+  SELF_FULL      // 20+ question full assessment
+  DOCTOR_CLINICAL // Doctor's clinical Prakriti assessment
+  ADMIN_OVERRIDE  // Admin verification/override
+}
+
 // ─── USER ───────────────────────────────────────────
 
 model User {
@@ -135,12 +152,94 @@ model UserProfile {
   pregnancyWeek       Int?
   contraceptiveMethod String?
   dosha               String?   // Ayurvedic constitution: Vata, Pitta, Kapha
+  doshaType           DoshaType? // Structured dosha (supports dual doshas)
+  vataScore           Float?    // 0-100 percentage from assessment
+  pittaScore          Float?    // 0-100 percentage from assessment
+  kaphaScore          Float?    // 0-100 percentage from assessment
+  doshaConfidence     Float?    // 0-100 assessment confidence
+  doshaVerified       Boolean   @default(false) // Verified by doctor/admin
+  doshaVerifiedBy     String?   // Doctor/Admin userId who verified
+  doshaVerifiedAt     DateTime?
+  locationLatitude    Float?
+  locationLongitude   Float?
+  city                String?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  doshaAssessments  DoshaAssessment[]
 
   @@map("user_profiles")
+}
+
+// ─── DOSHA ASSESSMENT ──────────────────────────────
+// Stores each dosha assessment (self-quiz, doctor clinical, admin override)
+// Multiple assessments per user — only one active at a time
+
+model DoshaAssessment {
+  id               String         @id @default(cuid())
+  userId           String
+  profileId        String
+  assessmentType   AssessmentType @default(SELF_QUICK)
+  answers          Json           // Array of {questionId, selectedOptionIndex, vataScore, pittaScore, kaphaScore}
+  primaryDosha     DoshaType
+  secondaryDosha   DoshaType?
+  vataScore        Float          // 0-100 percentage
+  pittaScore       Float          // 0-100 percentage
+  kaphaScore       Float          // 0-100 percentage
+  confidence       Float          @default(30) // 0-100, higher for doctor assessments
+  isActive         Boolean        @default(true)
+  assessedBy       String?        // Doctor/Admin userId who performed this
+  assessedByName   String?        // Name of assessor for display
+  verificationNotes String?       // Doctor/Admin notes
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  profile UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive])
+  @@index([profileId])
+  @@map("dosha_assessments")
+}
+
+// ─── DOSHA QUESTIONS ───────────────────────────────
+// Admin-manageable question bank for Prakriti assessment
+
+model DoshaQuestion {
+  id               String   @id @default(cuid())
+  questionText     String
+  questionCategory String   // body_type, digestion, sleep, stress, skin, menstrual, emotional, energy, appetite, climate
+  options          Json     // Array of {label, vataScore, pittaScore, kaphaScore}
+  weight           Float    @default(1.0) // Diagnostic weight
+  orderIndex       Int      @default(0)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([isActive, orderIndex])
+  @@map("dosha_questions")
+}
+
+// ─── USER WEATHER / LOCATION ──────────────────────
+// Cached weather data per user location for Ayurvedic seasonal adjustments
+
+model UserWeatherCache {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  latitude         Float
+  longitude        Float
+  city             String?
+  country          String?
+  temperature      Float?    // Celsius
+  humidity         Float?    // Percentage
+  weatherCondition String?   // clear, clouds, rain, snow, etc.
+  windSpeed        Float?    // m/s
+  description      String?   // "light rain", "clear sky"
+  lastFetchedAt    DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@map("user_weather_cache")
 }
 
 model RefreshToken {

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useCycleStore } from '../stores/cycleStore';
-import { userAPI } from '../services/api';
+import { userAPI, doshaAPI } from '../services/api';
 import { api } from '../services/api';
 import BottomNav from '../components/BottomNav';
 import toast from 'react-hot-toast';
@@ -101,7 +101,11 @@ export default function ProfilePage() {
   const avatarInputRef = (typeof window !== 'undefined') ? document.createElement('input') : null;
   if (avatarInputRef) { avatarInputRef.type = 'file'; avatarInputRef.accept = 'image/jpeg,image/png,image/webp'; }
 
-  const dosha = localStorage.getItem('sb_dosha') || '';
+  const [doshaData, setDoshaData] = useState<any>(null);
+  useEffect(() => {
+    doshaAPI.getProfile().then(r => setDoshaData(r.data.data)).catch(() => {});
+  }, []);
+  const dosha = doshaData?.dosha || localStorage.getItem('sb_dosha') || '';
   const doshaInfo = DOSHA_INFO[dosha];
   const streakDays = Number(localStorage.getItem('sb_streak') || '0');
   const cyclesTracked = Number(localStorage.getItem('sb_cycles_count') || (hasRealData ? 1 : 0));

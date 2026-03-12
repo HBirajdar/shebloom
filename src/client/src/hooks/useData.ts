@@ -245,10 +245,14 @@ export function useAppInit() {
           authStore.setUser({ ...user, fullName: profile.fullName || user.fullName, email: profile.email || user.email });
         }
 
-        // Sync dosha from localStorage to backend if not yet persisted
+        // Migrate localStorage dosha to DB assessment system
         const localDosha = localStorage.getItem('sb_dosha');
-        if (localDosha && profile?.profile && !profile.profile.dosha) {
-          try { await userAPI.updateProfile({ dosha: localDosha }); } catch {}
+        if (localDosha) {
+          try {
+            const { doshaAPI } = await import('../services/api');
+            await doshaAPI.migrateLocal(localDosha);
+            localStorage.removeItem('sb_dosha'); // Clean up after migration
+          } catch {}
         }
 
         // Fetch cycle predictions

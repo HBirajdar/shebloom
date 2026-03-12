@@ -23,6 +23,7 @@
 
 import prisma from '../config/database';
 import { cacheGet, cacheSet, cacheDel } from '../config/redis';
+import weatherService from './weather.service';
 
 // ─── Day-specific conception probabilities (Wilcox et al. 1995) ──
 // Day relative to ovulation → probability of conception from single act
@@ -735,47 +736,90 @@ export class CycleService {
     });
     const symptomsList = recentSymptoms.flatMap(s => s.symptoms);
 
-    // ── Dosha-Phase guidance ─────────────────────────────
-    const doshaGuidance = DOSHA_PHASE_GUIDANCE[dosha]?.[phase] || DOSHA_PHASE_GUIDANCE.Vata.follicular;
+    // ── Resolve dosha for guidance lookup ─────────────────
+    // For dual doshas like "Vata-Pitta", get guidance from primary constituent
+    const guidanceDosha = dosha.includes('-') ? dosha.split('-')[0].trim() : (dosha === 'Tridoshic' ? 'Vata' : dosha);
+    const doshaGuidance = DOSHA_PHASE_GUIDANCE[guidanceDosha]?.[phase] || DOSHA_PHASE_GUIDANCE.Vata.follicular;
+
+    // ── Dual dosha blended guidance ──────────────────────
+    const isDualDosha = dosha.includes('-');
+    let blendedGuidance = null;
+    if (isDualDosha) {
+      const [d1, d2] = dosha.split('-').map(d => d.trim());
+      const g1 = DOSHA_PHASE_GUIDANCE[d1]?.[phase];
+      const g2 = DOSHA_PHASE_GUIDANCE[d2]?.[phase];
+      if (g1 && g2) {
+        blendedGuidance = {
+          dominantDosha: `${g1.dominantDosha} | ${g2.dominantDosha}`,
+          imbalanceRisk: `${d1}: ${g1.imbalanceRisk} | ${d2}: ${g2.imbalanceRisk}`,
+          diet: [...g1.diet.slice(0, 3), ...g2.diet.slice(0, 3)],
+          herbs: [...g1.herbs.slice(0, 2), ...g2.herbs.slice(0, 2)],
+          yoga: [...g1.yoga.slice(0, 2), ...g2.yoga.slice(0, 2)],
+          lifestyle: [...g1.lifestyle.slice(0, 2), ...g2.lifestyle.slice(0, 2)],
+          avoid: [...new Set([...g1.avoid, ...g2.avoid])],
+          modernCorrelation: `${g1.modernCorrelation} | ${g2.modernCorrelation}`,
+        };
+      }
+    }
 
     // ── Conception guidance if TTC ───────────────────────
     const conceptionGuide = (primaryGoal === 'fertility' || primaryGoal === 'ttc')
-      ? CONCEPTION_GUIDANCE[dosha] || CONCEPTION_GUIDANCE.Vata
+      ? CONCEPTION_GUIDANCE[guidanceDosha] || CONCEPTION_GUIDANCE.Vata
       : null;
 
     // ── Symptom interpretation ───────────────────────────
     const symptomInsights = symptomsList.length > 0
-      ? interpretSymptomsForDosha(dosha, symptomsList, phase)
+      ? interpretSymptomsForDosha(guidanceDosha, symptomsList, phase)
       : [];
 
     // ── Dynamic daily tip based on cycle day + dosha ─────
-    const dailyTip = generateDailyTip(dosha, phase, cycleDay, ovulationDay, cycleLength, primaryGoal);
+    const dailyTip = generateDailyTip(guidanceDosha, phase, cycleDay, ovulationDay, cycleLength, primaryGoal);
 
     // ── Dosha balance score (0-100) ──────────────────────
-    // Based on how well symptoms align with balanced dosha
-    const doshaBalance = computeDoshaBalance(dosha, symptomsList, phase);
+    const doshaBalance = computeDoshaBalance(guidanceDosha, symptomsList, phase);
 
-    // ── Seasonal (Ritu) adjustment ───────────────────────
-    // Ayurveda adjusts recommendations by season
-    const seasonalAdjustment = getSeasonalAdjustment(dosha);
+    // ── Weather-based adjustment (real weather first, fallback to season) ──
+    let weatherInsight = null;
+    let seasonalAdjustment = getSeasonalAdjustment(guidanceDosha); // fallback
+    try {
+      const weather = await weatherService.getUserWeather(userId);
+      if (weather) {
+        weatherInsight = weatherService.getWeatherAdjustedRecommendations(dosha, weather);
+      }
+    } catch { /* silently fall back to seasonal */ }
+
+    // ── Dosha score details from profile ──────────────────
+    const p = profile as any;
+    const doshaScores = (p?.vataScore != null) ? {
+      vata: p.vataScore,
+      pitta: p.pittaScore,
+      kapha: p.kaphaScore,
+      confidence: p.doshaConfidence,
+      verified: p.doshaVerified,
+      verifiedBy: p.doshaVerifiedBy,
+    } : null;
+
+    const activeGuidance = blendedGuidance || {
+      dominantDosha: doshaGuidance.dominantDosha,
+      imbalanceRisk: doshaGuidance.imbalanceRisk,
+      diet: doshaGuidance.diet,
+      herbs: doshaGuidance.herbs,
+      yoga: doshaGuidance.yoga,
+      lifestyle: doshaGuidance.lifestyle,
+      avoid: doshaGuidance.avoid,
+      modernCorrelation: doshaGuidance.modernCorrelation,
+    };
 
     const result = {
       dosha,
-      doshaDescription: getDoshaDescription(dosha),
+      isDualDosha,
+      doshaScores,
+      doshaDescription: getDoshaDescription(guidanceDosha),
       phase,
       cycleDay,
 
-      // Core Ayurvedic guidance for current phase
-      guidance: {
-        dominantDosha: doshaGuidance.dominantDosha,
-        imbalanceRisk: doshaGuidance.imbalanceRisk,
-        diet: doshaGuidance.diet,
-        herbs: doshaGuidance.herbs,
-        yoga: doshaGuidance.yoga,
-        lifestyle: doshaGuidance.lifestyle,
-        avoid: doshaGuidance.avoid,
-        modernCorrelation: doshaGuidance.modernCorrelation,
-      },
+      // Core Ayurvedic guidance for current phase (blended for dual doshas)
+      guidance: activeGuidance,
 
       // Daily personalized tip
       dailyTip,
@@ -797,8 +841,11 @@ export class CycleService {
       // Dosha balance assessment
       doshaBalance,
 
-      // Seasonal recommendations
-      seasonalAdjustment,
+      // Weather-based recommendations (real-time if available)
+      weatherInsight,
+
+      // Seasonal recommendations (fallback when no weather data)
+      seasonalAdjustment: weatherInsight ? null : seasonalAdjustment,
 
       // Research references
       references: [

@@ -8,6 +8,7 @@ import prisma from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { requireDoctor } from '../middleware/roles.middleware';
 import { successResponse, errorResponse } from '../utils/response.utils';
+import doshaService from '../services/dosha.service';
 
 const r = Router();
 r.use(authenticate, requireDoctor);
@@ -490,6 +491,88 @@ r.delete('/articles/:id', async (q: AuthRequest, s: Response, n: NextFunction) =
 
     await prisma.article.update({ where: { id: q.params.id }, data: { status: 'ARCHIVED' } });
     successResponse(s, null, 'Delete request sent to admin for approval');
+  } catch (e) { n(e); }
+});
+
+// ══════════════════════════════════════════════════════════════════
+// PATIENT DOSHA / AYURVEDA — Doctor can view & update patient dosha
+// ══════════════════════════════════════════════════════════════════
+
+// ─── GET /doctor/patients/:userId/dosha — Patient dosha profile ──
+r.get('/patients/:userId/dosha', async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const doctor = await getDoctorProfile(q.user!.id);
+    if (!doctor) { errorResponse(s, 'Doctor profile not found', 404); return; }
+
+    // Verify doctor has appointment with this patient
+    const hasAppointment = await prisma.appointment.findFirst({
+      where: { doctorId: doctor.id, userId: q.params.userId },
+    });
+    if (!hasAppointment) { errorResponse(s, 'No appointment history with this patient', 403); return; }
+
+    const profile = await doshaService.getDoshaProfile(q.params.userId);
+    const history = await doshaService.getAssessmentHistory(q.params.userId);
+    const patient = await prisma.user.findUnique({
+      where: { id: q.params.userId },
+      select: { id: true, fullName: true, email: true, phone: true, dateOfBirth: true },
+    });
+
+    successResponse(s, { patient, doshaProfile: profile, assessmentHistory: history });
+  } catch (e) { n(e); }
+});
+
+// ─── POST /doctor/patients/:userId/dosha/clinical — Doctor clinical assessment ──
+r.post('/patients/:userId/dosha/clinical', async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const { primaryDosha, secondaryDosha, vataScore, pittaScore, kaphaScore, notes } = q.body;
+    if (!primaryDosha || vataScore == null || pittaScore == null || kaphaScore == null) {
+      errorResponse(s, 'primaryDosha, vataScore, pittaScore, kaphaScore are required', 400); return;
+    }
+
+    const result = await doshaService.doctorAssessment(q.user!.id, q.params.userId, {
+      primaryDosha, secondaryDosha, vataScore, pittaScore, kaphaScore, notes,
+    });
+    successResponse(s, result, 'Clinical dosha assessment recorded');
+  } catch (e: any) {
+    if (e.message.includes('No appointment')) { errorResponse(s, e.message, 403); return; }
+    if (e.message.includes('Doctor profile')) { errorResponse(s, e.message, 404); return; }
+    n(e);
+  }
+});
+
+// ─── GET /doctor/patients/dosha-stats — Dosha distribution across doctor's patients ──
+r.get('/patients-dosha-stats', async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const doctor = await getDoctorProfile(q.user!.id);
+    if (!doctor) { errorResponse(s, 'Doctor profile not found', 404); return; }
+
+    // Get unique patient IDs from appointments
+    const appointments = await prisma.appointment.findMany({
+      where: { doctorId: doctor.id },
+      select: { userId: true },
+      distinct: ['userId'],
+    });
+    const patientIds = appointments.map(a => a.userId);
+
+    const profiles = await prisma.userProfile.findMany({
+      where: { userId: { in: patientIds } },
+      select: { dosha: true, doshaVerified: true } as any,
+    });
+
+    const distribution: Record<string, number> = {};
+    let verified = 0;
+    for (const p of profiles) {
+      const d = (p as any).dosha || 'Unknown';
+      distribution[d] = (distribution[d] || 0) + 1;
+      if ((p as any).doshaVerified) verified++;
+    }
+
+    successResponse(s, {
+      totalPatients: patientIds.length,
+      assessedPatients: profiles.filter((p: any) => p.dosha).length,
+      verifiedPatients: verified,
+      distribution,
+    });
   } catch (e) { n(e); }
 });
 

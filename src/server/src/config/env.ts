@@ -24,6 +24,7 @@ const envSchema = z.object({
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   ENCRYPTION_KEY: z.string().optional(),
+  OPENWEATHER_API_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

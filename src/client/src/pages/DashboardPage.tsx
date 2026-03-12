@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useCycleStore } from '../stores/cycleStore';
 import type { UserGoal } from '../stores/cycleStore';
-import { cycleAPI, moodAPI, userAPI, wellnessAPI, notificationAPI, doctorAPI, articleAPI } from '../services/api';
+import { cycleAPI, moodAPI, userAPI, wellnessAPI, notificationAPI, doctorAPI, articleAPI, weatherAPI } from '../services/api';
 import BottomNav from '../components/BottomNav';
 import DoctorCarousel from '../components/DoctorCarousel';
 import type { Doctor as CarouselDoctor } from '../components/DoctorCarousel';
@@ -214,6 +214,16 @@ export default function DashboardPage() {
     cycleAPI.getAyurvedicInsights().then(r => {
       setAyurvedaData(r?.data?.data || null);
     }).catch(() => {});
+    // Auto-detect location for weather-based Ayurvedic adjustments
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          weatherAPI.saveLocation(pos.coords.latitude, pos.coords.longitude).catch(() => {});
+        },
+        () => {}, // User denied — silently skip, will use seasonal fallback
+        { timeout: 5000, maximumAge: 30 * 60 * 1000 }
+      );
+    }
     // Load today's wellness data — restore all logged items after refresh
     wellnessAPI.dailyScore().then(r => {
       const d = r.data.data;
@@ -811,8 +821,31 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ─── Seasonal Wisdom ─── */}
-        {ayurvedaData?.seasonalAdjustment && hasRealData && goal !== 'pregnancy' && (
+        {/* ─── Weather-Based Ayurvedic Wisdom ─── */}
+        {ayurvedaData?.weatherInsight && hasRealData && goal !== 'pregnancy' && (
+          <div className="bg-sky-50 rounded-3xl p-4 shadow-sm border border-sky-200">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg">{ayurvedaData.weatherInsight.weather?.condition === 'rain' ? '🌧️' : ayurvedaData.weatherInsight.weather?.temperature > 30 ? '☀️' : ayurvedaData.weatherInsight.weather?.temperature < 15 ? '❄️' : '🌤️'}</span>
+              <div>
+                <p className="text-[9px] font-bold text-sky-500 uppercase tracking-wider">Weather-Based Ayurveda</p>
+                <p className="text-xs font-extrabold text-sky-800">
+                  {ayurvedaData.weatherInsight.weather?.city && `${ayurvedaData.weatherInsight.weather.city} • `}
+                  {ayurvedaData.weatherInsight.weather?.temperature}°C • {ayurvedaData.weatherInsight.weather?.description}
+                </p>
+              </div>
+            </div>
+            <p className="text-[10px] text-sky-600 font-semibold mb-1">Dosha risk: {ayurvedaData.weatherInsight.dominantDosha} ({ayurvedaData.weatherInsight.riskLevel})</p>
+            {ayurvedaData.weatherInsight.adjustments?.slice(0, 2).map((adj, i) => (
+              <p key={i} className="text-[11px] text-sky-700 leading-relaxed mb-1">• {adj}</p>
+            ))}
+            {ayurvedaData.weatherInsight.dietTips?.slice(0, 1).map((t, i) => (
+              <p key={i} className="text-[10px] text-emerald-600 mt-1">🍽️ {t}</p>
+            ))}
+          </div>
+        )}
+
+        {/* ─── Seasonal Wisdom (fallback when no weather) ─── */}
+        {!ayurvedaData?.weatherInsight && ayurvedaData?.seasonalAdjustment && hasRealData && goal !== 'pregnancy' && (
           <div className="bg-teal-50 rounded-3xl p-4 shadow-sm border border-teal-200">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-lg">🍃</span>
@@ -825,6 +858,20 @@ export default function DashboardPage() {
               <p key={i} className="text-[11px] text-teal-700 leading-relaxed mb-1">• {adj}</p>
             ))}
           </div>
+        )}
+
+        {/* ─── Dosha Assessment CTA ─── */}
+        {ayurvedaData && (!ayurvedaData.doshaScores || ayurvedaData.doshaScores?.confidence < 60) && (
+          <button onClick={() => nav('/dosha-assessment')} className="w-full bg-gradient-to-r from-amber-50 to-rose-50 rounded-3xl p-4 shadow-sm border border-amber-200 text-left active:scale-[0.98] transition-transform">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">☯️</span>
+              <div className="flex-1">
+                <p className="text-xs font-extrabold text-amber-800">Take Full Prakriti Assessment</p>
+                <p className="text-[10px] text-amber-600 mt-0.5">22 questions for accurate dosha + dual dosha support</p>
+              </div>
+              <span className="text-amber-400">→</span>
+            </div>
+          </button>
         )}
       </div>
 

@@ -210,6 +210,10 @@ export const doctorDashAPI = {
   createSlot: (d: { dayOfWeek: number; startTime: string; endTime: string }) => api.post('/doctor/slots', d),
   updateSlot: (id: string, d: any) => api.put(`/doctor/slots/${id}`, d),
   deleteSlot: (id: string) => api.delete(`/doctor/slots/${id}`),
+  // Patient Dosha
+  getPatientDosha: (userId: string) => api.get(`/doctor/patients/${userId}/dosha`),
+  submitClinicalDosha: (userId: string, d: any) => api.post(`/doctor/patients/${userId}/dosha/clinical`, d),
+  getPatientDoshaStats: () => api.get('/doctor/patients-dosha-stats'),
 };
 
 export const adminAPI = {
@@ -262,4 +266,28 @@ export const adminAPI = {
   // Orders
   adminOrders: (params?: any) => api.get('/admin/orders', { params }),
   adminUpdateOrderStatus: (id: string, status: string) => api.patch(`/admin/orders/${id}/status`, { status }),
+  // Ayurveda / Dosha Management
+  getDoshaProfiles: (params?: any) => api.get('/admin/dosha/profiles', { params }),
+  getDoshaProfileDetail: (userId: string) => api.get(`/admin/dosha/profiles/${userId}`),
+  verifyDosha: (userId: string, d: any) => api.patch(`/admin/dosha/profiles/${userId}/verify`, d),
+  getDoshaAnalytics: () => api.get('/admin/dosha/analytics'),
+  getDoshaQuestions: () => api.get('/admin/dosha/questions'),
+  createDoshaQuestion: (d: any) => api.post('/admin/dosha/questions', d),
+  updateDoshaQuestion: (id: string, d: any) => api.put(`/admin/dosha/questions/${id}`, d),
+  deleteDoshaQuestion: (id: string) => api.delete(`/admin/dosha/questions/${id}`),
+};
+
+// ─── Dosha Assessment ────────────────────────────────
+export const doshaAPI = {
+  getQuestions: () => api.get('/dosha/questions'),
+  submitAssessment: (answers: any[], assessmentType?: string) => api.post('/dosha/assess', { answers, assessmentType }),
+  migrateLocal: (dosha: string) => api.post('/dosha/migrate', { dosha }),
+  getProfile: () => api.get('/dosha/profile'),
+  getHistory: () => api.get('/dosha/history'),
+};
+
+// ─── Weather / Location ──────────────────────────────
+export const weatherAPI = {
+  saveLocation: (latitude: number, longitude: number) => api.post('/weather/location', { latitude, longitude }),
+  getCurrent: () => api.get('/weather/current'),
 };

@@ -1,6 +1,6 @@
 // Admin CMS routes — Full Prisma-backed implementation
 import { Router, Request, Response, NextFunction } from 'express';
-import { authenticate } from '../middleware/auth';
+import { authenticate, AuthRequest } from '../middleware/auth';
 import { requireAdmin } from '../middleware/roles.middleware';
 import prisma from '../config/database';
 import { successResponse, errorResponse } from '../utils/response.utils';
@@ -8,6 +8,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { sendWelcomeEmail } from '../services/email.service';
+import doshaService from '../services/dosha.service';
 
 const r = Router();
 r.use(authenticate, requireAdmin);
@@ -874,6 +875,99 @@ r.patch('/orders/:id/status', async (req: Request, res: Response, next: NextFunc
     successResponse(res, order);
   } catch (e: any) {
     if (e.code === 'P2025') { errorResponse(res, 'Order not found', 404); return; }
+    next(e);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════
+// AYURVEDA MANAGEMENT — Dosha profiles, questions, analytics
+// ══════════════════════════════════════════════════════════════════
+
+// ─── GET /admin/dosha/profiles — All user dosha profiles (paginated) ──
+r.get('/dosha/profiles', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const dosha = req.query.dosha as string | undefined;
+    const verified = req.query.verified === 'true' ? true : req.query.verified === 'false' ? false : undefined;
+    const result = await doshaService.getAllDoshaProfiles(page, limit, { dosha, verified });
+    successResponse(res, result);
+  } catch (e: any) { next(e); }
+});
+
+// ─── GET /admin/dosha/profiles/:userId — Detailed dosha profile ──
+r.get('/dosha/profiles/:userId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const profile = await doshaService.getDoshaProfile(req.params.userId);
+    const history = await doshaService.getAssessmentHistory(req.params.userId);
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.userId },
+      select: { id: true, fullName: true, email: true, phone: true, createdAt: true },
+    });
+    successResponse(res, { user, profile, assessmentHistory: history });
+  } catch (e: any) { next(e); }
+});
+
+// ─── PATCH /admin/dosha/profiles/:userId/verify — Admin verify/override dosha ──
+r.patch('/dosha/profiles/:userId/verify', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { primaryDosha, secondaryDosha, vataScore, pittaScore, kaphaScore, notes } = req.body;
+    if (!primaryDosha || vataScore == null || pittaScore == null || kaphaScore == null) {
+      errorResponse(res, 'primaryDosha, vataScore, pittaScore, kaphaScore are required', 400); return;
+    }
+    const result = await doshaService.adminVerifyDosha(req.user!.id, req.params.userId, {
+      primaryDosha, secondaryDosha, vataScore, pittaScore, kaphaScore, notes,
+    });
+    successResponse(res, result, 'Dosha verified by admin');
+  } catch (e: any) { next(e); }
+});
+
+// ─── GET /admin/dosha/analytics — Dosha distribution & stats ──
+r.get('/dosha/analytics', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const analytics = await doshaService.getDoshaAnalytics();
+    successResponse(res, analytics);
+  } catch (e: any) { next(e); }
+});
+
+// ─── GET /admin/dosha/questions — List all quiz questions ──
+r.get('/dosha/questions', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const questions = await prisma.doshaQuestion.findMany({ orderBy: { orderIndex: 'asc' } });
+    successResponse(res, questions);
+  } catch (e: any) { next(e); }
+});
+
+// ─── POST /admin/dosha/questions — Create quiz question ──
+r.post('/dosha/questions', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { questionText, questionCategory, options, weight, orderIndex } = req.body;
+    if (!questionText || !questionCategory || !options) {
+      errorResponse(res, 'questionText, questionCategory, options are required', 400); return;
+    }
+    const q = await doshaService.createQuestion({ questionText, questionCategory, options, weight, orderIndex });
+    successResponse(res, q, 'Question created');
+  } catch (e: any) { next(e); }
+});
+
+// ─── PUT /admin/dosha/questions/:id — Update quiz question ──
+r.put('/dosha/questions/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const q = await doshaService.updateQuestion(req.params.id, req.body);
+    successResponse(res, q, 'Question updated');
+  } catch (e: any) {
+    if (e.code === 'P2025') { errorResponse(res, 'Question not found', 404); return; }
+    next(e);
+  }
+});
+
+// ─── DELETE /admin/dosha/questions/:id — Delete quiz question ──
+r.delete('/dosha/questions/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await doshaService.deleteQuestion(req.params.id);
+    successResponse(res, null, 'Question deleted');
+  } catch (e: any) {
+    if (e.code === 'P2025') { errorResponse(res, 'Question not found', 404); return; }
     next(e);
   }
 });

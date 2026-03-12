@@ -47,7 +47,7 @@ export default function OnboardingPage() {
       next.forEach(d => { counts[d] = (counts[d] || 0) + 1; });
       const winner = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
       setDosha(winner);
-      localStorage.setItem('sb_dosha', winner);
+      localStorage.setItem('sb_dosha', winner); // Temporary — will migrate to DB on login
     }
   };
 

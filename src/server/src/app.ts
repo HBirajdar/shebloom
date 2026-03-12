@@ -42,6 +42,8 @@ import callbackRoutes from './routes/callback.routes';
 import prescriptionRoutes from './routes/prescription.routes';
 import paymentRoutes from './routes/payment.routes';
 import doctorDashboardRoutes from './routes/doctor-dashboard.routes';
+import doshaRoutes from './routes/dosha.routes';
+import weatherRoutes from './routes/weather.routes';
 
 const app = express();
 
@@ -204,6 +206,8 @@ app.use('/api/v1/callbacks', callbackRoutes);
 app.use('/api/v1/prescriptions', prescriptionRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/doctor', doctorDashboardRoutes);
+app.use('/api/v1/dosha', doshaRoutes);
+app.use('/api/v1/weather', weatherRoutes);
 if (process.env.NODE_ENV !== 'production') {
   app.use('/api/v1/debug', debugRoutes);
 }
