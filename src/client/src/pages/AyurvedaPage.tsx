@@ -119,9 +119,13 @@ export default function AyurvedaPage() {
       params.inStock = 'true';
       const r = await api.get('/products', { params });
       const d = r.data?.data || r.data;
-      const items = d?.products || d || [];
-      if (Array.isArray(items)) { setApiProducts(items); setTotalProducts(d?.total || items.length); }
-    } catch { }
+      const items = Array.isArray(d?.products) ? d.products : Array.isArray(d) ? d : [];
+      setApiProducts(items);
+      setTotalProducts(d?.total || items.length);
+    } catch {
+      setApiProducts([]);
+      toast.error('Failed to load products');
+    }
     setProductsLoading(false);
   }, [cat, searchQuery, sortBy]);
 
@@ -202,11 +206,18 @@ export default function AyurvedaPage() {
   // Wishlist helpers (server-synced)
   const toggleWishlist = async (id: string) => {
     if (!user) { toast.error('Please login to save to wishlist'); return; }
+    const wasWishlisted = wishlistIds.has(id);
     const newSet = new Set(wishlistIds);
-    if (newSet.has(id)) { newSet.delete(id); toast('Removed from wishlist'); }
+    if (wasWishlisted) { newSet.delete(id); toast('Removed from wishlist'); }
     else { newSet.add(id); toast.success('Added to wishlist'); }
     setWishlistIds(newSet);
-    try { await productAPI.toggleWishlist(id); } catch { }
+    try { await productAPI.toggleWishlist(id); } catch {
+      // Rollback on failure
+      const rollback = new Set(wishlistIds);
+      if (wasWishlisted) rollback.add(id); else rollback.delete(id);
+      setWishlistIds(rollback);
+      toast.error('Failed to update wishlist');
+    }
   };
 
   // Load reviews when product detail opens
@@ -286,7 +297,7 @@ export default function AyurvedaPage() {
       const requests = JSON.parse(localStorage.getItem('sb_callbacks') || '[]');
       requests.push({ id: 'cb_' + Date.now(), productId: cbProduct?.id, productName: cbProduct?.name || 'Consultation', userName: cbName, userPhone: cbPhone, message: cbMessage, timestamp: new Date().toISOString(), status: 'pending' });
       localStorage.setItem('sb_callbacks', JSON.stringify(requests));
-      setCbSent(true); toast.success('Callback requested!');
+      setCbSent(true); toast.success('Saved locally — will be sent when connection is restored');
     }
   };
 

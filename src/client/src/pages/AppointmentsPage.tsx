@@ -105,8 +105,10 @@ export default function AppointmentsPage() {
 
     const times: string[] = [];
     daySlots.forEach(slot => {
+      if (!slot.startTime || !slot.endTime) return;
       let [sh, sm] = slot.startTime.split(':').map(Number);
       const [eh, em] = slot.endTime.split(':').map(Number);
+      if (isNaN(sh) || isNaN(sm) || isNaN(eh) || isNaN(em)) return;
       while (sh < eh || (sh === eh && sm < em)) {
         const h12 = sh === 0 ? 12 : sh > 12 ? sh - 12 : sh;
         const meridiem = sh < 12 ? 'AM' : 'PM';
@@ -132,7 +134,9 @@ export default function AppointmentsPage() {
   // Platform config + coupon state
   const [config, setConfig] = useState<any>(null);
   useEffect(() => {
-    financeAPI.getPublicConfig().then(r => setConfig(r.data?.data || r.data)).catch(() => {});
+    financeAPI.getPublicConfig().then(r => setConfig(r.data?.data || r.data)).catch(() => {
+      setConfig({ codEnabled: true, platformFeeFlat: 0, platformFeePercent: 0 });
+    });
   }, []);
 
   const [couponCode, setCouponCode] = useState('');

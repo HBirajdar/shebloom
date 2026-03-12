@@ -430,7 +430,11 @@ r.get('/product-payouts', requireAdmin, async (req: Request, res: Response, next
 r.patch('/product-payouts/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const data: any = {};
-    if (req.body.status) data.status = req.body.status;
+    const validPayoutStatuses = ['PENDING', 'PROCESSING', 'PAID', 'FAILED', 'CANCELLED'];
+    if (req.body.status) {
+      if (!validPayoutStatuses.includes(req.body.status)) { errorResponse(res, `Invalid status. Must be one of: ${validPayoutStatuses.join(', ')}`, 400); return; }
+      data.status = req.body.status;
+    }
     if (req.body.transactionId) data.transactionId = req.body.transactionId;
     if (req.body.paymentMethod) data.paymentMethod = req.body.paymentMethod;
     if (req.body.adminNotes !== undefined) data.adminNotes = req.body.adminNotes;
@@ -465,16 +469,18 @@ r.get('/audit-log', requireAdmin, async (req: Request, res: Response, next: Next
       if (from) where.createdAt = { gte: from };
     }
 
-    const skip = (Number(page) - 1) * Number(limit);
+    const parsedPage = Math.max(parseInt(String(page), 10) || 1, 1);
+    const parsedLimit = Math.min(Math.max(parseInt(String(limit), 10) || 50, 1), 100);
+    const skip = (parsedPage - 1) * parsedLimit;
     const [logs, total] = await Promise.all([
       prisma.paymentAuditLog.findMany({
         where, orderBy: { createdAt: 'desc' },
-        skip, take: Number(limit),
+        skip, take: parsedLimit,
       }),
       prisma.paymentAuditLog.count({ where }),
     ]);
 
-    successResponse(res, { logs, total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / Number(limit)) });
+    successResponse(res, { logs, total, page: parsedPage, limit: parsedLimit, totalPages: Math.ceil(total / parsedLimit) });
   } catch (e) { next(e); }
 });
 

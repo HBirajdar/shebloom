@@ -59,8 +59,27 @@ export const optionalAuth = async (req: AuthRequest, _res: Response, next: NextF
   try {
     const h = req.headers.authorization;
     if (h?.startsWith('Bearer ')) {
-      const d = jwt.verify(h.slice(7), process.env.JWT_SECRET!) as { userId: string; id: string; role: string };
-      req.user = { id: d.userId || d.id, role: d.role };
+      const token = h.slice(7);
+      const isBlacklisted = await cacheGet(`blacklist:${token}`);
+      if (!isBlacklisted) {
+        const d = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string; id: string; role: string };
+        const uid = d.userId || d.id;
+        // Check if user is active (use cache like authenticate)
+        let user = await cacheGet<any>(`user:${uid}:basic`);
+        if (!user) {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: uid },
+            select: { id: true, role: true, email: true, isActive: true },
+          });
+          if (dbUser) {
+            user = dbUser;
+            await cacheSet(`user:${uid}:basic`, user, 300);
+          }
+        }
+        if (user?.isActive) {
+          req.user = { id: user.id, role: user.role, email: user.email || undefined };
+        }
+      }
     }
   } catch {}
   next();

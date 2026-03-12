@@ -4,6 +4,10 @@ import { successResponse, errorResponse } from '../utils/response.utils';
 
 const router = Router();
 
+// HTML escape to prevent XSS in email notifications
+const escapeHtml = (s: string): string =>
+  String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
 // POST /api/v1/callbacks — user submits callback request (no auth required)
 router.post('/', async (req: Request, res: Response) => {
   try {
@@ -27,11 +31,11 @@ router.post('/', async (req: Request, res: Response) => {
           subject: `New Callback Request for ${productName}`,
           html: `
             <h2>New Callback Request</h2>
-            <p><strong>Product:</strong> ${productName}</p>
-            <p><strong>Customer Name:</strong> ${userName}</p>
-            <p><strong>Phone:</strong> ${userPhone}</p>
-            ${userEmail ? `<p><strong>Email:</strong> ${userEmail}</p>` : ''}
-            ${message ? `<p><strong>Message:</strong> ${message}</p>` : ''}
+            <p><strong>Product:</strong> ${escapeHtml(productName)}</p>
+            <p><strong>Customer Name:</strong> ${escapeHtml(userName)}</p>
+            <p><strong>Phone:</strong> ${escapeHtml(userPhone)}</p>
+            ${userEmail ? `<p><strong>Email:</strong> ${escapeHtml(userEmail)}</p>` : ''}
+            ${message ? `<p><strong>Message:</strong> ${escapeHtml(message)}</p>` : ''}
             <p><strong>Requested At:</strong> ${new Date().toLocaleString('en-IN')}</p>
             <hr>
             <p style="color:#666;font-size:12px">This notification was sent by VedaClue.</p>

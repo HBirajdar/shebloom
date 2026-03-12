@@ -18,9 +18,18 @@ const r = Router();
 r.post('/webhook', async (req: Request, res: Response) => {
   try {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
-    if (!webhookSecret) { res.status(200).json({ received: true }); return; }
+    if (!webhookSecret) {
+      console.error('[Payment] RAZORPAY_WEBHOOK_SECRET not configured — rejecting webhook');
+      res.status(400).json({ error: 'Webhook not configured' });
+      return;
+    }
 
     const signature = req.headers['x-razorpay-signature'] as string;
+    if (!signature) {
+      res.status(400).json({ error: 'Missing webhook signature header' });
+      return;
+    }
+
     const body = JSON.stringify(req.body);
 
     const expectedSignature = crypto

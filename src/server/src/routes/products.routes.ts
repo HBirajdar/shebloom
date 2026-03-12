@@ -70,8 +70,8 @@ r.get('/', async (req: Request, res: Response, next: NextFunction) => {
     const [products, total] = await Promise.all([
       prisma.product.findMany({
         where, orderBy,
-        take: Number(limit) || 50,
-        skip: Number(offset) || 0,
+        take: Math.min(Math.max(Number(limit) || 50, 1), 100),
+        skip: Math.max(Number(offset) || 0, 0),
       }),
       prisma.product.count({ where }),
     ]);
@@ -175,8 +175,8 @@ r.get('/:id/reviews', async (req: Request, res: Response, next: NextFunction) =>
     const [reviews, stats] = await Promise.all([
       prisma.productReview.findMany({
         where, orderBy,
-        take: Number(req.query.limit) || 20,
-        skip: Number(req.query.offset) || 0,
+        take: Math.min(Math.max(Number(req.query.limit) || 20, 1), 50),
+        skip: Math.max(Number(req.query.offset) || 0, 0),
         include: { user: { select: { fullName: true, avatarUrl: true } } },
       }),
       prisma.productReview.groupBy({

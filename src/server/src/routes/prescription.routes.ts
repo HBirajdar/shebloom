@@ -66,6 +66,31 @@ r.get('/my', async (req: AuthRequest, res: Response, next: NextFunction) => {
   } catch (e) { next(e); }
 });
 
+// GET /appointment/:appointmentId — get prescription for a specific appointment
+// MUST be before /:id to avoid "appointment" being matched as an id
+r.get('/appointment/:appointmentId', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const p = await prisma.prescription.findUnique({
+      where: { appointmentId: req.params.appointmentId },
+      include: {
+        appointment: {
+          select: {
+            scheduledAt: true,
+            doctorName: true,
+            doctor: { select: { fullName: true, specialization: true, avatarUrl: true } },
+            user: { select: { fullName: true, email: true } },
+          },
+        },
+      },
+    });
+    if (!p) { errorResponse(res, 'No prescription for this appointment', 404); return; }
+    if (p.userId !== req.user!.id && req.user!.role !== 'ADMIN') {
+      errorResponse(res, 'Unauthorized', 403); return;
+    }
+    successResponse(res, p);
+  } catch (e) { next(e); }
+});
+
 // GET /:id — get single prescription
 r.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -84,30 +109,6 @@ r.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
     });
     if (!p) { errorResponse(res, 'Prescription not found', 404); return; }
     // Only owner or admin can view
-    if (p.userId !== req.user!.id && req.user!.role !== 'ADMIN') {
-      errorResponse(res, 'Unauthorized', 403); return;
-    }
-    successResponse(res, p);
-  } catch (e) { next(e); }
-});
-
-// GET /appointment/:appointmentId — get prescription for a specific appointment
-r.get('/appointment/:appointmentId', async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const p = await prisma.prescription.findUnique({
-      where: { appointmentId: req.params.appointmentId },
-      include: {
-        appointment: {
-          select: {
-            scheduledAt: true,
-            doctorName: true,
-            doctor: { select: { fullName: true, specialization: true, avatarUrl: true } },
-            user: { select: { fullName: true, email: true } },
-          },
-        },
-      },
-    });
-    if (!p) { errorResponse(res, 'No prescription for this appointment', 404); return; }
     if (p.userId !== req.user!.id && req.user!.role !== 'ADMIN') {
       errorResponse(res, 'Unauthorized', 403); return;
     }

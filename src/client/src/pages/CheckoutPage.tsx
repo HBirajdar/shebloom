@@ -24,7 +24,10 @@ export default function CheckoutPage() {
   // Platform config (dynamic fees)
   const [config, setConfig] = useState<any>(null);
   useEffect(() => {
-    financeAPI.getPublicConfig().then(r => setConfig(r.data?.data || r.data)).catch(() => {});
+    financeAPI.getPublicConfig().then(r => setConfig(r.data?.data || r.data)).catch(() => {
+      // Use safe defaults if config fails to load
+      setConfig({ deliveryCharge: 49, freeDeliveryAbove: 499, platformFeeFlat: 0, platformFeePercent: 0, codEnabled: true, codExtraCharge: 0 });
+    });
   }, []);
 
   // Coupon state
@@ -117,7 +120,18 @@ export default function CheckoutPage() {
         notes: '',
         couponCode: appliedCoupon || undefined,
       });
-      const orderData = orderRes.data.data;
+      const orderData = orderRes.data?.data || orderRes.data;
+      if (!orderData?.keyId || !orderData?.razorpayOrderId) {
+        toast.error('Failed to create payment order. Please try again.');
+        setPayLoading(false);
+        return;
+      }
+
+      if (!window.Razorpay) {
+        toast.error('Payment gateway failed to load. Please refresh and try again.');
+        setPayLoading(false);
+        return;
+      }
 
       const options = {
         key: orderData.keyId,

@@ -24,8 +24,9 @@ api.interceptors.response.use(
   (r) => r,
   async (err) => {
     const req = err.config;
-    if (err.response?.status === 401 && !req._retry) {
+    if (err.response?.status === 401 && !req._retry && !req._retryCount) {
       req._retry = true;
+      req._retryCount = (req._retryCount || 0) + 1;
       const rt = localStorage.getItem('sb_refresh');
       if (rt) {
         try {

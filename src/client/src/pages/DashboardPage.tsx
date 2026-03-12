@@ -256,7 +256,7 @@ export default function DashboardPage() {
     }
     // Load today's wellness data — restore all logged items after refresh
     wellnessAPI.dailyScore().then(r => {
-      const d = r.data.data;
+      const d = r?.data?.data || r?.data;
       if (d?.components?.water?.glasses !== undefined) setWater(d.components.water.glasses);
       if (d?.components?.mood?.logged && d.components.mood.value) setMood(d.components.mood.value);
       if (d?.components?.sleep?.logged) setSleepHours(d.components.sleep.hours || 7);
@@ -268,7 +268,8 @@ export default function DashboardPage() {
     }).catch(() => {});
     // Load top doctors for carousel
     doctorAPI.search({ isPublished: true, limit: 10 }).then(r => {
-      const items = r.data.data || r.data.doctors || [];
+      const raw = r?.data?.data || r?.data?.doctors || r?.data || [];
+      const items = Array.isArray(raw) ? raw : [];
       const mapped: CarouselDoctor[] = items.map((d: any) => ({
         id: d._id || d.id,
         fullName: d.fullName || d.name || '',
