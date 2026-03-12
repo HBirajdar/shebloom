@@ -32,6 +32,8 @@ function formatMonthDay(date: Date) {
 export default function TrackerPage() {
   const navigate = useNavigate()
   const cycleStore = useCycleStore()
+  const goal = useCycleStore(s => s.goal)
+  const showFertility = goal === 'fertility'
 
   const [selectedMonth, setSelectedMonth] = useState(new Date())
   const [cycles, setCycles] = useState([])
@@ -192,34 +194,35 @@ export default function TrackerPage() {
         }
       }
 
-      // Fertile window from API
-      if (fertileStart && fertileEnd) {
-        const fs = startOfDay(new Date(fertileStart))
-        const fe = startOfDay(new Date(fertileEnd))
-        let d = new Date(fs)
-        while (d <= fe) {
-          markDay(new Date(d), 'fertile')
-          d = addDays(d, 1)
+      // Fertile window & ovulation — only mark for fertility goal users
+      if (showFertility) {
+        if (fertileStart && fertileEnd) {
+          const fs = startOfDay(new Date(fertileStart))
+          const fe = startOfDay(new Date(fertileEnd))
+          let d = new Date(fs)
+          while (d <= fe) {
+            markDay(new Date(d), 'fertile')
+            d = addDays(d, 1)
+          }
+        } else if (typeof cycleDay === 'number') {
+          const ovDay = cycleLength - 14
+          const lastPeriodStart = addDays(today, -(cycleDay - 1))
+          const ovDate = addDays(lastPeriodStart, ovDay - 1)
+          for (let i = -2; i <= 2; i++) {
+            markDay(addDays(ovDate, i), 'fertile')
+          }
+          markDay(ovDate, 'ovulation')
         }
-      } else if (typeof cycleDay === 'number') {
-        // Estimate fertile window around ovulation
-        const ovDay = cycleLength - 14
-        const lastPeriodStart = addDays(today, -(cycleDay - 1))
-        const ovDate = addDays(lastPeriodStart, ovDay - 1)
-        for (let i = -2; i <= 2; i++) {
-          markDay(addDays(ovDate, i), 'fertile')
-        }
-        markDay(ovDate, 'ovulation')
       }
 
-      // Ovulation day from API
-      if (ovulationDate) {
+      // Ovulation day from API — only for fertility users
+      if (showFertility && ovulationDate) {
         markDay(startOfDay(new Date(ovulationDate)), 'ovulation')
       }
     }
 
     return markers
-  }, [cycles, prediction, today])
+  }, [cycles, prediction, today, showFertility])
 
   // Symptom days from cycles
   const symptomDays = useMemo(() => {
@@ -266,11 +269,11 @@ export default function TrackerPage() {
       bg = 'bg-rose-500'
       text = 'text-white font-bold'
       border = isToday ? 'ring-2 ring-white ring-offset-1' : ''
-    } else if (types.includes('ovulation')) {
+    } else if (showFertility && types.includes('ovulation')) {
       bg = 'bg-amber-400'
       text = 'text-white font-semibold'
       border = ''
-    } else if (types.includes('fertile')) {
+    } else if (showFertility && types.includes('fertile')) {
       bg = 'bg-emerald-100'
       text = 'text-emerald-700 font-medium'
       border = ''
@@ -557,7 +560,7 @@ export default function TrackerPage() {
         </div>
         {/* Tabs */}
         <div className="flex px-5 gap-2 pb-3">
-          {[{ key: 'calendar', icon: '📅' }, { key: 'insights', icon: '💡' }, { key: 'fertility', icon: '🧬' }, { key: 'ayurveda', icon: '🌿' }].map(t => (
+          {[{ key: 'calendar', icon: '📅' }, { key: 'insights', icon: '💡' }, ...(showFertility ? [{ key: 'fertility', icon: '🧬' }] : []), { key: 'ayurveda', icon: '🌿' }].map(t => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
@@ -604,11 +607,15 @@ export default function TrackerPage() {
                     const ovDay = cl - 14
                     const cd = prediction?.cycleDay || 0
                     const GAP = 4
-                    const phases = [
+                    const phases = showFertility ? [
                       { days: pl, color: PHASE_COLORS.menstrual },
                       { days: Math.max(1, ovDay - pl - 2), color: PHASE_COLORS.follicular },
                       { days: 3, color: PHASE_COLORS.ovulation },
                       { days: Math.max(1, cl - ovDay - 1), color: PHASE_COLORS.luteal },
+                    ] : [
+                      { days: pl, color: PHASE_COLORS.menstrual },
+                      { days: Math.max(1, ovDay - pl), color: PHASE_COLORS.follicular },
+                      { days: Math.max(1, cl - ovDay), color: PHASE_COLORS.luteal },
                     ]
                     let cum = 0
                     const arcs = phases.map((p) => {
@@ -671,7 +678,7 @@ export default function TrackerPage() {
                   {[
                     { label: 'Period', color: PHASE_COLORS.menstrual },
                     { label: 'Follicular', color: PHASE_COLORS.follicular },
-                    { label: 'Ovulation', color: PHASE_COLORS.ovulation },
+                    ...(showFertility ? [{ label: 'Ovulation', color: PHASE_COLORS.ovulation }] : []),
                     { label: 'Luteal', color: PHASE_COLORS.luteal },
                   ].map(p => (
                     <div key={p.label} className="flex items-center gap-1.5">
@@ -768,8 +775,8 @@ export default function TrackerPage() {
                   {types2.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-2.5">
                       {types2.includes('period') && <span className="text-[10px] bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full font-bold">Period</span>}
-                      {types2.includes('fertile') && <span className="text-[10px] bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full font-bold">Fertile Window</span>}
-                      {types2.includes('ovulation') && <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">Ovulation Day</span>}
+                      {showFertility && types2.includes('fertile') && <span className="text-[10px] bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full font-bold">Fertile Window</span>}
+                      {showFertility && types2.includes('ovulation') && <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">Ovulation Day</span>}
                       {types2.includes('predicted') && <span className="text-[10px] bg-rose-50 text-rose-400 px-2 py-0.5 rounded-full font-bold">Predicted Period</span>}
                       {types2.includes('pms') && <span className="text-[10px] bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full font-bold">PMS</span>}
                     </div>
@@ -830,8 +837,10 @@ export default function TrackerPage() {
                     <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 px-1">
                       {[
                         { color: 'bg-rose-500', label: 'Period' },
-                        { color: 'bg-emerald-100 border border-emerald-300', label: 'Fertile' },
-                        { color: 'bg-amber-400', label: 'Ovulation' },
+                        ...(showFertility ? [
+                          { color: 'bg-emerald-100 border border-emerald-300', label: 'Fertile' },
+                          { color: 'bg-amber-400', label: 'Ovulation' },
+                        ] : []),
                         { color: 'bg-purple-100', label: 'PMS' },
                         { color: 'border-2 border-dashed border-rose-300', label: 'Predicted' },
                       ].map(({ color, label }) => (
@@ -1022,8 +1031,8 @@ export default function TrackerPage() {
             </div>
 
             {/* Countdown Cards */}
-            <div className="grid grid-cols-3 gap-2">
-              {prediction?.fertileStart && prediction?.fertileEnd && (
+            <div className={`grid ${showFertility ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
+              {showFertility && prediction?.fertileStart && prediction?.fertileEnd && (
                 <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3">
                   <div className="text-xs text-emerald-600 font-semibold mb-1">Fertile</div>
                   <div className="text-base font-black text-emerald-700">
@@ -1032,7 +1041,7 @@ export default function TrackerPage() {
                   <div className="text-xs text-emerald-500 mt-0.5">window open</div>
                 </div>
               )}
-              {prediction?.ovulationDate && (
+              {showFertility && prediction?.ovulationDate && (
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3">
                   <div className="text-xs text-amber-600 font-semibold mb-1">Ovulation</div>
                   <div className="text-base font-black text-amber-700">
@@ -1059,8 +1068,8 @@ export default function TrackerPage() {
               )}
             </div>
 
-            {/* Fertility Window Detail */}
-            {prediction?.fertileStart && prediction?.fertileEnd && (
+            {/* Fertility Window Detail — fertility users only */}
+            {showFertility && prediction?.fertileStart && prediction?.fertileEnd && (
               <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
                 <div className="text-sm font-bold text-emerald-700 mb-1">Fertile Window</div>
                 <div className="text-sm text-emerald-600 font-semibold">
@@ -1072,8 +1081,8 @@ export default function TrackerPage() {
               </div>
             )}
 
-            {/* Ovulation Countdown */}
-            {prediction?.ovulationDate && (
+            {/* Ovulation Countdown — fertility users only */}
+            {showFertility && prediction?.ovulationDate && (
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
                 <div className="text-sm font-bold text-amber-700 mb-1">Ovulation Countdown</div>
                 {(() => {
@@ -1106,14 +1115,14 @@ export default function TrackerPage() {
               </div>
             )}
 
-            {/* Hormone Levels — uses API data when available */}
+            {/* Hormone Levels — period users see Estrogen + Progesterone only; fertility users see all 4 */}
             <div className="bg-white rounded-3xl p-4 shadow-lg">
-              <div className="text-sm font-bold text-gray-700 mb-3">Hormone Levels</div>
+              <div className="text-sm font-bold text-gray-700 mb-3">{showFertility ? 'Hormone Levels' : 'Your Hormones'}</div>
               <div className="flex gap-3">
                 <HormoneBar label="Estrogen" value={prediction?.hormones?.estrogen ?? phaseInfo.estrogen} color="bg-rose-400" />
                 <HormoneBar label="Progesterone" value={prediction?.hormones?.progesterone ?? phaseInfo.progesterone} color="bg-purple-400" />
-                <HormoneBar label="LH" value={prediction?.hormones?.lh ?? phaseInfo.lh} color="bg-amber-400" />
-                <HormoneBar label="FSH" value={prediction?.hormones?.fsh ?? phaseInfo.fsh} color="bg-emerald-400" />
+                {showFertility && <HormoneBar label="LH" value={prediction?.hormones?.lh ?? phaseInfo.lh} color="bg-amber-400" />}
+                {showFertility && <HormoneBar label="FSH" value={prediction?.hormones?.fsh ?? phaseInfo.fsh} color="bg-emerald-400" />}
               </div>
               <p className="text-xs text-gray-400 mt-2 text-center">
                 {prediction?.hormones ? 'Based on your cycle day & individual phase lengths' : 'Approximate relative levels'}
@@ -1147,8 +1156,8 @@ export default function TrackerPage() {
               </div>
             )}
 
-            {/* Fertility Score (if available) */}
-            {prediction?.fertilityScore !== undefined && (
+            {/* Fertility Score — fertility users only */}
+            {showFertility && prediction?.fertilityScore !== undefined && (
               <div className={`rounded-2xl p-4 border ${
                 prediction.fertilityStatus === 'peak' ? 'bg-rose-50 border-rose-200' :
                 prediction.fertilityStatus === 'high' ? 'bg-amber-50 border-amber-200' :
@@ -1203,6 +1212,30 @@ export default function TrackerPage() {
                 ))}
               </div>
             </div>
+
+            {/* Unlock Fertility Features — upsell for non-fertility users (future paywall ready) */}
+            {!showFertility && (
+              <div className="rounded-2xl p-4 border-2 border-dashed border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50">
+                <div className="flex items-start gap-3">
+                  <span className="text-3xl">🧬</span>
+                  <div className="flex-1">
+                    <p className="text-sm font-extrabold text-purple-800">Unlock Fertility Insights</p>
+                    <p className="text-xs text-purple-600 mt-1 leading-relaxed">
+                      Get ovulation predictions, fertile window tracking, BBT charts, LH monitoring, and conception probability — all powered by your cycle data.
+                    </p>
+                    <button
+                      onClick={() => {
+                        useCycleStore.getState().setGoal('fertility')
+                        toast.success('Switched to Fertility mode! 💜')
+                      }}
+                      className="mt-3 bg-gradient-to-r from-purple-600 to-pink-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl active:scale-95 transition-transform shadow-md shadow-purple-200"
+                    >
+                      💜 Switch to Fertility Tracking
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ) : tab === 'fertility' ? (
           /* FERTILITY TAB */
@@ -1536,8 +1569,8 @@ export default function TrackerPage() {
                   </div>
                 )}
 
-                {/* Conception Guide (TTC users only) */}
-                {ayurvedaData.conceptionGuide && (
+                {/* Conception Guide — only for fertility (TTC) users */}
+                {showFertility && ayurvedaData.conceptionGuide && (
                   <div className="bg-pink-50 border border-pink-200 rounded-2xl p-4">
                     <p className="text-xs font-extrabold text-pink-800 mb-2">🤰 Conception Guide — Ritu Kala + Modern Science</p>
                     <p className="text-[11px] text-pink-700 leading-relaxed mb-3">{ayurvedaData.conceptionGuide.rituKala}</p>
