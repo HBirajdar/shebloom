@@ -272,6 +272,71 @@ r.post('/cod', async (q: AuthRequest, s: Response, n: NextFunction) => {
   } catch (e) { n(e); }
 });
 
+// POST /payments/appointment-order — Create Razorpay order for doctor consultation
+r.post('/appointment-order', async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const { doctorId, amount } = q.body;
+    const uid = q.user!.id;
+
+    if (!doctorId || !amount || amount <= 0) {
+      errorResponse(s, 'Doctor ID and valid amount are required', 400); return;
+    }
+
+    // Verify doctor exists and fee matches
+    const doctor = await prisma.doctor.findUnique({ where: { id: doctorId } });
+    if (!doctor) { errorResponse(s, 'Doctor not found', 404); return; }
+
+    const fee = doctor.consultationFee || 0;
+    if (fee <= 0) {
+      // Free consultation — no payment needed
+      successResponse(s, { free: true, doctorId, amount: 0 });
+      return;
+    }
+
+    // Create Razorpay order
+    const receipt = `APPT-${Date.now()}`;
+    const rzpOrder = await razorpay.orders.create({
+      amount: Math.round(fee * 100), // amount in paise
+      currency: 'INR',
+      receipt,
+      notes: {
+        type: 'appointment',
+        doctorId,
+        userId: uid,
+        doctorName: doctor.fullName,
+      },
+    });
+
+    successResponse(s, {
+      razorpayOrderId: rzpOrder.id,
+      amount: rzpOrder.amount,
+      currency: rzpOrder.currency,
+      keyId: process.env.RAZORPAY_KEY_ID,
+      doctorName: doctor.fullName,
+      fee,
+    });
+  } catch (e) { n(e); }
+});
+
+// POST /payments/verify-appointment — Verify appointment payment
+r.post('/verify-appointment', async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = q.body;
+
+    // Verify signature
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
+      .update(razorpayOrderId + '|' + razorpayPaymentId)
+      .digest('hex');
+
+    if (expectedSignature !== razorpaySignature) {
+      errorResponse(s, 'Payment verification failed', 400); return;
+    }
+
+    successResponse(s, { verified: true, paymentId: razorpayPaymentId });
+  } catch (e) { n(e); }
+});
+
 // GET /payments/orders
 r.get('/orders', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {

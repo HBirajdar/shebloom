@@ -176,6 +176,9 @@ export const paymentAPI = {
   codOrder: (d: any) => api.post('/payments/cod', d),
   myOrders: () => api.get('/payments/orders'),
   getOrder: (id: string) => api.get('/payments/orders/' + id),
+  // Appointment payment
+  createAppointmentOrder: (d: { doctorId: string; amount: number }) => api.post('/payments/appointment-order', d),
+  verifyAppointmentPayment: (d: any) => api.post('/payments/verify-appointment', d),
 };
 
 export const doctorDashAPI = {

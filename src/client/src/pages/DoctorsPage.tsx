@@ -386,7 +386,7 @@ export default function DoctorsPage() {
               {sel.tags?.map((t: string) => <span key={t} className="text-[9px] px-2 py-1 bg-purple-50 text-purple-600 rounded-full font-bold">{t}</span>)}
             </div>
             {sel.languages && <p className="text-[10px] text-gray-500 mb-4">{'\uD83D\uDDE3\uFE0F'} {sel.languages.join(', ')}</p>}
-            <button onClick={() => nav('/appointments')} className="w-full py-3.5 rounded-2xl text-white font-bold active:scale-95 transition-transform shadow-md shadow-rose-200 bg-gradient-to-r from-rose-500 to-pink-500">
+            <button onClick={() => nav(`/appointments?doctorId=${sel.id}`)} className="w-full py-3.5 rounded-2xl text-white font-bold active:scale-95 transition-transform shadow-md shadow-rose-200 bg-gradient-to-r from-rose-500 to-pink-500">
               Book Appointment {'\u2192'}
             </button>
             <button onClick={() => setSel(null)} className="w-full py-3 mt-2 border border-gray-200 rounded-2xl text-gray-600 text-sm font-bold active:scale-95">Close</button>

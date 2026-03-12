@@ -1,9 +1,9 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAyurvedaStore } from '../stores/ayurvedaStore';
 import { useAuthStore } from '../stores/authStore';
-import { doctorAPI } from '../services/api';
+import { doctorAPI, paymentAPI } from '../services/api';
 // Bug A fix: import and use the useAppointments hook
 import { useAppointments } from '../hooks/useAppointments';
 import { prescriptionAPI } from '../services/api';
@@ -14,8 +14,12 @@ const reasons = ['General Consultation', 'PCOD/PCOS', 'Period Problems', 'Fertil
 
 export default function AppointmentsPage() {
   const nav = useNavigate();
+  const [searchParams] = useSearchParams();
   const store = useAyurvedaStore();
   const user = useAuthStore(s => s.user);
+
+  // Read doctorId from URL (passed from DoctorsPage)
+  const preselectedDoctorId = searchParams.get('doctorId');
 
   // Fetch doctors from API, fall back to zustand defaults
   const [apiDoctors, setApiDoctors] = useState<any[] | null>(null);
@@ -41,6 +45,19 @@ export default function AppointmentsPage() {
   const [view, setView] = useState<'book' | 'my'>('book');
   const [step, setStep] = useState(0);
   const [selDoc, setSelDoc] = useState<string>(chief?.id || '');
+
+  // Auto-select doctor from URL param and skip to step 1
+  const [didAutoSelect, setDidAutoSelect] = useState(false);
+  useEffect(() => {
+    if (preselectedDoctorId && pubDoctors.length > 0 && !didAutoSelect) {
+      const found = pubDoctors.find(d => d.id === preselectedDoctorId);
+      if (found && found.isAvailable !== false) {
+        setSelDoc(found.id);
+        setStep(1);
+        setDidAutoSelect(true);
+      }
+    }
+  }, [preselectedDoctorId, pubDoctors, didAutoSelect]);
   const [selDate, setSelDate] = useState('');
   const [selTime, setSelTime] = useState('');
   const [selReason, setSelReason] = useState('');
@@ -112,10 +129,10 @@ export default function AppointmentsPage() {
   });
 
   const selectedDoctor = pubDoctors.find(d => d.id === selDoc);
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
 
-  // Bug A fix: use createBooking from hook instead of local confirmBooking
-  const handleConfirmBooking = async () => {
-    if (!selDoc || !selDate || !selTime || !selReason) { toast.error('Please fill all fields'); return; }
+  // Complete booking after payment (or directly if free)
+  const completeBooking = async (paymentId?: string) => {
     const doc = pubDoctors.find(d => d.id === selDoc);
     const result = await createBooking({
       doctorId: selDoc,
@@ -123,11 +140,84 @@ export default function AppointmentsPage() {
       date: selDate,
       time: selTime,
       reason: selReason,
-      notes,
+      notes: paymentId ? `${notes}${notes ? ' | ' : ''}Payment: ${paymentId}` : notes,
     });
     setLastVideoLink(result?.videoLink || result?.meetingLink || '');
     setShowSuccess(true);
     setStep(0); setSelDate(''); setSelTime(''); setSelReason(''); setNotes('');
+  };
+
+  // Handle booking with Razorpay payment
+  const handleConfirmBooking = async () => {
+    if (!selDoc || !selDate || !selTime || !selReason) { toast.error('Please fill all fields'); return; }
+    const doc = pubDoctors.find(d => d.id === selDoc);
+    const fee = doc?.fee || 0;
+
+    // If free consultation, book directly
+    if (fee <= 0) {
+      await completeBooking();
+      return;
+    }
+
+    // Start Razorpay payment
+    setPaymentProcessing(true);
+    try {
+      const orderRes = await paymentAPI.createAppointmentOrder({ doctorId: selDoc, amount: fee });
+      const orderData = orderRes.data?.data || orderRes.data;
+
+      // If backend says free (fee=0 in DB), book directly
+      if (orderData.free) {
+        await completeBooking();
+        setPaymentProcessing(false);
+        return;
+      }
+
+      const options = {
+        key: orderData.keyId,
+        amount: orderData.amount,
+        currency: orderData.currency || 'INR',
+        name: 'VedaClue',
+        description: `Consultation with Dr. ${doc?.name || 'Doctor'}`,
+        order_id: orderData.razorpayOrderId,
+        handler: async (response: any) => {
+          try {
+            // Verify payment
+            await paymentAPI.verifyAppointmentPayment({
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+            toast.success('Payment successful!');
+            await completeBooking(response.razorpay_payment_id);
+          } catch {
+            toast.error('Payment verification failed. Please contact support.');
+          }
+          setPaymentProcessing(false);
+        },
+        prefill: {
+          name: user?.fullName || '',
+          email: user?.email || '',
+          contact: user?.phone || '',
+        },
+        theme: { color: '#E11D48' },
+        modal: {
+          ondismiss: () => {
+            setPaymentProcessing(false);
+            toast('Payment cancelled', { icon: '⚠️' });
+          },
+        },
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.on('payment.failed', (response: any) => {
+        setPaymentProcessing(false);
+        toast.error(response.error?.description || 'Payment failed. Please try again.');
+      });
+      rzp.open();
+    } catch (err: any) {
+      setPaymentProcessing(false);
+      toast.error(err?.response?.data?.message || 'Could not initiate payment. Please try again.');
+    }
   };
 
   return (
@@ -284,8 +374,18 @@ export default function AppointmentsPage() {
                   className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-emerald-400 focus:outline-none resize-none" rows={3} />
               </div>
             </div>
-            <button onClick={handleConfirmBooking} className="w-full py-3.5 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform shadow-md shadow-rose-200 bg-gradient-to-r from-rose-500 to-pink-500">
-              Confirm Appointment {'\u2713'}
+            {(selectedDoctor?.fee || 0) > 0 && (
+              <div className="bg-emerald-50 rounded-2xl p-3 border border-emerald-100 flex items-center gap-2.5">
+                <span className="text-lg">{'\uD83D\uDD12'}</span>
+                <div>
+                  <p className="text-[11px] font-bold text-emerald-800">Secure Payment via Razorpay</p>
+                  <p className="text-[10px] text-emerald-600">You'll be redirected to pay {'\u20B9'}{selectedDoctor?.fee} before the appointment is confirmed.</p>
+                </div>
+              </div>
+            )}
+            <button onClick={handleConfirmBooking} disabled={paymentProcessing}
+              className={'w-full py-3.5 rounded-2xl text-white font-bold text-sm transition-transform shadow-md shadow-rose-200 bg-gradient-to-r from-rose-500 to-pink-500 ' + (paymentProcessing ? 'opacity-70 cursor-not-allowed' : 'active:scale-95')}>
+              {paymentProcessing ? 'Processing Payment...' : (selectedDoctor?.fee || 0) > 0 ? `Pay \u20B9${selectedDoctor?.fee} & Book` : 'Confirm Appointment \u2713'}
             </button>
           </>)}
         </>)}
