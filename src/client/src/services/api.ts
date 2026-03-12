@@ -1,11 +1,13 @@
 import axios from 'axios';
 
-// Production: VITE_API_URL points to the Railway backend.
+// Production: client + API are served by the SAME Express server on Railway,
+// so use same-origin (empty BASE) — eliminates CORS entirely.
 // Local dev: falls back to localhost:8000.
+// Override: set VITE_API_URL env var for separate client/server deployments.
 const BASE =
   import.meta.env.VITE_API_URL ||
   (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
-    ? 'https://blissful-communication-production-83ce.up.railway.app'
+    ? '' // Same-origin: both served from one Railway instance
     : 'http://localhost:8000');
 
 export const api = axios.create({
