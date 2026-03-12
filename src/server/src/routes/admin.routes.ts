@@ -972,4 +972,201 @@ r.delete('/dosha/questions/:id', async (req: Request, res: Response, next: NextF
   }
 });
 
+// ═══════════════════════════════════════════════════════
+// ─── DOCTOR PAYOUTS & SETTLEMENTS ─────────────────────
+// Revenue split like Practo/Zocdoc: platform keeps commission,
+// rest is settled to doctors periodically.
+// ═══════════════════════════════════════════════════════
+
+// ─── GET /admin/payouts/summary — Overview: per-doctor unsettled earnings ──
+r.get('/payouts/summary', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Get all doctors with completed appointments
+    const doctors = await prisma.doctor.findMany({
+      select: {
+        id: true,
+        fullName: true,
+        specialization: true,
+        avatarUrl: true,
+        consultationFee: true,
+        appointments: {
+          where: { status: 'COMPLETED' },
+          select: { id: true, amountPaid: true, scheduledAt: true, paymentId: true },
+        },
+        payouts: {
+          select: { id: true, totalEarnings: true, netPayout: true, status: true, periodStart: true, periodEnd: true, paidAt: true },
+        },
+      },
+    });
+
+    const defaultCommission = 20; // 20% platform fee
+
+    const summary = doctors.map(doc => {
+      const totalEarned = doc.appointments.reduce((sum, a) => sum + (a.amountPaid || 0), 0);
+      const totalSettled = doc.payouts
+        .filter(p => p.status === 'PAID' || p.status === 'PROCESSING')
+        .reduce((sum, p) => sum + p.netPayout, 0);
+      const totalPending = doc.payouts
+        .filter(p => p.status === 'PENDING')
+        .reduce((sum, p) => sum + p.netPayout, 0);
+      const settledAppointmentCount = doc.payouts.reduce((sum, p) => {
+        // Count appointments that fall within settled periods
+        return sum;
+      }, 0);
+
+      // Calculate unsettled: total earned minus gross of all payouts
+      const totalPayoutGross = doc.payouts.reduce((sum, p) => sum + p.totalEarnings, 0);
+      const unsettledGross = totalEarned - totalPayoutGross;
+      const platformFee = unsettledGross * (defaultCommission / 100);
+      const unsettledNet = unsettledGross - platformFee;
+
+      return {
+        doctorId: doc.id,
+        doctorName: doc.fullName,
+        specialization: doc.specialization,
+        avatarUrl: doc.avatarUrl,
+        consultationFee: doc.consultationFee,
+        totalAppointments: doc.appointments.length,
+        totalEarned,
+        totalSettled,
+        totalPending,
+        unsettledGross: Math.max(0, unsettledGross),
+        unsettledNet: Math.max(0, unsettledNet),
+        lastPayout: doc.payouts.filter(p => p.status === 'PAID').sort((a, b) => (b.paidAt?.getTime() || 0) - (a.paidAt?.getTime() || 0))[0] || null,
+      };
+    }).filter(d => d.totalAppointments > 0);
+
+    const platformTotalRevenue = summary.reduce((s, d) => s + d.totalEarned, 0);
+    const platformCommissionTotal = summary.reduce((s, d) => s + (d.totalEarned - d.totalSettled - d.unsettledNet), 0);
+
+    successResponse(res, {
+      doctors: summary,
+      platformStats: {
+        totalRevenue: platformTotalRevenue,
+        totalCommission: Math.max(0, platformCommissionTotal),
+        totalPaidOut: summary.reduce((s, d) => s + d.totalSettled, 0),
+        totalPending: summary.reduce((s, d) => s + d.totalPending, 0),
+        totalUnsettled: summary.reduce((s, d) => s + d.unsettledNet, 0),
+        defaultCommissionRate: defaultCommission,
+      },
+    });
+  } catch (e) { next(e); }
+});
+
+// ─── GET /admin/payouts — List all payouts with filters ──
+r.get('/payouts', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { status, doctorId } = req.query;
+    const where: any = {};
+    if (status) where.status = status;
+    if (doctorId) where.doctorId = doctorId;
+
+    const payouts = await prisma.doctorPayout.findMany({
+      where,
+      include: {
+        doctor: { select: { fullName: true, specialization: true, avatarUrl: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    successResponse(res, payouts);
+  } catch (e) { next(e); }
+});
+
+// ─── POST /admin/payouts/generate — Generate settlement for a doctor ──
+r.post('/payouts/generate', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { doctorId, commissionRate = 20 } = req.body;
+    if (!doctorId) { errorResponse(res, 'doctorId is required', 400); return; }
+
+    const doctor = await prisma.doctor.findUnique({ where: { id: doctorId } });
+    if (!doctor) { errorResponse(res, 'Doctor not found', 404); return; }
+
+    // Find the last payout end date for this doctor
+    const lastPayout = await prisma.doctorPayout.findFirst({
+      where: { doctorId },
+      orderBy: { periodEnd: 'desc' },
+    });
+
+    const periodStart = lastPayout ? lastPayout.periodEnd : new Date('2024-01-01');
+    const periodEnd = new Date();
+
+    // Get completed appointments in this period that haven't been settled
+    const appointments = await prisma.appointment.findMany({
+      where: {
+        doctorId,
+        status: 'COMPLETED',
+        scheduledAt: { gte: periodStart, lte: periodEnd },
+      },
+    });
+
+    if (appointments.length === 0) {
+      errorResponse(res, 'No unsettled completed appointments found for this doctor', 400);
+      return;
+    }
+
+    const totalEarnings = appointments.reduce((sum, a) => sum + (a.amountPaid || 0), 0);
+    const platformFee = totalEarnings * (commissionRate / 100);
+    const netPayout = totalEarnings - platformFee;
+
+    const payout = await prisma.doctorPayout.create({
+      data: {
+        doctorId,
+        periodStart,
+        periodEnd,
+        totalEarnings,
+        platformFee,
+        netPayout,
+        commissionRate,
+        appointmentCount: appointments.length,
+        status: 'PENDING',
+      },
+      include: {
+        doctor: { select: { fullName: true, specialization: true } },
+      },
+    });
+
+    successResponse(res, payout, 'Settlement generated successfully');
+  } catch (e) { next(e); }
+});
+
+// ─── PATCH /admin/payouts/:id — Update payout status (mark as paid, processing, etc.) ──
+r.patch('/payouts/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { status, transactionId, paymentMethod, adminNotes } = req.body;
+
+    const updateData: any = {};
+    if (status) updateData.status = status;
+    if (transactionId) updateData.transactionId = transactionId;
+    if (paymentMethod) updateData.paymentMethod = paymentMethod;
+    if (adminNotes !== undefined) updateData.adminNotes = adminNotes;
+    if (status === 'PAID') updateData.paidAt = new Date();
+
+    const payout = await prisma.doctorPayout.update({
+      where: { id: req.params.id },
+      data: updateData,
+      include: {
+        doctor: { select: { fullName: true, specialization: true } },
+      },
+    });
+
+    successResponse(res, payout, `Payout ${status === 'PAID' ? 'marked as paid' : 'updated'}`);
+  } catch (e: any) {
+    if (e.code === 'P2025') { errorResponse(res, 'Payout not found', 404); return; }
+    next(e);
+  }
+});
+
+// ─── DELETE /admin/payouts/:id — Delete a payout (only PENDING) ──
+r.delete('/payouts/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const payout = await prisma.doctorPayout.findUnique({ where: { id: req.params.id } });
+    if (!payout) { errorResponse(res, 'Payout not found', 404); return; }
+    if (payout.status !== 'PENDING') { errorResponse(res, 'Only PENDING payouts can be deleted', 400); return; }
+
+    await prisma.doctorPayout.delete({ where: { id: req.params.id } });
+    successResponse(res, null, 'Payout deleted');
+  } catch (e) { next(e); }
+});
+
 export default r;

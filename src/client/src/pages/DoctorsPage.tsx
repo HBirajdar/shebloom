@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAyurvedaStore } from '../stores/ayurvedaStore';
 import { api } from '../services/api';
 import DoctorCarousel from '../components/DoctorCarousel';
 import type { Doctor as CarouselDoctor } from '../components/DoctorCarousel';
@@ -11,7 +10,6 @@ const CITIES = ['All', 'Mumbai', 'Delhi', 'Bangalore', 'Chennai'];
 
 export default function DoctorsPage() {
   const nav = useNavigate();
-  const store = useAyurvedaStore();
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('All');
   const [city, setCity] = useState('All');
@@ -39,9 +37,9 @@ export default function DoctorsPage() {
             qualification: (d.qualifications || []).join(', ') || d.qualification || '',
             reviews: d.totalReviews || d.reviews || 0,
             about: d.bio || d.about || '',
-            isPublished: d.isAvailable !== false,
-            isChief: false,
-            isPromoted: false,
+            isPublished: d.isPublished !== false,
+            isChief: d.isChief || false,
+            isPromoted: d.isPromoted || false,
             feeFreeForPoor: false,
             tags: d.tags || [],
             languages: d.languages || [],
@@ -55,11 +53,13 @@ export default function DoctorsPage() {
       .finally(() => setDoctorsLoading(false));
   }, []);
 
-  const doctors = apiDoctors || store.doctors;
-  const getChiefDoctor = store.getChiefDoctor;
+  // Only use API doctors — never fall back to store (which has unpublished ones)
+  // While loading, show empty to prevent flash of all doctors
+  const doctors = apiDoctors || [];
 
   const published = doctors.filter(d => d.isPublished);
-  const chief = getChiefDoctor();
+  // Only show chief from API results (already filtered by isPublished on server)
+  const chief = apiDoctors ? published.find(d => d.isChief) : null;
 
   // Promoted (non-chief) doctors shown first after chief
   const promoted = published.filter(d => d.isPromoted && !d.isChief);
@@ -239,8 +239,16 @@ export default function DoctorsPage() {
           </div>
         )}
 
+        {/* Loading state */}
+        {doctorsLoading && (
+          <div className="flex flex-col items-center justify-center py-16">
+            <div className="w-10 h-10 border-4 border-rose-200 border-t-rose-500 rounded-full animate-spin" />
+            <p className="text-sm text-gray-400 mt-3">Loading doctors...</p>
+          </div>
+        )}
+
         {/* Chief Doctor Hero Card */}
-        {chief && (
+        {!doctorsLoading && chief && (
           <button onClick={() => setSel(chief)} className="w-full text-left active:scale-[0.98] transition-transform">
             <div className="rounded-3xl p-5 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #065F46, #059669, #10B981)' }}>
               <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full" />
@@ -273,7 +281,7 @@ export default function DoctorsPage() {
         )}
 
         {/* Featured Doctors Carousel */}
-        {filteredPromoted.length > 0 && (
+        {!doctorsLoading && filteredPromoted.length > 0 && (
           <DoctorCarousel
             title="Featured Doctors"
             doctors={filteredPromoted.map((d: any): CarouselDoctor => ({
@@ -298,10 +306,10 @@ export default function DoctorsPage() {
         )}
 
         {/* Results count */}
-        <p className="text-xs text-gray-400 font-bold">Showing {totalShown} doctor{totalShown !== 1 ? 's' : ''}{cat !== 'All' ? ` in ${cat}` : ''}{city !== 'All' ? ` in ${city}` : ''}</p>
+        {!doctorsLoading && <p className="text-xs text-gray-400 font-bold">Showing {totalShown} doctor{totalShown !== 1 ? 's' : ''}{cat !== 'All' ? ` in ${cat}` : ''}{city !== 'All' ? ` in ${city}` : ''}</p>}
 
         {/* Regular Doctor cards */}
-        {filteredRegular.map(d => (
+        {!doctorsLoading && filteredRegular.map(d => (
           <button key={d.id} onClick={() => setSel(d)} className="w-full bg-white rounded-3xl p-4 shadow-lg text-left active:scale-[0.98] transition-transform">
             <div className="flex gap-3">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm overflow-hidden">
@@ -333,7 +341,7 @@ export default function DoctorsPage() {
         ))}
 
         {/* Empty state */}
-        {totalShown === 0 && (
+        {!doctorsLoading && totalShown === 0 && (
           <div className="text-center py-12 bg-white rounded-3xl shadow-lg">
             <span className="text-4xl">{'\uD83D\uDD0D'}</span>
             <p className="text-sm font-bold text-gray-600 mt-3">No doctors match your filters</p>

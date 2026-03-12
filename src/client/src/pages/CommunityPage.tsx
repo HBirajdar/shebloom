@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useAyurvedaStore } from '../stores/ayurvedaStore';
+import { useChiefDoctor } from '../hooks/useChiefDoctor';
 import BottomNav from '../components/BottomNav';
 import toast from 'react-hot-toast';
 
@@ -97,8 +98,8 @@ const defaultPosts: Post[] = [
 export default function CommunityPage() {
   const nav = useNavigate();
   const user = useAuthStore(s => s.user);
-  const { getChiefDoctor, isAdminUnlocked } = useAyurvedaStore();
-  const chief = getChiefDoctor();
+  const { isAdminUnlocked } = useAyurvedaStore();
+  const { chief } = useChiefDoctor();
 
   const [cat, setCat] = useState('all');
   const [posts, setPosts] = useState<Post[]>(defaultPosts);

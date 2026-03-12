@@ -855,54 +855,146 @@ export default function TrackerPage() {
               )}
             </div>
 
-            {/* Phase Timeline Bar */}
-            <div className="bg-white mx-4 mt-3 rounded-2xl p-4 shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between mb-2.5">
-                <span className="text-sm font-bold text-gray-700">Cycle Timeline</span>
-                {prediction?.cycleDay && (
-                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full" style={{
-                    backgroundColor: getPhaseForDay(prediction.cycleDay).color + '18',
-                    color: getPhaseForDay(prediction.cycleDay).color,
-                  }}>
-                    Day {prediction.cycleDay} of {prediction?.cycleLength || 28}
-                  </span>
-                )}
-              </div>
-              <div className="flex rounded-full overflow-hidden h-6 mb-2 bg-gray-100">
-                {[
-                  { label: 'M', days: phaseData.menstrual, color: PHASE_COLORS.menstrual, phase: 'menstrual' },
-                  { label: 'F', days: phaseData.follicular, color: PHASE_COLORS.follicular, phase: 'follicular' },
-                  { label: 'O', days: phaseData.ovulation, color: PHASE_COLORS.ovulation, phase: 'ovulat' },
-                  { label: 'L', days: phaseData.luteal, color: PHASE_COLORS.luteal, phase: 'luteal' },
-                ].map(seg => {
-                  const pct = (seg.days / phaseData.cycleLength) * 100
-                  const isActive = currentPhase?.toLowerCase().includes(seg.phase.slice(0, 4))
-                  return (
-                    <div
-                      key={seg.phase}
-                      className="flex items-center justify-center text-white text-[10px] font-bold transition-all"
-                      style={{ width: `${pct}%`, backgroundColor: seg.color, opacity: isActive ? 1 : 0.3 }}
-                    >
-                      {pct > 12 ? seg.label : ''}
-                    </div>
-                  )
-                })}
-              </div>
-              <div className="flex text-[10px]">
-                {[
-                  { label: 'Menstrual', days: phaseData.menstrual, color: PHASE_COLORS.menstrual },
-                  { label: 'Follicular', days: phaseData.follicular, color: PHASE_COLORS.follicular },
-                  { label: 'Ovulation', days: phaseData.ovulation, color: PHASE_COLORS.ovulation },
-                  { label: 'Luteal', days: phaseData.luteal, color: PHASE_COLORS.luteal },
-                ].map(s => (
-                  <div
-                    key={s.label}
-                    className="text-center overflow-hidden font-medium"
-                    style={{ width: `${(s.days / phaseData.cycleLength) * 100}%`, color: s.color }}
-                  >
-                    {s.days}d
+            {/* ═══ Premium Cycle Timeline ═══ */}
+            <div className="mx-4 mt-3 rounded-3xl overflow-hidden shadow-lg" style={{ background: 'linear-gradient(135deg, #1a1028 0%, #2a1631 50%, #1e1235 100%)' }}>
+              <div className="px-5 pt-5 pb-4">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-sm font-extrabold text-white tracking-wide">Cycle Timeline</h3>
+                    <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                      {prediction?.cycleLength || 28}-day cycle
+                    </p>
                   </div>
-                ))}
+                  {prediction?.cycleDay && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl" style={{ backgroundColor: getPhaseForDay(prediction.cycleDay).color + '25' }}>
+                      <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: getPhaseForDay(prediction.cycleDay).color }} />
+                      <span className="text-xs font-black" style={{ color: getPhaseForDay(prediction.cycleDay).color }}>
+                        Day {prediction.cycleDay}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Timeline Track */}
+                <div className="relative mb-3">
+                  {/* Background track */}
+                  <div className="flex rounded-2xl overflow-hidden h-10 bg-white/5 backdrop-blur-sm border border-white/10">
+                    {(() => {
+                      const phases = [
+                        { label: 'Menstrual', shortLabel: 'Period', days: phaseData.menstrual, color: PHASE_COLORS.menstrual, emoji: '🩸', phase: 'menstrual' },
+                        { label: 'Follicular', shortLabel: 'Follicular', days: phaseData.follicular, color: PHASE_COLORS.follicular, emoji: '🌱', phase: 'follicular' },
+                        ...(showFertility ? [{ label: 'Ovulation', shortLabel: 'Ovulation', days: phaseData.ovulation, color: PHASE_COLORS.ovulation, emoji: '✨', phase: 'ovulat' }] : []),
+                        { label: 'Luteal', shortLabel: 'Luteal', days: showFertility ? phaseData.luteal : phaseData.ovulation + phaseData.luteal, color: PHASE_COLORS.luteal, emoji: '🌙', phase: 'luteal' },
+                      ]
+                      const totalDays = phases.reduce((sum, p) => sum + p.days, 0)
+                      return phases.map((seg) => {
+                        const pct = (seg.days / totalDays) * 100
+                        const isActive = currentPhase?.toLowerCase().includes(seg.phase.slice(0, 4))
+                        return (
+                          <div
+                            key={seg.phase}
+                            className="relative flex items-center justify-center transition-all duration-500"
+                            style={{
+                              width: `${pct}%`,
+                              background: isActive
+                                ? `linear-gradient(135deg, ${seg.color}CC, ${seg.color}88)`
+                                : `${seg.color}18`,
+                              borderRight: '1px solid rgba(255,255,255,0.06)',
+                            }}
+                          >
+                            {isActive && (
+                              <div className="absolute inset-0 animate-pulse" style={{
+                                background: `linear-gradient(135deg, ${seg.color}40, transparent)`,
+                                borderRadius: 'inherit',
+                              }} />
+                            )}
+                            <div className="relative flex flex-col items-center">
+                              {pct > 15 && <span className="text-[10px]">{seg.emoji}</span>}
+                              {pct > 20 && (
+                                <span className="text-[8px] font-bold leading-none mt-0.5" style={{
+                                  color: isActive ? 'white' : 'rgba(255,255,255,0.3)',
+                                }}>
+                                  {seg.shortLabel}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })
+                    })()}
+                  </div>
+
+                  {/* Progress marker — current day position */}
+                  {prediction?.cycleDay > 0 && (
+                    <div
+                      className="absolute top-0 h-10 flex items-center transition-all duration-700"
+                      style={{
+                        left: `${((prediction.cycleDay - 0.5) / (prediction?.cycleLength || 28)) * 100}%`,
+                        transform: 'translateX(-50%)',
+                        zIndex: 10,
+                      }}
+                    >
+                      <div className="relative">
+                        <div className="w-4 h-4 rounded-full bg-white shadow-lg shadow-black/30 border-2" style={{ borderColor: getPhaseForDay(prediction.cycleDay).color }} />
+                        <div className="absolute inset-0 w-4 h-4 rounded-full animate-ping opacity-30" style={{ backgroundColor: getPhaseForDay(prediction.cycleDay).color }} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Phase day counts row */}
+                <div className="flex mb-4">
+                  {(() => {
+                    const phases = [
+                      { label: 'Menstrual', days: phaseData.menstrual, color: PHASE_COLORS.menstrual },
+                      { label: 'Follicular', days: phaseData.follicular, color: PHASE_COLORS.follicular },
+                      ...(showFertility ? [{ label: 'Ovulation', days: phaseData.ovulation, color: PHASE_COLORS.ovulation }] : []),
+                      { label: 'Luteal', days: showFertility ? phaseData.luteal : phaseData.ovulation + phaseData.luteal, color: PHASE_COLORS.luteal },
+                    ]
+                    const totalDays = phases.reduce((sum, p) => sum + p.days, 0)
+                    return phases.map(s => (
+                      <div
+                        key={s.label}
+                        className="text-center overflow-hidden"
+                        style={{ width: `${(s.days / totalDays) * 100}%` }}
+                      >
+                        <span className="text-[10px] font-bold" style={{ color: s.color }}>
+                          {s.days}d
+                        </span>
+                      </div>
+                    ))
+                  })()}
+                </div>
+
+                {/* Current Phase Detail Card */}
+                {prediction?.cycleDay && (
+                  <div className="rounded-2xl p-3.5 border border-white/10" style={{
+                    background: `linear-gradient(135deg, ${getPhaseForDay(prediction.cycleDay).color}15, ${getPhaseForDay(prediction.cycleDay).color}08)`,
+                  }}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg" style={{
+                        backgroundColor: getPhaseForDay(prediction.cycleDay).color + '25',
+                      }}>
+                        {getPhaseForDay(prediction.cycleDay).emoji}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-extrabold text-white">{getPhaseForDay(prediction.cycleDay).name} Phase</p>
+                        <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                          Day {prediction.cycleDay} of {prediction?.cycleLength || 28} · {typeof prediction?.daysUntilPeriod === 'number'
+                            ? prediction.daysUntilPeriod === 0 ? 'Period today' : prediction.daysUntilPeriod < 0 ? 'Period started' : `${prediction.daysUntilPeriod}d until next period`
+                            : ''}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-black" style={{ color: getPhaseForDay(prediction.cycleDay).color }}>
+                          {Math.round((prediction.cycleDay / (prediction?.cycleLength || 28)) * 100)}%
+                        </div>
+                        <div className="text-[9px]" style={{ color: 'rgba(255,255,255,0.3)' }}>complete</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1653,50 +1745,58 @@ export default function TrackerPage() {
 
       <BottomNav />
 
-      {/* Log Period Bottom Sheet */}
+      {/* Log Period Full-Screen Sheet */}
       {showLogSheet && (
         <div
-          className="fixed inset-0 z-50 flex flex-col justify-end"
+          className="fixed inset-0 z-50 flex flex-col"
           style={{ maxWidth: 430, left: '50%', transform: 'translateX(-50%)' }}
         >
           {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/50 backdrop-blur-md"
             onClick={() => setShowLogSheet(false)}
           />
-          {/* Sheet */}
-          <div className="relative bg-white rounded-t-3xl shadow-2xl max-h-[92vh] overflow-y-auto z-10">
+          {/* Full-height Sheet */}
+          <div className="relative flex flex-col bg-white rounded-t-3xl shadow-2xl z-10 mt-6" style={{ height: 'calc(100% - 24px)' }}>
             {/* Handle */}
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 bg-gray-200 rounded-full" />
+            <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+              <div className="w-10 h-1.5 bg-gray-300 rounded-full" />
             </div>
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-              <h2 className="text-lg font-black text-gray-900">Log Period</h2>
+            {/* Header — fixed at top */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 flex-shrink-0">
+              <div>
+                <h2 className="text-xl font-black text-gray-900">Log Period</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Track your cycle accurately</p>
+              </div>
               <button
                 onClick={() => setShowLogSheet(false)}
-                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
+                className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
               >
                 ✕
               </button>
             </div>
 
-            <div className="px-5 py-4 space-y-5">
+            {/* Scrollable content area */}
+            <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
               {/* Start Date */}
               <div>
-                <label className="text-sm font-bold text-gray-700 block mb-2">Start Date</label>
+                <label className="text-sm font-bold text-gray-700 flex items-center gap-1.5 mb-3">
+                  <span className="w-5 h-5 rounded-lg bg-rose-100 flex items-center justify-center text-[10px]">📅</span>
+                  Start Date
+                </label>
                 <div className="flex gap-2 flex-wrap">
                   {[
                     { label: 'Today', date: today },
                     { label: 'Yesterday', date: addDays(today, -1) },
+                    { label: '2 days ago', date: addDays(today, -2) },
                   ].map(opt => (
                     <button
                       key={opt.label}
                       onClick={() => setLogStartDate(opt.date)}
-                      className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+                      className={`px-4 py-2.5 rounded-2xl text-sm font-semibold border-2 transition-all ${
                         isSameDay(logStartDate, opt.date)
-                          ? 'bg-rose-500 text-white border-rose-500'
-                          : 'bg-white text-gray-700 border-gray-200 hover:border-rose-300'
+                          ? 'bg-rose-500 text-white border-rose-500 shadow-md shadow-rose-200'
+                          : 'bg-white text-gray-700 border-gray-100 hover:border-rose-300'
                       }`}
                     >
                       {opt.label}
@@ -1709,16 +1809,17 @@ export default function TrackerPage() {
                       setCustomStartInput(e.target.value)
                       if (e.target.value) setLogStartDate(startOfDay(new Date(e.target.value)))
                     }}
-                    className="px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-700 focus:outline-none focus:border-rose-400"
+                    className="px-4 py-2.5 rounded-2xl border-2 border-gray-100 text-sm text-gray-700 focus:outline-none focus:border-rose-400"
                   />
                 </div>
               </div>
 
               {/* End Date */}
               <div>
-                <label className="text-sm font-bold text-gray-700 block mb-2">
-                  End Date{' '}
-                  <span className="text-gray-400 font-normal">(optional)</span>
+                <label className="text-sm font-bold text-gray-700 flex items-center gap-1.5 mb-3">
+                  <span className="w-5 h-5 rounded-lg bg-purple-100 flex items-center justify-center text-[10px]">🏁</span>
+                  End Date
+                  <span className="text-gray-400 font-normal text-xs">(optional — add later)</span>
                 </label>
                 <div className="flex gap-2 flex-wrap">
                   {[
@@ -1727,11 +1828,11 @@ export default function TrackerPage() {
                   ].map(opt => (
                     <button
                       key={opt.label}
-                      onClick={() => setLogEndDate(opt.date)}
-                      className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+                      onClick={() => setLogEndDate(logEndDate && isSameDay(logEndDate, opt.date) ? null : opt.date)}
+                      className={`px-4 py-2.5 rounded-2xl text-sm font-semibold border-2 transition-all ${
                         logEndDate && isSameDay(logEndDate, opt.date)
-                          ? 'bg-rose-500 text-white border-rose-500'
-                          : 'bg-white text-gray-700 border-gray-200 hover:border-rose-300'
+                          ? 'bg-rose-500 text-white border-rose-500 shadow-md shadow-rose-200'
+                          : 'bg-white text-gray-700 border-gray-100 hover:border-rose-300'
                       }`}
                     >
                       {opt.label}
@@ -1745,28 +1846,30 @@ export default function TrackerPage() {
                       if (e.target.value) setLogEndDate(startOfDay(new Date(e.target.value)))
                       else setLogEndDate(null)
                     }}
-                    className="px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-700 focus:outline-none focus:border-rose-400"
+                    className="px-4 py-2.5 rounded-2xl border-2 border-gray-100 text-sm text-gray-700 focus:outline-none focus:border-rose-400"
                   />
                 </div>
               </div>
 
               {/* Flow Selector */}
               <div>
-                <label className="text-sm font-bold text-gray-700 block mb-2">Flow Intensity</label>
-                <div className="grid grid-cols-2 gap-2">
+                <label className="text-sm font-bold text-gray-700 flex items-center gap-1.5 mb-3">
+                  <span className="w-5 h-5 rounded-lg bg-red-100 flex items-center justify-center text-[10px]">💧</span>
+                  Flow Intensity
+                </label>
+                <div className="grid grid-cols-4 gap-2">
                   {flowOptions.map(opt => (
                     <button
                       key={opt.value}
                       onClick={() => setLogFlow(opt.value)}
-                      className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 transition-all ${
+                      className={`flex flex-col items-center gap-1.5 py-3.5 px-1 rounded-2xl border-2 transition-all ${
                         logFlow === opt.value
-                          ? 'border-rose-500 bg-rose-50'
-                          : 'border-gray-100 bg-gray-50 hover:border-rose-200'
+                          ? 'border-rose-500 bg-rose-50 shadow-md shadow-rose-100'
+                          : 'border-gray-100 bg-gray-50/80 hover:border-rose-200'
                       }`}
                     >
                       <span className="text-2xl">{opt.emoji}</span>
-                      <span className="text-sm font-bold text-gray-800">{opt.label}</span>
-                      <span className="text-xs text-gray-400 text-center leading-tight">{opt.desc}</span>
+                      <span className="text-xs font-bold text-gray-800">{opt.label}</span>
                     </button>
                   ))}
                 </div>
@@ -1774,20 +1877,24 @@ export default function TrackerPage() {
 
               {/* Pain Level */}
               <div>
-                <label className="text-sm font-bold text-gray-700 block mb-2">Pain Level</label>
-                <div className="flex gap-2 justify-between">
+                <label className="text-sm font-bold text-gray-700 flex items-center gap-1.5 mb-3">
+                  <span className="w-5 h-5 rounded-lg bg-amber-100 flex items-center justify-center text-[10px]">😣</span>
+                  Pain Level
+                  {logPain > 0 && <span className="ml-auto text-xs font-bold text-rose-500">{logPain}/5</span>}
+                </label>
+                <div className="flex gap-2.5 justify-between">
                   {painFaces.map((face, i) => (
                     <button
                       key={i}
-                      onClick={() => setLogPain(i + 1)}
-                      className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-xl border-2 transition-all ${
+                      onClick={() => setLogPain(logPain === i + 1 ? 0 : i + 1)}
+                      className={`flex-1 flex flex-col items-center gap-1 py-3 rounded-2xl border-2 transition-all ${
                         logPain === i + 1
-                          ? 'border-rose-500 bg-rose-50'
-                          : 'border-gray-100 bg-gray-50 hover:border-rose-200'
+                          ? 'border-rose-500 bg-rose-50 shadow-md shadow-rose-100 scale-110'
+                          : 'border-gray-100 bg-gray-50/80 hover:border-rose-200'
                       }`}
                     >
-                      <span className="text-xl">{face}</span>
-                      <span className="text-xs text-gray-400">{i + 1}</span>
+                      <span className="text-2xl">{face}</span>
+                      <span className="text-[10px] text-gray-400 font-semibold">{['None', 'Mild', 'Medium', 'Bad', 'Severe'][i]}</span>
                     </button>
                   ))}
                 </div>
@@ -1795,19 +1902,23 @@ export default function TrackerPage() {
 
               {/* Mood */}
               <div>
-                <label className="text-sm font-bold text-gray-700 block mb-2">Mood</label>
+                <label className="text-sm font-bold text-gray-700 flex items-center gap-1.5 mb-3">
+                  <span className="w-5 h-5 rounded-lg bg-purple-100 flex items-center justify-center text-[10px]">🧠</span>
+                  Mood
+                  {logMoods.length > 0 && <span className="ml-auto text-xs text-purple-500 font-bold">{logMoods.length} selected</span>}
+                </label>
                 <div className="flex gap-2 flex-wrap">
                   {moodOptions.map(opt => (
                     <button
                       key={opt.value}
                       onClick={() => toggleMood(opt.value)}
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 text-sm font-semibold transition-all ${
+                      className={`flex items-center gap-1.5 px-4 py-2.5 rounded-2xl border-2 text-sm font-semibold transition-all ${
                         logMoods.includes(opt.value)
-                          ? 'border-purple-500 bg-purple-50 text-purple-700'
-                          : 'border-gray-100 bg-gray-50 text-gray-600 hover:border-purple-200'
+                          ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-md shadow-purple-100'
+                          : 'border-gray-100 bg-gray-50/80 text-gray-600 hover:border-purple-200'
                       }`}
                     >
-                      <span>{opt.emoji}</span>
+                      <span className="text-lg">{opt.emoji}</span>
                       <span>{opt.label}</span>
                     </button>
                   ))}
@@ -1816,20 +1927,24 @@ export default function TrackerPage() {
 
               {/* Symptoms */}
               <div>
-                <label className="text-sm font-bold text-gray-700 block mb-2">Symptoms</label>
+                <label className="text-sm font-bold text-gray-700 flex items-center gap-1.5 mb-3">
+                  <span className="w-5 h-5 rounded-lg bg-teal-100 flex items-center justify-center text-[10px]">🩺</span>
+                  Symptoms
+                  {logSymptoms.length > 0 && <span className="ml-auto text-xs text-rose-500 font-bold">{logSymptoms.length} selected</span>}
+                </label>
                 <div className="grid grid-cols-3 gap-2">
                   {symptomOptions.map(opt => (
                     <button
                       key={opt.value}
                       onClick={() => toggleSymptom(opt.value)}
-                      className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 transition-all ${
+                      className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all ${
                         logSymptoms.includes(opt.value)
-                          ? 'border-rose-500 bg-rose-50'
-                          : 'border-gray-100 bg-gray-50 hover:border-rose-200'
+                          ? 'border-rose-500 bg-rose-50 shadow-md shadow-rose-100'
+                          : 'border-gray-100 bg-gray-50/80 hover:border-rose-200'
                       }`}
                     >
-                      <span className="text-xl">{opt.emoji}</span>
-                      <span className="text-xs font-semibold text-gray-700 text-center leading-tight">
+                      <span className="text-2xl">{opt.emoji}</span>
+                      <span className="text-[11px] font-bold text-gray-700 text-center leading-tight">
                         {opt.label}
                       </span>
                     </button>
@@ -1839,21 +1954,29 @@ export default function TrackerPage() {
 
               {/* Notes */}
               <div>
-                <label className="text-sm font-bold text-gray-700 block mb-2">Notes</label>
+                <label className="text-sm font-bold text-gray-700 flex items-center gap-1.5 mb-3">
+                  <span className="w-5 h-5 rounded-lg bg-blue-100 flex items-center justify-center text-[10px]">📝</span>
+                  Notes
+                </label>
                 <textarea
                   value={logNotes}
                   onChange={e => setLogNotes(e.target.value)}
                   placeholder="How are you feeling? Any additional details..."
                   rows={3}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-rose-400 resize-none"
+                  className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-rose-400 resize-none"
                 />
               </div>
 
-              {/* Save Button */}
+              {/* Bottom spacer for save button */}
+              <div className="h-4" />
+            </div>
+
+            {/* Fixed Save Button at bottom */}
+            <div className="flex-shrink-0 px-5 pb-5 pt-3 border-t border-gray-100 bg-white">
               <button
                 onClick={saveLog}
                 disabled={saving}
-                className="w-full bg-gradient-to-r from-rose-500 to-pink-500 text-white font-black text-base py-4 rounded-2xl shadow-lg shadow-rose-200 active:scale-95 transition-transform disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 mb-2"
+                className="w-full bg-gradient-to-r from-rose-500 to-pink-500 text-white font-black text-base py-4 rounded-2xl shadow-lg shadow-rose-200 active:scale-95 transition-transform disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {saving ? (
                   <>

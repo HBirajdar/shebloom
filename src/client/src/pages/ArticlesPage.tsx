@@ -5,6 +5,7 @@ import { useAyurvedaStore } from '../stores/ayurvedaStore';
 import { useCycleStore } from '../stores/cycleStore';
 import { api } from '../services/api';
 import type { Article } from '../stores/ayurvedaStore';
+import { useChiefDoctor } from '../hooks/useChiefDoctor';
 import BottomNav from '../components/BottomNav';
 import toast from 'react-hot-toast';
 
@@ -789,7 +790,6 @@ const PHASE_ARTICLE_TAGS: Record<string, { emoji: string; label: string; cats: s
 export default function ArticlesPage() {
   const nav = useNavigate();
   const store = useAyurvedaStore();
-  const { getChiefDoctor } = store;
   const { goal, phase } = useCycleStore();
 
   // Fetch articles from API, fall back to zustand defaults
@@ -846,7 +846,7 @@ export default function ArticlesPage() {
     });
   };
 
-  const chief = getChiefDoctor();
+  const { chief } = useChiefDoctor();
 
   // Smart sorting: goal-matched articles first, then others
   const visible = useMemo(() => {

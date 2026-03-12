@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/authStore';
 import { doctorDashAPI, prescriptionAPI, doshaAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
-type Tab = 'overview' | 'appointments' | 'availability' | 'prescriptions' | 'articles' | 'profile' | 'reviews' | 'ayurveda';
+type Tab = 'overview' | 'appointments' | 'availability' | 'prescriptions' | 'articles' | 'profile' | 'reviews' | 'ayurveda' | 'earnings';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -200,6 +200,10 @@ export default function DoctorDashboard() {
   const [editingArticle, setEditingArticle] = useState<any>(null);
   const [articleForm, setArticleForm] = useState({ title: '', content: '', category: 'wellness', tags: '', excerpt: '', emoji: '', references: '', sources: '', disclaimer: '', evidenceLevel: '' });
 
+  // Earnings state
+  const [earnings, setEarnings] = useState<any>(null);
+  const [earningsLoading, setEarningsLoading] = useState(true);
+
   // Availability & Slots state
   const [slots, setSlots] = useState<any[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(true);
@@ -284,6 +288,15 @@ export default function DoctorDashboard() {
     finally { setSlotsLoading(false); }
   }, []);
 
+  const fetchEarnings = useCallback(async () => {
+    setEarningsLoading(true);
+    try {
+      const res = await doctorDashAPI.getEarnings();
+      setEarnings(res.data.data || null);
+    } catch {}
+    finally { setEarningsLoading(false); }
+  }, []);
+
   // Sync isOnline from profile
   useEffect(() => {
     if (profile) setIsOnline(profile.isAvailable ?? true);
@@ -297,6 +310,7 @@ export default function DoctorDashboard() {
     if (tab === 'articles') fetchArticles();
     if (tab === 'profile') fetchProfile();
     if (tab === 'reviews') fetchReviews();
+    if (tab === 'earnings') fetchEarnings();
   }, [tab]);
 
   useEffect(() => {
@@ -480,6 +494,7 @@ export default function DoctorDashboard() {
     { id: 'profile', label: 'Profile', emoji: '👤' },
     { id: 'reviews', label: 'Reviews', emoji: '⭐' },
     { id: 'ayurveda', label: 'Dosha', emoji: '☯️' },
+    { id: 'earnings', label: 'Earnings', emoji: '💰' },
   ];
 
   return (
@@ -1317,6 +1332,102 @@ export default function DoctorDashboard() {
 
         {/* ═══ PATIENT AYURVEDA / DOSHA TAB ═══ */}
         {tab === 'ayurveda' && (<DoctorAyurvedaTab />)}
+
+        {/* ═══ EARNINGS TAB ═══ */}
+        {tab === 'earnings' && (
+          <div className="px-5 py-5 space-y-4">
+            {earningsLoading ? (
+              <div className="flex justify-center py-12"><div className="animate-spin w-8 h-8 border-4 border-indigo-400 border-t-transparent rounded-full" /></div>
+            ) : !earnings ? (
+              <div className="text-center py-12">
+                <p className="text-4xl">💰</p>
+                <p className="text-sm text-gray-400 mt-2">No earnings data yet</p>
+              </div>
+            ) : (<>
+              {/* Earnings Overview Card */}
+              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-5 text-white shadow-lg">
+                <p className="text-xs font-bold text-white/70 uppercase tracking-wide">Total Earnings</p>
+                <p className="text-3xl font-black mt-1">{'\u20B9'}{(earnings.totalEarned || 0).toLocaleString()}</p>
+                <p className="text-[10px] text-white/50 mt-0.5">{earnings.totalAppointments || 0} completed consultations</p>
+              </div>
+
+              {/* Breakdown Cards */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
+                  <p className="text-lg font-black text-emerald-600">{'\u20B9'}{(earnings.totalPaidOut || 0).toLocaleString()}</p>
+                  <p className="text-[9px] text-gray-400 font-medium mt-1">Received</p>
+                  <div className="w-full h-1 bg-emerald-100 rounded-full mt-2">
+                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${earnings.totalEarned ? (earnings.totalPaidOut / earnings.totalEarned * 100) : 0}%` }} />
+                  </div>
+                </div>
+                <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
+                  <p className="text-lg font-black text-amber-600">{'\u20B9'}{(earnings.totalPending || 0).toLocaleString()}</p>
+                  <p className="text-[9px] text-gray-400 font-medium mt-1">Processing</p>
+                  <div className="w-full h-1 bg-amber-100 rounded-full mt-2">
+                    <div className="h-full bg-amber-500 rounded-full" style={{ width: `${earnings.totalEarned ? (earnings.totalPending / earnings.totalEarned * 100) : 0}%` }} />
+                  </div>
+                </div>
+                <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
+                  <p className="text-lg font-black text-rose-600">{'\u20B9'}{(earnings.unsettled || 0).toLocaleString()}</p>
+                  <p className="text-[9px] text-gray-400 font-medium mt-1">Unsettled</p>
+                  <div className="w-full h-1 bg-rose-100 rounded-full mt-2">
+                    <div className="h-full bg-rose-500 rounded-full" style={{ width: `${earnings.totalEarned ? (earnings.unsettled / earnings.totalEarned * 100) : 0}%` }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Payout History */}
+              {earnings.payouts && earnings.payouts.length > 0 && (<>
+                <h3 className="text-sm font-bold text-gray-700 mt-1">Payout History</h3>
+                <div className="space-y-2.5">
+                  {earnings.payouts.map((p: any) => (
+                    <div key={p.id} className={'bg-white rounded-2xl p-4 shadow-sm ' + (p.status === 'PAID' ? 'border-l-4 border-emerald-400' : p.status === 'PENDING' ? 'border-l-4 border-amber-400' : '')}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-bold text-gray-800">{'\u20B9'}{p.netPayout?.toLocaleString()}</p>
+                          <p className="text-[9px] text-gray-400">
+                            {new Date(p.periodStart).toLocaleDateString()} – {new Date(p.periodEnd).toLocaleDateString()}
+                            {' \u2022 '}{p.appointmentCount} appts
+                          </p>
+                        </div>
+                        <span className={'text-[8px] font-bold px-2 py-0.5 rounded-full ' + (
+                          p.status === 'PAID' ? 'bg-emerald-100 text-emerald-700' :
+                          p.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
+                          p.status === 'PROCESSING' ? 'bg-blue-100 text-blue-700' :
+                          'bg-gray-100 text-gray-700'
+                        )}>{p.status}</span>
+                      </div>
+                      {p.paidAt && <p className="text-[9px] text-emerald-600 mt-1">Paid: {new Date(p.paidAt).toLocaleString()} {'\u2022'} {p.paymentMethod}</p>}
+                      {p.transactionId && <p className="text-[9px] text-gray-400 mt-0.5">TXN: {p.transactionId}</p>}
+                    </div>
+                  ))}
+                </div>
+              </>)}
+
+              {/* Recent Consultations */}
+              {earnings.recentAppointments && earnings.recentAppointments.length > 0 && (<>
+                <h3 className="text-sm font-bold text-gray-700 mt-1">Recent Consultations</h3>
+                <div className="space-y-2">
+                  {earnings.recentAppointments.map((a: any) => (
+                    <div key={a.id} className="bg-white rounded-xl px-4 py-3 shadow-sm flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800">{a.user?.fullName || 'Patient'}</p>
+                        <p className="text-[9px] text-gray-400">{new Date(a.scheduledAt).toLocaleDateString()}</p>
+                      </div>
+                      <p className="text-sm font-bold text-emerald-600">{'\u20B9'}{(a.amountPaid || 0).toLocaleString()}</p>
+                    </div>
+                  ))}
+                </div>
+              </>)}
+
+              <div className="bg-blue-50 rounded-2xl p-4 mt-2">
+                <p className="text-[11px] text-blue-700 font-medium">
+                  {'\u2139\uFE0F'} Payouts are settled by the admin after deducting platform commission. You'll receive settlements via UPI/Bank Transfer.
+                </p>
+              </div>
+            </>)}
+          </div>
+        )}
 
       </div>
 

@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAyurvedaStore } from '../stores/ayurvedaStore';
 import { useAuthStore } from '../stores/authStore';
 import { doctorAPI, paymentAPI } from '../services/api';
 // Bug A fix: import and use the useAppointments hook
@@ -15,28 +14,27 @@ const reasons = ['General Consultation', 'PCOD/PCOS', 'Period Problems', 'Fertil
 export default function AppointmentsPage() {
   const nav = useNavigate();
   const [searchParams] = useSearchParams();
-  const store = useAyurvedaStore();
   const user = useAuthStore(s => s.user);
 
   // Read doctorId from URL (passed from DoctorsPage)
   const preselectedDoctorId = searchParams.get('doctorId');
 
-  // Fetch doctors from API, fall back to zustand defaults
+  // Fetch doctors from API — only show published (server filters by isPublished: true)
   const [apiDoctors, setApiDoctors] = useState<any[] | null>(null);
+  const [doctorsLoading, setDoctorsLoading] = useState(true);
   useEffect(() => {
     doctorAPI.search({})
       .then(result => {
         const items = result.data?.data || [];
-        if (items.length > 0) {
-          // Backend mapDoctor already maps fields (name, experience, fee, etc.)
-          setApiDoctors(items);
-        }
+        setApiDoctors(items.length > 0 ? items : []);
       })
-      .catch(() => {});
+      .catch(() => { setApiDoctors([]); })
+      .finally(() => setDoctorsLoading(false));
   }, []);
 
-  const doctors = apiDoctors || store.doctors;
-  const pubDoctors = doctors.filter(d => d.isPublished);
+  // Never fall back to store.doctors (contains unpublished)
+  const doctors = apiDoctors || [];
+  const pubDoctors = doctors.filter(d => d.isPublished !== false);
   const chief = pubDoctors.find(d => d.isChief);
 
   // Bug A fix: use useAppointments hook — replaces local state + useEffect + confirmBooking + cancelBooking
@@ -182,7 +180,7 @@ export default function AppointmentsPage() {
         key: orderData.keyId,
         amount: orderData.amount,
         currency: orderData.currency || 'INR',
-        name: 'SheBloom',
+        name: 'VedaClue',
         description: `Consultation with Dr. ${doc?.name || 'Doctor'}`,
         order_id: orderData.razorpayOrderId,
         handler: async (response: any) => {

@@ -458,6 +458,7 @@ model Doctor {
   reviews        DoctorReview[]
   availableSlots DoctorSlot[]
   prescriptions  Prescription[]
+  payouts        DoctorPayout[]
 
   @@index([specialization])
   @@index([rating])
@@ -859,4 +860,42 @@ model OrderItem {
 
   @@index([orderId])
   @@map("order_items")
+}
+
+// ─── DOCTOR PAYOUTS & SETTLEMENTS ──────────────────
+// Revenue split model: Platform keeps a commission %, rest goes to doctor.
+// Like Practo/Clue/Zocdoc: admin settles payouts periodically.
+
+model DoctorPayout {
+  id              String        @id @default(cuid())
+  doctorId        String
+  periodStart     DateTime      // Settlement period start
+  periodEnd       DateTime      // Settlement period end
+  totalEarnings   Float         // Gross amount from completed appointments
+  platformFee     Float         // Platform commission amount
+  netPayout       Float         // Amount to be paid to doctor
+  commissionRate  Float         @default(20) // Platform commission % (e.g. 20 = 20%)
+  appointmentCount Int          // Number of appointments in this payout
+  status          PayoutStatus  @default(PENDING)
+  paymentMethod   String?       // UPI / Bank Transfer / Razorpay etc.
+  transactionId   String?       // UTR / transaction reference
+  paidAt          DateTime?     // When payment was made
+  adminNotes      String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  doctor          Doctor        @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("doctor_payouts")
+}
+
+enum PayoutStatus {
+  PENDING       // Settlement generated, not yet paid
+  PROCESSING    // Payment initiated
+  PAID          // Successfully paid to doctor
+  FAILED        // Payment failed
+  ON_HOLD       // Held by admin (dispute etc.)
 }

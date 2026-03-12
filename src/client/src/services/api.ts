@@ -214,6 +214,8 @@ export const doctorDashAPI = {
   getPatientDosha: (userId: string) => api.get(`/doctor/patients/${userId}/dosha`),
   submitClinicalDosha: (userId: string, d: any) => api.post(`/doctor/patients/${userId}/dosha/clinical`, d),
   getPatientDoshaStats: () => api.get('/doctor/patients-dosha-stats'),
+  // Earnings
+  getEarnings: () => api.get('/doctor/earnings'),
 };
 
 export const adminAPI = {
@@ -266,6 +268,12 @@ export const adminAPI = {
   // Orders
   adminOrders: (params?: any) => api.get('/admin/orders', { params }),
   adminUpdateOrderStatus: (id: string, status: string) => api.patch(`/admin/orders/${id}/status`, { status }),
+  // Payouts
+  payoutSummary: () => api.get('/admin/payouts/summary'),
+  payoutList: (params?: { status?: string; doctorId?: string }) => api.get('/admin/payouts', { params }),
+  generatePayout: (d: { doctorId: string; commissionRate?: number }) => api.post('/admin/payouts/generate', d),
+  updatePayout: (id: string, d: any) => api.patch(`/admin/payouts/${id}`, d),
+  deletePayout: (id: string) => api.delete(`/admin/payouts/${id}`),
   // Ayurveda / Dosha Management
   getDoshaProfiles: (params?: any) => api.get('/admin/dosha/profiles', { params }),
   getDoshaProfileDetail: (userId: string) => api.get(`/admin/dosha/profiles/${userId}`),

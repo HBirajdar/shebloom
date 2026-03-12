@@ -576,4 +576,41 @@ r.get('/patients-dosha-stats', async (q: AuthRequest, s: Response, n: NextFuncti
   } catch (e) { n(e); }
 });
 
+// ─── GET /doctor/earnings — Doctor's own earnings & payout history ──
+r.get('/earnings', async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const doctor = await getDoctorProfile(q.user!.id);
+    if (!doctor) { errorResponse(s, 'Doctor profile not found', 404); return; }
+
+    // Get completed appointments with earnings
+    const appointments = await prisma.appointment.findMany({
+      where: { doctorId: doctor.id, status: 'COMPLETED' },
+      select: { id: true, amountPaid: true, scheduledAt: true, doctorName: true, user: { select: { fullName: true } } },
+      orderBy: { scheduledAt: 'desc' },
+    });
+
+    // Get payouts
+    const payouts = await prisma.doctorPayout.findMany({
+      where: { doctorId: doctor.id },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const totalEarned = appointments.reduce((sum, a) => sum + (a.amountPaid || 0), 0);
+    const totalPaidOut = payouts.filter(p => p.status === 'PAID').reduce((sum, p) => sum + p.netPayout, 0);
+    const totalPending = payouts.filter(p => p.status === 'PENDING' || p.status === 'PROCESSING').reduce((sum, p) => sum + p.netPayout, 0);
+    const totalPayoutGross = payouts.reduce((sum, p) => sum + p.totalEarnings, 0);
+    const unsettled = Math.max(0, totalEarned - totalPayoutGross);
+
+    successResponse(s, {
+      totalEarned,
+      totalPaidOut,
+      totalPending,
+      unsettled,
+      totalAppointments: appointments.length,
+      recentAppointments: appointments.slice(0, 20),
+      payouts,
+    });
+  } catch (e) { n(e); }
+});
+
 export default r;

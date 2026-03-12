@@ -38,17 +38,6 @@ export interface DoctorListing {
   city?: string; availability?: string; minFee?: number;
 }
 
-// ─── Dr. Shruthi R - Chief Doctor ───────────────────
-const CHIEF_DOCTOR: DoctorListing = {
-  id: 'd_chief', name: 'Dr. Shruthi R', specialization: 'Ayurveda & Women\'s Health',
-  experience: 10, rating: 4.9, reviews: 847, fee: 200, feeFreeForPoor: true,
-  tags: ['PCOD Expert', 'Fertility', 'Pregnancy Care', 'Hair & Skin', 'Hormonal Balance'],
-  languages: ['Hindi', 'English', 'Marathi', 'Kannada'],
-  qualification: 'BAMS, MD (Ayurveda)',
-  about: 'Passionate about making genuine Ayurvedic healthcare accessible to every woman. Each product is handcrafted with love using herbs sourced directly from organic farms. For patients who cannot afford treatment, consultations are completely free.',
-  isChief: true, isPublished: true, isPromoted: true,
-  city: 'Bangalore', availability: 'Mon-Sat, 10am-6pm',
-};
 
 const defaultProducts: AyurvedaProduct[] = [
   { id: 'p1', name: 'Bhringraj Hair Growth Oil', category: 'hair_oil', price: 450, discountPrice: 349, size: '200ml', emoji: '\u{1F33F}',
@@ -172,21 +161,6 @@ const defaultRecipes: DIYRecipe[] = [
     benefits: ['Relieves cramps', 'Improves circulation', 'Reduces bloating'], targetAudience: ['periods'], isPublished: true, prepTime: '15 min', difficulty: 'Easy' },
 ];
 
-const defaultDoctors: DoctorListing[] = [
-  CHIEF_DOCTOR,
-  { id: 'd2', name: 'Dr. Priya Sharma', specialization: 'Gynecologist', experience: 12, rating: 4.9, reviews: 847,
-    fee: 300, feeFreeForPoor: false, tags: ['PCOD Expert'], languages: ['English', 'Hindi'], qualification: 'MBBS, MS (OBG)',
-    about: 'Specializes in PCOD management and menstrual disorders.', isChief: false, isPublished: true, isPromoted: false,
-    city: 'Mumbai', availability: 'Mon-Fri, 9am-5pm' },
-  { id: 'd3', name: 'Dr. Anita Desai', specialization: 'Obstetrician', experience: 18, rating: 4.8, reviews: 1203,
-    fee: 500, feeFreeForPoor: false, tags: ['High Risk Pregnancy'], languages: ['English'], qualification: 'MBBS, DGO, DNB',
-    about: 'Expert in high-risk pregnancies with 18 years experience.', isChief: false, isPublished: true, isPromoted: false,
-    city: 'Delhi', availability: 'Mon-Sat, 11am-7pm' },
-  { id: 'd4', name: 'Dr. Meera Nair', specialization: 'Fertility Specialist', experience: 15, rating: 4.9, reviews: 632,
-    fee: 450, feeFreeForPoor: false, tags: ['IVF', 'IUI'], languages: ['English', 'Tamil'], qualification: 'MBBS, MS, Fellowship Reproductive Medicine',
-    about: 'Helping couples achieve their dream of parenthood.', isChief: false, isPublished: true, isPromoted: false,
-    city: 'Chennai', availability: 'Tue-Sun, 10am-4pm' },
-];
 
 const STORE_VERSION = 4;
 
@@ -195,16 +169,12 @@ interface StoreState {
   adminPin: string; isAdminUnlocked: boolean;
   unlockAdmin: (pin: string) => boolean; lockAdmin: () => void;
   changePin: (o: string, n: string) => boolean;
-  products: AyurvedaProduct[]; articles: Article[]; recipes: DIYRecipe[]; doctors: DoctorListing[];
+  products: AyurvedaProduct[]; articles: Article[]; recipes: DIYRecipe[];
   addProduct: (p: AyurvedaProduct) => void; updateProduct: (id: string, d: Partial<AyurvedaProduct>) => void;
   deleteProduct: (id: string) => void; togglePublish: (id: string) => void; toggleFeatured: (id: string) => void;
   addArticle: (a: Article) => void; updateArticle: (id: string, d: Partial<Article>) => void;
   deleteArticle: (id: string) => void; toggleArticlePublish: (id: string) => void; toggleArticleFeatured: (id: string) => void;
   addRecipe: (r: DIYRecipe) => void; deleteRecipe: (id: string) => void;
-  addDoctor: (d: DoctorListing) => void; updateDoctor: (id: string, d: Partial<DoctorListing>) => void;
-  deleteDoctor: (id: string) => void; toggleDoctorPublish: (id: string) => void;
-  toggleDoctorPromote: (id: string) => void;
-  getChiefDoctor: () => DoctorListing;
 }
 
 export const useAyurvedaStore = create<StoreState>()(
@@ -215,7 +185,7 @@ export const useAyurvedaStore = create<StoreState>()(
       unlockAdmin: (pin) => { if (pin === get().adminPin) { set({ isAdminUnlocked: true }); return true; } return false; },
       lockAdmin: () => set({ isAdminUnlocked: false }),
       changePin: (o, n) => { if (o === get().adminPin && n.length >= 8) { set({ adminPin: n }); return true; } return false; },
-      products: defaultProducts, articles: defaultArticles, recipes: defaultRecipes, doctors: defaultDoctors,
+      products: defaultProducts, articles: defaultArticles, recipes: defaultRecipes,
       addProduct: (p) => set((s) => ({ products: [...s.products, p] })),
       updateProduct: (id, d) => set((s) => ({ products: s.products.map(p => p.id === id ? { ...p, ...d } : p) })),
       deleteProduct: (id) => set((s) => ({ products: s.products.filter(p => p.id !== id) })),
@@ -228,12 +198,6 @@ export const useAyurvedaStore = create<StoreState>()(
       toggleArticleFeatured: (id) => set((s) => ({ articles: s.articles.map(a => a.id === id ? { ...a, isFeatured: !a.isFeatured } : a) })),
       addRecipe: (r) => set((s) => ({ recipes: [...s.recipes, r] })),
       deleteRecipe: (id) => set((s) => ({ recipes: s.recipes.filter(r => r.id !== id) })),
-      addDoctor: (d) => set((s) => ({ doctors: [...s.doctors, d] })),
-      updateDoctor: (id, d) => set((s) => ({ doctors: s.doctors.map(doc => doc.id === id ? { ...doc, ...d } : doc) })),
-      deleteDoctor: (id) => set((s) => ({ doctors: s.doctors.filter(d => d.id !== id && d.isChief !== true) })),
-      toggleDoctorPublish: (id) => set((s) => ({ doctors: s.doctors.map(d => d.id === id ? { ...d, isPublished: !d.isPublished } : d) })),
-      toggleDoctorPromote: (id) => set((s) => ({ doctors: s.doctors.map(d => d.id === id && !d.isChief ? { ...d, isPromoted: !d.isPromoted } : d) })),
-      getChiefDoctor: () => get().doctors.find(d => d.isChief) || CHIEF_DOCTOR,
     }),
     {
       name: 'vedaclue-ayurveda',
@@ -243,7 +207,6 @@ export const useAyurvedaStore = create<StoreState>()(
           return {
             ...persisted,
             _version: STORE_VERSION,
-            doctors: defaultDoctors,
             articles: defaultArticles,
             products: defaultProducts,
             recipes: defaultRecipes,

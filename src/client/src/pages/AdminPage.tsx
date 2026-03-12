@@ -36,6 +36,12 @@ const apiService = {
   adminDeleteDoctor:         (id: string)    => wrap(adminAPI.deleteDoctor(id)),
   updateUser:                (id: string, d: any) => wrap(adminAPI.updateUser(id, d)),
   adminUpdateAppointment:    (id: string, d: any) => wrap(adminAPI.updateAppointment(id, d)),
+  // Payouts
+  getPayoutSummary:          ()              => wrap(adminAPI.payoutSummary()),
+  getPayoutList:             (p?: any)       => wrap(adminAPI.payoutList(p)),
+  generatePayout:            (d: any)        => wrap(adminAPI.generatePayout(d)),
+  updatePayout:              (id: string, d: any) => wrap(adminAPI.updatePayout(id, d)),
+  deletePayout:              (id: string)    => wrap(adminAPI.deletePayout(id)),
 };
 import MultiImageUpload from '../components/MultiImageUpload';
 import toast from 'react-hot-toast';
@@ -87,6 +93,21 @@ const catOpts: { k: ProductCategory; l: string }[] = [
 
 
 // ─── Reusable form components ───────────────────────
+const AdminSearchBar = ({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) => (
+  <div className="relative">
+    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm">{'\u{1F50D}'}</span>
+    <input
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full pl-10 pr-8 py-3 border border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:ring-2 focus:ring-rose-100 focus:outline-none transition-all bg-white"
+    />
+    {value && (
+      <button onClick={() => onChange('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-bold">{'\u2715'}</button>
+    )}
+  </div>
+);
+
 const FormField = ({ label, value, onChange, placeholder, multiline }: { label: string; value: string; onChange: (v: string) => void; placeholder: string; multiline?: boolean }) => (
   <div>
     <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{label}</label>
@@ -126,7 +147,7 @@ const FormCheckbox = ({ label, checked, onChange }: { label: string; checked: bo
 );
 type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'NO_SHOW' | 'CANCELLED';
 
-type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda';
+type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts';
 
 // ─── Ayurveda Admin Sub-Tab ────────────────────────────
 function AyurvedaAdminTab() {
@@ -378,6 +399,28 @@ export default function AdminPage() {
   // Loading states for actions
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  // Payouts state
+  const [payoutSummary, setPayoutSummary] = useState<any>(null);
+  const [payoutList, setPayoutList] = useState<any[]>([]);
+  const [payoutsLoading, setPayoutsLoading] = useState(false);
+  const [payoutStatusFilter, setPayoutStatusFilter] = useState('');
+  const [payoutSearch, setPayoutSearch] = useState('');
+  const [showPayoutModal, setShowPayoutModal] = useState<any>(null); // doctor object to generate payout for
+  const [payoutCommission, setPayoutCommission] = useState('20');
+  const [markPaidModal, setMarkPaidModal] = useState<any>(null); // payout to mark as paid
+  const [payoutTxnId, setPayoutTxnId] = useState('');
+  const [payoutMethod, setPayoutMethod] = useState('UPI');
+  const [payoutNotes, setPayoutNotes] = useState('');
+
+  // Search states for all tabs (client-side filtering)
+  const [doctorSearch, setDoctorSearch] = useState('');
+  const [productSearch, setProductSearch] = useState('');
+  const [articleSearch, setArticleSearch] = useState('');
+  const [appointmentSearch, setAppointmentSearch] = useState('');
+  const [orderSearch, setOrderSearch] = useState('');
+  const [callbackSearch, setCallbackSearch] = useState('');
+  const [prescriptionSearch, setPrescriptionSearch] = useState('');
+
   // ─── Data fetchers ──────────────────────────────────
   const fetchDashboard = useCallback(async () => {
     setDashLoading(true);
@@ -516,6 +559,50 @@ export default function AdminPage() {
     } catch (e: any) { toast.error('Failed to update order status'); }
   };
 
+  // Payout fetchers
+  const fetchPayoutSummary = async () => {
+    setPayoutsLoading(true);
+    try {
+      const res = await apiService.getPayoutSummary();
+      setPayoutSummary(res.data);
+    } catch { toast.error('Failed to load payout summary'); }
+    finally { setPayoutsLoading(false); }
+  };
+  const fetchPayoutList = async (status = payoutStatusFilter) => {
+    try {
+      const res = await apiService.getPayoutList(status ? { status } : {});
+      setPayoutList(res.data || []);
+    } catch { toast.error('Failed to load payouts'); }
+  };
+  const handleGeneratePayout = async (doctorId: string) => {
+    try {
+      await apiService.generatePayout({ doctorId, commissionRate: parseFloat(payoutCommission) || 20 });
+      toast.success('Settlement generated!');
+      setShowPayoutModal(null);
+      fetchPayoutSummary();
+      fetchPayoutList();
+    } catch (e: any) { toast.error(e?.response?.data?.message || 'Failed to generate settlement'); }
+  };
+  const handleMarkPaid = async (payoutId: string) => {
+    try {
+      await apiService.updatePayout(payoutId, { status: 'PAID', transactionId: payoutTxnId, paymentMethod: payoutMethod, adminNotes: payoutNotes });
+      toast.success('Payout marked as paid!');
+      setMarkPaidModal(null);
+      setPayoutTxnId(''); setPayoutMethod('UPI'); setPayoutNotes('');
+      fetchPayoutSummary();
+      fetchPayoutList();
+    } catch { toast.error('Failed to update payout'); }
+  };
+  const handleDeletePayout = async (id: string) => {
+    if (!confirm('Delete this pending payout?')) return;
+    try {
+      await apiService.deletePayout(id);
+      toast.success('Payout deleted');
+      fetchPayoutSummary();
+      fetchPayoutList();
+    } catch { toast.error('Failed to delete payout'); }
+  };
+
   // Load data when tab changes
   useEffect(() => {
     if (!isUnlocked) return;
@@ -527,6 +614,7 @@ export default function AdminPage() {
     if (tab === 'analytics_products') fetchProductAnalytics();
     if (tab === 'analytics_doctors') fetchDoctorAnalytics();
     if (tab === 'prescriptions') fetchPrescriptions();
+    if (tab === 'payouts') { fetchPayoutSummary(); fetchPayoutList(); }
   }, [tab, isUnlocked]);
 
   // ─── Auth ───────────────────────────────────────────
@@ -924,6 +1012,7 @@ export default function AdminPage() {
     { id: 'orders', icon: '\u{1F6D2}', label: 'Orders' },
     { id: 'prescriptions', icon: '\u{1F48A}', label: 'Rx' },
     { id: 'ayurveda', icon: '☯️', label: 'Ayurveda' },
+    { id: 'payouts', icon: '\u{1F4B0}', label: 'Payouts' },
   ];
 
   const roleBadge = (role: string) => {
@@ -1159,9 +1248,14 @@ export default function AdminPage() {
               <h3 className="text-base font-extrabold text-gray-900">{'\u{1F4E6}'} Products ({products.length})</h3>
               <button onClick={() => setTab('add_product')} className="text-[11px] font-bold text-white bg-gradient-to-r from-rose-500 to-pink-500 px-4 py-2 rounded-full active:scale-95 shadow-sm hover:shadow transition-all">+ Add</button>
             </div>
+            <AdminSearchBar value={productSearch} onChange={setProductSearch} placeholder="Search by name, category..." />
             {products.length === 0 && <p className="text-center text-gray-400 text-sm py-8">No products yet. Click + Add to create one.</p>}
             <div className="space-y-3">
-            {products.map(p => (
+            {products.filter(p => {
+              if (!productSearch.trim()) return true;
+              const q = productSearch.toLowerCase();
+              return p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q) || p.description.toLowerCase().includes(q);
+            }).map(p => (
               <div key={p.id} className="bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all">
                 <div className="flex items-center gap-3">
                   {p.imageUrl ? (
@@ -1204,9 +1298,14 @@ export default function AdminPage() {
               <h3 className="text-base font-extrabold text-gray-900">{'\u{1F4DD}'} Articles ({articles.length})</h3>
               <button onClick={() => setTab('add_article')} className="text-[11px] font-bold text-white bg-gradient-to-r from-rose-500 to-pink-500 px-4 py-2 rounded-full active:scale-95 shadow-sm hover:shadow transition-all">+ Write</button>
             </div>
+            <AdminSearchBar value={articleSearch} onChange={setArticleSearch} placeholder="Search by title, category, author..." />
             {articles.length === 0 && <p className="text-center text-gray-400 text-sm py-8">No articles yet. Click + Write to create one.</p>}
             <div className="space-y-3">
-            {articles.map(a => (
+            {articles.filter(a => {
+              if (!articleSearch.trim()) return true;
+              const q = articleSearch.toLowerCase();
+              return a.title.toLowerCase().includes(q) || a.category.toLowerCase().includes(q) || (a.authorName || '').toLowerCase().includes(q) || (a.excerpt || '').toLowerCase().includes(q);
+            }).map(a => (
               <div key={a.id} className="bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all">
                 <div className="flex items-center gap-3">
                   {a.imageUrl ? (
@@ -1257,9 +1356,14 @@ export default function AdminPage() {
               <h3 className="text-base font-extrabold text-gray-900">{'\u{1F469}\u200D\u2695\uFE0F'} Doctors ({doctors.length})</h3>
               <button onClick={() => setTab('add_doctor')} className="text-[11px] font-bold text-white bg-gradient-to-r from-rose-500 to-pink-500 px-4 py-2 rounded-full active:scale-95 shadow-sm hover:shadow transition-all">+ Add</button>
             </div>
+            <AdminSearchBar value={doctorSearch} onChange={setDoctorSearch} placeholder="Search by name, specialization, hospital..." />
             {doctors.length === 0 && <p className="text-center text-gray-400 text-sm py-8">No doctors yet. Click + Add to create one.</p>}
             <div className="space-y-3">
-            {doctors.map(d => (
+            {doctors.filter(d => {
+              if (!doctorSearch.trim()) return true;
+              const q = doctorSearch.toLowerCase();
+              return d.name.toLowerCase().includes(q) || d.specialization.toLowerCase().includes(q) || (d.hospitalName || '').toLowerCase().includes(q) || (d.location || '').toLowerCase().includes(q) || d.qualification.toLowerCase().includes(q);
+            }).map(d => (
               <div key={d.id} className={'bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all ' + (d.isChief ? 'ring-2 ring-emerald-300' : d.isPromoted ? 'border-l-4 border-amber-400' : '')}>
                 <div className="flex items-center gap-3">
                   {d.avatarUrl ? (
@@ -1312,6 +1416,7 @@ export default function AdminPage() {
             <div className="flex justify-between items-center">
               <h3 className="text-base font-extrabold text-gray-900">{'\u{1F4C5}'} Appointments ({apptsTotal})</h3>
             </div>
+            <AdminSearchBar value={appointmentSearch} onChange={setAppointmentSearch} placeholder="Search by patient, doctor name..." />
             <div className="flex gap-1.5 flex-wrap">
               {['', 'PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'NO_SHOW', 'CANCELLED'].map(s => (
                 <button key={s} onClick={() => { setApptsStatusFilter(s); fetchAppointments(1, s); }}
@@ -1328,7 +1433,11 @@ export default function AdminPage() {
             ) : (
               <>
                 <div className="space-y-3">
-                {appts.map(a => (
+                {appts.filter(a => {
+                  if (!appointmentSearch.trim()) return true;
+                  const q = appointmentSearch.toLowerCase();
+                  return (a.user?.fullName || '').toLowerCase().includes(q) || (a.doctor?.fullName || a.doctorName || '').toLowerCase().includes(q) || (a.notes || '').toLowerCase().includes(q);
+                }).map(a => (
                   <div key={a.id} className="bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
@@ -1634,13 +1743,18 @@ export default function AdminPage() {
               <h3 className="text-base font-extrabold text-gray-900">{'\u{1F6D2}'} Orders ({ordersTotal})</h3>
               <button onClick={() => fetchOrders()} className="text-[10px] font-bold bg-white text-gray-600 px-3 py-1.5 rounded-full active:scale-95 shadow-sm hover:shadow transition-all">Refresh</button>
             </div>
+            <AdminSearchBar value={orderSearch} onChange={setOrderSearch} placeholder="Search by order number, customer name..." />
             {ordersLoading ? (
               <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-3 border-rose-400 border-t-transparent rounded-full" /></div>
             ) : orders.length === 0 ? (
               <div className="text-center py-10"><span className="text-4xl">{'\u{1F4E6}'}</span><p className="text-sm text-gray-400 mt-2">No orders yet</p></div>
             ) : (<>
               <div className="space-y-3">
-              {orders.map((order: any) => (
+              {orders.filter((order: any) => {
+                if (!orderSearch.trim()) return true;
+                const q = orderSearch.toLowerCase();
+                return (order.orderNumber || '').toLowerCase().includes(q) || (order.user?.fullName || '').toLowerCase().includes(q) || (order.user?.email || '').toLowerCase().includes(q) || (order.items || []).some((it: any) => (it.productName || '').toLowerCase().includes(q));
+              }).map((order: any) => (
                 <div key={order.id} className="bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all space-y-2.5">
                   <div className="flex items-start justify-between">
                     <div>
@@ -1692,13 +1806,18 @@ export default function AdminPage() {
               <h3 className="text-base font-extrabold text-gray-900">{'\u{1F48A}'} Prescriptions</h3>
               <button onClick={fetchPrescriptions} className="text-[10px] font-bold bg-white text-gray-600 px-3 py-1.5 rounded-full active:scale-95 shadow-sm hover:shadow transition-all">Refresh</button>
             </div>
+            <AdminSearchBar value={prescriptionSearch} onChange={setPrescriptionSearch} placeholder="Search by patient, doctor, diagnosis..." />
             {prescriptionsLoading ? (
               <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-3 border-rose-400 border-t-transparent rounded-full" /></div>
             ) : prescriptions.length === 0 ? (
               <div className="text-center py-10"><span className="text-4xl">{'\u{1F48A}'}</span><p className="text-sm text-gray-400 mt-2">No prescriptions yet</p></div>
             ) : (<>
               <div className="space-y-3">
-              {prescriptions.map((rx: any) => (
+              {prescriptions.filter((rx: any) => {
+                if (!prescriptionSearch.trim()) return true;
+                const q = prescriptionSearch.toLowerCase();
+                return (rx.appointment?.user?.fullName || '').toLowerCase().includes(q) || (rx.appointment?.doctor?.fullName || rx.appointment?.doctorName || '').toLowerCase().includes(q) || (rx.diagnosis || '').toLowerCase().includes(q);
+              }).map((rx: any) => (
                 <div key={rx.id} className="bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all">
                   <div className="flex items-start justify-between cursor-pointer" onClick={() => setExpandedPrescription(expandedPrescription === rx.id ? null : rx.id)}>
                     <div className="flex-1 min-w-0">
@@ -1931,6 +2050,7 @@ export default function AdminPage() {
                 <button onClick={fetchCallbacks} className="text-[10px] font-bold bg-white text-gray-600 px-3 py-1.5 rounded-full active:scale-95 shadow-sm hover:shadow transition-all">Refresh</button>
               </div>
             </div>
+            <AdminSearchBar value={callbackSearch} onChange={setCallbackSearch} placeholder="Search by name, phone, product..." />
 
             {callbacksLoading ? (
               <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-3 border-rose-400 border-t-transparent rounded-full" /></div>
@@ -1939,7 +2059,11 @@ export default function AdminPage() {
             ) : (<>
               {/* Pending callbacks */}
               <div className="space-y-3">
-              {callbacks.filter(c => c.status === 'PENDING').map((c: any) => (
+              {callbacks.filter(c => c.status === 'PENDING').filter((c: any) => {
+                if (!callbackSearch.trim()) return true;
+                const q = callbackSearch.toLowerCase();
+                return (c.userName || '').toLowerCase().includes(q) || (c.userPhone || '').toLowerCase().includes(q) || (c.productName || '').toLowerCase().includes(q) || (c.message || '').toLowerCase().includes(q);
+              }).map((c: any) => (
                 <div key={c.id} className="bg-white rounded-2xl p-5 shadow-sm border-l-4 border-orange-400 hover:shadow-md transition-all">
                   <div className="flex items-start justify-between">
                     <div>
@@ -1965,7 +2089,11 @@ export default function AdminPage() {
               {callbacks.filter(c => c.status === 'CALLED').length > 0 && (<>
                 <h4 className="text-xs font-bold text-blue-500 uppercase mt-5 tracking-wide">Called ({callbacks.filter(c => c.status === 'CALLED').length})</h4>
                 <div className="space-y-3">
-                {callbacks.filter(c => c.status === 'CALLED').map((c: any) => (
+                {callbacks.filter(c => c.status === 'CALLED').filter((c: any) => {
+                  if (!callbackSearch.trim()) return true;
+                  const q = callbackSearch.toLowerCase();
+                  return (c.userName || '').toLowerCase().includes(q) || (c.userPhone || '').toLowerCase().includes(q) || (c.productName || '').toLowerCase().includes(q);
+                }).map((c: any) => (
                   <div key={c.id} className="bg-white rounded-2xl p-4 shadow-sm border-l-4 border-blue-300 hover:shadow-md transition-all">
                     <div className="flex items-start justify-between">
                       <div>
@@ -1990,7 +2118,11 @@ export default function AdminPage() {
               {callbacks.filter(c => c.status === 'RESOLVED').length > 0 && (<>
                 <h4 className="text-xs font-bold text-gray-400 uppercase mt-5 tracking-wide">Resolved ({callbacks.filter(c => c.status === 'RESOLVED').length})</h4>
                 <div className="space-y-3">
-                {callbacks.filter(c => c.status === 'RESOLVED').map((c: any) => (
+                {callbacks.filter(c => c.status === 'RESOLVED').filter((c: any) => {
+                  if (!callbackSearch.trim()) return true;
+                  const q = callbackSearch.toLowerCase();
+                  return (c.userName || '').toLowerCase().includes(q) || (c.userPhone || '').toLowerCase().includes(q) || (c.productName || '').toLowerCase().includes(q);
+                }).map((c: any) => (
                   <div key={c.id} className="bg-gray-50 rounded-2xl p-4 opacity-60">
                     <div className="flex items-start justify-between">
                       <div>
@@ -2006,6 +2138,233 @@ export default function AdminPage() {
                 </div>
               </>)}
             </>)}
+          </>)}
+
+          {/* ════════ PAYOUTS ════════ */}
+          {tab === 'payouts' && (<>
+            <div className="flex justify-between items-center">
+              <h3 className="text-base font-extrabold text-gray-900">{'\u{1F4B0}'} Doctor Payouts</h3>
+              <button onClick={() => { fetchPayoutSummary(); fetchPayoutList(); }} className="text-[10px] font-bold bg-white text-gray-600 px-3 py-1.5 rounded-full active:scale-95 shadow-sm hover:shadow transition-all">Refresh</button>
+            </div>
+
+            {payoutsLoading ? (
+              <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-3 border-rose-400 border-t-transparent rounded-full" /></div>
+            ) : (<>
+              {/* Platform Revenue Overview */}
+              {payoutSummary?.platformStats && (
+                <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-5 text-white shadow-lg">
+                  <p className="text-xs font-bold text-white/70 uppercase tracking-wide">Platform Revenue Overview</p>
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div>
+                      <p className="text-2xl font-black">{'\u20B9'}{(payoutSummary.platformStats.totalRevenue || 0).toLocaleString()}</p>
+                      <p className="text-[10px] text-white/60">Total Revenue</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-black">{'\u20B9'}{(payoutSummary.platformStats.totalCommission || 0).toLocaleString()}</p>
+                      <p className="text-[10px] text-white/60">Platform Commission ({payoutSummary.platformStats.defaultCommissionRate}%)</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-emerald-300">{'\u20B9'}{(payoutSummary.platformStats.totalPaidOut || 0).toLocaleString()}</p>
+                      <p className="text-[10px] text-white/60">Paid to Doctors</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-amber-300">{'\u20B9'}{(payoutSummary.platformStats.totalUnsettled || 0).toLocaleString()}</p>
+                      <p className="text-[10px] text-white/60">Unsettled</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Doctor-wise Earnings Summary */}
+              <h4 className="text-sm font-bold text-gray-700 mt-1">Doctor Earnings</h4>
+              <AdminSearchBar value={payoutSearch} onChange={setPayoutSearch} placeholder="Search by doctor name..." />
+              <div className="space-y-3">
+                {(payoutSummary?.doctors || []).filter((d: any) => {
+                  if (!payoutSearch.trim()) return true;
+                  return d.doctorName.toLowerCase().includes(payoutSearch.toLowerCase()) || d.specialization.toLowerCase().includes(payoutSearch.toLowerCase());
+                }).map((doc: any) => (
+                  <div key={doc.doctorId} className="bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all">
+                    <div className="flex items-center gap-3">
+                      {doc.avatarUrl ? (
+                        <img src={doc.avatarUrl} className="w-11 h-11 rounded-xl object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold">{doc.doctorName.charAt(0)}</div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-gray-800 truncate">{doc.doctorName}</p>
+                        <p className="text-[10px] text-gray-500">{doc.specialization} {'\u2022'} {doc.totalAppointments} completed</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-extrabold text-gray-900">{'\u20B9'}{doc.totalEarned.toLocaleString()}</p>
+                        <p className="text-[9px] text-gray-400">total earned</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-gray-100">
+                      <div className="text-center">
+                        <p className="text-xs font-bold text-emerald-600">{'\u20B9'}{doc.totalSettled.toLocaleString()}</p>
+                        <p className="text-[8px] text-gray-400">Settled</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs font-bold text-amber-600">{'\u20B9'}{doc.totalPending.toLocaleString()}</p>
+                        <p className="text-[8px] text-gray-400">Pending</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs font-bold text-rose-600">{'\u20B9'}{doc.unsettledNet.toLocaleString()}</p>
+                        <p className="text-[8px] text-gray-400">Unsettled</p>
+                      </div>
+                    </div>
+                    {doc.unsettledGross > 0 && (
+                      <button
+                        onClick={() => { setShowPayoutModal(doc); setPayoutCommission('20'); }}
+                        className="w-full mt-3 py-2.5 rounded-xl text-[11px] font-bold bg-gradient-to-r from-emerald-500 to-teal-500 text-white active:scale-95 shadow-sm transition-all"
+                      >
+                        {'\u{1F4B8}'} Generate Settlement ({'\u20B9'}{doc.unsettledNet.toLocaleString()})
+                      </button>
+                    )}
+                    {doc.lastPayout && (
+                      <p className="text-[9px] text-gray-400 mt-2">Last payout: {new Date(doc.lastPayout.paidAt).toLocaleDateString()} {'\u2022'} {'\u20B9'}{doc.lastPayout.netPayout?.toLocaleString()}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Payout History */}
+              <h4 className="text-sm font-bold text-gray-700 mt-2">Payout History</h4>
+              <div className="flex gap-1.5 flex-wrap">
+                {['', 'PENDING', 'PROCESSING', 'PAID', 'FAILED', 'ON_HOLD'].map(s => (
+                  <button key={s} onClick={() => { setPayoutStatusFilter(s); fetchPayoutList(s); }}
+                    className={'px-3 py-1.5 rounded-full text-[10px] font-bold transition-all ' + (payoutStatusFilter === s ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200')}>
+                    {s || 'ALL'}
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-3">
+                {payoutList.length === 0 ? (
+                  <div className="text-center py-6"><p className="text-sm text-gray-400">No payouts found</p></div>
+                ) : payoutList.map((p: any) => (
+                  <div key={p.id} className={'bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all ' + (p.status === 'PAID' ? 'border-l-4 border-emerald-400' : p.status === 'PENDING' ? 'border-l-4 border-amber-400' : p.status === 'FAILED' ? 'border-l-4 border-red-400' : '')}>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-sm font-bold text-gray-800">{p.doctor?.fullName || 'Unknown'}</p>
+                        <p className="text-[10px] text-gray-500">{p.doctor?.specialization} {'\u2022'} {p.appointmentCount} appointments</p>
+                        <p className="text-[9px] text-gray-400">{new Date(p.periodStart).toLocaleDateString()} {'\u2013'} {new Date(p.periodEnd).toLocaleDateString()}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-base font-extrabold text-gray-900">{'\u20B9'}{p.netPayout?.toLocaleString()}</p>
+                        <span className={'text-[8px] font-bold px-2 py-0.5 rounded-full ' + (
+                          p.status === 'PAID' ? 'bg-emerald-100 text-emerald-700' :
+                          p.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
+                          p.status === 'PROCESSING' ? 'bg-blue-100 text-blue-700' :
+                          p.status === 'FAILED' ? 'bg-red-100 text-red-700' :
+                          'bg-gray-100 text-gray-700'
+                        )}>{p.status}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 mt-2 text-[9px] text-gray-400">
+                      <span>Gross: {'\u20B9'}{p.totalEarnings?.toLocaleString()}</span>
+                      <span>Commission: {p.commissionRate}% ({'\u20B9'}{p.platformFee?.toLocaleString()})</span>
+                    </div>
+                    {p.transactionId && <p className="text-[9px] text-emerald-600 mt-1">TXN: {p.transactionId} {'\u2022'} {p.paymentMethod}</p>}
+                    {p.adminNotes && <p className="text-[9px] text-gray-400 italic mt-1">Note: {p.adminNotes}</p>}
+                    {p.paidAt && <p className="text-[9px] text-emerald-600 mt-1">Paid: {new Date(p.paidAt).toLocaleString()}</p>}
+
+                    {p.status === 'PENDING' && (
+                      <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+                        <button
+                          onClick={() => { setMarkPaidModal(p); setPayoutTxnId(''); setPayoutMethod('UPI'); setPayoutNotes(''); }}
+                          className="flex-1 py-2 rounded-xl text-[10px] font-bold bg-emerald-50 text-emerald-600 active:scale-95 hover:bg-emerald-100 transition-all"
+                        >{'\u2713'} Mark Paid</button>
+                        <button
+                          onClick={() => apiService.updatePayout(p.id, { status: 'PROCESSING' }).then(() => { toast.success('Marked as processing'); fetchPayoutList(); })}
+                          className="flex-1 py-2 rounded-xl text-[10px] font-bold bg-blue-50 text-blue-600 active:scale-95 hover:bg-blue-100 transition-all"
+                        >Processing</button>
+                        <button
+                          onClick={() => handleDeletePayout(p.id)}
+                          className="px-3 py-2 rounded-xl text-[10px] font-bold bg-red-50 text-red-500 active:scale-95 hover:bg-red-100 transition-all"
+                        >{'\u{1F5D1}'}</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>)}
+
+            {/* Generate Payout Modal */}
+            {showPayoutModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ maxWidth: 430, margin: '0 auto' }}>
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowPayoutModal(null)} />
+                <div className="relative bg-white rounded-2xl p-5 shadow-2xl w-full max-w-sm space-y-4 z-10">
+                  <h3 className="text-base font-extrabold text-gray-900">Generate Settlement</h3>
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <p className="text-sm font-bold text-gray-800">{showPayoutModal.doctorName}</p>
+                    <p className="text-[10px] text-gray-500">{showPayoutModal.specialization}</p>
+                    <div className="flex justify-between mt-2">
+                      <span className="text-xs text-gray-500">Unsettled gross:</span>
+                      <span className="text-xs font-bold">{'\u20B9'}{showPayoutModal.unsettledGross?.toLocaleString()}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Platform Commission (%)</label>
+                    <input type="number" min="0" max="50" value={payoutCommission} onChange={e => setPayoutCommission(e.target.value)}
+                      className="w-full mt-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none" />
+                  </div>
+                  <div className="bg-emerald-50 rounded-xl p-3">
+                    <div className="flex justify-between">
+                      <span className="text-xs text-gray-600">Platform fee:</span>
+                      <span className="text-xs font-bold text-gray-600">{'\u20B9'}{((showPayoutModal.unsettledGross || 0) * (parseFloat(payoutCommission) || 20) / 100).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between mt-1">
+                      <span className="text-sm font-bold text-emerald-700">Doctor payout:</span>
+                      <span className="text-sm font-extrabold text-emerald-700">{'\u20B9'}{((showPayoutModal.unsettledGross || 0) * (1 - (parseFloat(payoutCommission) || 20) / 100)).toLocaleString()}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setShowPayoutModal(null)} className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-gray-100 text-gray-600 active:scale-95 transition-all">Cancel</button>
+                    <button onClick={() => handleGeneratePayout(showPayoutModal.doctorId)} className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-emerald-500 to-teal-500 text-white active:scale-95 shadow-sm transition-all">Generate</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Mark as Paid Modal */}
+            {markPaidModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ maxWidth: 430, margin: '0 auto' }}>
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMarkPaidModal(null)} />
+                <div className="relative bg-white rounded-2xl p-5 shadow-2xl w-full max-w-sm space-y-4 z-10">
+                  <h3 className="text-base font-extrabold text-gray-900">Mark as Paid</h3>
+                  <div className="bg-emerald-50 rounded-xl p-3">
+                    <p className="text-sm font-bold text-gray-800">{markPaidModal.doctor?.fullName}</p>
+                    <p className="text-lg font-extrabold text-emerald-700">{'\u20B9'}{markPaidModal.netPayout?.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Payment Method</label>
+                    <select value={payoutMethod} onChange={e => setPayoutMethod(e.target.value)}
+                      className="w-full mt-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none">
+                      <option value="UPI">UPI</option>
+                      <option value="Bank Transfer">Bank Transfer (NEFT/IMPS)</option>
+                      <option value="Razorpay">Razorpay</option>
+                      <option value="Cash">Cash</option>
+                      <option value="Cheque">Cheque</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Transaction ID / UTR</label>
+                    <input value={payoutTxnId} onChange={e => setPayoutTxnId(e.target.value)} placeholder="e.g. UPI123456789"
+                      className="w-full mt-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Notes (optional)</label>
+                    <textarea value={payoutNotes} onChange={e => setPayoutNotes(e.target.value)} placeholder="Any additional notes..."
+                      className="w-full mt-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none resize-none" rows={2} />
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setMarkPaidModal(null)} className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-gray-100 text-gray-600 active:scale-95 transition-all">Cancel</button>
+                    <button onClick={() => handleMarkPaid(markPaidModal.id)} className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-emerald-500 to-teal-500 text-white active:scale-95 shadow-sm transition-all">{'\u2713'} Confirm Paid</button>
+                  </div>
+                </div>
+              </div>
+            )}
           </>)}
 
           {/* ════════ SETTINGS ════════ */}

@@ -6,6 +6,7 @@ import { useCycleStore } from '../stores/cycleStore';
 import { useAuthStore } from '../stores/authStore';
 import { api } from '../services/api';
 import type { ProductCategory, AyurvedaProduct, DIYRecipe } from '../stores/ayurvedaStore';
+import { useChiefDoctor } from '../hooks/useChiefDoctor';
 import BottomNav from '../components/BottomNav';
 import toast from 'react-hot-toast';
 
@@ -40,7 +41,7 @@ const Stars = ({ r }: { r: number }) => (
 export default function AyurvedaPage() {
   const nav = useNavigate();
   const store = useAyurvedaStore();
-  const { recipes, isAdminUnlocked, getChiefDoctor } = store;
+  const { recipes, isAdminUnlocked } = store;
   const { phase, goal } = useCycleStore();
   const user = useAuthStore(s => s.user);
 
@@ -58,17 +59,19 @@ export default function AyurvedaPage() {
   }, []);
   const products = apiProducts || store.products;
 
-  // Fetch doctors from API, fall back to zustand defaults
+  // Fetch doctors from API only
   const [apiDoctors, setApiDoctors] = useState<any[] | null>(null);
+  const [doctorsLoading, setDoctorsLoading] = useState(true);
   useEffect(() => {
     api.get('/doctors')
       .then(r => {
         const items = r.data.data || r.data.doctors || [];
         if (items.length > 0) setApiDoctors(items);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setDoctorsLoading(false));
   }, []);
-  const doctors = apiDoctors || store.doctors;
+  const doctors = apiDoctors || [];
 
   const [view, setView] = useState<'shop' | 'diy' | 'doctor'>('shop');
   const [cat, setCat] = useState<ProductCategory | 'all'>('all');
@@ -90,7 +93,7 @@ export default function AyurvedaPage() {
   const [cbMessage, setCbMessage] = useState('');
   const [cbSent, setCbSent] = useState(false);
 
-  const chief = getChiefDoctor();
+  const { chief } = useChiefDoctor();
   const phaseRec = PHASE_RECS[phase] || PHASE_RECS.follicular;
 
   const visibleProducts = useMemo(() => {

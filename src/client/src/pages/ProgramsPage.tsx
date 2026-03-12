@@ -1,8 +1,8 @@
 // @ts-nocheck
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAyurvedaStore } from '../stores/ayurvedaStore';
 import { useCycleStore } from '../stores/cycleStore';
+import { useChiefDoctor } from '../hooks/useChiefDoctor';
 
 const programs = [
   { id: 'pcod', title: 'PCOD/PCOS Reversal', subtitle: '90-Day Ayurvedic Protocol', emoji: '\u{1F33F}', duration: '90 days', color: '#059669', bg: '#ECFDF5',
@@ -58,9 +58,8 @@ const programs = [
 
 export default function ProgramsPage() {
   const nav = useNavigate();
-  const { getChiefDoctor } = useAyurvedaStore();
   const { goal } = useCycleStore();
-  const chief = getChiefDoctor();
+  const { chief } = useChiefDoctor();
   const [selProgram, setSelProgram] = useState<typeof programs[0] | null>(null);
   const [activeTab, setActiveTab] = useState<'plan' | 'diet' | 'herbs' | 'yoga'>('plan');
 
