@@ -684,6 +684,10 @@ r.get('/callbacks', async (_req: Request, res: Response, next: NextFunction) => 
 r.patch('/callbacks/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { status, adminNotes } = req.body;
+    const validCallbackStatuses = ['PENDING', 'CONTACTED', 'COMPLETED', 'CANCELLED'];
+    if (status && !validCallbackStatuses.includes(status)) {
+      errorResponse(res, `Invalid status. Must be one of: ${validCallbackStatuses.join(', ')}`, 400); return;
+    }
     const callback = await prisma.callbackRequest.update({
       where: { id: req.params.id },
       data: { status, adminNotes, updatedAt: new Date() }
@@ -867,6 +871,10 @@ r.get('/orders', async (req: Request, res: Response, next: NextFunction) => {
 // PATCH /api/v1/admin/orders/:id/status
 r.patch('/orders/:id/status', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const validOrderStatuses = ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'RETURNED'];
+    if (!req.body.status || !validOrderStatuses.includes(req.body.status)) {
+      errorResponse(res, `Invalid status. Must be one of: ${validOrderStatuses.join(', ')}`, 400); return;
+    }
     const order = await prisma.order.update({
       where: { id: req.params.id },
       data: { orderStatus: req.body.status },
@@ -1142,6 +1150,10 @@ r.patch('/payouts/:id', async (req: Request, res: Response, next: NextFunction) 
   try {
     const { status, transactionId, paymentMethod, adminNotes } = req.body;
 
+    const validPayoutStatuses = ['PENDING', 'PROCESSING', 'PAID', 'FAILED', 'CANCELLED'];
+    if (status && !validPayoutStatuses.includes(status)) {
+      errorResponse(res, `Invalid status. Must be one of: ${validPayoutStatuses.join(', ')}`, 400); return;
+    }
     const updateData: any = {};
     if (status) updateData.status = status;
     if (transactionId) updateData.transactionId = transactionId;

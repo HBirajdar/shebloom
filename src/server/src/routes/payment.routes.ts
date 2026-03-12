@@ -61,8 +61,8 @@ r.post('/webhook', async (req: Request, res: Response) => {
           // Only decrement stock + record coupon if WE were the one who updated
           if (updated.count > 0) {
             for (const item of order.items) {
-              await prisma.product.update({
-                where: { id: item.productId },
+              await prisma.product.updateMany({
+                where: { id: item.productId, stock: { gte: item.quantity } },
                 data: { stock: { decrement: item.quantity } },
               }).catch(() => {});
             }
@@ -186,6 +186,9 @@ r.post('/create-order', async (q: AuthRequest, s: Response, n: NextFunction) => 
     for (const item of items) {
       const product = products.find((p: any) => p.id === item.productId);
       if (!product) { errorResponse(s, `Product not found: ${item.productId}`, 400); return; }
+      if (!(product as any).inStock || (product as any).stock < item.quantity) {
+        errorResponse(s, `Insufficient stock for "${(product as any).name}" (available: ${(product as any).stock || 0})`, 400); return;
+      }
       const price = (product as any).discountPrice ?? (product as any).price;
       const totalPrice = price * item.quantity;
       subtotal += totalPrice;
@@ -301,8 +304,8 @@ r.post('/verify', async (q: AuthRequest, s: Response, n: NextFunction) => {
     // Only decrement stock + record coupon if WE were the one who updated
     if (updated.count > 0) {
       for (const item of order.items) {
-        await prisma.product.update({
-          where: { id: item.productId },
+        await prisma.product.updateMany({
+          where: { id: item.productId, stock: { gte: item.quantity } },
           data: { stock: { decrement: item.quantity } },
         }).catch(() => {});
       }
@@ -359,6 +362,9 @@ r.post('/cod', async (q: AuthRequest, s: Response, n: NextFunction) => {
     for (const item of items) {
       const product = products.find((p: any) => p.id === item.productId);
       if (!product) { errorResponse(s, `Product not found: ${item.productId}`, 400); return; }
+      if (!(product as any).inStock || (product as any).stock < item.quantity) {
+        errorResponse(s, `Insufficient stock for "${(product as any).name}" (available: ${(product as any).stock || 0})`, 400); return;
+      }
       const price = (product as any).discountPrice ?? (product as any).price;
       const totalPrice = price * item.quantity;
       subtotal += totalPrice;
@@ -407,10 +413,10 @@ r.post('/cod', async (q: AuthRequest, s: Response, n: NextFunction) => {
       await recordCouponRedemption(couponResult.couponCode, uid, couponDiscount, order.id).catch(() => {});
     }
 
-    // Reduce stock
+    // Reduce stock (safe guard: only decrement if sufficient stock remains)
     for (const item of orderItems) {
-      await prisma.product.update({
-        where: { id: item.productId },
+      await prisma.product.updateMany({
+        where: { id: item.productId, stock: { gte: item.quantity } },
         data: { stock: { decrement: item.quantity } },
       }).catch(() => {});
     }

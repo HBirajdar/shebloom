@@ -446,6 +446,44 @@ r.post('/', requireAdmin, async (req: AuthRequest, res: Response, next: NextFunc
   } catch (e) { next(e); }
 });
 
+// ─── Admin review routes (MUST be before /:id to avoid shadowing) ──
+
+// DELETE /products/reviews/:reviewId — admin delete review
+r.delete('/reviews/:reviewId', requireAdmin, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const review = await prisma.productReview.findUnique({ where: { id: req.params.reviewId } });
+    if (!review) { errorResponse(res, 'Review not found', 404); return; }
+    await prisma.productReview.delete({ where: { id: req.params.reviewId } });
+
+    // Re-aggregate product rating
+    const agg = await prisma.productReview.aggregate({
+      where: { productId: review.productId, isApproved: true },
+      _avg: { rating: true }, _count: true,
+    });
+    await prisma.product.update({
+      where: { id: review.productId },
+      data: { rating: Math.round((agg._avg.rating || 5) * 10) / 10, reviews: agg._count },
+    });
+
+    successResponse(res, null, 'Review deleted');
+  } catch (e) { next(e); }
+});
+
+// PUT /products/reviews/:reviewId/reply — admin reply to review
+r.put('/reviews/:reviewId/reply', requireAdmin, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { reply } = req.body;
+    const review = await prisma.productReview.update({
+      where: { id: req.params.reviewId },
+      data: { adminReply: reply || null },
+    });
+    successResponse(res, review, 'Reply added');
+  } catch (e: any) {
+    if (e.code === 'P2025') { errorResponse(res, 'Review not found', 404); return; }
+    next(e);
+  }
+});
+
 // PUT /products/:id — admin update
 r.put('/:id', requireAdmin, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -505,42 +543,6 @@ r.post('/:id/toggle-publish', requireAdmin, async (req: AuthRequest, res: Respon
     });
     successResponse(res, updated);
   } catch (e) { next(e); }
-});
-
-// DELETE /products/reviews/:reviewId — admin delete review
-r.delete('/reviews/:reviewId', requireAdmin, async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const review = await prisma.productReview.findUnique({ where: { id: req.params.reviewId } });
-    if (!review) { errorResponse(res, 'Review not found', 404); return; }
-    await prisma.productReview.delete({ where: { id: req.params.reviewId } });
-
-    // Re-aggregate product rating
-    const agg = await prisma.productReview.aggregate({
-      where: { productId: review.productId, isApproved: true },
-      _avg: { rating: true }, _count: true,
-    });
-    await prisma.product.update({
-      where: { id: review.productId },
-      data: { rating: Math.round((agg._avg.rating || 5) * 10) / 10, reviews: agg._count },
-    });
-
-    successResponse(res, null, 'Review deleted');
-  } catch (e) { next(e); }
-});
-
-// PUT /products/reviews/:reviewId/reply — admin reply to review
-r.put('/reviews/:reviewId/reply', requireAdmin, async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const { reply } = req.body;
-    const review = await prisma.productReview.update({
-      where: { id: req.params.reviewId },
-      data: { adminReply: reply || null },
-    });
-    successResponse(res, review, 'Reply added');
-  } catch (e: any) {
-    if (e.code === 'P2025') { errorResponse(res, 'Review not found', 404); return; }
-    next(e);
-  }
 });
 
 export default r;

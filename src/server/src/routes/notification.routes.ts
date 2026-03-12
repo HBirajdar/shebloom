@@ -86,6 +86,10 @@ r.put('/:id/read', async (q: AuthRequest, s: Response, n: NextFunction) => {
 // ─── PATCH /:id/read (legacy compat) ────────────────
 r.patch('/:id/read', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
+    const notification = await prisma.notification.findFirst({
+      where: { id: q.params.id, userId: q.user!.id },
+    });
+    if (!notification) { errorResponse(s, 'Notification not found', 404); return; }
     await prisma.notification.update({ where: { id: q.params.id }, data: { isRead: true } });
     successResponse(s, null, 'Marked as read');
   } catch (e) { n(e); }

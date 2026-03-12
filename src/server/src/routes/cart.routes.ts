@@ -9,6 +9,7 @@
 // ══════════════════════════════════════════════════════
 
 import { Router, Response, NextFunction } from 'express';
+import prisma from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/response.utils';
 
@@ -45,25 +46,36 @@ r.get('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
 r.post('/add', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const uid = q.user!.id;
-    const { productId, name, price, image, qty = 1 } = q.body as Partial<CartItem>;
+    const { productId, qty = 1 } = q.body;
 
-    if (!productId || !name || price === undefined) {
-      errorResponse(s, 'productId, name and price are required', 400);
+    if (!productId) {
+      errorResponse(s, 'productId is required', 400);
       return;
     }
+
+    // Always fetch price from DB to prevent price manipulation
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      select: { id: true, name: true, price: true, discountPrice: true, imageUrl: true, inStock: true, stock: true },
+    });
+    if (!product) { errorResponse(s, 'Product not found', 404); return; }
+    if (!product.inStock || (product.stock ?? 0) <= 0) { errorResponse(s, 'Product is out of stock', 400); return; }
+
+    const verifiedPrice = product.discountPrice ?? product.price;
 
     const cart = getCart(uid);
     const existing = cart.find(i => i.productId === productId);
 
     if (existing) {
       existing.qty = Math.min(existing.qty + (qty || 1), 10);
+      existing.price = verifiedPrice; // Always use DB price
     } else {
       cart.push({
         id: `${uid}-${productId}-${Date.now()}`,
         productId,
-        name,
-        price,
-        image: image || '',
+        name: product.name,
+        price: verifiedPrice,
+        image: product.imageUrl || '',
         qty: Math.min(qty || 1, 10),
         addedAt: new Date().toISOString(),
       });
@@ -71,7 +83,7 @@ r.post('/add', async (q: AuthRequest, s: Response, n: NextFunction) => {
 
     setCart(uid, cart);
     const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
-    successResponse(s, { items: cart, total }, `${name} added to cart`);
+    successResponse(s, { items: cart, total }, `${product.name} added to cart`);
   } catch (e) { n(e); }
 });
 

@@ -112,8 +112,16 @@ r.get('/:id', async (q: AuthRequest, s: Response, n: NextFunction) => {
       include: { doctor: { select: { id: true, fullName: true, specialization: true, avatarUrl: true, consultationFee: true } } },
     });
     if (!appt) { errorResponse(s, 'Appointment not found', 404); return; }
-    // Ownership check: patient sees own appointments, admin/doctor sees all
-    if (appt.userId !== q.user!.id && q.user!.role !== 'ADMIN' && q.user!.role !== 'DOCTOR') {
+    // Ownership check: patient sees own, doctor sees own patients, admin sees all
+    const isOwner = appt.userId === q.user!.id;
+    const isAdmin = q.user!.role === 'ADMIN';
+    const isAssignedDoctor = q.user!.role === 'DOCTOR' && appt.doctorId != null;
+    let doctorAuthorized = false;
+    if (isAssignedDoctor) {
+      const doc = await prisma.doctor.findUnique({ where: { userId: q.user!.id }, select: { id: true } });
+      doctorAuthorized = doc != null && doc.id === appt.doctorId;
+    }
+    if (!isOwner && !isAdmin && !doctorAuthorized) {
       errorResponse(s, 'Not authorized', 403); return;
     }
     successResponse(s, {
@@ -131,6 +139,9 @@ r.patch('/:id/cancel', async (q: AuthRequest, s: Response, n: NextFunction) => {
     const existing = await prisma.appointment.findUnique({ where: { id: q.params.id } });
     if (!existing) { errorResponse(s, 'Appointment not found', 404); return; }
     if (existing.userId !== q.user!.id) { errorResponse(s, 'Not your appointment', 403); return; }
+    if (['COMPLETED', 'CANCELLED'].includes(existing.status)) {
+      errorResponse(s, `Cannot cancel — appointment is already ${existing.status.toLowerCase()}`, 400); return;
+    }
 
     const appt = await prisma.appointment.update({
       where: { id: q.params.id },

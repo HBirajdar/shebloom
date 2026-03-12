@@ -266,6 +266,7 @@ r.put('/:id', authenticate, requireAdmin, async (q: AuthRequest, res: Response, 
     if (q.body.status !== undefined) {
       data.status = q.body.status;
       if (q.body.status === 'PUBLISHED' && !data.publishedAt) data.publishedAt = new Date();
+      if (q.body.status === 'DRAFT') data.publishedAt = null;
     }
     if (q.body.tags !== undefined) {
       data.tags = Array.isArray(q.body.tags) ? q.body.tags : (q.body.tags || '').split(',').map((s: string) => s.trim()).filter(Boolean);

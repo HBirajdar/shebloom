@@ -75,7 +75,7 @@ r.get('/:id/slots', async (q: Request, res: Response, n: NextFunction) => {
 r.get('/:id', async (q: Request, res: Response, n: NextFunction) => {
   try {
     const d = await prisma.doctor.findUnique({ where: { id: q.params.id } });
-    if (!d) { errorResponse(res, 'Doctor not found', 404); return; }
+    if (!d || !d.isPublished) { errorResponse(res, 'Doctor not found', 404); return; }
     successResponse(res, mapDoctor(d));
   } catch (e) { n(e); }
 });

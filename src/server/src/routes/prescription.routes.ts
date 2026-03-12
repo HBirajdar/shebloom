@@ -26,6 +26,14 @@ r.post('/', requireDoctor, async (req: AuthRequest, res: Response, next: NextFun
       errorResponse(res, 'Appointment must be linked to a registered doctor to issue a prescription', 400); return;
     }
 
+    // Verify the logged-in doctor is the appointment's doctor (admin can bypass)
+    if (req.user!.role !== 'ADMIN') {
+      const doc = await prisma.doctor.findUnique({ where: { userId: req.user!.id }, select: { id: true } });
+      if (!doc || doc.id !== appt.doctorId) {
+        errorResponse(res, 'You can only prescribe for your own appointments', 403); return;
+      }
+    }
+
     // Check no prescription already exists
     const existing = await prisma.prescription.findUnique({ where: { appointmentId } });
     if (existing) { errorResponse(res, 'Prescription already exists for this appointment', 400); return; }

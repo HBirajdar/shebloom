@@ -2,12 +2,11 @@
 import { Router, Response, NextFunction } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { UserService } from '../services/user.service';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../config/database';
 import { successResponse, errorResponse } from '../utils/response.utils';
 
 const router = Router();
 const svc = new UserService();
-const prisma = new PrismaClient();
 router.use(authenticate);
 
 router.get('/me', async (req: AuthRequest, res: Response, next: NextFunction) => {
