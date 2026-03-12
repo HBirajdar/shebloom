@@ -47,9 +47,10 @@ api.interceptors.response.use(
   (r) => r,
   async (err) => {
     const req = err.config;
-    if (err.response?.status === 401 && !req._retry) {
+
+    // 401 → try token refresh (once)
+    if (err.response?.status === 401 && req && !req._retry) {
       req._retry = true;
-      // All concurrent 401s share the same refresh promise
       if (!refreshPromise) {
         refreshPromise = refreshToken().finally(() => { refreshPromise = null; });
       }
@@ -59,12 +60,22 @@ api.interceptors.response.use(
         return api(req);
       }
     }
+
     // Attach readable error message for catch blocks
     const serverMsg = err.response?.data?.error || err.response?.data?.message;
-    if (serverMsg) err.message = serverMsg;
-    else if (err.code === 'ECONNABORTED') err.message = 'Request timed out — server may be starting up, try again';
-    else if (err.response?.status === 429) err.message = 'Too many requests — please wait a minute';
-    else if (!err.response) err.message = 'Network error — check your connection';
+    if (serverMsg) {
+      err.message = serverMsg;
+    } else if (err.code === 'ECONNABORTED') {
+      err.message = 'Request timed out — server may be starting up, try again';
+    } else if (err.response?.status === 429) {
+      err.message = 'Too many requests — please wait a minute';
+    } else if (err.response?.status === 403) {
+      err.message = 'Access denied — admin login required';
+    } else if (!err.response) {
+      // Log detailed info for debugging network errors in production
+      console.error('[API] No response:', err.code, err.message, req?.url);
+      err.message = 'Network error — check your connection';
+    }
     return Promise.reject(err);
   }
 );

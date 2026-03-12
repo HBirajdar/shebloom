@@ -1068,8 +1068,22 @@ export default function AdminPage() {
   const [callbackSearch, setCallbackSearch] = useState('');
   const [prescriptionSearch, setPrescriptionSearch] = useState('');
 
+  // ─── Helpers ────────────────────────────────────────
+  // Verify token exists before any admin API call; redirect to login if missing
+  const ensureToken = (): boolean => {
+    const token = localStorage.getItem('sb_token');
+    if (!token) {
+      toast.error('Session expired — please log in again');
+      sessionStorage.removeItem('sb_admin_unlocked');
+      nav('/auth');
+      return false;
+    }
+    return true;
+  };
+
   // ─── Data fetchers ──────────────────────────────────
   const fetchDashboard = useCallback(async () => {
+    if (!ensureToken()) return;
     setDashLoading(true);
     try {
       const res = await apiService.getDashboard();
@@ -1078,6 +1092,7 @@ export default function AdminPage() {
       setArticles(data.articles || []);
       setDoctors(data.doctors || []);
     } catch (e: any) {
+      console.error('[Admin] fetchDashboard failed:', e.message, e.response?.status, e.code);
       toast.error(e.message || 'Failed to load dashboard');
     } finally {
       setDashLoading(false);
@@ -1085,6 +1100,7 @@ export default function AdminPage() {
   }, []);
 
   const fetchUsers = async (page = 1, search = usersSearch, role = usersRoleFilter) => {
+    if (!ensureToken()) return;
     setUsersLoading(true);
     try {
       const params: any = { page: String(page), limit: '20' };
@@ -1104,6 +1120,7 @@ export default function AdminPage() {
   };
 
   const fetchAppointments = async (page = 1, status = apptsStatusFilter) => {
+    if (!ensureToken()) return;
     setApptsLoading(true);
     try {
       const params: any = { page: String(page) };
@@ -1122,6 +1139,7 @@ export default function AdminPage() {
   };
 
   const fetchAnalytics = async () => {
+    if (!ensureToken()) return;
     setAnalyticsLoading(true);
     try {
       const res = await apiService.getAnalytics();
@@ -1134,6 +1152,7 @@ export default function AdminPage() {
   };
 
   const fetchCallbacks = async () => {
+    if (!ensureToken()) return;
     setCallbacksLoading(true);
     try {
       const res = await apiService.adminGetCallbacks();
@@ -1162,6 +1181,7 @@ export default function AdminPage() {
   };
 
   const fetchProductAnalytics = async () => {
+    if (!ensureToken()) return;
     setProductAnalyticsLoading(true);
     try {
       const res = await apiService.getAdminProductAnalytics();
@@ -1171,6 +1191,7 @@ export default function AdminPage() {
   };
 
   const fetchDoctorAnalytics = async () => {
+    if (!ensureToken()) return;
     setDoctorAnalyticsLoading(true);
     try {
       const res = await apiService.getAdminDoctorAnalytics();
@@ -1183,6 +1204,7 @@ export default function AdminPage() {
   };
 
   const fetchPrescriptions = async () => {
+    if (!ensureToken()) return;
     setPrescriptionsLoading(true);
     try {
       const res = await apiService.getAdminPrescriptions();
@@ -1192,6 +1214,7 @@ export default function AdminPage() {
   };
 
   const fetchOrders = async (page = 1) => {
+    if (!ensureToken()) return;
     setOrdersLoading(true);
     try {
       const res = await apiService.adminGetOrders({ page, limit: 20 });
@@ -1211,6 +1234,7 @@ export default function AdminPage() {
 
   // Payout fetchers
   const fetchPayoutSummary = async () => {
+    if (!ensureToken()) return;
     setPayoutsLoading(true);
     try {
       const res = await apiService.getPayoutSummary();
@@ -1219,6 +1243,7 @@ export default function AdminPage() {
     finally { setPayoutsLoading(false); }
   };
   const fetchPayoutList = async (status = payoutStatusFilter) => {
+    if (!ensureToken()) return;
     try {
       const res = await apiService.getPayoutList(status ? { status } : {});
       setPayoutList(res.data || []);
@@ -1274,6 +1299,23 @@ export default function AdminPage() {
       setPassError('Incorrect password. Access denied.');
       setPassword('');
       return;
+    }
+    // Verify server connectivity + token validity before unlocking
+    if (!ensureToken()) return;
+    try {
+      await apiService.getDashboard();
+    } catch (e: any) {
+      const msg = e.message || 'Connection failed';
+      if (msg.includes('Authentication') || msg.includes('Token') || msg.includes('Access denied')) {
+        toast.error('Your session expired. Please log in again.');
+        sessionStorage.removeItem('sb_admin_unlocked');
+        localStorage.removeItem('sb_token');
+        localStorage.removeItem('sb_refresh');
+        nav('/auth');
+        return;
+      }
+      // Non-auth errors — still unlock but warn
+      toast.error(msg);
     }
     setIsUnlocked(true);
     sessionStorage.setItem('sb_admin_unlocked', '1');

@@ -6,7 +6,7 @@
  *   - HTML navigation: Network-first, fallback to cached shell
  */
 
-const CACHE_NAME = 'vedaclue-v2';
+const CACHE_NAME = 'vedaclue-v3';
 const SHELL_URL  = '/';
 
 // Assets to pre-cache on install (shell)
@@ -44,10 +44,9 @@ self.addEventListener('fetch', event => {
   // Skip non-GET and cross-origin
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
 
-  // API calls → network only (never cache auth/data)
+  // API calls & uploads → let browser handle natively (don't intercept)
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/uploads/')) {
-    event.respondWith(fetch(request));
-    return;
+    return; // ← no event.respondWith — browser handles directly
   }
 
   // Static hashed assets (JS/CSS bundles) → stale-while-revalidate

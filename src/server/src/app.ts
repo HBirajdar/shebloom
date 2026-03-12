@@ -47,6 +47,16 @@ import financeRoutes from './routes/finance.routes';
 
 const app = express();
 
+// ─── Canonical domain (www → non-www) ───────────────
+// Prevents localStorage isolation between www.vedaclue.com and vedaclue.com
+app.use((req, res, next) => {
+  const host = req.hostname;
+  if (host.startsWith('www.')) {
+    return res.redirect(301, `${req.protocol}://${host.slice(4)}${req.originalUrl}`);
+  }
+  next();
+});
+
 // ─── Security ───────────────────────────────────────
 app.use(helmet({
   contentSecurityPolicy: {
@@ -75,10 +85,15 @@ const allowedOrigins = [
 
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, Postman)
+    // Allow requests with no origin (same-origin, mobile apps, curl, Postman)
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    callback(new Error(`CORS: origin ${origin} not allowed`));
+    // Also allow the Railway deployment URL (same app, different domain)
+    if (origin?.endsWith('.up.railway.app')) return callback(null, true);
+    // Log but don't crash — return false instead of Error so the response
+    // still reaches the browser (otherwise browser gets opaque network error)
+    console.warn(`CORS: origin ${origin} not in allowed list`);
+    callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -86,7 +101,7 @@ const corsOptions: cors.CorsOptions = {
 };
 app.use(cors(corsOptions));
 
-// Handle preflight explicitly (use same corsOptions to restrict origins)
+// Handle preflight explicitly
 app.options('*', cors(corsOptions));
 
 // ─── Compression ────────────────────────────────────
