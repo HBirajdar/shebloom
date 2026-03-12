@@ -5,11 +5,53 @@
 import 'dotenv/config';
 import app from './app';
 import { logger } from './config/logger';
-import { connectDatabase } from './config/database';
+import prisma, { connectDatabase } from './config/database';
 import { connectRedis } from './config/redis';
 import { execSync } from 'child_process';
 
 const PORT = process.env.PORT || process.env.APP_PORT || 8000;
+
+async function ensureChiefDoctor() {
+  try {
+    const chief = await prisma.doctor.findFirst({ where: { isChief: true } });
+    if (chief) {
+      logger.info(`Chief doctor exists: ${chief.fullName}`);
+      return;
+    }
+    // Also check if Dr. Shruthi R exists but isn't marked chief
+    const shruthi = await prisma.doctor.findFirst({ where: { fullName: { contains: 'Shruthi' } } });
+    if (shruthi) {
+      await prisma.doctor.update({
+        where: { id: shruthi.id },
+        data: { isChief: true, isPublished: true, isPromoted: true, status: 'active', isVerified: true },
+      });
+      logger.info('Marked existing Dr. Shruthi R as Chief Doctor');
+      return;
+    }
+    // Create Dr. Shruthi R
+    await prisma.doctor.create({
+      data: {
+        fullName: 'Dr. Shruthi R',
+        specialization: 'Ayurvedic Women\'s Health & Wellness',
+        qualifications: ['BAMS', 'MD (Ayurveda — Streeroga & Prasuti Tantra)', 'Panchakarma Specialist', 'Certified Yoga Therapist'],
+        experienceYears: 10,
+        consultationFee: 500,
+        hospitalName: 'VedaClue Ayurveda Clinic',
+        bio: 'Dr. Shruthi R is the founder and chief Ayurvedic physician at VedaClue. With over 10 years of experience in Streeroga (Ayurvedic Gynecology), she specializes in PCOD/PCOS management, menstrual health, fertility support, and prenatal care through traditional Ayurvedic protocols.',
+        tags: ['Ayurveda', 'PCOD', 'Fertility', 'Menstrual Health', 'Pregnancy', 'Panchakarma', 'Dosha', 'Herbal Medicine'],
+        languages: ['ENGLISH', 'HINDI', 'KANNADA', 'MARATHI'],
+        rating: 4.9, totalReviews: 312,
+        isVerified: true, isAvailable: true, isPublished: true,
+        isChief: true, isPromoted: true,
+        status: 'active', location: 'Pune, Maharashtra',
+        approvedAt: new Date(), publishedAt: new Date(),
+      },
+    });
+    logger.info('Created Dr. Shruthi R as Chief Doctor');
+  } catch (err: any) {
+    logger.warn('ensureChiefDoctor skipped: ' + (err.message || '').slice(0, 200));
+  }
+}
 
 async function runMigrations() {
   // Step 1: Push schema changes — non-fatal, DB may already be in sync
@@ -52,6 +94,7 @@ async function bootstrap() {
     await connectDatabase();
     logger.info('Database connected');
     await runMigrations();
+    await ensureChiefDoctor();
   } catch (error: any) {
     logger.error('Database connection failed: ' + error.message);
     if (process.env.NODE_ENV === 'production') {

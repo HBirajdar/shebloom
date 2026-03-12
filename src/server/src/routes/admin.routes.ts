@@ -520,9 +520,10 @@ r.post('/doctors', async (req: Request, res: Response, next: NextFunction) => {
         qualifications, experienceYears: Number(b.experience) || 0,
         consultationFee: Number(b.fee) || 0, bio: b.about || '',
         tags: Array.isArray(b.tags) ? b.tags : [], languages: Array.isArray(b.languages) ? b.languages : [],
-        avatarUrl: b.avatarUrl || null, isPublished: false, isChief: b.isChief ?? false, isPromoted: b.isPromoted ?? false,
-        rating: 5.0, totalReviews: 0, isAvailable: true, isVerified: false,
-        status: 'pending', hospitalName: b.hospitalName || null, location: b.location || null,
+        avatarUrl: b.avatarUrl || null, isPublished: true, isChief: b.isChief ?? false, isPromoted: b.isPromoted ?? false,
+        rating: 5.0, totalReviews: 0, isAvailable: true, isVerified: true,
+        status: 'active', hospitalName: b.hospitalName || null, location: b.location || null,
+        approvedBy: (req as any).user?.id || 'admin', approvedAt: new Date(), publishedAt: new Date(),
       },
     });
     // If doctor has an email in the request, create linked User account

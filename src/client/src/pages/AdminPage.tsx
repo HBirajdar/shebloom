@@ -955,7 +955,7 @@ export default function AdminPage() {
   }
 
   // Auth state
-  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState(() => sessionStorage.getItem('sb_admin_unlocked') === '1');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [passError, setPassError] = useState('');
@@ -1169,7 +1169,10 @@ export default function AdminPage() {
     try {
       const res = await apiService.getAdminDoctorAnalytics();
       setDoctorAnalytics(res.data);
-    } catch (e: any) { toast.error('Failed to load doctor analytics'); }
+    } catch (e: any) {
+      const msg = e?.response?.data?.error || e?.response?.data?.message || e.message || 'Network error';
+      toast.error('Doctor analytics: ' + msg);
+    }
     finally { setDoctorAnalyticsLoading(false); }
   };
 
@@ -1247,9 +1250,10 @@ export default function AdminPage() {
   // Load data when tab changes
   useEffect(() => {
     if (!isUnlocked) return;
+    if (tab === 'overview' || tab === 'doctors' || tab === 'products' || tab === 'articles') fetchDashboard();
     if (tab === 'users') fetchUsers(1, usersSearch, usersRoleFilter);
     if (tab === 'appointments') fetchAppointments(1, apptsStatusFilter);
-    if (tab === 'analytics' || tab === 'overview') fetchAnalytics();
+    if (tab === 'analytics') fetchAnalytics();
     if (tab === 'orders') fetchOrders();
     if (tab === 'callbacks') fetchCallbacks();
     if (tab === 'analytics_products') fetchProductAnalytics();
@@ -1266,13 +1270,14 @@ export default function AdminPage() {
       return;
     }
     setIsUnlocked(true);
+    sessionStorage.setItem('sb_admin_unlocked', '1');
     setPassword('');
     setPassError('');
     toast.success('Welcome, Admin!');
     await fetchDashboard();
   };
 
-  const handleLock = () => { setIsUnlocked(false); nav('/profile'); };
+  const handleLock = () => { setIsUnlocked(false); sessionStorage.removeItem('sb_admin_unlocked'); nav('/profile'); };
 
   // ─── LOGIN SCREEN ───────────────────────────────────
   if (!isUnlocked) {
@@ -2316,7 +2321,10 @@ export default function AdminPage() {
             {doctorAnalyticsLoading ? (
               <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-3 border-rose-400 border-t-transparent rounded-full" /></div>
             ) : !doctorAnalytics ? (
-              <p className="text-center text-gray-400 text-sm py-8">Failed to load doctor analytics</p>
+              <div className="text-center py-8">
+                <p className="text-gray-400 text-sm mb-3">Failed to load doctor analytics</p>
+                <button onClick={fetchDoctorAnalytics} className="text-[11px] font-bold text-white bg-gradient-to-r from-rose-500 to-pink-500 px-4 py-2 rounded-full active:scale-95">Retry</button>
+              </div>
             ) : (<>
               {/* Most booked highlight */}
               {doctorAnalytics.mostBooked && (

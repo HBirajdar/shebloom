@@ -68,6 +68,8 @@ const allowedOrigins = [
   'http://localhost:3000',
   'https://shebloom.vercel.app',
   'https://shebloom.netlify.app',
+  'https://vedaclue.com',
+  'https://www.vedaclue.com',
   process.env.CLIENT_URL,
 ].filter(Boolean) as string[];
 

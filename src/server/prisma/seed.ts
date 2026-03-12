@@ -74,7 +74,7 @@ async function main() {
           isPublished: true,
           isChief: true,
           isPromoted: true,
-          status: 'approved',
+          status: 'active',
           location: 'Pune, Maharashtra',
         },
         {
