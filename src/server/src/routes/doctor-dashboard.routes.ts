@@ -13,8 +13,20 @@ const r = Router();
 r.use(authenticate, requireDoctor);
 
 // Helper: get doctor profile from the logged-in user
+// Falls back to matching by user's fullName and auto-links if found
 async function getDoctorProfile(userId: string) {
-  return prisma.doctor.findFirst({ where: { userId } });
+  let doctor = await prisma.doctor.findFirst({ where: { userId } });
+  if (!doctor) {
+    // Try to find unlinked doctor by matching user's name
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { fullName: true } });
+    if (user?.fullName) {
+      doctor = await prisma.doctor.findFirst({ where: { fullName: user.fullName, userId: null } });
+      if (doctor) {
+        doctor = await prisma.doctor.update({ where: { id: doctor.id }, data: { userId } });
+      }
+    }
+  }
+  return doctor;
 }
 
 // ─── GET /doctor/dashboard ───────────────────────────

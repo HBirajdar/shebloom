@@ -534,7 +534,11 @@ r.post('/doctors', async (req: Request, res: Response, next: NextFunction) => {
 
         // Check if user with this email already exists
         const existingUser = await prisma.user.findUnique({ where: { email: b.email } });
-        if (!existingUser) {
+        if (existingUser) {
+          // Link existing user to doctor and upgrade role
+          await prisma.user.update({ where: { id: existingUser.id }, data: { role: 'DOCTOR' } });
+          await prisma.doctor.update({ where: { id: doctor.id }, data: { userId: existingUser.id } });
+        } else {
           const doctorUser = await prisma.user.create({
             data: {
               email: b.email,
@@ -549,9 +553,6 @@ r.post('/doctors', async (req: Request, res: Response, next: NextFunction) => {
             where: { id: doctor.id },
             data: { userId: doctorUser.id },
           });
-          // Send welcome email with credentials
-          // (fire-and-forget)
-          // sendDoctorWelcomeEmail({ email: b.email, name: b.name, tempPassword }).catch(() => {});
         }
       } catch (linkErr) {
         // Non-fatal: doctor was created, just linking failed
