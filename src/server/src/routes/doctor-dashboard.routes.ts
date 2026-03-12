@@ -250,4 +250,97 @@ r.get('/reviews', async (q: AuthRequest, s: Response, n: NextFunction) => {
   } catch (e) { n(e); }
 });
 
+// ─── GET /doctor/articles ─────────────────────────────
+r.get('/articles', async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const doctor = await getDoctorProfile(q.user!.id);
+    if (!doctor) { errorResponse(s, 'Doctor profile not found', 404); return; }
+
+    const articles = await prisma.article.findMany({
+      where: { doctorId: doctor.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    successResponse(s, articles);
+  } catch (e) { n(e); }
+});
+
+// ─── POST /doctor/articles — create article (status=REVIEW for admin approval) ──
+r.post('/articles', async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const doctor = await getDoctorProfile(q.user!.id);
+    if (!doctor) { errorResponse(s, 'Doctor profile not found', 404); return; }
+
+    const { title, content, category, tags, excerpt, emoji, coverImageUrl, readTimeMinutes } = q.body;
+    if (!title || !content || !category) {
+      errorResponse(s, 'Title, content and category are required', 400); return;
+    }
+
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now().toString(36);
+
+    const article = await prisma.article.create({
+      data: {
+        doctorId: doctor.id,
+        title,
+        slug,
+        content,
+        excerpt: excerpt || content.substring(0, 150) + '...',
+        category,
+        tags: Array.isArray(tags) ? tags : (tags ? tags.split(',').map((t: string) => t.trim()).filter(Boolean) : []),
+        emoji: emoji || '📝',
+        coverImageUrl: coverImageUrl || null,
+        readTimeMinutes: readTimeMinutes || Math.ceil(content.split(/\s+/).length / 200) || 5,
+        authorName: doctor.fullName,
+        status: 'REVIEW',
+      },
+    });
+    successResponse(s, article, 'Article submitted for review', 201);
+  } catch (e) { n(e); }
+});
+
+// ─── PUT /doctor/articles/:id — edit own article ──
+r.put('/articles/:id', async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const doctor = await getDoctorProfile(q.user!.id);
+    if (!doctor) { errorResponse(s, 'Doctor profile not found', 404); return; }
+
+    const existing = await prisma.article.findFirst({ where: { id: q.params.id, doctorId: doctor.id } });
+    if (!existing) { errorResponse(s, 'Article not found', 404); return; }
+
+    const { title, content, category, tags, excerpt, emoji, coverImageUrl, readTimeMinutes } = q.body;
+    const data: any = {};
+    if (title !== undefined) data.title = title;
+    if (content !== undefined) {
+      data.content = content;
+      data.readTimeMinutes = readTimeMinutes || Math.ceil(content.split(/\s+/).length / 200) || 5;
+    }
+    if (category !== undefined) data.category = category;
+    if (tags !== undefined) data.tags = Array.isArray(tags) ? tags : tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+    if (excerpt !== undefined) data.excerpt = excerpt;
+    if (emoji !== undefined) data.emoji = emoji;
+    if (coverImageUrl !== undefined) data.coverImageUrl = coverImageUrl;
+    // Re-submit for review on edit
+    data.status = 'REVIEW';
+    data.approvedBy = null;
+    data.approvedAt = null;
+    data.publishedAt = null;
+
+    const article = await prisma.article.update({ where: { id: q.params.id }, data });
+    successResponse(s, article, 'Article updated and re-submitted for review');
+  } catch (e) { n(e); }
+});
+
+// ─── DELETE /doctor/articles/:id — delete own article ──
+r.delete('/articles/:id', async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const doctor = await getDoctorProfile(q.user!.id);
+    if (!doctor) { errorResponse(s, 'Doctor profile not found', 404); return; }
+
+    const existing = await prisma.article.findFirst({ where: { id: q.params.id, doctorId: doctor.id } });
+    if (!existing) { errorResponse(s, 'Article not found', 404); return; }
+
+    await prisma.article.delete({ where: { id: q.params.id } });
+    successResponse(s, null, 'Article deleted');
+  } catch (e) { n(e); }
+});
+
 export default r;

@@ -183,6 +183,10 @@ export const doctorDashAPI = {
   updateProfile: (d: any) => api.patch('/doctor/profile', d),
   getPrescriptions: () => api.get('/doctor/prescriptions'),
   getReviews: () => api.get('/doctor/reviews'),
+  getArticles: () => api.get('/doctor/articles'),
+  createArticle: (d: any) => api.post('/doctor/articles', d),
+  updateArticle: (id: string, d: any) => api.put(`/doctor/articles/${id}`, d),
+  deleteArticle: (id: string) => api.delete(`/doctor/articles/${id}`),
 };
 
 export const adminAPI = {

@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/authStore';
 import { doctorDashAPI, prescriptionAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
-type Tab = 'overview' | 'appointments' | 'prescriptions' | 'profile' | 'reviews';
+type Tab = 'overview' | 'appointments' | 'prescriptions' | 'articles' | 'profile' | 'reviews';
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING:     'bg-yellow-100 text-yellow-700',
@@ -45,6 +45,13 @@ export default function DoctorDashboard() {
   // Reviews state
   const [reviews, setReviews] = useState<any[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(true);
+
+  // Articles state
+  const [articles, setArticles] = useState<any[]>([]);
+  const [articlesLoading, setArticlesLoading] = useState(true);
+  const [showArticleForm, setShowArticleForm] = useState(false);
+  const [editingArticle, setEditingArticle] = useState<any>(null);
+  const [articleForm, setArticleForm] = useState({ title: '', content: '', category: 'wellness', tags: '', excerpt: '', emoji: '' });
 
   // Write prescription modal
   const [rxModal, setRxModal] = useState<{ open: boolean; appointmentId: string | null }>({ open: false, appointmentId: null });
@@ -96,10 +103,20 @@ export default function DoctorDashboard() {
     finally { setReviewsLoading(false); }
   }, []);
 
+  const fetchArticles = useCallback(async () => {
+    setArticlesLoading(true);
+    try {
+      const res = await doctorDashAPI.getArticles();
+      setArticles(res.data.data || []);
+    } catch {}
+    finally { setArticlesLoading(false); }
+  }, []);
+
   useEffect(() => {
     if (tab === 'overview') fetchStats();
     if (tab === 'appointments') fetchAppts();
     if (tab === 'prescriptions') fetchPrescriptions();
+    if (tab === 'articles') fetchArticles();
     if (tab === 'profile') fetchProfile();
     if (tab === 'reviews') fetchReviews();
   }, [tab]);
@@ -162,10 +179,51 @@ export default function DoctorDashboard() {
     } catch (e: any) { toast.error(e.message || 'Failed to save'); }
   };
 
+  const handleSubmitArticle = async () => {
+    if (!articleForm.title || !articleForm.content || !articleForm.category) {
+      toast.error('Title, content and category are required'); return;
+    }
+    try {
+      if (editingArticle) {
+        await doctorDashAPI.updateArticle(editingArticle.id, articleForm);
+        toast.success('Article updated & re-submitted for review');
+      } else {
+        await doctorDashAPI.createArticle(articleForm);
+        toast.success('Article submitted for admin review!');
+      }
+      setShowArticleForm(false);
+      setEditingArticle(null);
+      setArticleForm({ title: '', content: '', category: 'wellness', tags: '', excerpt: '', emoji: '' });
+      fetchArticles();
+    } catch (e: any) { toast.error(e.message || 'Failed to submit'); }
+  };
+
+  const handleDeleteArticle = async (id: string) => {
+    if (!confirm('Delete this article?')) return;
+    try {
+      await doctorDashAPI.deleteArticle(id);
+      toast.success('Article deleted');
+      fetchArticles();
+    } catch (e: any) { toast.error(e.message || 'Failed'); }
+  };
+
+  const ARTICLE_CATS = [
+    { k: 'periods', l: 'Periods' }, { k: 'pregnancy', l: 'Pregnancy' }, { k: 'pcod', l: 'PCOD' },
+    { k: 'wellness', l: 'Wellness' }, { k: 'nutrition', l: 'Nutrition' }, { k: 'mental_health', l: 'Mental Health' },
+  ];
+
+  const STATUS_BADGE: Record<string, string> = {
+    DRAFT: 'bg-gray-100 text-gray-600',
+    REVIEW: 'bg-amber-100 text-amber-700',
+    PUBLISHED: 'bg-emerald-100 text-emerald-700',
+    ARCHIVED: 'bg-red-100 text-red-600',
+  };
+
   const tabs: { id: Tab; label: string; emoji: string }[] = [
     { id: 'overview', label: 'Overview', emoji: '\u{1F4CA}' },
     { id: 'appointments', label: 'Appointments', emoji: '\u{1F4C5}' },
     { id: 'prescriptions', label: 'Prescriptions', emoji: '\u{1F48A}' },
+    { id: 'articles', label: 'Articles', emoji: '\u{1F4DD}' },
     { id: 'profile', label: 'My Profile', emoji: '\u{1F464}' },
     { id: 'reviews', label: 'Reviews', emoji: '\u{2B50}' },
   ];
@@ -227,6 +285,9 @@ export default function DoctorDashboard() {
                   </button>
                   <button onClick={() => { setStatusFilter('PENDING'); setTab('appointments'); }} className="w-full py-3 rounded-2xl bg-amber-50 text-amber-700 text-xs font-bold active:scale-95 border border-amber-100">
                     \u{23F3} Review {stats.pendingCount} Pending Requests
+                  </button>
+                  <button onClick={() => setTab('articles')} className="w-full py-3 rounded-2xl bg-emerald-50 text-emerald-700 text-xs font-bold active:scale-95 border border-emerald-100">
+                    \u{1F4DD} Write & Publish Article
                   </button>
                 </div>
               </div>
@@ -336,6 +397,115 @@ export default function DoctorDashboard() {
               </div>
             ))
           )
+        )}
+
+        {/* -- ARTICLES TAB -- */}
+        {tab === 'articles' && (
+          <>
+            {!showArticleForm ? (
+              <>
+                <button onClick={() => { setEditingArticle(null); setArticleForm({ title: '', content: '', category: 'wellness', tags: '', excerpt: '', emoji: '' }); setShowArticleForm(true); }}
+                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold active:scale-95 shadow-md shadow-emerald-200">
+                  + Write New Article
+                </button>
+
+                {articlesLoading ? (
+                  <div className="space-y-3">{[1,2].map(i => <div key={i} className="bg-white rounded-2xl p-4 animate-pulse h-24" />)}</div>
+                ) : articles.length === 0 ? (
+                  <div className="text-center py-16">
+                    <span className="text-5xl">{'\u{1F4DD}'}</span>
+                    <p className="text-sm font-bold text-gray-400 mt-3">No articles yet</p>
+                    <p className="text-xs text-gray-300 mt-1">Write your first article to share your expertise!</p>
+                  </div>
+                ) : (
+                  articles.map(art => (
+                    <div key={art.id} className="bg-white rounded-3xl p-4 shadow-sm">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <p className="text-xs font-bold text-gray-800">{art.emoji || '\u{1F4DD}'} {art.title}</p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">{art.category} &middot; {new Date(art.createdAt).toLocaleDateString('en', { day: 'numeric', month: 'short' })}</p>
+                        </div>
+                        <span className={'text-[9px] font-bold px-2 py-1 rounded-full ' + (STATUS_BADGE[art.status] || 'bg-gray-100 text-gray-600')}>
+                          {art.status}
+                        </span>
+                      </div>
+                      {art.excerpt && <p className="text-[11px] text-gray-500 leading-relaxed mb-2">{art.excerpt.substring(0, 100)}...</p>}
+                      {art.status === 'REVIEW' && (
+                        <p className="text-[10px] text-amber-600 bg-amber-50 rounded-lg px-2 py-1 mb-2 font-medium">Waiting for admin approval</p>
+                      )}
+                      <div className="flex gap-2">
+                        <button onClick={() => {
+                          setEditingArticle(art);
+                          setArticleForm({ title: art.title, content: art.content, category: art.category, tags: (art.tags || []).join(', '), excerpt: art.excerpt || '', emoji: art.emoji || '' });
+                          setShowArticleForm(true);
+                        }} className="flex-1 py-2 rounded-xl bg-blue-50 text-blue-700 text-[11px] font-bold active:scale-95">
+                          Edit
+                        </button>
+                        <button onClick={() => handleDeleteArticle(art.id)}
+                          className="flex-1 py-2 rounded-xl bg-red-50 text-red-600 text-[11px] font-bold active:scale-95">
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </>
+            ) : (
+              /* Article Form */
+              <div className="bg-white rounded-3xl p-4 shadow-sm space-y-3">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-sm font-extrabold text-gray-900">{editingArticle ? 'Edit Article' : 'Write Article'}</h3>
+                  <button onClick={() => { setShowArticleForm(false); setEditingArticle(null); }}
+                    className="px-3 py-1.5 rounded-xl bg-gray-100 text-xs font-bold text-gray-500 active:scale-95">Cancel</button>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Title *</label>
+                  <input value={articleForm.title} onChange={e => setArticleForm(p => ({ ...p, title: e.target.value }))}
+                    placeholder="Article title" className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-rose-400 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Category *</label>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {ARTICLE_CATS.map(c => (
+                      <button key={c.k} onClick={() => setArticleForm(p => ({ ...p, category: c.k }))}
+                        className={'px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all active:scale-95 ' + (articleForm.category === c.k ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500')}>
+                        {c.l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Content *</label>
+                  <textarea value={articleForm.content} onChange={e => setArticleForm(p => ({ ...p, content: e.target.value }))}
+                    placeholder="Write your article content here..." rows={8}
+                    className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-rose-400 focus:outline-none resize-none" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Excerpt (short summary)</label>
+                  <textarea value={articleForm.excerpt} onChange={e => setArticleForm(p => ({ ...p, excerpt: e.target.value }))}
+                    placeholder="Brief summary for preview..." rows={2}
+                    className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-rose-400 focus:outline-none resize-none" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Tags (comma-sep)</label>
+                    <input value={articleForm.tags} onChange={e => setArticleForm(p => ({ ...p, tags: e.target.value }))}
+                      placeholder="PCOD, Diet, Tips..." className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-rose-400 focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Emoji</label>
+                    <input value={articleForm.emoji} onChange={e => setArticleForm(p => ({ ...p, emoji: e.target.value }))}
+                      placeholder="e.g. \u{1F4DD}" className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-rose-400 focus:outline-none" />
+                  </div>
+                </div>
+                <button onClick={handleSubmitArticle}
+                  className="w-full py-3 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-emerald-500 to-teal-500 active:scale-95 shadow-md shadow-emerald-200">
+                  {editingArticle ? 'Update & Re-submit for Review' : 'Submit for Admin Review'}
+                </button>
+                <p className="text-[10px] text-gray-400 text-center">Your article will be reviewed by admin before publishing</p>
+              </div>
+            )}
+          </>
         )}
 
         {/* -- PROFILE TAB -- */}
