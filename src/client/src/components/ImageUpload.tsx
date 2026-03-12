@@ -25,7 +25,7 @@ export default function ImageUpload({ value, onChange, label = 'Photo', classNam
       return;
     }
     const fd = new FormData();
-    fd.append('file', file);
+    fd.append('image', file);
     setUploading(true);
     setProgress(0);
     try {

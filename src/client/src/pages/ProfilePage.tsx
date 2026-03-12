@@ -235,7 +235,7 @@ export default function ProfilePage() {
       setAvatarUploading(true);
       try {
         const fd = new FormData();
-        fd.append('file', file);
+        fd.append('image', file);
         const uploadRes = await api.post('/upload/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
         const photoUrl = uploadRes.data.data.url;
         await userAPI.update({ photoUrl });

@@ -29,7 +29,7 @@ export default function MultiImageUpload({ values = [], onChange, maxImages = 4,
       return;
     }
     const fd = new FormData();
-    fd.append('file', file);
+    fd.append('image', file);
     setUploading(true);
     setProgress(0);
     try {
