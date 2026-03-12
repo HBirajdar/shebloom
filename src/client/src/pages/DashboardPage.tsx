@@ -187,7 +187,7 @@ export default function DashboardPage() {
   useEffect(() => {
     userAPI.me().then(res => {
       const p = res.data.data || res.data;
-      if (p && user) useAuthStore.getState().setUser({ ...user, fullName: p.fullName || user.fullName, email: p.email || user.email });
+      if (p && user) useAuthStore.getState().setUser({ ...user, fullName: p.fullName || user.fullName, email: p.email || user.email, role: p.role || user.role, avatarUrl: p.avatarUrl || user.avatarUrl, phone: p.phone || user.phone });
     }).catch(() => {});
     cycleAPI.predict().then(r => {
       const d = r.data.data;
@@ -432,19 +432,33 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ─── Doctor/Admin Quick Access ─── */}
+        {/* ─── Doctor/Admin Quick Access — Role Switcher ─── */}
         {(user?.role === 'DOCTOR' || user?.role === 'ADMIN') && (
-          <button onClick={() => nav(user?.role === 'ADMIN' ? '/admin' : '/doctor-dashboard')}
-            className="w-full flex items-center gap-3 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-3.5 shadow-lg active:scale-[0.98] transition-transform">
-            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl">
-              {user?.role === 'ADMIN' ? '🛡️' : '🩺'}
+          <div className="bg-white rounded-3xl p-3 shadow-lg border border-gray-100/50">
+            <div className="flex items-center gap-2 mb-2 px-1">
+              <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.4)]" />
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">You're viewing as User</p>
             </div>
-            <div className="flex-1 text-left">
-              <p className="text-white text-sm font-extrabold">{user?.role === 'ADMIN' ? 'Admin Panel' : 'Doctor Dashboard'}</p>
-              <p className="text-white/70 text-[10px]">{user?.role === 'ADMIN' ? 'Manage users, products & doctors' : 'View appointments & patients'}</p>
+            <div className="flex gap-2">
+              {/* Current: User View (active) */}
+              <div className="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-2xl bg-gradient-to-r from-rose-50 to-pink-50 border-2 border-rose-200">
+                <span className="text-lg">👤</span>
+                <div>
+                  <p className="text-[11px] font-bold text-rose-700">User Mode</p>
+                  <p className="text-[8px] text-rose-400">Health & Wellness</p>
+                </div>
+              </div>
+              {/* Switch to Doctor/Admin */}
+              <button onClick={() => nav(user?.role === 'ADMIN' ? '/admin' : '/doctor-dashboard')}
+                className="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 active:scale-[0.97] transition-transform shadow-md shadow-indigo-200">
+                <span className="text-lg">{user?.role === 'ADMIN' ? '🛡️' : '🩺'}</span>
+                <div>
+                  <p className="text-[11px] font-extrabold text-white">{user?.role === 'ADMIN' ? 'Admin' : 'Doctor'}</p>
+                  <p className="text-[8px] text-white/60">{user?.role === 'ADMIN' ? 'Manage app' : 'Portal'} →</p>
+                </div>
+              </button>
             </div>
-            <span className="text-white/80 text-sm font-bold">→</span>
-          </button>
+          </div>
         )}
 
         {/* ─── Quick Actions Row 1 ─── */}

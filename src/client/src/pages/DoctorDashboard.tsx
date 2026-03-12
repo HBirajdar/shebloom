@@ -21,6 +21,8 @@ export default function DoctorDashboard() {
   const nav = useNavigate();
   const user = useAuthStore(s => s.user);
   const [tab, setTab] = useState<Tab>('overview');
+  const [isOnline, setIsOnline] = useState(true);
+  const [tipIdx, setTipIdx] = useState(0);
 
   // Overview state
   const [stats, setStats] = useState<any>(null);
@@ -113,7 +115,7 @@ export default function DoctorDashboard() {
   }, []);
 
   useEffect(() => {
-    if (tab === 'overview') fetchStats();
+    if (tab === 'overview') { fetchStats(); fetchProfile(); fetchArticles(); }
     if (tab === 'appointments') fetchAppts();
     if (tab === 'prescriptions') fetchPrescriptions();
     if (tab === 'articles') fetchArticles();
@@ -208,8 +210,9 @@ export default function DoctorDashboard() {
   };
 
   const ARTICLE_CATS = [
-    { k: 'periods', l: 'Periods' }, { k: 'pregnancy', l: 'Pregnancy' }, { k: 'pcod', l: 'PCOD' },
-    { k: 'wellness', l: 'Wellness' }, { k: 'nutrition', l: 'Nutrition' }, { k: 'mental_health', l: 'Mental Health' },
+    { k: 'periods', l: 'Periods', e: '🩸' }, { k: 'pregnancy', l: 'Pregnancy', e: '🤰' }, { k: 'pcod', l: 'PCOD', e: '🔬' },
+    { k: 'wellness', l: 'Wellness', e: '🧘' }, { k: 'nutrition', l: 'Nutrition', e: '🥗' }, { k: 'mental_health', l: 'Mental Health', e: '🧠' },
+    { k: 'fitness', l: 'Fitness', e: '💪' }, { k: 'fertility', l: 'Fertility', e: '💜' },
   ];
 
   const STATUS_BADGE: Record<string, string> = {
@@ -219,113 +222,355 @@ export default function DoctorDashboard() {
     ARCHIVED: 'bg-red-100 text-red-600',
   };
 
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+  const today = new Date();
+  const todayStr = today.toLocaleDateString('en', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  const PRO_TIPS = [
+    'Keep your profile updated with your latest specialization and availability. Complete profiles get 3x more bookings.',
+    'Publish articles regularly to build trust with patients. Doctors with 5+ articles see 40% more appointment requests.',
+    'Respond to pending appointment requests within 2 hours for the best patient experience.',
+    'Add a professional bio and hospital name — patients prefer doctors with detailed backgrounds.',
+    'Write about trending health topics like PCOD, nutrition, and mental wellness to reach more readers.',
+    'Review your prescriptions regularly to maintain accurate patient records.',
+  ];
+
+  useEffect(() => {
+    const t = setInterval(() => setTipIdx(i => (i + 1) % PRO_TIPS.length), 5000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Profile completeness calculation
+  const getProfileCompleteness = () => {
+    if (!profile) return 0;
+    const fields = ['fullName', 'specialization', 'experienceYears', 'consultationFee', 'hospitalName', 'location', 'bio', 'avatarUrl'];
+    const filled = fields.filter(f => profile[f] && String(profile[f]).trim()).length;
+    return Math.round((filled / fields.length) * 100);
+  };
+
   const tabs: { id: Tab; label: string; emoji: string }[] = [
-    { id: 'overview', label: 'Overview', emoji: '\u{1F4CA}' },
-    { id: 'appointments', label: 'Appointments', emoji: '\u{1F4C5}' },
-    { id: 'prescriptions', label: 'Prescriptions', emoji: '\u{1F48A}' },
-    { id: 'articles', label: 'Articles', emoji: '\u{1F4DD}' },
-    { id: 'profile', label: 'My Profile', emoji: '\u{1F464}' },
-    { id: 'reviews', label: 'Reviews', emoji: '\u{2B50}' },
+    { id: 'overview', label: 'Home', emoji: '🏠' },
+    { id: 'appointments', label: 'Appointments', emoji: '📅' },
+    { id: 'prescriptions', label: 'Rx', emoji: '💊' },
+    { id: 'articles', label: 'Articles', emoji: '📝' },
+    { id: 'profile', label: 'Profile', emoji: '👤' },
+    { id: 'reviews', label: 'Reviews', emoji: '⭐' },
   ];
 
   return (
-    <div className="min-h-screen pb-8 bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
-      {/* Header */}
-      <div className="sticky top-0 z-20 backdrop-blur-xl border-b border-rose-100" style={{ backgroundColor: 'rgba(255,241,242,0.92)' }}>
+    <div className="min-h-screen pb-24 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+      {/* ─── Premium Header ─── */}
+      <div className="sticky top-0 z-20 backdrop-blur-xl border-b border-indigo-100/50" style={{ backgroundColor: 'rgba(238,242,255,0.92)' }}>
         <div className="px-5 py-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm shadow">
-            {user?.fullName?.charAt(0) || 'D'}
+          <div className="relative">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-extrabold text-sm shadow-lg shadow-indigo-200">
+              {user?.fullName?.charAt(0) || 'D'}
+            </div>
+            {/* Online status dot */}
+            <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${isOnline ? 'bg-emerald-400' : 'bg-gray-300'}`} />
           </div>
           <div className="flex-1">
-            <h1 className="text-sm font-extrabold text-gray-900">Doctor Portal</h1>
-            <p className="text-[10px] text-gray-400">{user?.fullName || 'Doctor'}</p>
+            <p className="text-[10px] text-gray-400 font-medium">{greeting}, Doctor</p>
+            <p className="text-sm font-extrabold text-gray-900">{user?.fullName || 'Doctor'}</p>
           </div>
-          <button onClick={() => nav('/dashboard')} className="px-3 py-1.5 rounded-2xl bg-white/60 text-xs font-bold text-gray-500 active:scale-95">Exit</button>
+          {/* Role Switch — toggle between Doctor & User view */}
+          <button onClick={() => nav('/dashboard')}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-gradient-to-r from-rose-50 to-pink-50 border border-rose-100 active:scale-95 transition-transform shadow-sm">
+            <span className="text-sm">👤</span>
+            <span className="text-[10px] font-bold text-rose-600">User View</span>
+          </button>
         </div>
-        {/* Tab bar */}
-        <div className="px-4 pb-3 flex gap-1.5 overflow-x-auto scrollbar-hide">
-          {tabs.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={'flex-shrink-0 px-3 py-2 rounded-2xl text-[11px] font-bold transition-all active:scale-95 ' + (tab === t.id ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md shadow-rose-200' : 'bg-white/60 text-gray-500')}>
-              {t.emoji} {t.label}
-            </button>
-          ))}
+      </div>
+
+      {/* ─── Tab Navigation (Bottom-style, fixed) ─── */}
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-40">
+        <div className="bg-white rounded-t-3xl border-t border-indigo-100 px-2 shadow-[0_-4px_24px_rgba(0,0,0,0.08)]" style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))', height: 72 }}>
+          <div className="flex items-center justify-around h-full">
+            {tabs.map(t => {
+              const active = tab === t.id;
+              return (
+                <button key={t.id} onClick={() => setTab(t.id)} className="flex flex-col items-center gap-0.5 active:scale-95 transition-all">
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all ${active ? 'bg-gradient-to-r from-indigo-500 to-purple-500 shadow-md shadow-indigo-200' : 'bg-gray-50'}`}>
+                    <span className={active ? 'brightness-0 invert' : 'opacity-70'} style={{ fontSize: 18 }}>{t.emoji}</span>
+                  </div>
+                  <span className={`font-bold transition-colors ${active ? 'text-indigo-600' : 'text-gray-500'}`} style={{ fontSize: 9 }}>
+                    {t.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
       <div className="px-4 pt-4 space-y-4">
 
-        {/* -- OVERVIEW TAB -- */}
+        {/* ══════════════ OVERVIEW TAB ══════════════ */}
         {tab === 'overview' && (
           statsLoading ? (
-            <div className="grid grid-cols-2 gap-3">
-              {[1,2,3,4].map(i => <div key={i} className="bg-white rounded-2xl p-4 animate-pulse h-24" />)}
+            <div className="space-y-3">
+              <div className="bg-white rounded-3xl p-6 animate-pulse h-36" />
+              <div className="grid grid-cols-2 gap-3">
+                {[1,2,3,4].map(i => <div key={i} className="bg-white rounded-2xl p-4 animate-pulse h-28" />)}
+              </div>
             </div>
           ) : stats ? (
             <>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { label: "Today's Appointments", value: stats.todayAppointments, emoji: '\u{1F4C5}', color: 'from-blue-500 to-indigo-500' },
-                  { label: 'Pending Requests', value: stats.pendingCount, emoji: '\u{23F3}', color: 'from-amber-500 to-orange-500' },
-                  { label: 'Patients Served', value: stats.totalPatients, emoji: '\u{1F9D1}\u{200D}\u{2695}\u{FE0F}', color: 'from-emerald-500 to-teal-500' },
-                  { label: 'Avg Rating', value: stats.averageRating ? `${stats.averageRating} \u{2605}` : 'No reviews', emoji: '\u{2B50}', color: 'from-rose-500 to-pink-500' },
-                ].map(card => (
-                  <div key={card.label} className="bg-white rounded-3xl p-4 shadow-sm">
-                    <div className={`w-10 h-10 rounded-2xl bg-gradient-to-br ${card.color} flex items-center justify-center text-xl mb-2 shadow-sm`}>{card.emoji}</div>
-                    <p className="text-2xl font-extrabold text-gray-900">{card.value}</p>
-                    <p className="text-[10px] text-gray-400 font-medium">{card.label}</p>
+              {/* Welcome Card with Date & Status */}
+              <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 rounded-3xl p-5 text-white shadow-xl shadow-indigo-200/50 relative overflow-hidden">
+                {/* Decorative circles */}
+                <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/5 rounded-full" />
+                <div className="absolute -bottom-8 -left-8 w-24 h-24 bg-white/5 rounded-full" />
+
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-white/50 text-[9px] uppercase tracking-widest font-bold">{todayStr}</p>
+                    {/* Availability Toggle */}
+                    <button onClick={() => { setIsOnline(!isOnline); toast.success(isOnline ? 'Status: Offline' : 'Status: Online'); }}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 active:scale-95 transition-all">
+                      <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]' : 'bg-gray-400'}`} />
+                      <span className="text-[9px] font-bold text-white/80">{isOnline ? 'Online' : 'Offline'}</span>
+                    </button>
                   </div>
-                ))}
+                  <p className="text-xl font-extrabold mt-1">Welcome, Dr. {user?.fullName?.split(' ').pop() || ''}</p>
+                  <p className="text-white/60 text-xs mt-1 leading-relaxed">
+                    {stats.todayAppointments > 0
+                      ? `${stats.todayAppointments} appointment${stats.todayAppointments > 1 ? 's' : ''} today${stats.pendingCount > 0 ? ` · ${stats.pendingCount} pending` : ''}`
+                      : 'No appointments today — write an article or update your profile!'}
+                  </p>
+
+                  {/* Mini Stats Row inside hero */}
+                  <div className="flex gap-2 mt-4">
+                    {[
+                      { v: stats.todayAppointments ?? 0, l: 'Today' },
+                      { v: stats.pendingCount ?? 0, l: 'Pending' },
+                      { v: stats.totalPatients ?? 0, l: 'Patients' },
+                      { v: stats.averageRating ? Number(stats.averageRating).toFixed(1) : '—', l: 'Rating' },
+                    ].map(s => (
+                      <div key={s.l} className="flex-1 bg-white/10 rounded-xl px-2 py-2 text-center">
+                        <p className="text-lg font-extrabold">{s.v}</p>
+                        <p className="text-[8px] text-white/50 font-bold uppercase">{s.l}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div className="bg-white rounded-3xl p-4 shadow-sm">
-                <p className="text-xs font-extrabold text-gray-800 mb-2">Quick Actions</p>
-                <div className="space-y-2">
-                  <button onClick={() => setTab('appointments')} className="w-full py-3 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs font-bold active:scale-95 shadow-md shadow-rose-200">
-                    \u{1F4C5} View Today's Appointments
+
+              {/* Profile Completeness + Article Performance */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* Profile Completeness */}
+                <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-sm">👤</span>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Profile</p>
+                  </div>
+                  {(() => {
+                    const pct = getProfileCompleteness();
+                    const color = pct >= 80 ? '#10B981' : pct >= 50 ? '#F59E0B' : '#EF4444';
+                    return (
+                      <>
+                        <div className="relative w-16 h-16 mx-auto my-1">
+                          <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
+                            <circle cx="32" cy="32" r="26" fill="none" stroke="#F1F5F9" strokeWidth="5" />
+                            <circle cx="32" cy="32" r="26" fill="none" stroke={color} strokeWidth="5"
+                              strokeDasharray={2 * Math.PI * 26} strokeDashoffset={2 * Math.PI * 26 * (1 - pct / 100)} strokeLinecap="round"
+                              style={{ transition: 'stroke-dashoffset 0.8s ease' }} />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-sm font-extrabold" style={{ color }}>{pct}%</span>
+                          </div>
+                        </div>
+                        <p className="text-[9px] text-gray-400 text-center mt-1 font-medium">
+                          {pct >= 80 ? 'Looking great!' : pct >= 50 ? 'Almost there' : 'Complete profile'}
+                        </p>
+                        {pct < 100 && (
+                          <button onClick={() => setTab('profile')} className="w-full mt-2 py-1.5 rounded-lg text-[9px] font-bold text-indigo-600 bg-indigo-50 active:scale-95">
+                            Complete Profile
+                          </button>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+
+                {/* Article Performance */}
+                <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-sm">📊</span>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Articles</p>
+                  </div>
+                  {(() => {
+                    const totalArticles = articles.length;
+                    const published = articles.filter(a => a.status === 'PUBLISHED').length;
+                    const totalViews = articles.reduce((s, a) => s + (a.viewCount || 0), 0);
+                    const totalLikes = articles.reduce((s, a) => s + (a.likeCount || 0), 0);
+                    return (
+                      <div className="space-y-2 mt-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-gray-500">Total</span>
+                          <span className="text-sm font-extrabold text-gray-900">{totalArticles}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-gray-500">Published</span>
+                          <span className="text-sm font-extrabold text-emerald-600">{published}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-gray-500">Views</span>
+                          <span className="text-sm font-extrabold text-blue-600">{totalViews}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-gray-500">Likes</span>
+                          <span className="text-sm font-extrabold text-rose-600">{totalLikes}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100/50">
+                <p className="text-xs font-extrabold text-gray-800 mb-3">Quick Actions</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => setTab('appointments')}
+                    className="flex items-center gap-2.5 p-3 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100/50 active:scale-[0.97] transition-transform">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-sm shadow-sm">📅</div>
+                    <div className="text-left">
+                      <p className="text-[11px] font-bold text-gray-800">Appointments</p>
+                      <p className="text-[9px] text-gray-400">View schedule</p>
+                    </div>
                   </button>
-                  <button onClick={() => { setStatusFilter('PENDING'); setTab('appointments'); }} className="w-full py-3 rounded-2xl bg-amber-50 text-amber-700 text-xs font-bold active:scale-95 border border-amber-100">
-                    \u{23F3} Review {stats.pendingCount} Pending Requests
+                  <button onClick={() => { setStatusFilter('PENDING'); setTab('appointments'); }}
+                    className="flex items-center gap-2.5 p-3 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100/50 active:scale-[0.97] transition-transform">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white text-sm shadow-sm">⏳</div>
+                    <div className="text-left">
+                      <p className="text-[11px] font-bold text-gray-800">Pending ({stats.pendingCount ?? 0})</p>
+                      <p className="text-[9px] text-gray-400">Review requests</p>
+                    </div>
                   </button>
-                  <button onClick={() => setTab('articles')} className="w-full py-3 rounded-2xl bg-emerald-50 text-emerald-700 text-xs font-bold active:scale-95 border border-emerald-100">
-                    \u{1F4DD} Write & Publish Article
+                  <button onClick={() => { setShowArticleForm(true); setEditingArticle(null); setArticleForm({ title: '', content: '', category: 'wellness', tags: '', excerpt: '', emoji: '' }); setTab('articles'); }}
+                    className="flex items-center gap-2.5 p-3 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100/50 active:scale-[0.97] transition-transform">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white text-sm shadow-sm">✍️</div>
+                    <div className="text-left">
+                      <p className="text-[11px] font-bold text-gray-800">Write Article</p>
+                      <p className="text-[9px] text-gray-400">Share expertise</p>
+                    </div>
+                  </button>
+                  <button onClick={() => setTab('prescriptions')}
+                    className="flex items-center gap-2.5 p-3 rounded-2xl bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100/50 active:scale-[0.97] transition-transform">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm shadow-sm">💊</div>
+                    <div className="text-left">
+                      <p className="text-[11px] font-bold text-gray-800">Prescriptions</p>
+                      <p className="text-[9px] text-gray-400">View history</p>
+                    </div>
                   </button>
                 </div>
               </div>
+
+              {/* More Quick Actions - Row 2 */}
+              <div className="grid grid-cols-3 gap-2">
+                <button onClick={() => setTab('reviews')}
+                  className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-white border border-gray-100/50 shadow-sm active:scale-[0.97] transition-transform">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center text-white text-sm shadow-sm">⭐</div>
+                  <p className="text-[10px] font-bold text-gray-700">Reviews</p>
+                </button>
+                <button onClick={() => setTab('profile')}
+                  className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-white border border-gray-100/50 shadow-sm active:scale-[0.97] transition-transform">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-400 to-purple-400 flex items-center justify-center text-white text-sm shadow-sm">👤</div>
+                  <p className="text-[10px] font-bold text-gray-700">My Profile</p>
+                </button>
+                <button onClick={() => nav('/dashboard')}
+                  className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-white border border-gray-100/50 shadow-sm active:scale-[0.97] transition-transform">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-400 to-pink-400 flex items-center justify-center text-white text-sm shadow-sm">🔄</div>
+                  <p className="text-[10px] font-bold text-gray-700">User Mode</p>
+                </button>
+              </div>
+
+              {/* Recent Appointments Preview */}
+              {stats.recentAppointments?.length > 0 && (
+                <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100/50">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-extrabold text-gray-800">Upcoming Appointments</p>
+                    <button onClick={() => setTab('appointments')} className="text-[10px] font-bold text-indigo-500 active:scale-95">View All</button>
+                  </div>
+                  <div className="space-y-2">
+                    {(stats.recentAppointments || []).slice(0, 3).map((appt: any) => (
+                      <div key={appt.id} className="flex items-center gap-3 p-2.5 rounded-2xl bg-gray-50/80">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold text-xs shadow-sm">
+                          {(appt.user?.name || 'P').charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-bold text-gray-800 truncate">{appt.user?.name || 'Patient'}</p>
+                          <p className="text-[9px] text-gray-400">
+                            {new Date(appt.scheduledAt).toLocaleDateString('en', { day: 'numeric', month: 'short' })} at {new Date(appt.scheduledAt).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                        <span className={'text-[8px] font-bold px-2 py-1 rounded-full ' + (STATUS_COLORS[appt.status] || 'bg-gray-100 text-gray-600')}>
+                          {appt.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Rotating Pro Tips */}
+              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-3xl p-4 border border-indigo-100/50">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-sm shadow-sm">💡</div>
+                  <p className="text-xs font-extrabold text-indigo-800">Pro Tip</p>
+                  <div className="flex-1" />
+                  <div className="flex gap-1">
+                    {PRO_TIPS.map((_, i) => (
+                      <div key={i} className={`w-1.5 h-1.5 rounded-full transition-all ${i === tipIdx ? 'bg-indigo-500 w-4' : 'bg-indigo-200'}`} />
+                    ))}
+                  </div>
+                </div>
+                <p className="text-[11px] text-indigo-600/80 leading-relaxed min-h-[32px] transition-all">
+                  {PRO_TIPS[tipIdx]}
+                </p>
+              </div>
             </>
           ) : (
-            <div className="text-center py-16">
-              <p className="text-sm font-bold text-gray-400">No stats available</p>
-              <p className="text-xs text-gray-300 mt-1">Your doctor profile may not be linked yet. Contact admin.</p>
+            <div className="text-center py-20">
+              <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center text-4xl mb-4">🩺</div>
+              <p className="text-sm font-bold text-gray-500">Welcome to Doctor Portal</p>
+              <p className="text-xs text-gray-400 mt-2 max-w-[250px] mx-auto leading-relaxed">Your doctor profile is being set up. Contact admin if you need help getting started.</p>
+              <button onClick={() => setTab('profile')} className="mt-4 px-6 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs font-bold active:scale-95 shadow-md shadow-indigo-200">
+                View My Profile
+              </button>
             </div>
           )
         )}
 
-        {/* -- APPOINTMENTS TAB -- */}
+        {/* ══════════════ APPOINTMENTS TAB ══════════════ */}
         {tab === 'appointments' && (
           <>
             {/* Status filter */}
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
               {['', 'PENDING', 'CONFIRMED', 'COMPLETED', 'REJECTED', 'CANCELLED'].map(s => (
                 <button key={s} onClick={() => setStatusFilter(s)}
-                  className={'flex-shrink-0 px-3 py-1.5 rounded-2xl text-[11px] font-bold transition-all active:scale-95 ' + (statusFilter === s ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white' : 'bg-white text-gray-500 border border-gray-100')}>
+                  className={'flex-shrink-0 px-3.5 py-2 rounded-2xl text-[11px] font-bold transition-all active:scale-95 ' + (statusFilter === s ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md shadow-indigo-200' : 'bg-white text-gray-500 border border-gray-100')}>
                   {s || 'All'}
                 </button>
               ))}
             </div>
 
             {apptsLoading ? (
-              <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="bg-white rounded-2xl p-4 animate-pulse h-28" />)}</div>
+              <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="bg-white rounded-3xl p-4 animate-pulse h-32" />)}</div>
             ) : appts.length === 0 ? (
-              <div className="text-center py-16">
-                <span className="text-5xl">\u{1F4C5}</span>
-                <p className="text-sm font-bold text-gray-400 mt-3">No appointments found</p>
+              <div className="text-center py-20">
+                <div className="w-16 h-16 mx-auto rounded-3xl bg-indigo-50 flex items-center justify-center text-3xl mb-3">📅</div>
+                <p className="text-sm font-bold text-gray-400">No appointments found</p>
+                <p className="text-xs text-gray-300 mt-1">{statusFilter ? `No ${statusFilter.toLowerCase()} appointments` : 'Your appointments will appear here'}</p>
               </div>
             ) : (
               appts.map(appt => (
-                <div key={appt.id} className="bg-white rounded-3xl p-4 shadow-sm">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold text-sm">
+                <div key={appt.id} className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100/50">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold text-sm shadow-sm">
                         {(appt.user?.name || 'P').charAt(0)}
                       </div>
                       <div>
@@ -333,37 +578,37 @@ export default function DoctorDashboard() {
                         <p className="text-[10px] text-gray-400">{appt.user?.phone || appt.user?.email || ''}</p>
                       </div>
                     </div>
-                    <span className={'text-[9px] font-bold px-2 py-1 rounded-full ' + (STATUS_COLORS[appt.status] || 'bg-gray-100 text-gray-600')}>
+                    <span className={'text-[9px] font-bold px-2.5 py-1 rounded-full ' + (STATUS_COLORS[appt.status] || 'bg-gray-100 text-gray-600')}>
                       {appt.status}
                     </span>
                   </div>
-                  <div className="flex gap-3 text-[10px] text-gray-500 mb-2">
-                    <span>\u{1F4C5} {new Date(appt.scheduledAt).toLocaleDateString('en', { day: 'numeric', month: 'short' })}</span>
-                    <span>\u{1F552} {new Date(appt.scheduledAt).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })}</span>
-                    {appt.notes && <span>\u{1F4DD} {appt.notes.split(' | ')[0]}</span>}
+                  <div className="flex gap-3 text-[10px] text-gray-500 mb-3 bg-gray-50 rounded-xl px-3 py-2">
+                    <span>📅 {new Date(appt.scheduledAt).toLocaleDateString('en', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                    <span>🕐 {new Date(appt.scheduledAt).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })}</span>
+                    {appt.notes && <span className="truncate">📝 {appt.notes.split(' | ')[0]}</span>}
                   </div>
                   {/* Action buttons */}
                   <div className="flex gap-2 flex-wrap">
                     {appt.status === 'PENDING' && (<>
                       <button onClick={() => handleAccept(appt.id)} disabled={!!actionLoading}
-                        className="flex-1 py-2 rounded-xl bg-emerald-50 text-emerald-700 text-[11px] font-bold active:scale-95 disabled:opacity-50">
-                        {actionLoading === appt.id + '_accept' ? '...' : '\u{2713} Accept'}
+                        className="flex-1 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 text-[11px] font-bold active:scale-95 disabled:opacity-50 border border-emerald-100">
+                        {actionLoading === appt.id + '_accept' ? '...' : '✓ Accept'}
                       </button>
                       <button onClick={() => handleReject(appt.id)} disabled={!!actionLoading}
-                        className="flex-1 py-2 rounded-xl bg-red-50 text-red-600 text-[11px] font-bold active:scale-95 disabled:opacity-50">
-                        {actionLoading === appt.id + '_reject' ? '...' : '\u{2717} Reject'}
+                        className="flex-1 py-2.5 rounded-xl bg-red-50 text-red-600 text-[11px] font-bold active:scale-95 disabled:opacity-50 border border-red-100">
+                        {actionLoading === appt.id + '_reject' ? '...' : '✗ Reject'}
                       </button>
                     </>)}
                     {['CONFIRMED', 'IN_PROGRESS'].includes(appt.status) && (
                       <button onClick={() => handleComplete(appt.id)} disabled={!!actionLoading}
-                        className="flex-1 py-2 rounded-xl bg-blue-50 text-blue-700 text-[11px] font-bold active:scale-95 disabled:opacity-50">
-                        {actionLoading === appt.id + '_complete' ? '...' : '\u{2713} Complete'}
+                        className="flex-1 py-2.5 rounded-xl bg-blue-50 text-blue-700 text-[11px] font-bold active:scale-95 disabled:opacity-50 border border-blue-100">
+                        {actionLoading === appt.id + '_complete' ? '...' : '✓ Mark Complete'}
                       </button>
                     )}
                     {appt.status === 'COMPLETED' && (
                       <button onClick={() => setRxModal({ open: true, appointmentId: appt.id })}
-                        className="flex-1 py-2 rounded-xl bg-purple-50 text-purple-700 text-[11px] font-bold active:scale-95">
-                        \u{1F48A} Write Prescription
+                        className="flex-1 py-2.5 rounded-xl bg-purple-50 text-purple-700 text-[11px] font-bold active:scale-95 border border-purple-100">
+                        💊 Write Prescription
                       </button>
                     )}
                   </div>
@@ -373,68 +618,89 @@ export default function DoctorDashboard() {
           </>
         )}
 
-        {/* -- PRESCRIPTIONS TAB -- */}
+        {/* ══════════════ PRESCRIPTIONS TAB ══════════════ */}
         {tab === 'prescriptions' && (
           rxLoading ? (
-            <div className="space-y-3">{[1,2].map(i => <div key={i} className="bg-white rounded-2xl p-4 animate-pulse h-20" />)}</div>
+            <div className="space-y-3">{[1,2].map(i => <div key={i} className="bg-white rounded-3xl p-4 animate-pulse h-24" />)}</div>
           ) : prescriptions.length === 0 ? (
-            <div className="text-center py-16">
-              <span className="text-5xl">\u{1F48A}</span>
-              <p className="text-sm font-bold text-gray-400 mt-3">No prescriptions written yet</p>
+            <div className="text-center py-20">
+              <div className="w-16 h-16 mx-auto rounded-3xl bg-purple-50 flex items-center justify-center text-3xl mb-3">💊</div>
+              <p className="text-sm font-bold text-gray-400">No prescriptions yet</p>
+              <p className="text-xs text-gray-300 mt-1">Complete an appointment to write a prescription</p>
             </div>
           ) : (
             prescriptions.map(rx => (
-              <div key={rx.id} className="bg-white rounded-3xl p-4 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-bold text-gray-800">{rx.appointment?.user?.name || 'Patient'}</p>
-                    <p className="text-[10px] text-gray-500">{new Date(rx.createdAt).toLocaleDateString('en', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+              <div key={rx.id} className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100/50">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center text-white text-sm">💊</div>
+                    <div>
+                      <p className="text-xs font-bold text-gray-800">{rx.appointment?.user?.name || 'Patient'}</p>
+                      <p className="text-[10px] text-gray-400">{new Date(rx.createdAt).toLocaleDateString('en', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                    </div>
                   </div>
-                  <span className="text-[10px] bg-purple-50 text-purple-700 px-2 py-1 rounded-full font-bold">Prescription</span>
+                  <span className="text-[9px] bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full font-bold border border-purple-100">Rx</span>
                 </div>
-                <p className="text-xs text-gray-700 mt-2 font-medium">{rx.diagnosis}</p>
-                <p className="text-[10px] text-gray-400 mt-1">{rx.medicines?.length || 0} medicine(s)</p>
+                <div className="bg-gray-50 rounded-xl px-3 py-2 mt-2">
+                  <p className="text-[11px] text-gray-700 font-medium">{rx.diagnosis}</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">{rx.medicines?.length || 0} medicine(s) prescribed</p>
+                </div>
               </div>
             ))
           )
         )}
 
-        {/* -- ARTICLES TAB -- */}
+        {/* ══════════════ ARTICLES TAB ══════════════ */}
         {tab === 'articles' && (
           <>
             {!showArticleForm ? (
               <>
                 <button onClick={() => { setEditingArticle(null); setArticleForm({ title: '', content: '', category: 'wellness', tags: '', excerpt: '', emoji: '' }); setShowArticleForm(true); }}
-                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold active:scale-95 shadow-md shadow-emerald-200">
-                  + Write New Article
+                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold active:scale-[0.97] shadow-lg shadow-emerald-200 transition-transform">
+                  <span className="text-base">✍️</span> Write New Article
                 </button>
 
                 {articlesLoading ? (
-                  <div className="space-y-3">{[1,2].map(i => <div key={i} className="bg-white rounded-2xl p-4 animate-pulse h-24" />)}</div>
+                  <div className="space-y-3">{[1,2].map(i => <div key={i} className="bg-white rounded-3xl p-4 animate-pulse h-28" />)}</div>
                 ) : articles.length === 0 ? (
                   <div className="text-center py-16">
-                    <span className="text-5xl">{'\u{1F4DD}'}</span>
-                    <p className="text-sm font-bold text-gray-400 mt-3">No articles yet</p>
-                    <p className="text-xs text-gray-300 mt-1">Write your first article to share your expertise!</p>
+                    <div className="w-16 h-16 mx-auto rounded-3xl bg-emerald-50 flex items-center justify-center text-3xl mb-3">📝</div>
+                    <p className="text-sm font-bold text-gray-400">No articles yet</p>
+                    <p className="text-xs text-gray-300 mt-1 max-w-[220px] mx-auto">Write your first article to share medical expertise with patients!</p>
                   </div>
                 ) : (
                   articles.map(art => (
-                    <div key={art.id} className="bg-white rounded-3xl p-4 shadow-sm">
+                    <div key={art.id} className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100/50">
                       <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <p className="text-xs font-bold text-gray-800">{art.emoji || '\u{1F4DD}'} {art.title}</p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">{art.category} &middot; {new Date(art.createdAt).toLocaleDateString('en', { day: 'numeric', month: 'short' })}</p>
+                        <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center text-lg flex-shrink-0">
+                            {art.emoji || '📝'}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-gray-800 truncate">{art.title}</p>
+                            <p className="text-[10px] text-gray-400 mt-0.5">{art.category} · {new Date(art.createdAt).toLocaleDateString('en', { day: 'numeric', month: 'short' })}</p>
+                          </div>
                         </div>
-                        <span className={'text-[9px] font-bold px-2 py-1 rounded-full ' + (STATUS_BADGE[art.status] || 'bg-gray-100 text-gray-600')}>
+                        <span className={'text-[9px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 ml-2 ' + (STATUS_BADGE[art.status] || 'bg-gray-100 text-gray-600')}>
                           {art.status}
                         </span>
                       </div>
-                      {art.excerpt && <p className="text-[11px] text-gray-500 leading-relaxed mb-2">{art.excerpt.substring(0, 100)}...</p>}
+                      {art.excerpt && <p className="text-[11px] text-gray-500 leading-relaxed mb-2 line-clamp-2">{art.excerpt}</p>}
                       {art.status === 'REVIEW' && (
-                        <p className="text-[10px] text-amber-600 bg-amber-50 rounded-lg px-2 py-1 mb-2 font-medium">Waiting for admin approval</p>
+                        <div className="flex items-center gap-1.5 text-[10px] text-amber-600 bg-amber-50 rounded-xl px-2.5 py-1.5 mb-2 font-medium border border-amber-100/50">
+                          <span>⏳</span> Waiting for admin approval
+                        </div>
                       )}
                       {art.status === 'ARCHIVED' && (
-                        <p className="text-[10px] text-red-600 bg-red-50 rounded-lg px-2 py-1 mb-2 font-medium">Delete requested — waiting for admin approval</p>
+                        <div className="flex items-center gap-1.5 text-[10px] text-red-600 bg-red-50 rounded-xl px-2.5 py-1.5 mb-2 font-medium border border-red-100/50">
+                          <span>🗑️</span> Delete requested — pending admin approval
+                        </div>
+                      )}
+                      {art.status === 'PUBLISHED' && (
+                        <div className="flex items-center gap-3 text-[10px] text-gray-400 mb-2">
+                          {art.viewCount > 0 && <span>👁 {art.viewCount} views</span>}
+                          {art.likeCount > 0 && <span>👍 {art.likeCount} likes</span>}
+                        </div>
                       )}
                       <div className="flex gap-2">
                         {art.status !== 'ARCHIVED' && (
@@ -443,12 +709,12 @@ export default function DoctorDashboard() {
                               setEditingArticle(art);
                               setArticleForm({ title: art.title, content: art.content, category: art.category, tags: (art.tags || []).join(', '), excerpt: art.excerpt || '', emoji: art.emoji || '' });
                               setShowArticleForm(true);
-                            }} className="flex-1 py-2 rounded-xl bg-blue-50 text-blue-700 text-[11px] font-bold active:scale-95">
-                              Edit
+                            }} className="flex-1 py-2 rounded-xl bg-blue-50 text-blue-700 text-[11px] font-bold active:scale-95 border border-blue-100">
+                              ✏️ Edit
                             </button>
                             <button onClick={() => handleDeleteArticle(art.id)}
-                              className="flex-1 py-2 rounded-xl bg-red-50 text-red-600 text-[11px] font-bold active:scale-95">
-                              Request Delete
+                              className="flex-1 py-2 rounded-xl bg-red-50 text-red-600 text-[11px] font-bold active:scale-95 border border-red-100">
+                              🗑️ Request Delete
                             </button>
                           </>
                         )}
@@ -459,55 +725,55 @@ export default function DoctorDashboard() {
               </>
             ) : (
               /* Article Form */
-              <div className="bg-white rounded-3xl p-4 shadow-sm space-y-3">
+              <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100/50 space-y-4">
                 <div className="flex items-center justify-between mb-1">
-                  <h3 className="text-sm font-extrabold text-gray-900">{editingArticle ? 'Edit Article' : 'Write Article'}</h3>
+                  <h3 className="text-sm font-extrabold text-gray-900">{editingArticle ? '✏️ Edit Article' : '✍️ Write Article'}</h3>
                   <button onClick={() => { setShowArticleForm(false); setEditingArticle(null); }}
                     className="px-3 py-1.5 rounded-xl bg-gray-100 text-xs font-bold text-gray-500 active:scale-95">Cancel</button>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase">Title *</label>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Title *</label>
                   <input value={articleForm.title} onChange={e => setArticleForm(p => ({ ...p, title: e.target.value }))}
-                    placeholder="Article title" className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-rose-400 focus:outline-none" />
+                    placeholder="Article title" className="w-full mt-1.5 px-3.5 py-2.5 border border-gray-200 rounded-xl text-xs focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase">Category *</label>
-                  <div className="flex flex-wrap gap-1.5 mt-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Category *</label>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
                     {ARTICLE_CATS.map(c => (
                       <button key={c.k} onClick={() => setArticleForm(p => ({ ...p, category: c.k }))}
-                        className={'px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all active:scale-95 ' + (articleForm.category === c.k ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500')}>
-                        {c.l}
+                        className={'px-2.5 py-1.5 rounded-xl text-[10px] font-bold transition-all active:scale-95 border ' + (articleForm.category === c.k ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-50 text-gray-500 border-gray-100')}>
+                        {c.e} {c.l}
                       </button>
                     ))}
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase">Content *</label>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Content *</label>
                   <textarea value={articleForm.content} onChange={e => setArticleForm(p => ({ ...p, content: e.target.value }))}
-                    placeholder="Write your article content here..." rows={8}
-                    className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-rose-400 focus:outline-none resize-none" />
+                    placeholder="Write your article content here..." rows={10}
+                    className="w-full mt-1.5 px-3.5 py-2.5 border border-gray-200 rounded-xl text-xs focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 resize-none leading-relaxed" />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase">Excerpt (short summary)</label>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Excerpt (short summary)</label>
                   <textarea value={articleForm.excerpt} onChange={e => setArticleForm(p => ({ ...p, excerpt: e.target.value }))}
-                    placeholder="Brief summary for preview..." rows={2}
-                    className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-rose-400 focus:outline-none resize-none" />
+                    placeholder="Brief summary shown in article previews..." rows={2}
+                    className="w-full mt-1.5 px-3.5 py-2.5 border border-gray-200 rounded-xl text-xs focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 resize-none" />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Tags (comma-sep)</label>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Tags (comma-sep)</label>
                     <input value={articleForm.tags} onChange={e => setArticleForm(p => ({ ...p, tags: e.target.value }))}
-                      placeholder="PCOD, Diet, Tips..." className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-rose-400 focus:outline-none" />
+                      placeholder="PCOD, Diet, Tips..." className="w-full mt-1.5 px-3.5 py-2.5 border border-gray-200 rounded-xl text-xs focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Emoji</label>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Emoji</label>
                     <input value={articleForm.emoji} onChange={e => setArticleForm(p => ({ ...p, emoji: e.target.value }))}
-                      placeholder="e.g. \u{1F4DD}" className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-rose-400 focus:outline-none" />
+                      placeholder="e.g. 📝" className="w-full mt-1.5 px-3.5 py-2.5 border border-gray-200 rounded-xl text-xs focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
                   </div>
                 </div>
                 <button onClick={handleSubmitArticle}
-                  className="w-full py-3 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-emerald-500 to-teal-500 active:scale-95 shadow-md shadow-emerald-200">
-                  {editingArticle ? 'Update & Re-submit for Review' : 'Submit for Admin Review'}
+                  className="w-full py-3.5 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-emerald-500 to-teal-500 active:scale-[0.97] shadow-lg shadow-emerald-200 transition-transform">
+                  {editingArticle ? '✏️ Update & Re-submit for Review' : '📤 Submit for Admin Review'}
                 </button>
                 <p className="text-[10px] text-gray-400 text-center">Your article will be reviewed by admin before publishing</p>
               </div>
@@ -515,90 +781,132 @@ export default function DoctorDashboard() {
           </>
         )}
 
-        {/* -- PROFILE TAB -- */}
+        {/* ══════════════ PROFILE TAB ══════════════ */}
         {tab === 'profile' && (
           profileLoading ? (
-            <div className="bg-white rounded-2xl p-6 animate-pulse h-64" />
+            <div className="bg-white rounded-3xl p-6 animate-pulse h-72" />
           ) : profile ? (
             <div className="space-y-4">
-              <div className="bg-white rounded-3xl p-4 shadow-sm">
+              {/* Profile Header Card */}
+              <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 rounded-3xl p-5 text-white shadow-xl shadow-indigo-200/50">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center text-3xl font-extrabold border-2 border-white/30">
+                    {profile.avatarUrl ? (
+                      <img src={profile.avatarUrl} className="w-full h-full rounded-2xl object-cover" alt="" />
+                    ) : (profile.fullName?.charAt(0) || 'D')}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-lg font-extrabold">Dr. {profile.fullName || user?.fullName || 'Doctor'}</p>
+                    <p className="text-white/70 text-xs">{profile.specialization || 'Specialization not set'}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      {profile.experienceYears && <span className="text-[9px] bg-white/20 rounded-full px-2 py-0.5 font-bold">{profile.experienceYears} yrs exp</span>}
+                      {profile.rating > 0 && <span className="text-[9px] bg-white/20 rounded-full px-2 py-0.5 font-bold">⭐ {Number(profile.rating).toFixed(1)}</span>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Profile Details */}
+              <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100/50">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-extrabold text-gray-900">My Profile</h3>
+                  <h3 className="text-sm font-extrabold text-gray-900">Profile Details</h3>
                   <button onClick={() => setEditing(!editing)}
-                    className={'px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95 ' + (editing ? 'bg-gray-100 text-gray-600' : 'bg-rose-50 text-rose-600 border border-rose-100')}>
-                    {editing ? 'Cancel' : '\u{270F}\u{FE0F} Edit'}
+                    className={'px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95 border ' + (editing ? 'bg-gray-50 text-gray-600 border-gray-200' : 'bg-indigo-50 text-indigo-600 border-indigo-100')}>
+                    {editing ? 'Cancel' : '✏️ Edit'}
                   </button>
                 </div>
                 <div className="space-y-3">
                   {[
-                    { key: 'fullName', label: 'Full Name', type: 'text' },
-                    { key: 'specialization', label: 'Specialization', type: 'text' },
-                    { key: 'experienceYears', label: 'Experience (years)', type: 'number' },
-                    { key: 'consultationFee', label: 'Consultation Fee', type: 'number' },
-                    { key: 'hospitalName', label: 'Hospital/Clinic', type: 'text' },
-                    { key: 'location', label: 'Location', type: 'text' },
+                    { key: 'fullName', label: 'Full Name', type: 'text', icon: '👤' },
+                    { key: 'specialization', label: 'Specialization', type: 'text', icon: '🩺' },
+                    { key: 'experienceYears', label: 'Experience (years)', type: 'number', icon: '📅' },
+                    { key: 'consultationFee', label: 'Consultation Fee (INR)', type: 'number', icon: '💰' },
+                    { key: 'hospitalName', label: 'Hospital/Clinic', type: 'text', icon: '🏥' },
+                    { key: 'location', label: 'Location', type: 'text', icon: '📍' },
                   ].map(field => (
                     <div key={field.key}>
-                      <label className="text-[10px] font-bold text-gray-400 uppercase">{field.label}</label>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                        <span>{field.icon}</span> {field.label}
+                      </label>
                       {editing ? (
                         <input type={field.type} value={profileForm[field.key] || ''} onChange={e => setProfileForm((p: any) => ({ ...p, [field.key]: e.target.value }))}
-                          className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-rose-400 focus:outline-none" />
+                          className="w-full mt-1.5 px-3.5 py-2.5 border border-gray-200 rounded-xl text-xs focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
                       ) : (
-                        <p className="text-xs font-medium text-gray-800 mt-0.5">{profile[field.key] || '\u{2014}'}</p>
+                        <p className="text-xs font-medium text-gray-800 mt-1 bg-gray-50 rounded-xl px-3 py-2">{profile[field.key] || '—'}</p>
                       )}
                     </div>
                   ))}
-                  {/* About (textarea) */}
+                  {/* About */}
                   <div>
-                    <label className="text-[10px] font-bold text-gray-400 uppercase">About</label>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                      <span>📝</span> About
+                    </label>
                     {editing ? (
                       <textarea value={profileForm.bio || ''} onChange={e => setProfileForm((p: any) => ({ ...p, bio: e.target.value }))}
-                        className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-rose-400 focus:outline-none resize-none" rows={3} />
+                        className="w-full mt-1.5 px-3.5 py-2.5 border border-gray-200 rounded-xl text-xs focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 resize-none" rows={3} />
                     ) : (
-                      <p className="text-xs text-gray-700 mt-0.5">{profile.bio || '\u{2014}'}</p>
+                      <p className="text-xs text-gray-700 mt-1 bg-gray-50 rounded-xl px-3 py-2 leading-relaxed">{profile.bio || '—'}</p>
                     )}
                   </div>
                 </div>
                 {editing && (
-                  <button onClick={handleSaveProfile} className="w-full mt-4 py-3 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-rose-500 to-pink-500 active:scale-95 shadow-md shadow-rose-200">
+                  <button onClick={handleSaveProfile} className="w-full mt-4 py-3 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-indigo-500 to-purple-500 active:scale-[0.97] shadow-lg shadow-indigo-200 transition-transform">
                     Save Changes
                   </button>
                 )}
               </div>
             </div>
           ) : (
-            <div className="text-center py-16">
+            <div className="text-center py-20">
+              <div className="w-16 h-16 mx-auto rounded-3xl bg-indigo-50 flex items-center justify-center text-3xl mb-3">👤</div>
               <p className="text-sm font-bold text-gray-400">Profile not found</p>
-              <p className="text-xs text-gray-300 mt-1">Contact admin to link your account to a doctor profile.</p>
+              <p className="text-xs text-gray-300 mt-2 max-w-[250px] mx-auto">Contact admin to link your account to a doctor profile.</p>
             </div>
           )
         )}
 
-        {/* -- REVIEWS TAB -- */}
+        {/* ══════════════ REVIEWS TAB ══════════════ */}
         {tab === 'reviews' && (
           reviewsLoading ? (
-            <div className="space-y-3">{[1,2].map(i => <div key={i} className="bg-white rounded-2xl p-4 animate-pulse h-20" />)}</div>
+            <div className="space-y-3">{[1,2].map(i => <div key={i} className="bg-white rounded-3xl p-4 animate-pulse h-24" />)}</div>
           ) : reviews.length === 0 ? (
-            <div className="text-center py-16">
-              <span className="text-5xl">\u{2B50}</span>
-              <p className="text-sm font-bold text-gray-400 mt-3">No reviews yet</p>
+            <div className="text-center py-20">
+              <div className="w-16 h-16 mx-auto rounded-3xl bg-amber-50 flex items-center justify-center text-3xl mb-3">⭐</div>
+              <p className="text-sm font-bold text-gray-400">No reviews yet</p>
+              <p className="text-xs text-gray-300 mt-1">Patient reviews will appear here after consultations</p>
             </div>
           ) : (
             <>
-              <div className="bg-white rounded-3xl p-4 shadow-sm text-center">
-                <p className="text-3xl font-extrabold text-gray-900">
-                  {(reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)} \u{2605}
+              {/* Rating Summary */}
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-3xl p-5 text-center border border-amber-100/50">
+                <p className="text-4xl font-extrabold text-gray-900">
+                  {(reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)}
                 </p>
-                <p className="text-xs text-gray-400 mt-1">{reviews.length} review{reviews.length !== 1 ? 's' : ''}</p>
+                <div className="flex justify-center gap-0.5 mt-1">
+                  {[1,2,3,4,5].map(i => (
+                    <span key={i} className="text-lg" style={{ opacity: i <= Math.round(reviews.reduce((s, r) => s + r.rating, 0) / reviews.length) ? 1 : 0.2 }}>⭐</span>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-1.5 font-bold">{reviews.length} review{reviews.length !== 1 ? 's' : ''}</p>
               </div>
+
               {reviews.map((rev, i) => (
-                <div key={i} className="bg-white rounded-3xl p-4 shadow-sm">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-xs font-bold text-gray-800">{rev.user?.name || 'Patient'}</p>
-                    <span className="text-amber-500 text-xs font-bold">{'\u{2605}'.repeat(Math.round(rev.rating))}{'\u{2606}'.repeat(5 - Math.round(rev.rating))}</span>
+                <div key={i} className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center text-white font-bold text-xs">
+                        {(rev.user?.name || 'P').charAt(0)}
+                      </div>
+                      <p className="text-xs font-bold text-gray-800">{rev.user?.name || 'Patient'}</p>
+                    </div>
+                    <div className="flex gap-0.5">
+                      {[1,2,3,4,5].map(s => (
+                        <span key={s} className="text-xs" style={{ opacity: s <= Math.round(rev.rating) ? 1 : 0.2 }}>⭐</span>
+                      ))}
+                    </div>
                   </div>
-                  {rev.comment && <p className="text-xs text-gray-600">{rev.comment}</p>}
-                  <p className="text-[10px] text-gray-300 mt-1">{new Date(rev.createdAt).toLocaleDateString()}</p>
+                  {rev.comment && <p className="text-[11px] text-gray-600 leading-relaxed bg-gray-50 rounded-xl px-3 py-2">{rev.comment}</p>}
+                  <p className="text-[9px] text-gray-300 mt-2 font-medium">{new Date(rev.createdAt).toLocaleDateString('en', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                 </div>
               ))}
             </>
@@ -607,30 +915,31 @@ export default function DoctorDashboard() {
 
       </div>
 
-      {/* Write Prescription Modal */}
+      {/* ═══ Write Prescription Modal ═══ */}
       {rxModal.open && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-end justify-center" onClick={() => setRxModal({ open: false, appointmentId: null })}>
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end justify-center" onClick={() => setRxModal({ open: false, appointmentId: null })}>
           <div className="bg-white w-full max-w-lg rounded-t-3xl p-5 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4" />
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-extrabold text-gray-900">\u{1F48A} Write Prescription</h3>
-              <button onClick={() => setRxModal({ open: false, appointmentId: null })} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold active:scale-95">\u{00D7}</button>
+              <h3 className="text-base font-extrabold text-gray-900">💊 Write Prescription</h3>
+              <button onClick={() => setRxModal({ open: false, appointmentId: null })} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold active:scale-95">×</button>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase">Diagnosis *</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Diagnosis *</label>
                 <input value={rxForm.diagnosis} onChange={e => setRxForm(p => ({ ...p, diagnosis: e.target.value }))}
-                  placeholder="Enter diagnosis" className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-rose-400 focus:outline-none" />
+                  placeholder="Enter diagnosis" className="w-full mt-1.5 px-3.5 py-2.5 border border-gray-200 rounded-xl text-xs focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase mb-2 block">Medicines</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Medicines</label>
                 {rxForm.medicines.map((med, idx) => (
-                  <div key={idx} className="bg-gray-50 rounded-2xl p-3 mb-2 space-y-2">
+                  <div key={idx} className="bg-gray-50 rounded-2xl p-3 mb-2 space-y-2 border border-gray-100">
                     <input value={med.name} onChange={e => setRxForm(p => ({ ...p, medicines: p.medicines.map((m, i) => i === idx ? { ...m, name: e.target.value } : m) }))}
-                      placeholder="Medicine name" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-rose-400" />
+                      placeholder="Medicine name" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-indigo-400" />
                     <div className="grid grid-cols-3 gap-2">
                       {['dosage', 'frequency', 'duration'].map(f => (
                         <input key={f} value={(med as any)[f]} onChange={e => setRxForm(p => ({ ...p, medicines: p.medicines.map((m, i) => i === idx ? { ...m, [f]: e.target.value } : m) }))}
-                          placeholder={f.charAt(0).toUpperCase() + f.slice(1)} className="px-2 py-2 border border-gray-200 rounded-xl text-[10px] focus:outline-none focus:border-rose-400" />
+                          placeholder={f.charAt(0).toUpperCase() + f.slice(1)} className="px-2 py-2 border border-gray-200 rounded-xl text-[10px] focus:outline-none focus:border-indigo-400" />
                       ))}
                     </div>
                     {rxForm.medicines.length > 1 && (
@@ -639,21 +948,21 @@ export default function DoctorDashboard() {
                   </div>
                 ))}
                 <button onClick={() => setRxForm(p => ({ ...p, medicines: [...p.medicines, { name: '', dosage: '', frequency: '', duration: '' }] }))}
-                  className="w-full py-2 rounded-xl border-2 border-dashed border-gray-200 text-xs text-gray-400 font-bold active:scale-95">
+                  className="w-full py-2.5 rounded-xl border-2 border-dashed border-gray-200 text-xs text-gray-400 font-bold active:scale-95">
                   + Add Medicine
                 </button>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase">Instructions</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Instructions</label>
                 <textarea value={rxForm.instructions} onChange={e => setRxForm(p => ({ ...p, instructions: e.target.value }))}
-                  placeholder="Additional instructions for patient..." className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-rose-400 focus:outline-none resize-none" rows={2} />
+                  placeholder="Additional instructions for patient..." className="w-full mt-1.5 px-3.5 py-2.5 border border-gray-200 rounded-xl text-xs focus:border-indigo-400 focus:outline-none resize-none" rows={2} />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase">Follow-up Date</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Follow-up Date</label>
                 <input type="date" value={rxForm.followUpDate} onChange={e => setRxForm(p => ({ ...p, followUpDate: e.target.value }))}
-                  className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-rose-400 focus:outline-none" />
+                  className="w-full mt-1.5 px-3.5 py-2.5 border border-gray-200 rounded-xl text-xs focus:border-indigo-400 focus:outline-none" />
               </div>
-              <button onClick={handleWritePrescription} className="w-full py-3 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-purple-500 to-pink-500 active:scale-95 shadow-md">
+              <button onClick={handleWritePrescription} className="w-full py-3.5 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-purple-500 to-pink-500 active:scale-[0.97] shadow-lg shadow-purple-200 transition-transform">
                 Save Prescription
               </button>
             </div>
