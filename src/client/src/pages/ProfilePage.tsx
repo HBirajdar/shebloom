@@ -93,6 +93,12 @@ export default function ProfilePage() {
   const [otp, setOtp] = useState('');
   const [otpLoading, setOtpLoading] = useState(false);
 
+  // Email OTP flow (for mobile-auth users adding/changing email)
+  const [emailStep, setEmailStep] = useState<'idle' | 'otp-sent'>('idle');
+  const [newEmail, setNewEmail] = useState('');
+  const [emailOtp, setEmailOtp] = useState('');
+  const [emailOtpLoading, setEmailOtpLoading] = useState(false);
+
   // Tooltip state
   const [showMobileTip, setShowMobileTip] = useState(false);
   const [showEmailTip, setShowEmailTip] = useState(false);
@@ -128,11 +134,11 @@ export default function ProfilePage() {
   const isGoogleAuth = provider === 'google' || provider === 'apple';
 
   // Field lock rules:
-  // mobile auth  → mobile LOCKED, email editable
+  // mobile auth  → mobile LOCKED, email editable (with OTP verify)
   // email auth   → email LOCKED (it's their login), mobile editable (with OTP)
-  // google/apple → both email and mobile editable
+  // google/apple → email LOCKED (from provider), mobile editable (with OTP)
   const mobileLocked = isMobileAuth;
-  const emailLocked = isEmailAuth;
+  const emailLocked = isEmailAuth || isGoogleAuth;
 
   useEffect(() => {
     if (!user) return;
@@ -154,6 +160,9 @@ export default function ProfilePage() {
     setMobileStep('idle');
     setOtp('');
     setNewPhone('');
+    setEmailStep('idle');
+    setEmailOtp('');
+    setNewEmail('');
     setLoadingProfile(true);
     setShowEdit(true);
     userAPI.me().then(res => {
@@ -164,6 +173,7 @@ export default function ProfilePage() {
         setPhone(p.phone || '');
         setDob(p.dateOfBirth ? new Date(p.dateOfBirth).toISOString().split('T')[0] : '');
         setNewPhone(p.phone || '');
+        setNewEmail(p.email || '');
       }
     }).catch(() => {
       setName(user?.fullName || '');
@@ -178,8 +188,7 @@ export default function ProfilePage() {
     try {
       const data: any = {};
       if (name.trim()) data.fullName = name.trim();
-      // Only send email if not locked
-      if (!emailLocked && email.trim()) data.email = email.trim();
+      // email & phone are NOT sent here — they require OTP verification via dedicated endpoints
       if (dob) data.dateOfBirth = dob;
       if (Object.keys(data).length === 0) { toast('No changes'); setShowEdit(false); setSaving(false); return; }
       const res = await userAPI.update(data);
@@ -188,9 +197,7 @@ export default function ProfilePage() {
       toast.success('Profile saved!');
       setShowEdit(false);
     } catch (err: any) {
-      const msg = err.response?.data?.error || err.response?.data?.message || 'Failed to save';
-      if (msg.includes('Unique') || msg.includes('unique')) toast.error('Email already in use by another account');
-      else toast.error(msg);
+      toast.error(err.message || 'Failed to save');
     }
     setSaving(false);
   };
@@ -224,6 +231,38 @@ export default function ProfilePage() {
       toast.error(err.response?.data?.error || 'Invalid OTP');
     }
     setOtpLoading(false);
+  };
+
+  // ─── Email OTP flow ─────────────────────────────────
+  const sendEmailOtpFn = async () => {
+    if (!newEmail.trim() || !newEmail.includes('@')) { toast.error('Enter a valid email address'); return; }
+    if (newEmail.trim() === email) { toast('Same email — no change needed'); return; }
+    setEmailOtpLoading(true);
+    try {
+      await userAPI.sendEmailOtp(newEmail.trim());
+      setEmailStep('otp-sent');
+      toast.success('Verification code sent to ' + newEmail.trim());
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.message || 'Failed to send code');
+    }
+    setEmailOtpLoading(false);
+  };
+
+  const confirmEmailOtpFn = async () => {
+    if (!emailOtp.trim() || emailOtp.trim().length !== 6) { toast.error('Enter the 6-digit code'); return; }
+    setEmailOtpLoading(true);
+    try {
+      const res = await userAPI.confirmEmail(newEmail.trim(), emailOtp.trim());
+      const updated = res.data.data;
+      if (updated && user) setUser({ ...user, email: updated.email });
+      setEmail(newEmail.trim());
+      setEmailStep('idle');
+      setEmailOtp('');
+      toast.success('Email verified and saved!');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.message || 'Invalid code');
+    }
+    setEmailOtpLoading(false);
   };
 
   const handleAvatarUpload = async () => {
@@ -475,33 +514,74 @@ export default function ProfilePage() {
                   className="w-full mt-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none" />
               </div>
 
-              {/* Email field */}
+              {/* Email field — locked or OTP-verified edit */}
               <div className="relative">
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-[10px] font-bold text-gray-500 uppercase">Email Address</label>
                   {emailLocked && (
                     <button onMouseEnter={() => setShowEmailTip(true)} onMouseLeave={() => setShowEmailTip(false)}
                       onClick={() => setShowEmailTip(v => !v)} className="text-[10px] text-amber-600 font-bold flex items-center gap-1">
-                      🔒 Login email
+                      🔒 {isGoogleAuth ? 'Google email' : 'Login email'}
                     </button>
                   )}
                 </div>
                 {showEmailTip && emailLocked && (
                   <div className="absolute top-6 right-0 z-10 bg-gray-800 text-white text-[10px] rounded-lg px-3 py-2 w-52 shadow-xl">
-                    Cannot change login email address. Contact support to update.
+                    {isGoogleAuth ? 'Email is linked to your Google account and cannot be changed.' : 'Cannot change login email address. Contact support to update.'}
                   </div>
                 )}
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                  disabled={emailLocked} placeholder="your@email.com"
-                  className={`w-full px-4 py-3 border-2 rounded-xl text-sm focus:outline-none transition-colors ${
-                    emailLocked
-                      ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
-                      : 'border-gray-200 focus:border-rose-400'
-                  }`} />
-                {emailLocked && (
-                  <p className="text-[10px] text-amber-600 mt-1 flex items-center gap-1">
-                    <span>🔒</span> Cannot change login email address
-                  </p>
+
+                {emailLocked ? (
+                  <>
+                    <div className="relative">
+                      <input type="email" value={email} disabled
+                        className="w-full px-4 py-3 pr-10 border-2 border-gray-100 rounded-xl text-sm bg-gray-50 text-gray-400 cursor-not-allowed" />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-base">🔒</span>
+                    </div>
+                    <p className="text-[10px] text-amber-600 mt-1 flex items-center gap-1">
+                      <span>🔒</span> {isGoogleAuth ? 'Linked to Google account' : 'Login credential — cannot change'}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    {/* Editable email with OTP verification */}
+                    {emailStep === 'idle' ? (
+                      <div className="flex gap-2">
+                        <input type="email" value={newEmail || email} onChange={e => setNewEmail(e.target.value)}
+                          placeholder="your@email.com"
+                          className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none" />
+                        {(newEmail || '') !== email && newEmail.trim().length > 3 && newEmail.includes('@') && (
+                          <button onClick={sendEmailOtpFn} disabled={emailOtpLoading}
+                            className="px-3 py-3 bg-blue-500 text-white rounded-xl text-[10px] font-bold whitespace-nowrap disabled:opacity-50 active:scale-95">
+                            {emailOtpLoading ? '...' : 'Verify'}
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-[10px] text-blue-600 font-bold">
+                          <span>📧</span> Code sent to {newEmail}
+                          <button onClick={() => setEmailStep('idle')} className="ml-auto text-gray-400 underline">Change</button>
+                        </div>
+                        <div className="flex gap-2">
+                          <input type="number" value={emailOtp} onChange={e => setEmailOtp(e.target.value)}
+                            placeholder="Enter 6-digit code" maxLength={6}
+                            className="flex-1 px-4 py-3 border-2 border-blue-300 rounded-xl text-sm focus:border-blue-500 focus:outline-none text-center tracking-widest font-bold" />
+                          <button onClick={confirmEmailOtpFn} disabled={emailOtpLoading}
+                            className="px-3 py-3 bg-blue-500 text-white rounded-xl text-[10px] font-bold whitespace-nowrap disabled:opacity-50 active:scale-95">
+                            {emailOtpLoading ? '...' : 'Confirm'}
+                          </button>
+                        </div>
+                        <button onClick={sendEmailOtpFn} disabled={emailOtpLoading}
+                          className="text-[10px] text-rose-500 font-bold w-full text-center active:scale-95">
+                          Resend Code
+                        </button>
+                      </div>
+                    )}
+                    {!email && emailStep === 'idle' && (
+                      <p className="text-[10px] text-gray-400 mt-1">Add an email to receive updates and reminders</p>
+                    )}
+                  </>
                 )}
               </div>
 

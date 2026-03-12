@@ -9,11 +9,14 @@ export class UserService {
   }
   async updateUser(userId: string, data: any) {
     const allowed: Record<string, any> = {};
-    const safe = ['fullName', 'email', 'avatarUrl', 'dateOfBirth', 'language', 'timezone'];
+    // email & phone are NOT here — they require OTP verification via dedicated endpoints
+    const safe = ['fullName', 'avatarUrl', 'photoUrl', 'dateOfBirth', 'language', 'timezone'];
     for (const k of safe) { if (data[k] !== undefined) allowed[k] = data[k]; }
     if (allowed.dateOfBirth && typeof allowed.dateOfBirth === 'string') allowed.dateOfBirth = new Date(allowed.dateOfBirth);
+    // Sync photoUrl → avatarUrl for backward compat
+    if (allowed.photoUrl && !allowed.avatarUrl) allowed.avatarUrl = allowed.photoUrl;
     return prisma.user.update({ where: { id: userId }, data: allowed,
-      select: { id: true, fullName: true, email: true, phone: true, avatarUrl: true, dateOfBirth: true, role: true, language: true },
+      select: { id: true, fullName: true, email: true, phone: true, avatarUrl: true, dateOfBirth: true, role: true, language: true, authProvider: true },
     });
   }
   async updateProfile(userId: string, data: any) {

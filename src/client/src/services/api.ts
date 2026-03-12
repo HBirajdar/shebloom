@@ -98,6 +98,8 @@ export const userAPI = {
   deleteAccount: () => api.delete('/users/me'),
   sendMobileOtp: (phone: string) => api.post('/users/me/mobile/send-otp', { phone }),
   confirmMobile: (phone: string, otp: string) => api.post('/users/me/mobile/confirm', { phone, otp }),
+  sendEmailOtp: (email: string) => api.post('/users/me/email/send-otp', { email }),
+  confirmEmail: (email: string, otp: string) => api.post('/users/me/email/confirm', { email, otp }),
 };
 
 export const cycleAPI = {
