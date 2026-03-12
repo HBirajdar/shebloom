@@ -8,6 +8,7 @@
 import { Router, Response, NextFunction } from 'express';
 import prisma from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { successResponse, errorResponse } from '../utils/response.utils';
 
 const BABY_SIZES: Record<number, { emoji: string; name: string }> = {
   4:  { emoji: '🌱', name: 'poppy seed' },
@@ -63,22 +64,19 @@ r.get('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
       where: { userId: q.user!.id, isActive: true },
       orderBy: { createdAt: 'desc' },
     });
-    if (!pregnancy) { s.json({ success: true, data: null }); return; }
+    if (!pregnancy) { successResponse(s, null); return; }
     const week = calcWeekFromDueDate(pregnancy.dueDate);
     const daysLeft = Math.max(0, Math.floor((pregnancy.dueDate.getTime() - Date.now()) / 86400000));
     const trimester = week <= 12 ? 1 : week <= 26 ? 2 : 3;
-    s.json({
-      success: true,
-      data: {
-        id: pregnancy.id,
-        dueDate: pregnancy.dueDate.toISOString(),
-        pregnancyWeek: week,
-        trimester,
-        daysLeft,
-        babySize: getBabySize(week),
-        milestone: getWeeklyMilestone(week),
-        progressPercent: Math.round((week / 40) * 100),
-      },
+    successResponse(s, {
+      id: pregnancy.id,
+      dueDate: pregnancy.dueDate.toISOString(),
+      pregnancyWeek: week,
+      trimester,
+      daysLeft,
+      babySize: getBabySize(week),
+      milestone: getWeeklyMilestone(week),
+      progressPercent: Math.round((week / 40) * 100),
     });
   } catch (e) { n(e); }
 });
@@ -88,7 +86,7 @@ r.post('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const { dueDate, lastPeriodDate } = q.body as { dueDate?: string; lastPeriodDate?: string };
     if (!dueDate && !lastPeriodDate) {
-      s.status(400).json({ success: false, error: 'Provide dueDate or lastPeriodDate' });
+      errorResponse(s, 'Provide dueDate or lastPeriodDate', 400);
       return;
     }
     const finalDueDate = dueDate
@@ -106,19 +104,16 @@ r.post('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
     const week = calcWeekFromDueDate(finalDueDate);
     const daysLeft = Math.max(0, Math.floor((finalDueDate.getTime() - Date.now()) / 86400000));
     const trimester = week <= 12 ? 1 : week <= 26 ? 2 : 3;
-    s.status(201).json({
-      success: true,
-      data: {
-        id: pregnancy.id,
-        dueDate: pregnancy.dueDate.toISOString(),
-        pregnancyWeek: week,
-        trimester,
-        daysLeft,
-        babySize: getBabySize(week),
-        milestone: getWeeklyMilestone(week),
-        progressPercent: Math.round((week / 40) * 100),
-      },
-    });
+    successResponse(s, {
+      id: pregnancy.id,
+      dueDate: pregnancy.dueDate.toISOString(),
+      pregnancyWeek: week,
+      trimester,
+      daysLeft,
+      babySize: getBabySize(week),
+      milestone: getWeeklyMilestone(week),
+      progressPercent: Math.round((week / 40) * 100),
+    }, 'Pregnancy created', 201);
   } catch (e) { n(e); }
 });
 
@@ -126,7 +121,7 @@ r.post('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
 r.delete('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     await prisma.pregnancy.updateMany({ where: { userId: q.user!.id, isActive: true }, data: { isActive: false } });
-    s.json({ success: true, message: 'Pregnancy data removed' });
+    successResponse(s, null, 'Pregnancy data removed');
   } catch (e) { n(e); }
 });
 

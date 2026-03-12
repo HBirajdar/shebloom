@@ -8,6 +8,7 @@
 import { Router, Response, NextFunction, Request } from 'express';
 import prisma from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { successResponse, errorResponse } from '../utils/response.utils';
 
 const r = Router();
 
@@ -21,7 +22,7 @@ r.get('/', async (q: Request, s: Response, n: NextFunction) => {
       where: w,
       orderBy: { createdAt: 'desc' },
     });
-    s.json({ success: true, data: activities });
+    successResponse(s, activities);
   } catch (e) { n(e); }
 });
 
@@ -64,19 +65,16 @@ r.get('/daily-score', authenticate, async (q: AuthRequest, s: Response, n: NextF
     // Weighted composite
     const composite = Math.round(moodScore * 0.4 + waterScore * 0.3 + symptomScore * 0.3);
 
-    s.json({
-      success: true,
-      data: {
-        score: composite,
-        components: {
-          mood: { score: moodScore, logged: !!moodLog, value: moodLog?.mood || null },
-          water: { score: waterScore, glasses: waterGlasses, target: waterTarget },
-          sleep: { logged: sleepHours > 0, hours: sleepHours },
-          exercise: { logged: exerciseDone },
-          symptoms: { score: symptomScore, count: symptomCount },
-        },
-        date: todayStart.toISOString(),
+    successResponse(s, {
+      score: composite,
+      components: {
+        mood: { score: moodScore, logged: !!moodLog, value: moodLog?.mood || null },
+        water: { score: waterScore, glasses: waterGlasses, target: waterTarget },
+        sleep: { logged: sleepHours > 0, hours: sleepHours },
+        exercise: { logged: exerciseDone },
+        symptoms: { score: symptomScore, count: symptomCount },
       },
+      date: todayStart.toISOString(),
     });
   } catch (e) { n(e); }
 });
@@ -88,7 +86,7 @@ r.post('/log', authenticate, async (q: AuthRequest, s: Response, n: NextFunction
     const { type, value, notes } = q.body as { type: 'water' | 'sleep' | 'exercise'; value: number; notes?: string };
 
     if (!type || value === undefined) {
-      s.status(400).json({ success: false, error: 'type and value are required' });
+      errorResponse(s, 'type and value are required', 400);
       return;
     }
 
@@ -104,12 +102,12 @@ r.post('/log', authenticate, async (q: AuthRequest, s: Response, n: NextFunction
           where: { id: existing.id },
           data: { glasses: Math.min(value, 20) },
         });
-        s.json({ success: true, data: updated, message: 'Water log updated' });
+        successResponse(s, updated, 'Water log updated');
       } else {
         const created = await prisma.waterLog.create({
           data: { userId: uid, glasses: Math.min(value, 20), targetGlasses: 8 },
         });
-        s.json({ success: true, data: created, message: 'Water log created' });
+        successResponse(s, created, 'Water log created');
       }
       return;
     }
@@ -124,7 +122,7 @@ r.post('/log', authenticate, async (q: AuthRequest, s: Response, n: NextFunction
       },
     });
 
-    s.json({ success: true, data: log, message: `${type} log saved` });
+    successResponse(s, log, `${type} log saved`);
   } catch (e) { n(e); }
 });
 
@@ -218,7 +216,7 @@ r.get('/history', authenticate, async (q: AuthRequest, s: Response, n: NextFunct
       });
     }
 
-    s.json({ success: true, data: result });
+    successResponse(s, result);
   } catch (e) { n(e); }
 });
 

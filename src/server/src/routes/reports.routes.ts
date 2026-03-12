@@ -6,6 +6,7 @@
 import { Router, Response, NextFunction } from 'express';
 import prisma from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { successResponse } from '../utils/response.utils';
 
 const r = Router();
 r.use(authenticate);
@@ -41,12 +42,12 @@ r.get('/summary', async (q: AuthRequest, s: Response, n: NextFunction) => {
     // ── Avg cycle length ────────────────────────────
     const completedCycles = cycles.filter(c => c.endDate && c.cycleLength);
     const avgCycleLength = completedCycles.length
-      ? Math.round(completedCycles.reduce((s, c) => s + (c.cycleLength || 28), 0) / completedCycles.length)
+      ? Math.round(completedCycles.reduce((sum, c) => sum + (c.cycleLength || 28), 0) / completedCycles.length)
       : 28;
 
     // ── Avg period duration ─────────────────────────
     const avgDuration = completedCycles.length
-      ? Math.round(completedCycles.reduce((s, c) => s + (c.periodLength || 5), 0) / completedCycles.length)
+      ? Math.round(completedCycles.reduce((sum, c) => sum + (c.periodLength || 5), 0) / completedCycles.length)
       : 5;
 
     // ── Regularity (how consistent cycle lengths are) ──
@@ -142,19 +143,16 @@ r.get('/summary', async (q: AuthRequest, s: Response, n: NextFunction) => {
       wellnessHistory.push({ date: day.toISOString(), score });
     }
 
-    s.json({
-      success: true,
-      data: {
-        totalCycles,
-        avgCycleLength,
-        avgDuration,
-        regularity,
-        firstPeriodDate,
-        allCycles,
-        symptomFrequency,
-        moodByPhase,
-        wellnessHistory,
-      },
+    successResponse(s, {
+      totalCycles,
+      avgCycleLength,
+      avgDuration,
+      regularity,
+      firstPeriodDate,
+      allCycles,
+      symptomFrequency,
+      moodByPhase,
+      wellnessHistory,
     });
   } catch (e) { n(e); }
 });

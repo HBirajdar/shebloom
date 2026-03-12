@@ -10,6 +10,7 @@
 
 import { Router, Response, NextFunction } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { successResponse, errorResponse } from '../utils/response.utils';
 
 const r = Router();
 r.use(authenticate);
@@ -36,7 +37,7 @@ r.get('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const items = getCart(q.user!.id);
     const total = items.reduce((sum, i) => sum + i.price * i.qty, 0);
-    s.json({ success: true, data: { items, total, count: items.reduce((sum, i) => sum + i.qty, 0) } });
+    successResponse(s, { items, total, count: items.reduce((sum, i) => sum + i.qty, 0) });
   } catch (e) { n(e); }
 });
 
@@ -47,7 +48,7 @@ r.post('/add', async (q: AuthRequest, s: Response, n: NextFunction) => {
     const { productId, name, price, image, qty = 1 } = q.body as Partial<CartItem>;
 
     if (!productId || !name || price === undefined) {
-      s.status(400).json({ success: false, error: 'productId, name and price are required' });
+      errorResponse(s, 'productId, name and price are required', 400);
       return;
     }
 
@@ -70,7 +71,7 @@ r.post('/add', async (q: AuthRequest, s: Response, n: NextFunction) => {
 
     setCart(uid, cart);
     const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
-    s.json({ success: true, data: { items: cart, total }, message: `${name} added to cart` });
+    successResponse(s, { items: cart, total }, `${name} added to cart`);
   } catch (e) { n(e); }
 });
 
@@ -81,7 +82,7 @@ r.delete('/:id', async (q: AuthRequest, s: Response, n: NextFunction) => {
     const cart = getCart(uid).filter(i => i.id !== q.params.id);
     setCart(uid, cart);
     const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
-    s.json({ success: true, data: { items: cart, total }, message: 'Item removed from cart' });
+    successResponse(s, { items: cart, total }, 'Item removed from cart');
   } catch (e) { n(e); }
 });
 
@@ -91,22 +92,18 @@ r.post('/checkout', async (q: AuthRequest, s: Response, n: NextFunction) => {
     const uid = q.user!.id;
     const cart = getCart(uid);
     if (cart.length === 0) {
-      s.status(400).json({ success: false, error: 'Cart is empty' });
+      errorResponse(s, 'Cart is empty', 400);
       return;
     }
     const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
     // Clear cart after checkout
     setCart(uid, []);
-    s.json({
-      success: true,
-      data: {
-        orderId: `SB-${Date.now()}`,
-        items: cart,
-        total,
-        status: 'enquiry_received',
-        message: 'Your order enquiry has been received. Our team will contact you shortly.',
-      },
-    });
+    successResponse(s, {
+      orderId: `SB-${Date.now()}`,
+      items: cart,
+      total,
+      status: 'enquiry_received',
+    }, 'Your order enquiry has been received. Our team will contact you shortly.');
   } catch (e) { n(e); }
 });
 

@@ -60,6 +60,14 @@ function DoctorRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Admin Route wrapper (ADMIN only)
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, user } = useAuthStore();
+  if (!isAuthenticated) return <Navigate to="/auth" replace />;
+  if (user?.role !== 'ADMIN') return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <Suspense fallback={<LoadingScreen />}>
@@ -90,7 +98,7 @@ export default function App() {
           <Route path="/order-success" element={<ProtectedRoute><OrderSuccessPage /></ProtectedRoute>} />
           <Route path="/my-orders" element={<ProtectedRoute><MyOrdersPage /></ProtectedRoute>} />
           <Route path="/doctor-dashboard" element={<DoctorRoute><DoctorDashboard /></DoctorRoute>} />
-          <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
+          <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
           <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
           <Route path="/programs" element={<ProtectedRoute><ProgramsPage /></ProtectedRoute>} />
           <Route path="/selfcare" element={<ProtectedRoute><SelfCarePage /></ProtectedRoute>} />

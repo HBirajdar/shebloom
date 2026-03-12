@@ -5,6 +5,7 @@
 
 import { Router, Response, NextFunction } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { successResponse, errorResponse } from '../utils/response.utils';
 
 const r = Router();
 r.use(authenticate);
@@ -120,7 +121,7 @@ r.post('/chat', async (q: AuthRequest, s: Response, n: NextFunction) => {
     };
 
     if (!message?.trim()) {
-      s.status(400).json({ success: false, error: 'message is required' });
+      errorResponse(s, 'message is required', 400);
       return;
     }
 
@@ -131,14 +132,11 @@ r.post('/chat', async (q: AuthRequest, s: Response, n: NextFunction) => {
 
     const reply = generateAIResponse(message, cycleDay, phase, goal);
 
-    s.json({
-      success: true,
-      data: {
-        reply,
-        phase,
-        cycleDay,
-        timestamp: new Date().toISOString(),
-      },
+    successResponse(s, {
+      reply,
+      phase,
+      cycleDay,
+      timestamp: new Date().toISOString(),
     });
   } catch (e) { n(e); }
 });

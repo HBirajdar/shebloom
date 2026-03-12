@@ -8,6 +8,7 @@
 import { Router, Response, NextFunction } from 'express';
 import prisma from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { successResponse, errorResponse } from '../utils/response.utils';
 
 const r = Router();
 r.use(authenticate);
@@ -53,7 +54,8 @@ r.get('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
       take: 50,
     });
     const unreadCount = notifications.filter(n => !n.isRead).length;
-    s.json({ success: true, data: notifications, unreadCount });
+    // Return notifications array as data + unreadCount at top level for frontend compat
+    s.status(200).json({ success: true, data: notifications, unreadCount, timestamp: new Date().toISOString() });
   } catch (e) { n(e); }
 });
 
@@ -65,7 +67,7 @@ r.put('/read-all', async (q: AuthRequest, s: Response, n: NextFunction) => {
       where: { userId: q.user!.id, isRead: false },
       data: { isRead: true },
     });
-    s.json({ success: true, message: 'All notifications marked as read' });
+    successResponse(s, null, 'All notifications marked as read');
   } catch (e) { n(e); }
 });
 
@@ -75,9 +77,9 @@ r.put('/:id/read', async (q: AuthRequest, s: Response, n: NextFunction) => {
     const notification = await prisma.notification.findFirst({
       where: { id: q.params.id, userId: q.user!.id },
     });
-    if (!notification) { s.status(404).json({ success: false, error: 'Notification not found' }); return; }
+    if (!notification) { errorResponse(s, 'Notification not found', 404); return; }
     await prisma.notification.update({ where: { id: q.params.id }, data: { isRead: true } });
-    s.json({ success: true, message: 'Marked as read' });
+    successResponse(s, null, 'Marked as read');
   } catch (e) { n(e); }
 });
 
@@ -85,7 +87,7 @@ r.put('/:id/read', async (q: AuthRequest, s: Response, n: NextFunction) => {
 r.patch('/:id/read', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     await prisma.notification.update({ where: { id: q.params.id }, data: { isRead: true } });
-    s.json({ success: true });
+    successResponse(s, null, 'Marked as read');
   } catch (e) { n(e); }
 });
 

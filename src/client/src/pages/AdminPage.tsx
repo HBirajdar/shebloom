@@ -132,7 +132,7 @@ export default function AdminPage() {
   const nav = useNavigate();
   const user = useAuthStore(s => s.user);
 
-  if (user && user.role !== 'ADMIN' && user.role !== 'DOCTOR') {
+  if (user && user.role !== 'ADMIN') {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -437,6 +437,7 @@ export default function AdminPage() {
   // ─── DASHBOARD ──────────────────────────────────────
   const pubProducts = products.filter(p => p.isPublished).length;
   const pubArticles = articles.filter(a => a.isPublished).length;
+  const reviewArticles = articles.filter(a => a.status === 'REVIEW').length;
   const pubDoctors = doctors.filter(d => d.isPublished).length;
 
   // ─── CRUD Handlers ──────────────────────────────────
@@ -777,7 +778,7 @@ export default function AdminPage() {
       IN_PROGRESS: 'bg-purple-100 text-purple-700',
       COMPLETED: 'bg-emerald-100 text-emerald-700', CANCELLED: 'bg-orange-100 text-orange-700',
       REJECTED: 'bg-red-100 text-red-700', NO_SHOW: 'bg-gray-200 text-gray-600',
-      DRAFT: 'bg-gray-100 text-gray-600', PUBLISHED: 'bg-emerald-100 text-emerald-700',
+      DRAFT: 'bg-gray-100 text-gray-600', REVIEW: 'bg-amber-100 text-amber-700', PUBLISHED: 'bg-emerald-100 text-emerald-700',
       ARCHIVED: 'bg-red-100 text-red-600',
       draft: 'bg-gray-100 text-gray-600', published: 'bg-emerald-100 text-emerald-700',
       archived: 'bg-red-100 text-red-600',
@@ -832,7 +833,7 @@ export default function AdminPage() {
             <div className="grid grid-cols-2 gap-2.5">
               {[
                 { l: 'Products', v: products.length, p: pubProducts, c: '#059669', bg: '#ECFDF5' },
-                { l: 'Articles', v: articles.length, p: pubArticles, c: '#2563EB', bg: '#EFF6FF' },
+                { l: 'Articles', v: articles.length, p: pubArticles, c: '#2563EB', bg: '#EFF6FF', review: reviewArticles },
                 { l: 'Doctors', v: doctors.length, p: pubDoctors, c: '#7C3AED', bg: '#F5F3FF' },
                 { l: 'Callbacks', v: callbacks.length, p: callbacks.filter((c: any) => c.status === 'PENDING').length, c: '#EA580C', bg: '#FFF7ED' },
                 ...(analytics ? [
@@ -843,7 +844,7 @@ export default function AdminPage() {
                 <div key={s.l} className="rounded-2xl p-4" style={{ backgroundColor: s.bg }}>
                   <p className="text-[10px] font-bold uppercase" style={{ color: s.c }}>{s.l}</p>
                   <p className="text-2xl font-extrabold text-gray-900 mt-1">{s.v}</p>
-                  <p className="text-[9px] text-gray-500">{s.p > 0 ? `${s.p} active` : ''}</p>
+                  <p className="text-[9px] text-gray-500">{s.p > 0 ? `${s.p} active` : ''}{(s as any).review > 0 ? ` \u2022 ${(s as any).review} pending review` : ''}</p>
                 </div>
               ))}
             </div>
@@ -1050,11 +1051,19 @@ export default function AdminPage() {
                   <button onClick={() => openEditArticle(a)}
                     className="flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 bg-blue-50 text-blue-600"
                     disabled={actionLoading === a.id}>{'\u270F\uFE0F'} Edit</button>
-                  <button onClick={() => handleToggleArticlePublish(a.id)}
-                    className={'flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 ' + (a.isPublished ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600')}
-                    disabled={actionLoading === a.id}>
-                    {actionLoading === a.id ? '...' : (a.isPublished ? 'Unpublish' : 'Publish')}
-                  </button>
+                  {a.status === 'REVIEW' ? (
+                    <button onClick={() => handleToggleArticlePublish(a.id)}
+                      className="flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 bg-amber-50 text-amber-700 border border-amber-200"
+                      disabled={actionLoading === a.id}>
+                      {actionLoading === a.id ? '...' : '\u2705 Approve & Publish'}
+                    </button>
+                  ) : (
+                    <button onClick={() => handleToggleArticlePublish(a.id)}
+                      className={'flex-1 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 ' + (a.isPublished ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600')}
+                      disabled={actionLoading === a.id}>
+                      {actionLoading === a.id ? '...' : (a.isPublished ? 'Unpublish' : 'Publish')}
+                    </button>
+                  )}
                   <button onClick={() => setConfirmDel({ id: a.id, type: 'article' })} className="px-2.5 py-1.5 rounded-lg bg-red-50 text-red-400 text-[9px] font-bold active:scale-95">{'\u{1F5D1}'}</button>
                 </div>
               </div>

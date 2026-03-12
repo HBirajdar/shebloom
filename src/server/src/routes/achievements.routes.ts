@@ -6,6 +6,7 @@
 import { Router, Response, NextFunction } from 'express';
 import prisma from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { successResponse } from '../utils/response.utils';
 
 const r = Router();
 r.use(authenticate);
@@ -110,12 +111,9 @@ r.get('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
 
     const earned = achievements.filter(a => a.earned).length;
 
-    s.json({
-      success: true,
-      data: {
-        achievements,
-        summary: { total: achievements.length, earned, remaining: achievements.length - earned },
-      },
+    successResponse(s, {
+      achievements,
+      summary: { total: achievements.length, earned, remaining: achievements.length - earned },
     });
   } catch (e) { n(e); }
 });

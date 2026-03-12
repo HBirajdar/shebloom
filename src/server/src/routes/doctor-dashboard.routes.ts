@@ -166,7 +166,7 @@ r.patch('/appointments/:id/reject', async (q: AuthRequest, s: Response, n: NextF
     const { reason } = q.body;
     const updated = await prisma.appointment.update({
       where: { id: q.params.id },
-      data: { status: 'REJECTED', notes: appt.notes ? `${appt.notes} | Rejection: ${reason || 'No reason given'}` : `Rejection: ${reason || 'No reason given'}` },
+      data: { status: 'REJECTED', rejectionReason: reason || 'No reason given' },
       include: { user: { select: { email: true, fullName: true } } },
     });
 
