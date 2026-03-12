@@ -56,6 +56,10 @@ api.interceptors.response.use(
         return api(req);
       }
     }
+    // Attach readable error message for catch blocks
+    const serverMsg = err.response?.data?.error || err.response?.data?.message;
+    if (serverMsg) err.message = serverMsg;
+    else if (!err.response) err.message = 'Network error — check your connection';
     return Promise.reject(err);
   }
 );
