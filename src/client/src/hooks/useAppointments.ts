@@ -22,6 +22,7 @@ export function useAppointments() {
         reason: b.notes?.split(' | ')[0] || '', notes: b.notes?.split(' | ')[1] || '',
         status: (['CANCELLED'].includes(b.status) ? 'cancelled' : ['COMPLETED'].includes(b.status) ? 'completed' : ['REJECTED','NO_SHOW'].includes(b.status) ? 'rejected' : 'upcoming'), source: 'api',
         videoLink: b.videoLink || b.meetingLink || '', meetingLink: b.meetingLink || b.videoLink || '',
+        rejectionReason: b.rejectionReason || '', cancellationReason: b.cancellationReason || '',
       }));
       // Merge: API bookings + localStorage bookings (deduplicated)
       const apiIds = new Set(apiData.map((b: any) => b.id));

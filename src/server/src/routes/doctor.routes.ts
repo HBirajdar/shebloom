@@ -56,6 +56,20 @@ r.get('/all', authenticate, requireAdmin, async (_req: AuthRequest, res: Respons
   } catch (e) { n(e); }
 });
 
+// GET /:id/slots — public, get doctor's available time slots
+r.get('/:id/slots', async (q: Request, res: Response, n: NextFunction) => {
+  try {
+    const doctor = await prisma.doctor.findUnique({ where: { id: q.params.id }, select: { id: true, isAvailable: true, isPublished: true } });
+    if (!doctor || !doctor.isPublished) { errorResponse(res, 'Doctor not found', 404); return; }
+
+    const slots = await prisma.doctorSlot.findMany({
+      where: { doctorId: doctor.id, isActive: true },
+      orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+    });
+    successResponse(res, { isAvailable: doctor.isAvailable, slots });
+  } catch (e) { n(e); }
+});
+
 // GET /:id — public, single doctor
 r.get('/:id', async (q: Request, res: Response, n: NextFunction) => {
   try {

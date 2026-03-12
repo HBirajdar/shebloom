@@ -79,6 +79,7 @@ export const moodAPI = {
 export const doctorAPI = {
   search: (p: any) => api.get('/doctors', { params: p }),
   get: (id: string) => api.get('/doctors/' + id),
+  getSlots: (id: string) => api.get(`/doctors/${id}/slots`),
 };
 
 export const hospitalAPI = {
@@ -191,6 +192,12 @@ export const doctorDashAPI = {
   createArticle: (d: any) => api.post('/doctor/articles', d),
   updateArticle: (id: string, d: any) => api.put(`/doctor/articles/${id}`, d),
   deleteArticle: (id: string) => api.delete(`/doctor/articles/${id}`),
+  // Availability & Slots
+  toggleAvailability: (isAvailable: boolean) => api.patch('/doctor/availability', { isAvailable }),
+  getSlots: () => api.get('/doctor/slots'),
+  createSlot: (d: { dayOfWeek: number; startTime: string; endTime: string }) => api.post('/doctor/slots', d),
+  updateSlot: (id: string, d: any) => api.put(`/doctor/slots/${id}`, d),
+  deleteSlot: (id: string) => api.delete(`/doctor/slots/${id}`),
 };
 
 export const adminAPI = {

@@ -234,6 +234,93 @@ r.patch('/profile', async (q: AuthRequest, s: Response, n: NextFunction) => {
   } catch (e) { n(e); }
 });
 
+// ─── PATCH /doctor/availability — toggle isAvailable ──
+r.patch('/availability', async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const doctor = await getDoctorProfile(q.user!.id);
+    if (!doctor) { errorResponse(s, 'Doctor profile not found', 404); return; }
+
+    const isAvailable = typeof q.body.isAvailable === 'boolean' ? q.body.isAvailable : !doctor.isAvailable;
+    const updated = await prisma.doctor.update({ where: { id: doctor.id }, data: { isAvailable } });
+    successResponse(s, { isAvailable: updated.isAvailable }, `You are now ${updated.isAvailable ? 'available' : 'unavailable'} for bookings`);
+  } catch (e) { n(e); }
+});
+
+// ─── GET /doctor/slots — list time slots ─────────────
+r.get('/slots', async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const doctor = await getDoctorProfile(q.user!.id);
+    if (!doctor) { errorResponse(s, 'Doctor profile not found', 404); return; }
+
+    const slots = await prisma.doctorSlot.findMany({
+      where: { doctorId: doctor.id },
+      orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+    });
+    successResponse(s, slots);
+  } catch (e) { n(e); }
+});
+
+// ─── POST /doctor/slots — create a time slot ─────────
+r.post('/slots', async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const doctor = await getDoctorProfile(q.user!.id);
+    if (!doctor) { errorResponse(s, 'Doctor profile not found', 404); return; }
+
+    const { dayOfWeek, startTime, endTime } = q.body;
+    if (dayOfWeek === undefined || !startTime || !endTime) {
+      errorResponse(s, 'dayOfWeek, startTime, and endTime are required', 400); return;
+    }
+    if (dayOfWeek < 0 || dayOfWeek > 6) { errorResponse(s, 'dayOfWeek must be 0-6', 400); return; }
+    if (startTime >= endTime) { errorResponse(s, 'startTime must be before endTime', 400); return; }
+
+    // Check for overlap on same day
+    const existing = await prisma.doctorSlot.findMany({
+      where: { doctorId: doctor.id, dayOfWeek: Number(dayOfWeek), isActive: true },
+    });
+    const hasOverlap = existing.some(s => startTime < s.endTime && endTime > s.startTime);
+    if (hasOverlap) { errorResponse(s, 'This slot overlaps with an existing slot', 400); return; }
+
+    const slot = await prisma.doctorSlot.create({
+      data: { doctorId: doctor.id, dayOfWeek: Number(dayOfWeek), startTime, endTime, isActive: true },
+    });
+    successResponse(s, slot, 'Slot created', 201);
+  } catch (e) { n(e); }
+});
+
+// ─── PUT /doctor/slots/:id — update a time slot ──────
+r.put('/slots/:id', async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const doctor = await getDoctorProfile(q.user!.id);
+    if (!doctor) { errorResponse(s, 'Doctor profile not found', 404); return; }
+
+    const slot = await prisma.doctorSlot.findUnique({ where: { id: q.params.id } });
+    if (!slot || slot.doctorId !== doctor.id) { errorResponse(s, 'Slot not found', 404); return; }
+
+    const data: any = {};
+    if (q.body.dayOfWeek !== undefined) data.dayOfWeek = Number(q.body.dayOfWeek);
+    if (q.body.startTime !== undefined) data.startTime = q.body.startTime;
+    if (q.body.endTime !== undefined) data.endTime = q.body.endTime;
+    if (q.body.isActive !== undefined) data.isActive = q.body.isActive;
+
+    const updated = await prisma.doctorSlot.update({ where: { id: q.params.id }, data });
+    successResponse(s, updated, 'Slot updated');
+  } catch (e) { n(e); }
+});
+
+// ─── DELETE /doctor/slots/:id — remove a time slot ───
+r.delete('/slots/:id', async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const doctor = await getDoctorProfile(q.user!.id);
+    if (!doctor) { errorResponse(s, 'Doctor profile not found', 404); return; }
+
+    const slot = await prisma.doctorSlot.findUnique({ where: { id: q.params.id } });
+    if (!slot || slot.doctorId !== doctor.id) { errorResponse(s, 'Slot not found', 404); return; }
+
+    await prisma.doctorSlot.delete({ where: { id: q.params.id } });
+    successResponse(s, null, 'Slot deleted');
+  } catch (e) { n(e); }
+});
+
 // ─── GET /doctor/prescriptions ────────────────────────
 r.get('/prescriptions', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {

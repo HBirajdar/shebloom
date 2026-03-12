@@ -9,7 +9,7 @@ import { useAppointments } from '../hooks/useAppointments';
 import { prescriptionAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
-const timeSlots = ['09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', '05:00 PM'];
+const fallbackTimeSlots = ['09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', '05:00 PM'];
 const reasons = ['General Consultation', 'PCOD/PCOS', 'Period Problems', 'Fertility Consultation', 'Pregnancy Care', 'Hair & Skin', 'Hormonal Imbalance', 'Nutrition Advice', 'Product Guidance', 'Other'];
 
 export default function AppointmentsPage() {
@@ -48,6 +48,11 @@ export default function AppointmentsPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [lastVideoLink, setLastVideoLink] = useState('');
 
+  // Doctor slots for dynamic time selection
+  const [doctorSlots, setDoctorSlots] = useState<any[]>([]);
+  const [doctorAvailable, setDoctorAvailable] = useState(true);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+
   // Prescription viewer state
   const [rxModal, setRxModal] = useState<{ open: boolean; data: any; loading: boolean }>({ open: false, data: null, loading: false });
 
@@ -61,6 +66,44 @@ export default function AppointmentsPage() {
       toast.error('No prescription found for this appointment');
     }
   };
+
+  // Fetch doctor slots when doctor changes
+  useEffect(() => {
+    if (!selDoc) return;
+    setSlotsLoading(true);
+    doctorAPI.getSlots(selDoc)
+      .then(res => {
+        const data = res.data?.data || {};
+        setDoctorSlots(data.slots || []);
+        setDoctorAvailable(data.isAvailable !== false);
+      })
+      .catch(() => { setDoctorSlots([]); setDoctorAvailable(true); })
+      .finally(() => setSlotsLoading(false));
+  }, [selDoc]);
+
+  // Generate time slots from doctor's availability for selected date
+  const getTimeSlotsForDate = (dateStr: string) => {
+    if (!dateStr) return fallbackTimeSlots;
+    const dayOfWeek = new Date(dateStr).getDay();
+    const daySlots = doctorSlots.filter(s => s.dayOfWeek === dayOfWeek && s.isActive);
+    if (daySlots.length === 0) return fallbackTimeSlots;
+
+    const times: string[] = [];
+    daySlots.forEach(slot => {
+      let [sh, sm] = slot.startTime.split(':').map(Number);
+      const [eh, em] = slot.endTime.split(':').map(Number);
+      while (sh < eh || (sh === eh && sm < em)) {
+        const h12 = sh === 0 ? 12 : sh > 12 ? sh - 12 : sh;
+        const meridiem = sh < 12 ? 'AM' : 'PM';
+        times.push(`${String(h12).padStart(2, '0')}:${String(sm).padStart(2, '0')} ${meridiem}`);
+        sm += 30;
+        if (sm >= 60) { sh++; sm = 0; }
+      }
+    });
+    return times.length > 0 ? times : fallbackTimeSlots;
+  };
+
+  const timeSlots = getTimeSlotsForDate(selDate);
 
   // Next 14 days
   const dates = Array.from({ length: 14 }, (_, i) => {
@@ -119,14 +162,15 @@ export default function AppointmentsPage() {
           {step === 0 && (<>
             <h3 className="text-sm font-extrabold text-gray-900">Choose a Doctor</h3>
             {chief && (
-              <button onClick={() => { setSelDoc(chief.id); setStep(1); }}
-                className={'w-full rounded-3xl p-4 text-left active:scale-[0.98] transition-transform border-2 shadow-lg ' + (selDoc === chief.id ? 'border-rose-400 bg-rose-50' : 'border-transparent bg-white')}>
+              <button onClick={() => { if (chief.isAvailable === false) { toast.error('This doctor is currently not accepting bookings'); return; } setSelDoc(chief.id); setStep(1); }}
+                className={'w-full rounded-3xl p-4 text-left active:scale-[0.98] transition-transform border-2 shadow-lg ' + (chief.isAvailable === false ? 'opacity-60 border-gray-200 bg-gray-50' : selDoc === chief.id ? 'border-rose-400 bg-rose-50' : 'border-transparent bg-white')}>
                 <div className="flex items-center gap-3">
                   <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-extrabold text-lg shadow-md">{chief.name.charAt(0)}</div>
                   <div className="flex-1">
                     <div className="flex items-center gap-1.5">
                       <p className="text-sm font-extrabold text-gray-800">{chief.name}</p>
                       <span className="text-[7px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">{'\u{1F451}'} CHIEF</span>
+                      {chief.isAvailable === false && <span className="text-[7px] font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">Unavailable</span>}
                     </div>
                     <p className="text-[10px] text-gray-500">{chief.specialization} • {chief.experience} yrs</p>
                     <div className="flex items-center gap-2 mt-1">
@@ -139,12 +183,15 @@ export default function AppointmentsPage() {
               </button>
             )}
             {pubDoctors.filter(d => !d.isChief).map(d => (
-              <button key={d.id} onClick={() => { setSelDoc(d.id); setStep(1); }}
-                className={'w-full rounded-2xl p-3 text-left active:scale-[0.98] transition-transform border-2 shadow-lg ' + (selDoc === d.id ? 'border-rose-400 bg-rose-50' : 'border-transparent bg-white')}>
+              <button key={d.id} onClick={() => { if (d.isAvailable === false) { toast.error('This doctor is currently not accepting bookings'); return; } setSelDoc(d.id); setStep(1); }}
+                className={'w-full rounded-2xl p-3 text-left active:scale-[0.98] transition-transform border-2 shadow-lg ' + (d.isAvailable === false ? 'opacity-60 border-gray-200 bg-gray-50' : selDoc === d.id ? 'border-rose-400 bg-rose-50' : 'border-transparent bg-white')}>
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold text-sm">{d.name.charAt(0)}</div>
                   <div className="flex-1">
-                    <p className="text-xs font-bold text-gray-800">{d.name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-bold text-gray-800">{d.name}</p>
+                      {d.isAvailable === false && <span className="text-[7px] font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">Unavailable</span>}
+                    </div>
                     <p className="text-[10px] text-gray-500">{d.specialization} • {d.experience} yrs • {'\u20B9'}{d.fee}</p>
                   </div>
                 </div>
@@ -169,14 +216,28 @@ export default function AppointmentsPage() {
             </div>
             {selDate && (<>
               <h3 className="text-sm font-extrabold text-gray-900">Select Time</h3>
-              <div className="grid grid-cols-3 gap-2">
-                {timeSlots.map(t => (
-                  <button key={t} onClick={() => { setSelTime(t); setStep(2); }}
-                    className={'py-2.5 rounded-2xl text-xs font-bold transition-all active:scale-95 ' + (selTime === t ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md shadow-rose-200' : 'bg-white text-gray-600 border border-gray-100')}>
-                    {t}
-                  </button>
-                ))}
-              </div>
+              {slotsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="w-8 h-8 border-3 border-rose-400 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : timeSlots.length === 0 ? (
+                <div className="text-center py-8 bg-amber-50 rounded-2xl">
+                  <p className="text-xs font-bold text-amber-700">No time slots available for this day</p>
+                  <p className="text-[10px] text-amber-500 mt-1">Please try another date</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {timeSlots.map(t => (
+                    <button key={t} onClick={() => { setSelTime(t); setStep(2); }}
+                      className={'py-2.5 rounded-2xl text-xs font-bold transition-all active:scale-95 ' + (selTime === t ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md shadow-rose-200' : 'bg-white text-gray-600 border border-gray-100')}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {doctorSlots.length > 0 && (
+                <p className="text-[9px] text-gray-400 text-center mt-1">Showing doctor's available hours</p>
+              )}
             </>)}
           </>)}
 
@@ -270,6 +331,13 @@ export default function AppointmentsPage() {
                   <span>{'\u{1F4C5}'} {new Date(b.date).toLocaleDateString('en', { month: 'short', day: 'numeric' })}</span>
                   <span>{'\u{1F552}'} {b.time}</span>
                 </div>
+                {/* Rejection reason */}
+                {b.status === 'rejected' && b.rejectionReason && (
+                  <div className="mt-2 bg-orange-50 rounded-xl px-3 py-2 border border-orange-100">
+                    <p className="text-[9px] font-bold text-orange-600 uppercase mb-0.5">Reason for Rejection</p>
+                    <p className="text-[11px] text-orange-800">{b.rejectionReason}</p>
+                  </div>
+                )}
                 {b.status === 'upcoming' && (
                   <div className="mt-2 space-y-1.5">
                     {(b.videoLink || b.meetingLink) && (

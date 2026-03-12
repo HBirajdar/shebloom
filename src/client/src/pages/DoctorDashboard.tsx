@@ -5,7 +5,10 @@ import { useAuthStore } from '../stores/authStore';
 import { doctorDashAPI, prescriptionAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
-type Tab = 'overview' | 'appointments' | 'prescriptions' | 'articles' | 'profile' | 'reviews';
+type Tab = 'overview' | 'appointments' | 'availability' | 'prescriptions' | 'articles' | 'profile' | 'reviews';
+
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING:     'bg-yellow-100 text-yellow-700',
@@ -54,6 +57,17 @@ export default function DoctorDashboard() {
   const [showArticleForm, setShowArticleForm] = useState(false);
   const [editingArticle, setEditingArticle] = useState<any>(null);
   const [articleForm, setArticleForm] = useState({ title: '', content: '', category: 'wellness', tags: '', excerpt: '', emoji: '' });
+
+  // Availability & Slots state
+  const [slots, setSlots] = useState<any[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(true);
+  const [showSlotForm, setShowSlotForm] = useState(false);
+  const [slotForm, setSlotForm] = useState({ dayOfWeek: 1, startTime: '09:00', endTime: '17:00' });
+  const [availabilityToggling, setAvailabilityToggling] = useState(false);
+
+  // Rejection modal state
+  const [rejectModal, setRejectModal] = useState<{ open: boolean; appointmentId: string | null }>({ open: false, appointmentId: null });
+  const [rejectReason, setRejectReason] = useState('');
 
   // Write prescription modal
   const [rxModal, setRxModal] = useState<{ open: boolean; appointmentId: string | null }>({ open: false, appointmentId: null });
@@ -119,9 +133,24 @@ export default function DoctorDashboard() {
     finally { setArticlesLoading(false); }
   }, []);
 
+  const fetchSlots = useCallback(async () => {
+    setSlotsLoading(true);
+    try {
+      const res = await doctorDashAPI.getSlots();
+      setSlots(res.data.data || []);
+    } catch {}
+    finally { setSlotsLoading(false); }
+  }, []);
+
+  // Sync isOnline from profile
+  useEffect(() => {
+    if (profile) setIsOnline(profile.isAvailable ?? true);
+  }, [profile]);
+
   useEffect(() => {
     if (tab === 'overview') { fetchStats(); fetchProfile(); fetchArticles(); }
     if (tab === 'appointments') fetchAppts();
+    if (tab === 'availability') { fetchSlots(); fetchProfile(); }
     if (tab === 'prescriptions') fetchPrescriptions();
     if (tab === 'articles') fetchArticles();
     if (tab === 'profile') fetchProfile();
@@ -143,14 +172,58 @@ export default function DoctorDashboard() {
   };
 
   const handleReject = async (id: string) => {
-    const reason = prompt('Reason for rejection (optional):') || '';
-    setActionLoading(id + '_reject');
+    setRejectModal({ open: true, appointmentId: id });
+    setRejectReason('');
+  };
+
+  const confirmReject = async () => {
+    if (!rejectModal.appointmentId) return;
+    setActionLoading(rejectModal.appointmentId + '_reject');
     try {
-      await doctorDashAPI.rejectAppointment(id, reason);
+      await doctorDashAPI.rejectAppointment(rejectModal.appointmentId, rejectReason || 'No reason provided');
       toast.success('Appointment rejected');
+      setRejectModal({ open: false, appointmentId: null });
+      setRejectReason('');
       fetchAppts();
     } catch (e: any) { toast.error(e.message || 'Failed'); }
     finally { setActionLoading(null); }
+  };
+
+  const handleToggleAvailability = async () => {
+    setAvailabilityToggling(true);
+    try {
+      const newVal = !isOnline;
+      await doctorDashAPI.toggleAvailability(newVal);
+      setIsOnline(newVal);
+      toast.success(newVal ? 'You are now available for bookings' : 'You are now unavailable for bookings');
+    } catch (e: any) { toast.error(e.message || 'Failed to toggle availability'); }
+    finally { setAvailabilityToggling(false); }
+  };
+
+  const handleCreateSlot = async () => {
+    try {
+      await doctorDashAPI.createSlot(slotForm);
+      toast.success('Slot created');
+      setShowSlotForm(false);
+      setSlotForm({ dayOfWeek: 1, startTime: '09:00', endTime: '17:00' });
+      fetchSlots();
+    } catch (e: any) { toast.error(e.response?.data?.message || 'Failed to create slot'); }
+  };
+
+  const handleDeleteSlot = async (id: string) => {
+    try {
+      await doctorDashAPI.deleteSlot(id);
+      toast.success('Slot removed');
+      fetchSlots();
+    } catch (e: any) { toast.error(e.message || 'Failed'); }
+  };
+
+  const handleToggleSlot = async (slot: any) => {
+    try {
+      await doctorDashAPI.updateSlot(slot.id, { isActive: !slot.isActive });
+      toast.success(slot.isActive ? 'Slot disabled' : 'Slot enabled');
+      fetchSlots();
+    } catch (e: any) { toast.error(e.message || 'Failed'); }
   };
 
   const handleComplete = async (id: string) => {
@@ -256,7 +329,8 @@ export default function DoctorDashboard() {
 
   const tabs: { id: Tab; label: string; emoji: string }[] = [
     { id: 'overview', label: 'Home', emoji: '🏠' },
-    { id: 'appointments', label: 'Appointments', emoji: '📅' },
+    { id: 'appointments', label: 'Appts', emoji: '📅' },
+    { id: 'availability', label: 'Slots', emoji: '🕐' },
     { id: 'prescriptions', label: 'Rx', emoji: '💊' },
     { id: 'articles', label: 'Articles', emoji: '📝' },
     { id: 'profile', label: 'Profile', emoji: '👤' },
@@ -331,11 +405,11 @@ export default function DoctorDashboard() {
                 <div className="relative">
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-white/50 text-[9px] uppercase tracking-widest font-bold">{todayStr}</p>
-                    {/* Availability Toggle */}
-                    <button onClick={() => { setIsOnline(!isOnline); toast.success(isOnline ? 'Status: Offline' : 'Status: Online'); }}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 active:scale-95 transition-all">
-                      <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]' : 'bg-gray-400'}`} />
-                      <span className="text-[9px] font-bold text-white/80">{isOnline ? 'Online' : 'Offline'}</span>
+                    {/* Availability Toggle — synced to backend */}
+                    <button onClick={handleToggleAvailability} disabled={availabilityToggling}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 active:scale-95 transition-all disabled:opacity-50">
+                      <div className={`w-2 h-2 rounded-full transition-colors ${isOnline ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]' : 'bg-gray-400'}`} />
+                      <span className="text-[9px] font-bold text-white/80">{availabilityToggling ? '...' : isOnline ? 'Available' : 'Unavailable'}</span>
                     </button>
                   </div>
                   <p className="text-xl font-extrabold mt-1">Welcome, Dr. {user?.fullName?.split(' ').pop() || ''}</p>
@@ -620,6 +694,138 @@ export default function DoctorDashboard() {
                 </div>
               ))
             )}
+          </>
+        )}
+
+        {/* ══════════════ AVAILABILITY TAB ══════════════ */}
+        {tab === 'availability' && (
+          <>
+            {/* Availability Toggle Card */}
+            <div className={`rounded-3xl p-5 shadow-sm border transition-all ${isOnline ? 'bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-200' : 'bg-gradient-to-br from-gray-50 to-slate-50 border-gray-200'}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-sm ${isOnline ? 'bg-emerald-100' : 'bg-gray-100'}`}>
+                    {isOnline ? '🟢' : '🔴'}
+                  </div>
+                  <div>
+                    <p className="text-sm font-extrabold text-gray-900">{isOnline ? 'Accepting Bookings' : 'Not Accepting Bookings'}</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">Patients {isOnline ? 'can' : 'cannot'} book appointments with you</p>
+                  </div>
+                </div>
+                <button onClick={handleToggleAvailability} disabled={availabilityToggling}
+                  className={`relative w-14 h-7 rounded-full transition-all ${isOnline ? 'bg-emerald-500' : 'bg-gray-300'} ${availabilityToggling ? 'opacity-50' : ''}`}>
+                  <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-all ${isOnline ? 'left-7' : 'left-0.5'}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Time Slots Management */}
+            <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100/50">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-sm font-extrabold text-gray-900">Your Time Slots</h3>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Set when patients can book appointments</p>
+                </div>
+                <button onClick={() => setShowSlotForm(!showSlotForm)}
+                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[11px] font-bold active:scale-95 shadow-sm">
+                  {showSlotForm ? 'Cancel' : '+ Add Slot'}
+                </button>
+              </div>
+
+              {/* Add Slot Form */}
+              {showSlotForm && (
+                <div className="bg-indigo-50 rounded-2xl p-4 mb-4 space-y-3 border border-indigo-100">
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Day of Week</label>
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {DAY_SHORT.map((d, i) => (
+                        <button key={i} onClick={() => setSlotForm(p => ({ ...p, dayOfWeek: i }))}
+                          className={'px-3 py-2 rounded-xl text-[10px] font-bold transition-all active:scale-95 border ' + (slotForm.dayOfWeek === i ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-white text-gray-600 border-gray-200')}>
+                          {d}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Start Time</label>
+                      <input type="time" value={slotForm.startTime} onChange={e => setSlotForm(p => ({ ...p, startTime: e.target.value }))}
+                        className="w-full mt-1.5 px-3 py-2.5 border border-gray-200 rounded-xl text-xs focus:border-indigo-400 focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">End Time</label>
+                      <input type="time" value={slotForm.endTime} onChange={e => setSlotForm(p => ({ ...p, endTime: e.target.value }))}
+                        className="w-full mt-1.5 px-3 py-2.5 border border-gray-200 rounded-xl text-xs focus:border-indigo-400 focus:outline-none" />
+                    </div>
+                  </div>
+                  <button onClick={handleCreateSlot}
+                    className="w-full py-3 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-indigo-500 to-purple-500 active:scale-[0.97] shadow-md shadow-indigo-200 transition-transform">
+                    Create Slot
+                  </button>
+                </div>
+              )}
+
+              {/* Slots List */}
+              {slotsLoading ? (
+                <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-16 bg-gray-50 rounded-2xl animate-pulse" />)}</div>
+              ) : slots.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 mx-auto rounded-3xl bg-indigo-50 flex items-center justify-center text-3xl mb-3">🕐</div>
+                  <p className="text-sm font-bold text-gray-400">No time slots set</p>
+                  <p className="text-xs text-gray-300 mt-1 max-w-[220px] mx-auto">Add your available hours so patients know when to book</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {/* Group by day */}
+                  {[0,1,2,3,4,5,6].map(day => {
+                    const daySlots = slots.filter(s => s.dayOfWeek === day);
+                    if (daySlots.length === 0) return null;
+                    return (
+                      <div key={day}>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 mt-3 first:mt-0">{DAY_NAMES[day]}</p>
+                        {daySlots.map(slot => (
+                          <div key={slot.id} className={`flex items-center justify-between p-3 rounded-2xl mb-1.5 border transition-all ${slot.isActive ? 'bg-white border-gray-100' : 'bg-gray-50 border-gray-100 opacity-60'}`}>
+                            <div className="flex items-center gap-3">
+                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm ${slot.isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-400'}`}>
+                                🕐
+                              </div>
+                              <div>
+                                <p className="text-xs font-bold text-gray-800">{slot.startTime} — {slot.endTime}</p>
+                                <p className="text-[9px] text-gray-400">{slot.isActive ? 'Active' : 'Disabled'}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => handleToggleSlot(slot)}
+                                className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold active:scale-95 border ${slot.isActive ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
+                                {slot.isActive ? 'Disable' : 'Enable'}
+                              </button>
+                              <button onClick={() => handleDeleteSlot(slot.id)}
+                                className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-red-500 bg-red-50 border border-red-100 active:scale-95">
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Info Card */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 border border-blue-100/50">
+              <div className="flex items-start gap-2.5">
+                <span className="text-lg">💡</span>
+                <div>
+                  <p className="text-[11px] font-bold text-blue-800">How Slots Work</p>
+                  <p className="text-[10px] text-blue-600/70 leading-relaxed mt-0.5">
+                    Time slots define when patients can book appointments. Add slots for each day you're available.
+                    Toggle "Accepting Bookings" off to temporarily pause all new bookings without removing your slots.
+                  </p>
+                </div>
+              </div>
+            </div>
           </>
         )}
 
@@ -969,6 +1175,38 @@ export default function DoctorDashboard() {
               </div>
               <button onClick={handleWritePrescription} className="w-full py-3.5 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-purple-500 to-pink-500 active:scale-[0.97] shadow-lg shadow-purple-200 transition-transform">
                 Save Prescription
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Rejection Reason Modal ═══ */}
+      {rejectModal.open && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-6" onClick={() => setRejectModal({ open: false, appointmentId: null })}>
+          <div className="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-11 h-11 rounded-2xl bg-red-100 flex items-center justify-center text-xl">✗</div>
+              <div>
+                <h3 className="text-sm font-extrabold text-gray-900">Reject Appointment</h3>
+                <p className="text-[10px] text-gray-400">The patient will see your reason</p>
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Reason for Rejection</label>
+              <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)}
+                placeholder="e.g. Fully booked on this date, please try another day..."
+                className="w-full mt-1.5 px-3.5 py-2.5 border border-gray-200 rounded-xl text-xs focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-100 resize-none" rows={3}
+                autoFocus />
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setRejectModal({ open: false, appointmentId: null })}
+                className="flex-1 py-3 rounded-2xl font-bold text-xs text-gray-600 bg-gray-100 active:scale-95 transition-transform">
+                Cancel
+              </button>
+              <button onClick={confirmReject} disabled={!!actionLoading}
+                className="flex-1 py-3 rounded-2xl font-bold text-xs text-white bg-gradient-to-r from-red-500 to-orange-500 active:scale-95 transition-transform shadow-md shadow-red-200 disabled:opacity-50">
+                {actionLoading ? 'Rejecting...' : 'Reject Appointment'}
               </button>
             </div>
           </div>
