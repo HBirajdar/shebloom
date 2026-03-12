@@ -36,8 +36,28 @@ const phaseTips: Record<string, string[]> = {
   luteal: ['🌰 Magnesium reduces PMS (almonds)', '🍠 Complex carbs stabilize mood', '😴 Body needs extra sleep now', '🚫 Reduce caffeine and salt'],
 };
 
+// Period-only tips (no fertility references)
+const periodTips: Record<string, string[]> = {
+  menstrual: ['🌡️ Warm compress relieves cramps', '🥬 Eat iron-rich foods (spinach, dates)', '😴 Extra rest is completely valid', '🫖 Ginger tea helps inflammation'],
+  follicular: ['⚡ Best phase for intense workouts', '🚀 Start new projects now', '🥑 Load up on healthy fats', '💃 Your social energy is high'],
+  ovulation: ['🌸 You may feel more confident today', '🔥 Peak energy — try intense workouts', '💧 Stay extra hydrated', '🧘 Great time for challenging goals'],
+  luteal: ['🌰 Magnesium reduces PMS (almonds)', '🍠 Complex carbs stabilize mood', '😴 Body needs extra sleep now', '🚫 Reduce caffeine and salt'],
+};
+
+// Wellness-focused tips (daily health, not cycle-specific)
+const wellnessTips = [
+  '💧 Aim for 8 glasses of water — your skin and energy will thank you',
+  '🧘 Even 5 minutes of deep breathing reduces cortisol by 25%',
+  '😴 Blue light before bed delays melatonin — try reading instead',
+  '🏃 A 20-minute walk boosts mood for up to 12 hours',
+  '🥗 Eating greens at lunch prevents the 3pm energy crash',
+  '🌅 Morning sunlight for 10 min resets your circadian rhythm',
+  '📵 Screen breaks every 45 min reduce eye strain and stress',
+  '🫖 Herbal tea before bed improves sleep quality by 20%',
+];
+
 // ─── Animated SVG Cycle Ring ─────────────────────
-const CycleHeroRing = ({ day, total, phase, periodLength, luteal }: { day: number; total: number; phase: string; periodLength: number; luteal?: number }) => {
+const CycleHeroRing = ({ day, total, phase, periodLength, luteal, showFertility = true }: { day: number; total: number; phase: string; periodLength: number; luteal?: number; showFertility?: boolean }) => {
   const cx = 120, cy = 120, r = 100, sw = 18;
   const theme = phaseThemes[phase] || phaseThemes.follicular;
   const ov = total - (luteal || 13); // Use individual luteal phase (Lenton 1984)
@@ -65,11 +85,21 @@ const CycleHeroRing = ({ day, total, phase, periodLength, luteal }: { day: numbe
       <circle cx={cx} cy={cy} r={r - 12} fill="none" stroke="#F8FAFC" strokeWidth={4} />
       {/* Phase arcs */}
       <path d={arcPath(1, periodLength)} fill="none" stroke="url(#dg_per)" strokeWidth={sw} strokeLinecap="round" />
-      {periodLength + 1 < fS && <path d={arcPath(periodLength + 1, fS - 1)} fill="none" stroke="url(#dg_fol)" strokeWidth={sw} strokeLinecap="round" opacity="0.7" />}
-      <path d={arcPath(fS, fE)} fill="none" stroke="url(#dg_fer)" strokeWidth={sw + 2} strokeLinecap="round" />
-      {fE + 1 <= total && <path d={arcPath(fE + 1, total)} fill="none" stroke="url(#dg_lut)" strokeWidth={sw} strokeLinecap="round" opacity="0.7" />}
-      {/* Ovulation diamond marker */}
-      {(() => { const a = ((ov - 0.5) / total) * 360 - 90, rd = (a * Math.PI) / 180, ox = cx + r * Math.cos(rd), oy = cy + r * Math.sin(rd); return <polygon points={`${ox},${oy-6} ${ox+5},${oy} ${ox},${oy+6} ${ox-5},${oy}`} fill="#7C3AED" stroke="white" strokeWidth="1.5" />; })()}
+      {showFertility ? (
+        <>
+          {periodLength + 1 < fS && <path d={arcPath(periodLength + 1, fS - 1)} fill="none" stroke="url(#dg_fol)" strokeWidth={sw} strokeLinecap="round" opacity="0.7" />}
+          <path d={arcPath(fS, fE)} fill="none" stroke="url(#dg_fer)" strokeWidth={sw + 2} strokeLinecap="round" />
+          {fE + 1 <= total && <path d={arcPath(fE + 1, total)} fill="none" stroke="url(#dg_lut)" strokeWidth={sw} strokeLinecap="round" opacity="0.7" />}
+          {/* Ovulation diamond marker */}
+          {(() => { const a = ((ov - 0.5) / total) * 360 - 90, rd = (a * Math.PI) / 180, ox = cx + r * Math.cos(rd), oy = cy + r * Math.sin(rd); return <polygon points={`${ox},${oy-6} ${ox+5},${oy} ${ox},${oy+6} ${ox-5},${oy}`} fill="#7C3AED" stroke="white" strokeWidth="1.5" />; })()}
+        </>
+      ) : (
+        <>
+          {/* Periods-only: 3 phases without fertile window highlight */}
+          {periodLength + 1 < total - (luteal || 13) && <path d={arcPath(periodLength + 1, total - (luteal || 13))} fill="none" stroke="url(#dg_fol)" strokeWidth={sw} strokeLinecap="round" opacity="0.7" />}
+          {total - (luteal || 13) + 1 <= total && <path d={arcPath(total - (luteal || 13) + 1, total)} fill="none" stroke="url(#dg_lut)" strokeWidth={sw} strokeLinecap="round" opacity="0.7" />}
+        </>
+      )}
       {/* Day position dot */}
       <g filter="url(#dg_shadow)">
         <circle cx={cx + r * Math.cos(dR)} cy={cy + r * Math.sin(dR)} r={13} fill="white" stroke={theme.color} strokeWidth="3" />
@@ -191,12 +221,12 @@ export default function DashboardPage() {
     (water / 8) * 25 + (mood ? 25 : 0) + (exerciseDone ? 25 : 0) + (sleepHours > 0 ? 25 : 0)
   );
 
-  // Phase tip (rotating)
-  const tips = phaseTips[phase] || phaseTips.follicular;
+  // Phase tip (rotating) — goal-aware: periods get no fertility refs, wellness gets health tips
+  const tips = goal === 'wellness' ? wellnessTips : goal === 'periods' ? (periodTips[phase] || periodTips.follicular) : (phaseTips[phase] || phaseTips.follicular);
   useEffect(() => {
     const t = setInterval(() => setTipIdx(i => (i + 1) % tips.length), 4000);
     return () => clearInterval(t);
-  }, [phase, tips.length]);
+  }, [phase, tips.length, goal]);
 
   useEffect(() => {
     userAPI.me().then(res => {
@@ -357,18 +387,14 @@ export default function DashboardPage() {
         {/* ─── Hero Card ─── */}
         {dashLoading ? <SkeletonCard /> : !hasRealData && goal !== 'pregnancy' ? <OnboardingCard /> : (
           <>
-            {(goal === 'periods' || goal === 'wellness') && (
+            {/* ── PERIODS Hero: Cycle ring focused on period tracking (no fertility markers) ── */}
+            {goal === 'periods' && (
               <div className="bg-white rounded-3xl shadow-lg overflow-hidden">
-                {/* Gradient top accent bar */}
                 <div className="h-1.5 w-full" style={{ background: theme.gradient }} />
-
                 <div className="p-5">
-                  {/* Phase badge + next period at top */}
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base" style={{ backgroundColor: theme.bg }}>
-                        {theme.emoji}
-                      </div>
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base" style={{ backgroundColor: theme.bg }}>{theme.emoji}</div>
                       <div>
                         <p className="text-[9px] text-gray-400 uppercase tracking-widest font-bold">Current Phase</p>
                         <p className="text-sm font-extrabold" style={{ color: theme.color }}>{theme.name}</p>
@@ -379,26 +405,21 @@ export default function DashboardPage() {
                       <p className="text-sm font-extrabold text-rose-600">{daysUntilPeriod}d away</p>
                     </div>
                   </div>
-
-                  {/* Big centered ring with overlay */}
                   <div className="relative w-56 h-56 mx-auto mb-4">
-                    <CycleHeroRing day={cycleDay} total={cycleLength} phase={phase} periodLength={periodLength} luteal={lutealPhase} />
-                    {/* Center overlay content */}
+                    <CycleHeroRing day={cycleDay} total={cycleLength} phase={phase} periodLength={periodLength} luteal={lutealPhase} showFertility={false} />
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                       <span className="text-5xl font-black leading-none" style={{ color: theme.color }}>{cycleDay}</span>
                       <span className="text-xl mt-0.5">{theme.emoji}</span>
-                      <span className="text-[9px] font-bold uppercase tracking-widest mt-0.5" style={{ color: theme.color }}>{theme.name}</span>
+                      <span className="text-[9px] font-bold uppercase tracking-widest mt-0.5" style={{ color: theme.color }}>Day {cycleDay} of {cycleLength}</span>
                       <span className="text-[8px] text-gray-400 mt-0.5 text-center px-8 leading-tight">{theme.msg}</span>
                     </div>
                   </div>
-
-                  {/* Horizontal scrollable phase legend */}
+                  {/* 3-phase legend: Period, Follicular, Luteal (no fertile window) */}
                   <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
                     {[
                       { c: '#BE123C', l: 'Period', days: `Day 1\u2013${periodLength}` },
-                      { c: '#059669', l: 'Follicular', days: `Day ${periodLength + 1}\u2013${Math.max(1, fertStart - 1)}` },
-                      { c: '#7C3AED', l: 'Fertile', days: `Day ${fertStart}\u2013${fertEnd}` },
-                      { c: '#D97706', l: 'Luteal', days: `Day ${fertEnd + 1}\u2013${cycleLength}` },
+                      { c: '#059669', l: 'Follicular', days: `Day ${periodLength + 1}\u2013${cycleLength - (lutealPhase || 13)}` },
+                      { c: '#D97706', l: 'Luteal', days: `Day ${cycleLength - (lutealPhase || 13) + 1}\u2013${cycleLength}` },
                     ].map(p => (
                       <div key={p.l} className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl" style={{ backgroundColor: p.c + '15' }}>
                         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.c }} />
@@ -412,6 +433,56 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
+
+            {/* ── WELLNESS Hero: Wellness score front-and-center, cycle phase as secondary ── */}
+            {goal === 'wellness' && (
+              <div className="bg-white rounded-3xl shadow-lg overflow-hidden">
+                <div className="h-1.5 w-full" style={{ background: 'linear-gradient(135deg,#10B981,#34D399,#6EE7B7)' }} />
+                <div className="p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="text-[9px] text-gray-400 uppercase tracking-widest font-bold">Today's Wellness</p>
+                      <p className="text-sm font-extrabold text-gray-800">Daily Health Score</p>
+                    </div>
+                    {hasRealData && (
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={{ backgroundColor: theme.bg }}>
+                        <span className="text-xs">{theme.emoji}</span>
+                        <span className="text-[9px] font-bold" style={{ color: theme.color }}>{theme.name}</span>
+                      </div>
+                    )}
+                  </div>
+                  {/* Large wellness ring */}
+                  <div className="flex flex-col items-center mb-4">
+                    <div className="relative w-40 h-40">
+                      <svg viewBox="0 0 160 160" className="w-full h-full -rotate-90">
+                        <circle cx="80" cy="80" r="65" fill="none" stroke="#F1F5F9" strokeWidth="14" />
+                        <circle cx="80" cy="80" r="65" fill="none" stroke={wellnessScore >= 75 ? '#10B981' : wellnessScore >= 50 ? '#F59E0B' : '#E11D48'} strokeWidth="14" strokeDasharray={2 * Math.PI * 65} strokeDashoffset={2 * Math.PI * 65 * (1 - wellnessScore / 100)} strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.8s ease' }} />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-4xl font-black" style={{ color: wellnessScore >= 75 ? '#10B981' : wellnessScore >= 50 ? '#F59E0B' : '#E11D48' }}>{wellnessScore}</span>
+                        <span className="text-[10px] font-bold text-gray-400">out of 100</span>
+                      </div>
+                    </div>
+                  </div>
+                  {/* 4 wellness metrics */}
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { e: '💧', l: 'Water', v: water + '/8', done: water >= 6, c: '#3B82F6' },
+                      { e: '😊', l: 'Mood', v: mood ? '✓' : '—', done: !!mood, c: '#EC4899' },
+                      { e: '🏃', l: 'Exercise', v: exerciseDone ? '✓' : '—', done: exerciseDone, c: '#F59E0B' },
+                      { e: '😴', l: 'Sleep', v: sleepHours > 0 ? sleepHours + 'h' : '—', done: sleepHours > 0, c: '#8B5CF6' },
+                    ].map(m => (
+                      <div key={m.l} className="text-center">
+                        <span className="text-lg block">{m.e}</span>
+                        <span className={'text-[10px] font-extrabold block ' + (m.done ? '' : 'text-gray-300')} style={m.done ? { color: m.c } : {}}>{m.v}</span>
+                        <span className="text-[8px] text-gray-400">{m.l}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {goal === 'fertility' && (
               <div className="rounded-3xl shadow-sm overflow-hidden" style={{ background: isFertile ? 'linear-gradient(135deg,#7C3AED,#EC4899)' : theme.gradient }}>
                 <div className="p-5 text-white">
@@ -442,15 +513,28 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ─── Horizontal Scroll Prediction Cards ─── */}
+        {/* ─── Horizontal Scroll Prediction Cards (goal-specific) ─── */}
         {hasRealData && goal !== 'pregnancy' && (
           <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-            {[
+            {(goal === 'periods' ? [
+              /* PERIODS: Only period-relevant predictions — no ovulation/fertile window */
               { e: '🌸', l: 'Next Period', v: daysUntilPeriod + ' days', sub: 'away', g: 'linear-gradient(135deg,#E11D48,#F43F5E)' },
+              { e: '📅', l: 'Cycle Day', v: 'Day ' + cycleDay, sub: 'of ' + cycleLength, g: 'linear-gradient(135deg,#059669,#10B981)' },
+              { e: '🌙', l: 'PMS Warning', v: daysToPMS > 0 ? daysToPMS + ' days' : 'Active', sub: daysToPMS > 0 ? 'away' : 'self-care time', g: 'linear-gradient(135deg,#D97706,#F59E0B)' },
+              { e: '🔄', l: 'Cycle Length', v: cycleLength + ' days', sub: 'average', g: 'linear-gradient(135deg,#6366F1,#818CF8)' },
+            ] : goal === 'fertility' ? [
+              /* FERTILITY: All fertility-relevant predictions */
               { e: '⭐', l: 'Ovulation', v: daysToOv > 0 ? daysToOv + ' days' : isOvToday ? 'Today!' : 'Passed', sub: daysToOv > 0 ? 'away' : '', g: 'linear-gradient(135deg,#7C3AED,#8B5CF6)' },
               { e: '💚', l: 'Fertile Window', v: 'Day ' + fertStart, sub: '– Day ' + fertEnd, g: 'linear-gradient(135deg,#059669,#10B981)' },
-              { e: '🌙', l: 'PMS Warning', v: daysToPMS > 0 ? daysToPMS + ' days' : 'Active', sub: daysToPMS > 0 ? 'away' : 'self-care time', g: 'linear-gradient(135deg,#D97706,#F59E0B)' },
-            ].map(c => (
+              { e: '💜', l: 'Conception', v: conception.pct + '%', sub: conception.label, g: 'linear-gradient(135deg,#EC4899,#F472B6)' },
+              { e: '🌸', l: 'Next Period', v: daysUntilPeriod + ' days', sub: 'away', g: 'linear-gradient(135deg,#E11D48,#F43F5E)' },
+            ] : [
+              /* WELLNESS: Daily wellness metrics instead of cycle predictions */
+              { e: '💧', l: 'Hydration', v: water + '/8', sub: water >= 6 ? 'on track!' : 'drink more', g: water >= 6 ? 'linear-gradient(135deg,#3B82F6,#60A5FA)' : 'linear-gradient(135deg,#94A3B8,#CBD5E1)' },
+              { e: '😊', l: 'Mood', v: mood ? (moods.find(m => m.key === mood)?.l || 'Logged') : 'Not logged', sub: mood ? 'today' : 'tap to log', g: mood ? 'linear-gradient(135deg,#EC4899,#F472B6)' : 'linear-gradient(135deg,#94A3B8,#CBD5E1)' },
+              { e: '😴', l: 'Sleep', v: sleepHours > 0 ? sleepHours + 'h' : '—', sub: sleepHours >= 7 ? 'well rested' : sleepHours > 0 ? 'need more' : 'not logged', g: sleepHours >= 7 ? 'linear-gradient(135deg,#8B5CF6,#A78BFA)' : 'linear-gradient(135deg,#94A3B8,#CBD5E1)' },
+              { e: '🏃', l: 'Exercise', v: exerciseDone ? 'Done!' : 'Not yet', sub: exerciseDone ? 'great job' : 'stay active', g: exerciseDone ? 'linear-gradient(135deg,#F59E0B,#FBBF24)' : 'linear-gradient(135deg,#94A3B8,#CBD5E1)' },
+            ]).map(c => (
               <div key={c.l} className="flex-shrink-0 w-28 rounded-2xl p-3 text-white shadow-sm" style={{ background: c.g }}>
                 <span className="text-lg block mb-1.5">{c.e}</span>
                 <p className="text-[8px] text-white/70 font-bold uppercase">{c.l}</p>
@@ -490,12 +574,17 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ─── Quick Actions Row 1 ─── */}
+        {/* ─── Quick Actions Row 1 (goal-specific) ─── */}
         <div className="grid grid-cols-4 gap-2.5">
-          {(goal === 'periods' || goal === 'wellness' ? [
+          {(goal === 'periods' ? [
             { l: 'Tracker', p: '/tracker', bg: '#FFF1F2', e: '📅', c: '#E11D48' },
+            { l: 'Symptoms', p: '/tracker', bg: '#FEF3C7', e: '📝', c: '#D97706' },
             { l: 'Ayurveda', p: '/ayurveda', bg: '#ECFDF5', e: '🌿', c: '#059669' },
-            { l: 'Wellness', p: '/wellness', bg: '#FEF3C7', e: '🧘', c: '#D97706' },
+            { l: 'Doctors', p: '/doctors', bg: '#EFF6FF', e: '👩‍⚕️', c: '#2563EB' },
+          ] : goal === 'wellness' ? [
+            { l: 'Wellness', p: '/wellness', bg: '#ECFDF5', e: '🧘', c: '#059669' },
+            { l: 'Ayurveda', p: '/ayurveda', bg: '#F5F3FF', e: '🌿', c: '#7C3AED' },
+            { l: 'Programs', p: '/programs', bg: '#FEF3C7', e: '🎯', c: '#D97706' },
             { l: 'Doctors', p: '/doctors', bg: '#EFF6FF', e: '👩‍⚕️', c: '#2563EB' },
           ] : goal === 'fertility' ? [
             { l: 'Tracker', p: '/tracker', bg: '#F5F3FF', e: '💜', c: '#7C3AED' },
@@ -538,8 +627,8 @@ export default function DashboardPage() {
           onBookNow={(doctor) => nav('/doctors')}
         />
 
-        {/* ─── Phase Insight + Daily Tip ─── */}
-        {hasRealData && (goal === 'periods' || goal === 'wellness' || goal === 'fertility') && (
+        {/* ─── Phase Insight + Daily Tip (goal-aware) ─── */}
+        {hasRealData && (goal === 'periods' || goal === 'fertility') && (
           <div className="rounded-2xl p-4 border" style={{ backgroundColor: theme.bg, borderColor: theme.color + '20' }}>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-lg">{theme.emoji}</span>
@@ -551,19 +640,34 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
+        {/* Wellness gets health-focused daily insight instead of phase card */}
+        {goal === 'wellness' && (
+          <div className="rounded-2xl p-4 border" style={{ backgroundColor: '#ECFDF5', borderColor: '#10B98120' }}>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg">🌿</span>
+              <h3 className="text-sm font-bold text-emerald-700">Daily Wellness Tip</h3>
+            </div>
+            <div className="bg-white/70 rounded-xl p-3 min-h-[48px] transition-all">
+              <p className="text-[11px] text-gray-700 leading-relaxed">💡 {tips[tipIdx]}</p>
+            </div>
+            {hasRealData && <p className="text-[9px] text-gray-400 mt-2">You're in your {theme.name.toLowerCase()} phase — {theme.msg.toLowerCase()}</p>}
+          </div>
+        )}
 
-        {/* ─── Your Body Today (API-powered hormones) ─── */}
-        {hasRealData && goal !== 'pregnancy' && (
+        {/* ─── Your Body Today (API-powered hormones) — hidden for wellness, filtered for periods ─── */}
+        {hasRealData && (goal === 'periods' || goal === 'fertility') && (
           <div className="bg-white rounded-3xl p-4 shadow-lg">
-            <h3 className="text-xs font-extrabold text-gray-800 mb-3">🧬 Your Body Today</h3>
+            <h3 className="text-xs font-extrabold text-gray-800 mb-3">{goal === 'fertility' ? '🧬 Your Body Today' : '🧬 How Your Hormones Affect You'}</h3>
             {(() => {
               const h = predictionData?.hormones;
-              const hormones = [
-                { name: 'Estrogen', emoji: '💗', pct: h?.estrogen ?? (theme.hormoneE === 'Low' ? 15 : theme.hormoneE === 'Rising' ? 55 : theme.hormoneE === 'Peak' ? 90 : 35), color: '#EC4899', desc: h?.estrogen >= 70 ? 'High — skin glows, energy up' : h?.estrogen >= 40 ? 'Rising — building up' : 'Low — recovery phase' },
-                { name: 'Progesterone', emoji: '🟡', pct: h?.progesterone ?? (theme.hormoneP === 'Low' ? 10 : theme.hormoneP === 'Rising' ? 40 : theme.hormoneP === 'High' ? 80 : 50), color: '#F59E0B', desc: h?.progesterone >= 70 ? 'High — body temp up, calming' : h?.progesterone >= 30 ? 'Moderate — stabilizing' : 'Low — pre-follicular' },
-                { name: 'LH (Ovulation trigger)', emoji: '⚡', pct: h?.lh ?? 10, color: '#7C3AED', desc: h?.lh >= 70 ? 'SURGE — ovulation imminent!' : h?.lh >= 30 ? 'Rising — watch for peak' : 'Baseline' },
-                { name: 'FSH', emoji: '🧪', pct: h?.fsh ?? 15, color: '#2563EB', desc: h?.fsh >= 50 ? 'Elevated — follicle stimulation' : 'Baseline' },
+              const allHormones = [
+                { name: 'Estrogen', emoji: '💗', pct: h?.estrogen ?? (theme.hormoneE === 'Low' ? 15 : theme.hormoneE === 'Rising' ? 55 : theme.hormoneE === 'Peak' ? 90 : 35), color: '#EC4899', desc: h?.estrogen >= 70 ? 'High — skin glows, energy up' : h?.estrogen >= 40 ? 'Rising — building up' : 'Low — recovery phase', forPeriods: true },
+                { name: 'Progesterone', emoji: '🟡', pct: h?.progesterone ?? (theme.hormoneP === 'Low' ? 10 : theme.hormoneP === 'Rising' ? 40 : theme.hormoneP === 'High' ? 80 : 50), color: '#F59E0B', desc: h?.progesterone >= 70 ? 'High — body temp up, calming' : h?.progesterone >= 30 ? 'Moderate — stabilizing' : 'Low — pre-follicular', forPeriods: true },
+                { name: 'LH (Ovulation trigger)', emoji: '⚡', pct: h?.lh ?? 10, color: '#7C3AED', desc: h?.lh >= 70 ? 'SURGE — ovulation imminent!' : h?.lh >= 30 ? 'Rising — watch for peak' : 'Baseline', forPeriods: false },
+                { name: 'FSH', emoji: '🧪', pct: h?.fsh ?? 15, color: '#2563EB', desc: h?.fsh >= 50 ? 'Elevated — follicle stimulation' : 'Baseline', forPeriods: false },
               ];
+              // Periods: show only Estrogen & Progesterone. Fertility: show all 4.
+              const hormones = goal === 'periods' ? allHormones.filter(h => h.forPeriods) : allHormones;
               return hormones.map(item => (
                 <div key={item.name} className="mb-3">
                   <div className="flex items-center justify-between mb-1">
@@ -751,8 +855,8 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ─── Prediction Confidence (for data nerds) ─── */}
-        {predictionData?.confidence && hasRealData && goal !== 'pregnancy' && (
+        {/* ─── Prediction Confidence — hidden for wellness/pregnancy users ─── */}
+        {predictionData?.confidence && hasRealData && (goal === 'periods' || goal === 'fertility') && (
           <div className="bg-white rounded-3xl p-4 shadow-lg">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-xs font-extrabold text-gray-800">📊 Prediction Confidence</h3>
