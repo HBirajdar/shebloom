@@ -317,20 +317,28 @@ export default function DashboardPage() {
   };
   const curGoal = goalLabels[goal] || goalLabels.periods;
 
+  const onboardingContent: Record<string, { emoji: string; desc: string; features: string[]; btnLabel: string; btnPath: string; bg: string; accent: string; gradient: string }> = {
+    periods: { emoji: '🌸', desc: 'Log your first period to unlock personalized predictions and phase insights.', features: ['🩸 Current cycle day & phase', '🌙 PMS alerts & reminders', '📅 Next period countdown', '🧬 Hormone insights'], btnLabel: '🩸 Log Your First Period', btnPath: '/tracker', bg: 'bg-rose-50', accent: 'text-rose-700', gradient: 'linear-gradient(135deg,#E11D48,#F43F5E)' },
+    fertility: { emoji: '💜', desc: 'Log your first period to unlock ovulation predictions and fertility tracking.', features: ['✨ Ovulation predictions', '💜 Fertile window tracking', '🧬 LH & FSH hormone levels', '📅 Conception chance %'], btnLabel: '💜 Start Fertility Tracking', btnPath: '/tracker', bg: 'bg-purple-50', accent: 'text-purple-700', gradient: 'linear-gradient(135deg,#7C3AED,#8B5CF6)' },
+    wellness: { emoji: '🧘', desc: 'Log your first period to get cycle-aware wellness insights tailored to your body.', features: ['💧 Daily hydration tracking', '😴 Sleep & energy insights', '🧘 Personalized wellness score', '🌿 Ayurvedic recommendations'], btnLabel: '🧘 Get Started', btnPath: '/tracker', bg: 'bg-emerald-50', accent: 'text-emerald-700', gradient: 'linear-gradient(135deg,#059669,#10B981)' },
+    pregnancy: { emoji: '🤰', desc: 'Track your pregnancy journey with weekly updates.', features: ['🤰 Weekly pregnancy updates', '📋 Trimester milestones', '👩‍⚕️ Doctor appointments', '🏥 Hospital planning'], btnLabel: '🤰 Start Pregnancy Tracking', btnPath: '/pregnancy', bg: 'bg-violet-50', accent: 'text-violet-700', gradient: 'linear-gradient(135deg,#7C3AED,#EC4899)' },
+  };
+  const onb = onboardingContent[goal] || onboardingContent.periods;
+
   const OnboardingCard = () => (
     <div className="bg-white rounded-3xl shadow-lg overflow-hidden">
       <div className="p-6 text-center">
-        <span className="text-5xl">🌸</span>
+        <span className="text-5xl">{onb.emoji}</span>
         <h2 className="text-lg font-extrabold text-gray-900 mt-3">Welcome to VedaClue!</h2>
-        <p className="text-xs text-gray-500 mt-2 leading-relaxed">Log your first period to unlock personalized predictions, phase insights, and fertility tracking.</p>
-        <div className="mt-4 bg-rose-50 rounded-2xl p-4 text-left">
-          <p className="text-[11px] text-rose-700 font-bold mb-2">After logging your first period you'll see:</p>
-          {['🩸 Current cycle day & phase', '✨ Ovulation predictions', '💜 Fertility window', '📅 Next period countdown'].map(i => (
-            <p key={i} className="text-[10px] text-rose-600 mb-1">{i}</p>
+        <p className="text-xs text-gray-500 mt-2 leading-relaxed">{onb.desc}</p>
+        <div className={`mt-4 ${onb.bg} rounded-2xl p-4 text-left`}>
+          <p className={`text-[11px] ${onb.accent} font-bold mb-2`}>After getting started you'll see:</p>
+          {onb.features.map(i => (
+            <p key={i} className={`text-[10px] ${onb.accent.replace('700', '600')} mb-1`}>{i}</p>
           ))}
         </div>
-        <button onClick={() => nav('/tracker')} className="w-full mt-4 py-3.5 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform" style={{ background: 'linear-gradient(135deg,#E11D48,#F43F5E)' }}>
-          🩸 Log Your First Period
+        <button onClick={() => nav(onb.btnPath)} className="w-full mt-4 py-3.5 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform" style={{ background: onb.gradient }}>
+          {onb.btnLabel}
         </button>
       </div>
     </div>
@@ -604,14 +612,20 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* ─── Quick Actions Row 2 ─── */}
+        {/* ─── Quick Actions Row 2 (goal-aware to avoid duplication) ─── */}
         <div className="grid grid-cols-4 gap-2.5">
-          {[
+          {(goal === 'wellness' ? [
+            /* Wellness Row 1 already has Programs — swap with Tracker */
+            { l: 'Community', p: '/community', bg: '#FDF2F8', e: '💬', c: '#DB2777' },
+            { l: 'Tracker', p: '/tracker', bg: '#FFF1F2', e: '📅', c: '#E11D48' },
+            { l: 'Articles', p: '/articles', bg: '#FFF7ED', e: '📰', c: '#EA580C' },
+            { l: 'Appointments', p: '/appointments', bg: '#EFF6FF', e: '📋', c: '#2563EB' },
+          ] : [
             { l: 'Community', p: '/community', bg: '#FDF2F8', e: '💬', c: '#DB2777' },
             { l: 'Programs', p: '/programs', bg: '#F5F3FF', e: '🎯', c: '#7C3AED' },
             { l: 'Articles', p: '/articles', bg: '#FFF7ED', e: '📰', c: '#EA580C' },
             { l: 'Appointments', p: '/appointments', bg: '#EFF6FF', e: '📋', c: '#2563EB' },
-          ].map(a => (
+          ]).map(a => (
             <button key={a.l} onClick={() => nav(a.p)} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-sm" style={{ backgroundColor: a.bg }}>{a.e}</div>
               <span className="text-[10px] font-bold" style={{ color: a.c }}>{a.l}</span>
@@ -621,7 +635,7 @@ export default function DashboardPage() {
 
         {/* ─── Top Doctors Carousel ─── */}
         <DoctorCarousel
-          title="Top Doctors"
+          title={goal === 'fertility' ? 'Fertility Specialists' : goal === 'pregnancy' ? 'OB-GYN Specialists' : goal === 'wellness' ? 'Wellness Experts' : 'Top Doctors'}
           doctors={carouselDoctors}
           loading={doctorsLoading}
           onBookNow={(doctor) => nav('/doctors')}
@@ -742,8 +756,8 @@ export default function DashboardPage() {
           <div className="w-full bg-gray-100 rounded-full h-1.5 mt-2.5"><div className="bg-gradient-to-r from-blue-400 to-blue-600 h-1.5 rounded-full transition-all" style={{ width: (water / 8 * 100) + '%' }} /></div>
         </div>
 
-        {/* ─── Wellness Score ─── */}
-        <div className="bg-white rounded-3xl p-4 shadow-lg">
+        {/* ─── Wellness Score (hidden for wellness goal — already in hero) ─── */}
+        {goal !== 'wellness' && <div className="bg-white rounded-3xl p-4 shadow-lg">
           <h3 className="text-xs font-bold text-gray-800 mb-3">⚡ Today's Wellness Score</h3>
           <div className="flex items-center gap-4">
             <WellnessRing score={wellnessScore} />
@@ -762,7 +776,7 @@ export default function DashboardPage() {
               ))}
             </div>
           </div>
-        </div>
+        </div>}
 
         {/* ─── Ayurvedic Daily Insight (personalized) ─── */}
         {ayurvedaData?.dailyTip ? (
