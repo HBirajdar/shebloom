@@ -8,5 +8,5 @@ export const registerSchema = z.object({
 export const loginSchema = z.object({ email: z.string().email(), password: z.string().min(1) });
 // Accept "9876543210" or "+919876543210" — normalised in service layer
 export const otpSendSchema = z.object({ phone: z.string().regex(/^(\+?91)?[6-9]\d{9}$/, 'Enter a valid 10-digit Indian mobile number') });
-export const otpVerifySchema = z.object({ phone: z.string().regex(/^(\+?91)?[6-9]\d{9}$/), otp: z.string().length(4) });
+export const otpVerifySchema = z.object({ phone: z.string().regex(/^(\+?91)?[6-9]\d{9}$/), otp: z.string().length(6) });
 export const refreshTokenSchema = z.object({ refreshToken: z.string().min(1) });
