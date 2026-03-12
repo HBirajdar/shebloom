@@ -54,7 +54,7 @@ export class AuthService {
     const passwordHash = password ? await bcrypt.hash(password, parseInt(process.env.BCRYPT_SALT_ROUNDS || '12')) : undefined;
     const user = await prisma.user.create({
       data: { fullName, email, phone, passwordHash, authProvider: phone ? 'PHONE' : 'EMAIL', profile: { create: {} } },
-      select: { id: true, fullName: true, email: true, phone: true, role: true },
+      select: { id: true, fullName: true, email: true, phone: true, role: true, authProvider: true },
     });
     const tokens = this.generateTokens(user.id, user.role);
     await prisma.refreshToken.create({ data: { userId: user.id, token: tokens.refreshToken, expiresAt: new Date(Date.now() + 7*24*60*60*1000) } });
@@ -64,7 +64,7 @@ export class AuthService {
   }
 
   async loginWithEmail(email: string, password: string) {
-    const user = await prisma.user.findUnique({ where: { email }, select: { id: true, fullName: true, email: true, passwordHash: true, role: true, isActive: true } });
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true, fullName: true, email: true, passwordHash: true, role: true, isActive: true, authProvider: true } });
     if (!user || !user.passwordHash) throw new AppError('Invalid credentials', 401);
     if (!user.isActive) throw new AppError('Account deactivated', 403);
     const isMatch = await bcrypt.compare(password, user.passwordHash);
@@ -124,14 +124,14 @@ export class AuthService {
     await prisma.otpStore.deleteMany({ where: { phone: normalized } }).catch(() => {});
     // Find or create user
     const isAdmin = ADMIN_PHONES.includes(normalized);
-    let user = await prisma.user.findUnique({ where: { phone: normalized }, select: { id: true, fullName: true, email: true, phone: true, role: true } });
+    let user = await prisma.user.findUnique({ where: { phone: normalized }, select: { id: true, fullName: true, email: true, phone: true, role: true, authProvider: true } });
     const isNew = !user;
     if (!user) {
-      user = await prisma.user.create({ data: { phone: normalized, fullName: 'User', authProvider: 'PHONE', isVerified: true, ...(isAdmin ? { role: 'ADMIN' } : {}), profile: { create: {} } }, select: { id: true, fullName: true, email: true, phone: true, role: true } });
+      user = await prisma.user.create({ data: { phone: normalized, fullName: 'User', authProvider: 'PHONE', isVerified: true, ...(isAdmin ? { role: 'ADMIN' } : {}), profile: { create: {} } }, select: { id: true, fullName: true, email: true, phone: true, role: true, authProvider: true } });
     } else {
       const updateData: any = { isVerified: true, lastLoginAt: new Date() };
       if (isAdmin && user.role !== 'ADMIN') updateData.role = 'ADMIN';
-      user = await prisma.user.update({ where: { id: user.id }, data: updateData, select: { id: true, fullName: true, email: true, phone: true, role: true } });
+      user = await prisma.user.update({ where: { id: user.id }, data: updateData, select: { id: true, fullName: true, email: true, phone: true, role: true, authProvider: true } });
     }
     const tokens = this.generateTokens(user.id, user.role);
     await prisma.refreshToken.create({ data: { userId: user.id, token: tokens.refreshToken, expiresAt: new Date(Date.now() + 7*24*60*60*1000) } });
@@ -187,7 +187,7 @@ export class AuthService {
     // Find or create user
     let user = await prisma.user.findUnique({
       where: { email: payload.email },
-      select: { id: true, fullName: true, email: true, phone: true, role: true, isActive: true },
+      select: { id: true, fullName: true, email: true, phone: true, role: true, isActive: true, authProvider: true },
     });
     const isNew = !user;
     if (user) {
@@ -207,7 +207,7 @@ export class AuthService {
           avatarUrl: payload.picture || null,
           profile: { create: {} },
         },
-        select: { id: true, fullName: true, email: true, phone: true, role: true, isActive: true },
+        select: { id: true, fullName: true, email: true, phone: true, role: true, isActive: true, authProvider: true },
       });
     }
     const tokens = this.generateTokens(user.id, user.role);
