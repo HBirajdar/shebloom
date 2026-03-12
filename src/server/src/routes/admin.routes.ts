@@ -1189,4 +1189,101 @@ r.delete('/payouts/:id', async (req: Request, res: Response, next: NextFunction)
   } catch (e) { next(e); }
 });
 
+// ═══════════════════════════════════════════════════════════
+// ─── Wellness Activities (Yoga / Breathwork / Meditation) ─
+// ═══════════════════════════════════════════════════════════
+
+function mapActivity(a: any) {
+  return {
+    id: a.id, title: a.title, description: a.description,
+    category: a.category, durationMinutes: a.durationMinutes,
+    difficulty: a.difficulty, cyclePhases: a.cyclePhases || [],
+    imageUrl: a.imageUrl, audioUrl: a.audioUrl, videoUrl: a.videoUrl,
+    instructions: a.instructions, isActive: a.isActive,
+    createdAt: a.createdAt?.toISOString?.() || a.createdAt,
+  };
+}
+
+// GET /admin/wellness — list all activities (active + inactive)
+r.get('/wellness', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const activities = await prisma.wellnessActivity.findMany({ orderBy: { createdAt: 'desc' } });
+    successResponse(res, activities.map(mapActivity));
+  } catch (e) { next(e); }
+});
+
+// POST /admin/wellness — create activity
+r.post('/wellness', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { title, description, category, durationMinutes, difficulty, cyclePhases,
+            imageUrl, audioUrl, videoUrl, instructions } = req.body;
+    if (!title || !category) { errorResponse(res, 'title and category are required', 400); return; }
+    const validCategories = ['yoga', 'breathing', 'meditation', 'stress_management'];
+    if (!validCategories.includes(category)) { errorResponse(res, `category must be one of: ${validCategories.join(', ')}`, 400); return; }
+    const activity = await prisma.wellnessActivity.create({
+      data: {
+        title, description: description || '',
+        category,
+        durationMinutes: parseInt(durationMinutes) || 10,
+        difficulty: difficulty || 'beginner',
+        cyclePhases: cyclePhases || [],
+        imageUrl: imageUrl || null,
+        audioUrl: audioUrl || null,
+        videoUrl: videoUrl || null,
+        instructions: instructions || null,
+        isActive: false,
+      },
+    });
+    successResponse(res, mapActivity(activity), 'Activity created');
+  } catch (e) { next(e); }
+});
+
+// PUT /admin/wellness/:id — update activity
+r.put('/wellness/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { title, description, category, durationMinutes, difficulty, cyclePhases,
+            imageUrl, audioUrl, videoUrl, instructions } = req.body;
+    const data: any = {};
+    if (title !== undefined) data.title = title;
+    if (description !== undefined) data.description = description;
+    if (category !== undefined) data.category = category;
+    if (durationMinutes !== undefined) data.durationMinutes = parseInt(durationMinutes) || 10;
+    if (difficulty !== undefined) data.difficulty = difficulty;
+    if (cyclePhases !== undefined) data.cyclePhases = cyclePhases;
+    if (imageUrl !== undefined) data.imageUrl = imageUrl;
+    if (audioUrl !== undefined) data.audioUrl = audioUrl;
+    if (videoUrl !== undefined) data.videoUrl = videoUrl;
+    if (instructions !== undefined) data.instructions = instructions;
+    const activity = await prisma.wellnessActivity.update({ where: { id: req.params.id }, data });
+    successResponse(res, mapActivity(activity), 'Activity updated');
+  } catch (e: any) {
+    if (e.code === 'P2025') { errorResponse(res, 'Activity not found', 404); return; }
+    next(e);
+  }
+});
+
+// POST /admin/wellness/:id/toggle-publish — toggle active/inactive
+r.post('/wellness/:id/toggle-publish', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const existing = await prisma.wellnessActivity.findUnique({ where: { id: req.params.id } });
+    if (!existing) { errorResponse(res, 'Activity not found', 404); return; }
+    const activity = await prisma.wellnessActivity.update({
+      where: { id: req.params.id },
+      data: { isActive: !existing.isActive },
+    });
+    successResponse(res, mapActivity(activity), activity.isActive ? 'Activity published' : 'Activity unpublished');
+  } catch (e) { next(e); }
+});
+
+// DELETE /admin/wellness/:id — delete activity
+r.delete('/wellness/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await prisma.wellnessActivity.delete({ where: { id: req.params.id } });
+    successResponse(res, null, 'Activity deleted');
+  } catch (e: any) {
+    if (e.code === 'P2025') { errorResponse(res, 'Activity not found', 404); return; }
+    next(e);
+  }
+});
+
 export default r;

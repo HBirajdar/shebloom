@@ -42,6 +42,12 @@ const apiService = {
   generatePayout:            (d: any)        => wrap(adminAPI.generatePayout(d)),
   updatePayout:              (id: string, d: any) => wrap(adminAPI.updatePayout(id, d)),
   deletePayout:              (id: string)    => wrap(adminAPI.deletePayout(id)),
+  // Wellness
+  getWellness:               ()              => wrap(adminAPI.getWellness()),
+  createWellness:            (d: any)        => wrap(adminAPI.createWellness(d)),
+  updateWellness:            (id: string, d: any) => wrap(adminAPI.updateWellness(id, d)),
+  toggleWellnessPublish:     (id: string)    => wrap(adminAPI.toggleWellnessPublish(id)),
+  deleteWellness:            (id: string)    => wrap(adminAPI.deleteWellness(id)),
 };
 import MultiImageUpload from '../components/MultiImageUpload';
 import toast from 'react-hot-toast';
@@ -147,7 +153,7 @@ const FormCheckbox = ({ label, checked, onChange }: { label: string; checked: bo
 );
 type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'NO_SHOW' | 'CANCELLED';
 
-type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log';
+type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness';
 
 // ─── Finance Admin Tab ──────────────────────────────────
 // Platform config, coupons, revenue analytics — like Practo/Zomato/Amazon admin
@@ -1059,6 +1065,25 @@ export default function AdminPage() {
   const [payoutMethod, setPayoutMethod] = useState('UPI');
   const [payoutNotes, setPayoutNotes] = useState('');
 
+  // Wellness Activities state
+  const [wellnessActivities, setWellnessActivities] = useState<any[]>([]);
+  const [wellnessLoading, setWellnessLoading] = useState(false);
+  const [wellnessSearch, setWellnessSearch] = useState('');
+  const [wellnessCatFilter, setWellnessCatFilter] = useState('');
+  const [editWellness, setEditWellness] = useState<any>(null);
+  // Add/Edit wellness form
+  const [wfTitle, setWfTitle] = useState('');
+  const [wfDescription, setWfDescription] = useState('');
+  const [wfCategory, setWfCategory] = useState('yoga');
+  const [wfDuration, setWfDuration] = useState('10');
+  const [wfDifficulty, setWfDifficulty] = useState('beginner');
+  const [wfPhases, setWfPhases] = useState<string[]>([]);
+  const [wfImageUrl, setWfImageUrl] = useState('');
+  const [wfVideoUrl, setWfVideoUrl] = useState('');
+  const [wfAudioUrl, setWfAudioUrl] = useState('');
+  const [wfInstructions, setWfInstructions] = useState('');
+  const [wfSaving, setWfSaving] = useState(false);
+
   // Search states for all tabs (client-side filtering)
   const [doctorSearch, setDoctorSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
@@ -1278,6 +1303,45 @@ export default function AdminPage() {
     } catch { toast.error('Failed to delete payout'); }
   };
 
+  // ─── Wellness fetcher ─────────────────────────────────
+  const fetchWellness = async () => {
+    if (!ensureToken()) return;
+    setWellnessLoading(true);
+    try {
+      const res = await apiService.getWellness();
+      setWellnessActivities(res.data || []);
+    } catch { toast.error('Failed to load wellness activities'); }
+    finally { setWellnessLoading(false); }
+  };
+  const resetWellnessForm = () => {
+    setWfTitle(''); setWfDescription(''); setWfCategory('yoga'); setWfDuration('10');
+    setWfDifficulty('beginner'); setWfPhases([]); setWfImageUrl(''); setWfVideoUrl('');
+    setWfAudioUrl(''); setWfInstructions(''); setEditWellness(null);
+  };
+  const handleSaveWellness = async () => {
+    if (!wfTitle.trim()) { toast.error('Title is required'); return; }
+    setWfSaving(true);
+    try {
+      const payload = {
+        title: wfTitle.trim(), description: wfDescription.trim(), category: wfCategory,
+        durationMinutes: parseInt(wfDuration) || 10, difficulty: wfDifficulty,
+        cyclePhases: wfPhases, imageUrl: wfImageUrl || null, videoUrl: wfVideoUrl || null,
+        audioUrl: wfAudioUrl || null, instructions: wfInstructions ? wfInstructions.split('\n').filter(Boolean) : null,
+      };
+      if (editWellness) {
+        await apiService.updateWellness(editWellness.id, payload);
+        toast.success('Activity updated!');
+      } else {
+        await apiService.createWellness(payload);
+        toast.success('Activity created!');
+      }
+      resetWellnessForm();
+      setTab('wellness');
+      fetchWellness();
+    } catch (e: any) { toast.error(e?.response?.data?.error || 'Save failed'); }
+    finally { setWfSaving(false); }
+  };
+
   // Load data when tab changes
   useEffect(() => {
     if (!isUnlocked) return;
@@ -1291,6 +1355,7 @@ export default function AdminPage() {
     if (tab === 'analytics_doctors') fetchDoctorAnalytics();
     if (tab === 'prescriptions') fetchPrescriptions();
     if (tab === 'payouts') { fetchPayoutSummary(); fetchPayoutList(); }
+    if (tab === 'wellness') fetchWellness();
   }, [tab, isUnlocked]);
 
   // ─── Auth ───────────────────────────────────────────
@@ -1710,6 +1775,7 @@ export default function AdminPage() {
     { id: 'prescriptions', icon: '\u{1F48A}', label: 'Rx' },
     { id: 'ayurveda', icon: '☯️', label: 'Ayurveda' },
     { id: 'payouts', icon: '\u{1F4B0}', label: 'Payouts' },
+    { id: 'wellness', icon: '🧘', label: 'Wellness' },
     { id: 'finance', icon: '🏦', label: 'Finance' },
     { id: 'audit_log', icon: '\u{1F4CB}', label: 'Audit Log' },
   ];
@@ -3067,6 +3133,176 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
+          </>)}
+
+          {/* ════════ WELLNESS MANAGEMENT ════════ */}
+          {tab === 'wellness' && (<>
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-extrabold text-gray-900">🧘 Wellness Activities</h3>
+              <button onClick={() => { resetWellnessForm(); setTab('add_wellness'); }}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-[10px] font-bold active:scale-95 shadow-sm transition-all">
+                + Add Activity
+              </button>
+            </div>
+
+            <AdminSearchBar value={wellnessSearch} onChange={setWellnessSearch} placeholder="Search activities..." />
+
+            {/* Category filter */}
+            <div className="flex gap-2 flex-wrap">
+              {[{ k: '', l: 'All' }, { k: 'yoga', l: '🧘 Yoga' }, { k: 'breathing', l: '💨 Breathing' }, { k: 'meditation', l: '🧠 Meditation' }].map(c => (
+                <button key={c.k} onClick={() => setWellnessCatFilter(c.k)}
+                  className={'px-3 py-1.5 rounded-full text-[10px] font-bold transition-all ' + (wellnessCatFilter === c.k ? 'bg-purple-500 text-white' : 'bg-gray-100 text-gray-500')}>
+                  {c.l}
+                </button>
+              ))}
+            </div>
+
+            {wellnessLoading ? (
+              <div className="flex justify-center py-12"><div className="animate-spin w-8 h-8 border-4 border-purple-400 border-t-transparent rounded-full" /></div>
+            ) : (
+              <div className="space-y-3">
+                {wellnessActivities
+                  .filter(a => (!wellnessCatFilter || a.category === wellnessCatFilter) && (!wellnessSearch || a.title.toLowerCase().includes(wellnessSearch.toLowerCase())))
+                  .map(a => (
+                  <div key={a.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                    <div className="flex items-start gap-3">
+                      {a.imageUrl ? (
+                        <img src={a.imageUrl} alt={a.title} className="w-16 h-16 rounded-xl object-cover" />
+                      ) : (
+                        <div className="w-16 h-16 rounded-xl bg-purple-50 flex items-center justify-center text-2xl">
+                          {a.category === 'yoga' ? '🧘' : a.category === 'breathing' ? '💨' : '🧠'}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-extrabold text-gray-900 truncate">{a.title}</p>
+                          <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full ${a.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                            {a.isActive ? 'Active' : 'Draft'}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-gray-500 mt-0.5 truncate">{a.description || 'No description'}</p>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <span className="text-[8px] font-bold bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full">{a.category}</span>
+                          <span className="text-[8px] font-bold bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{a.durationMinutes}min</span>
+                          <span className="text-[8px] font-bold bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full">{a.difficulty}</span>
+                          {a.videoUrl && <span className="text-[8px] font-bold bg-rose-50 text-rose-600 px-2 py-0.5 rounded-full">🎬 Video</span>}
+                          {a.audioUrl && <span className="text-[8px] font-bold bg-green-50 text-green-600 px-2 py-0.5 rounded-full">🎵 Audio</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-3 border-t border-gray-50 pt-3">
+                      <button onClick={async () => {
+                        await apiService.toggleWellnessPublish(a.id);
+                        toast.success(a.isActive ? 'Unpublished' : 'Published');
+                        fetchWellness();
+                      }} className={`flex-1 py-2 rounded-xl text-[10px] font-bold active:scale-95 transition-all ${a.isActive ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                        {a.isActive ? 'Unpublish' : 'Publish'}
+                      </button>
+                      <button onClick={() => {
+                        setEditWellness(a);
+                        setWfTitle(a.title); setWfDescription(a.description || '');
+                        setWfCategory(a.category); setWfDuration(String(a.durationMinutes));
+                        setWfDifficulty(a.difficulty); setWfPhases(a.cyclePhases || []);
+                        setWfImageUrl(a.imageUrl || ''); setWfVideoUrl(a.videoUrl || '');
+                        setWfAudioUrl(a.audioUrl || '');
+                        setWfInstructions(Array.isArray(a.instructions) ? a.instructions.join('\n') : '');
+                        setTab('edit_wellness');
+                      }} className="flex-1 py-2 rounded-xl bg-blue-50 text-blue-600 text-[10px] font-bold active:scale-95 transition-all">
+                        Edit
+                      </button>
+                      <button onClick={async () => {
+                        if (!confirm('Delete this activity?')) return;
+                        await apiService.deleteWellness(a.id);
+                        toast.success('Deleted'); fetchWellness();
+                      }} className="py-2 px-3 rounded-xl bg-rose-50 text-rose-600 text-[10px] font-bold active:scale-95 transition-all">
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {wellnessActivities.filter(a => (!wellnessCatFilter || a.category === wellnessCatFilter) && (!wellnessSearch || a.title.toLowerCase().includes(wellnessSearch.toLowerCase()))).length === 0 && (
+                  <div className="text-center py-12 bg-white rounded-2xl">
+                    <p className="text-3xl mb-2">🧘</p>
+                    <p className="text-sm font-bold text-gray-600">No activities yet</p>
+                    <p className="text-[10px] text-gray-400">Add yoga, breathing, or meditation content</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </>)}
+
+          {/* ════════ ADD / EDIT WELLNESS ════════ */}
+          {(tab === 'add_wellness' || tab === 'edit_wellness') && (<>
+            <div className="flex items-center gap-3">
+              <button onClick={() => { resetWellnessForm(); setTab('wellness'); }} className="text-gray-400 text-lg active:scale-90">←</button>
+              <h3 className="text-base font-extrabold text-gray-900">{editWellness ? 'Edit Activity' : 'Add Activity'}</h3>
+            </div>
+
+            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+              <FormField label="Title" value={wfTitle} onChange={setWfTitle} placeholder="e.g. Morning Sun Salutation" />
+              <FormField label="Description" value={wfDescription} onChange={setWfDescription} placeholder="Brief description..." multiline />
+
+              {/* Category */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Category</label>
+                <div className="flex gap-2 mt-1 flex-wrap">
+                  {[{ k: 'yoga', l: '🧘 Yoga' }, { k: 'breathing', l: '💨 Breathing' }, { k: 'meditation', l: '🧠 Meditation' }, { k: 'stress_management', l: '😌 Stress' }].map(c => (
+                    <button key={c.k} onClick={() => setWfCategory(c.k)}
+                      className={'px-3 py-1.5 rounded-full text-[10px] font-bold transition-all border-2 ' + (wfCategory === c.k ? 'border-purple-400 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-500')}>
+                      {c.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Duration & Difficulty */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Duration (min)</label>
+                  <input type="number" value={wfDuration} onChange={e => setWfDuration(e.target.value)} min="1" max="120"
+                    className="w-full mt-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Difficulty</label>
+                  <select value={wfDifficulty} onChange={e => setWfDifficulty(e.target.value)}
+                    className="w-full mt-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none">
+                    <option value="beginner">Beginner</option>
+                    <option value="intermediate">Intermediate</option>
+                    <option value="advanced">Advanced</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Cycle Phases */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Cycle Phases</label>
+                <div className="flex gap-2 mt-1 flex-wrap">
+                  {['MENSTRUAL', 'FOLLICULAR', 'OVULATION', 'LUTEAL'].map(p => (
+                    <button key={p} onClick={() => setWfPhases(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])}
+                      className={'px-3 py-1.5 rounded-full text-[10px] font-bold transition-all border-2 ' + (wfPhases.includes(p) ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-gray-200 text-gray-500')}>
+                      {p === 'MENSTRUAL' ? '🩸' : p === 'FOLLICULAR' ? '🌱' : p === 'OVULATION' ? '✨' : '🍂'} {p.charAt(0) + p.slice(1).toLowerCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Media URLs */}
+              <div className="space-y-3 bg-purple-50 rounded-xl p-4">
+                <p className="text-[10px] font-extrabold text-purple-700 uppercase tracking-wide">🎬 Media</p>
+                <FormField label="Video URL (YouTube/Cloudinary/upload)" value={wfVideoUrl} onChange={setWfVideoUrl} placeholder="https://..." />
+                <FormField label="Audio URL (MP3/WAV)" value={wfAudioUrl} onChange={setWfAudioUrl} placeholder="https://..." />
+                <FormField label="Thumbnail / Image URL" value={wfImageUrl} onChange={setWfImageUrl} placeholder="https://..." />
+                <p className="text-[9px] text-purple-500">Upload files via Upload tab first, then paste the URL here</p>
+              </div>
+
+              {/* Instructions */}
+              <FormField label="Instructions (one per line)" value={wfInstructions} onChange={setWfInstructions} placeholder="Step 1: Stand tall...&#10;Step 2: Inhale deeply..." multiline />
+
+              <button onClick={handleSaveWellness} disabled={wfSaving}
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold text-sm disabled:opacity-50 active:scale-95 shadow-sm transition-all">
+                {wfSaving ? 'Saving...' : editWellness ? 'Update Activity' : 'Create Activity'}
+              </button>
+            </div>
           </>)}
 
           {/* ════════ FINANCE ════════ */}

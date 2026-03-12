@@ -133,6 +133,26 @@ export default function WellnessPage() {
   const safePhase = (PHASE_DATA[phase] ? phase : 'follicular') as keyof typeof PHASE_DATA;
   const pd = PHASE_DATA[safePhase];
 
+  // ─── API yoga/breathing content ───────────────────────
+  const [apiYoga, setApiYoga] = useState<any[]>([]);
+  const [apiBreathing, setApiBreathing] = useState<any[]>([]);
+  const [contentLoading, setContentLoading] = useState(false);
+  const [playingVideo, setPlayingVideo] = useState<any>(null);
+  const [playingAudio, setPlayingAudio] = useState<any>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Fetch wellness activities from API
+  useEffect(() => {
+    setContentLoading(true);
+    Promise.all([
+      wellnessAPI.list({ category: 'yoga' }).catch(() => ({ data: { data: [] } })),
+      wellnessAPI.list({ category: 'breathing' }).catch(() => ({ data: { data: [] } })),
+    ]).then(([yogaRes, breathRes]) => {
+      setApiYoga(yogaRes.data?.data || []);
+      setApiBreathing(breathRes.data?.data || []);
+    }).finally(() => setContentLoading(false));
+  }, []);
+
   // ─── State ────────────────────────────────────────────
   const [tab, setTab] = useState<'today' | 'routine' | 'yoga' | 'breathe'>('today');
   const [water, setWater] = useState(0);
@@ -528,6 +548,31 @@ export default function WellnessPage() {
           })}
         </>)}
 
+        {/* Video Player Modal (shared between Yoga & Breathe tabs) */}
+        {playingVideo && (
+          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setPlayingVideo(null)}>
+            <div className="w-full max-w-[430px] bg-black rounded-3xl overflow-hidden" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between p-4 bg-gray-900">
+                <div>
+                  <p className="text-sm font-extrabold text-white">{playingVideo.title}</p>
+                  <p className="text-[10px] text-gray-400">{playingVideo.durationMinutes} min · {playingVideo.difficulty}</p>
+                </div>
+                <button onClick={() => setPlayingVideo(null)} className="text-white/60 text-xl active:scale-90">✕</button>
+              </div>
+              <video src={playingVideo.videoUrl} controls autoPlay playsInline
+                className="w-full aspect-video bg-black" />
+              {playingVideo.instructions && Array.isArray(playingVideo.instructions) && (
+                <div className="p-4 bg-gray-900 space-y-2">
+                  <p className="text-[10px] font-bold text-purple-400 uppercase">Instructions</p>
+                  {playingVideo.instructions.map((s: string, i: number) => (
+                    <p key={i} className="text-xs text-gray-300 flex gap-2"><span className="text-purple-400 font-bold">{i + 1}.</span>{s}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ══════════ YOGA TAB ══════════ */}
         {tab === 'yoga' && (<>
           {/* Active timer */}
@@ -540,6 +585,61 @@ export default function WellnessPage() {
                 Stop Practice
               </button>
             </div>
+          )}
+
+          {/* API Yoga Content (video/audio) */}
+          {apiYoga.length > 0 && (
+            <>
+              <div className="flex items-center gap-2 px-1">
+                <span className="text-lg">🎬</span>
+                <h3 className="text-sm font-extrabold text-gray-800">Guided Yoga Sessions</h3>
+              </div>
+              <div className="space-y-3">
+                {apiYoga.map(a => (
+                  <div key={a.id} className="bg-white rounded-3xl shadow-lg overflow-hidden">
+                    <div className="relative">
+                      {a.imageUrl ? (
+                        <img src={a.imageUrl} alt={a.title} className="w-full h-40 object-cover" />
+                      ) : (
+                        <div className="w-full h-40 bg-gradient-to-br from-purple-100 to-rose-100 flex items-center justify-center text-5xl">🧘</div>
+                      )}
+                      {a.videoUrl && (
+                        <button onClick={() => setPlayingVideo(a)}
+                          className="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/40 transition-all">
+                          <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                            <span className="text-2xl ml-1">▶</span>
+                          </div>
+                        </button>
+                      )}
+                      <div className="absolute bottom-2 left-2 flex gap-1">
+                        <span className="text-[8px] font-bold bg-black/60 text-white px-2 py-0.5 rounded-full">{a.durationMinutes} min</span>
+                        <span className="text-[8px] font-bold bg-black/60 text-white px-2 py-0.5 rounded-full">{a.difficulty}</span>
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <p className="text-sm font-extrabold text-gray-900">{a.title}</p>
+                      {a.description && <p className="text-[10px] text-gray-500 mt-1 leading-relaxed">{a.description}</p>}
+                      <div className="flex gap-2 mt-3">
+                        {a.videoUrl && (
+                          <button onClick={() => setPlayingVideo(a)}
+                            className="flex-1 py-2.5 rounded-xl text-white text-xs font-bold active:scale-95 transition-transform"
+                            style={{ background: `linear-gradient(135deg, ${pd.color}, ${pd.color}99)` }}>
+                            🎬 Watch Video
+                          </button>
+                        )}
+                        {!a.videoUrl && (
+                          <button onClick={() => startYoga(a.title)}
+                            className="flex-1 py-2.5 rounded-xl text-white text-xs font-bold active:scale-95 transition-transform"
+                            style={{ backgroundColor: pd.color }}>
+                            Start Timer
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
 
           {/* Duration picker */}
@@ -592,6 +692,81 @@ export default function WellnessPage() {
 
         {/* ══════════ BREATHE TAB ══════════ */}
         {tab === 'breathe' && (<>
+
+          {/* Audio Player (hidden) */}
+          <audio ref={audioRef} />
+
+          {/* API Guided Breathing Sessions */}
+          {apiBreathing.length > 0 && (
+            <>
+              <div className="flex items-center gap-2 px-1">
+                <span className="text-lg">🎵</span>
+                <h3 className="text-sm font-extrabold text-gray-800">Guided Breathing Sessions</h3>
+              </div>
+              <div className="space-y-3">
+                {apiBreathing.map(a => (
+                  <div key={a.id} className="bg-white rounded-3xl shadow-lg p-4">
+                    <div className="flex items-center gap-3">
+                      {a.imageUrl ? (
+                        <img src={a.imageUrl} alt={a.title} className="w-16 h-16 rounded-2xl object-cover" />
+                      ) : (
+                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center text-3xl">💨</div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-extrabold text-gray-900 truncate">{a.title}</p>
+                        {a.description && <p className="text-[10px] text-gray-500 mt-0.5">{a.description}</p>}
+                        <div className="flex gap-1 mt-1">
+                          <span className="text-[8px] font-bold bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full">{a.durationMinutes} min</span>
+                          <span className="text-[8px] font-bold bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{a.difficulty}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Audio/Video controls */}
+                    <div className="flex gap-2 mt-3">
+                      {a.audioUrl && (
+                        <button onClick={() => {
+                          if (playingAudio?.id === a.id) {
+                            audioRef.current?.pause();
+                            setPlayingAudio(null);
+                          } else {
+                            if (audioRef.current) {
+                              audioRef.current.src = a.audioUrl;
+                              audioRef.current.play().catch(() => {});
+                            }
+                            setPlayingAudio(a);
+                          }
+                        }}
+                          className={'flex-1 py-2.5 rounded-xl text-xs font-bold active:scale-95 transition-transform ' + (playingAudio?.id === a.id ? 'bg-rose-500 text-white' : 'bg-purple-500 text-white')}>
+                          {playingAudio?.id === a.id ? '⏹ Stop Audio' : '🎵 Play Audio'}
+                        </button>
+                      )}
+                      {a.videoUrl && (
+                        <button onClick={() => setPlayingVideo(a)}
+                          className="flex-1 py-2.5 rounded-xl bg-indigo-500 text-white text-xs font-bold active:scale-95 transition-transform">
+                          🎬 Watch Video
+                        </button>
+                      )}
+                      {!a.audioUrl && !a.videoUrl && (
+                        <button onClick={toggleBreath}
+                          className="flex-1 py-2.5 rounded-xl bg-purple-500 text-white text-xs font-bold active:scale-95 transition-transform">
+                          ▶ Start Guided
+                        </button>
+                      )}
+                    </div>
+                    {/* Instructions */}
+                    {a.instructions && Array.isArray(a.instructions) && playingAudio?.id === a.id && (
+                      <div className="mt-3 bg-purple-50 rounded-xl p-3 space-y-1">
+                        {a.instructions.map((s: string, i: number) => (
+                          <p key={i} className="text-[10px] text-purple-700"><span className="font-bold">{i + 1}.</span> {s}</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="h-px bg-gray-200 my-2" />
+            </>
+          )}
 
           {/* Mode selector */}
           <div className="space-y-2">

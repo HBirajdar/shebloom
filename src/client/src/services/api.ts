@@ -338,6 +338,12 @@ export const adminAPI = {
   createDoshaQuestion: (d: any) => api.post('/admin/dosha/questions', d),
   updateDoshaQuestion: (id: string, d: any) => api.put(`/admin/dosha/questions/${id}`, d),
   deleteDoshaQuestion: (id: string) => api.delete(`/admin/dosha/questions/${id}`),
+  // Wellness Activities (Yoga / Breathwork)
+  getWellness: () => api.get('/admin/wellness'),
+  createWellness: (d: any) => api.post('/admin/wellness', d),
+  updateWellness: (id: string, d: any) => api.put(`/admin/wellness/${id}`, d),
+  toggleWellnessPublish: (id: string) => api.post(`/admin/wellness/${id}/toggle-publish`),
+  deleteWellness: (id: string) => api.delete(`/admin/wellness/${id}`),
 };
 
 // ─── Finance (Coupons, Config, Analytics) ────────────
