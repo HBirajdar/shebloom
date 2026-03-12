@@ -52,6 +52,9 @@ export default function TrackerPage() {
   const [expandedCycle, setExpandedCycle] = useState(null)
   const [customStartInput, setCustomStartInput] = useState('')
   const [customEndInput, setCustomEndInput] = useState('')
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const dateStripRef = useRef<HTMLDivElement>(null)
+  const [showFullCalendar, setShowFullCalendar] = useState(false)
 
   // Advanced fertility tracking state
   const [bbtHistory, setBbtHistory] = useState([])
@@ -475,8 +478,68 @@ export default function TrackerPage() {
     </div>
   )
 
+  // ═══ Cycle Circle Helpers ═══
+  const polarToCart = (cx: number, cy: number, r: number, deg: number) => {
+    const rad = (deg - 90) * Math.PI / 180
+    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) }
+  }
+
+  const svgArc = (cx: number, cy: number, r: number, startDeg: number, endDeg: number) => {
+    const s = polarToCart(cx, cy, r, endDeg)
+    const e = polarToCart(cx, cy, r, startDeg)
+    const large = endDeg - startDeg > 180 ? 1 : 0
+    return `M ${s.x} ${s.y} A ${r} ${r} 0 ${large} 0 ${e.x} ${e.y}`
+  }
+
+  const PHASE_COLORS = {
+    menstrual: '#FF6B8A',
+    follicular: '#5EEFC7',
+    ovulation: '#FFD166',
+    luteal: '#B491FF',
+  }
+
+  const getPhaseForDay = (dayNum: number) => {
+    const cl = prediction?.cycleLength || 28
+    const pl = prediction?.periodLength || 5
+    const ovDay = cl - 14
+    if (dayNum <= pl) return { name: 'Menstrual', color: PHASE_COLORS.menstrual, emoji: '🩸' }
+    if (dayNum <= ovDay - 2) return { name: 'Follicular', color: PHASE_COLORS.follicular, emoji: '🌱' }
+    if (dayNum <= ovDay + 1) return { name: 'Ovulation', color: PHASE_COLORS.ovulation, emoji: '✨' }
+    return { name: 'Luteal', color: PHASE_COLORS.luteal, emoji: '🌙' }
+  }
+
+  const getCycleDayForDate = (date: Date) => {
+    if (!prediction?.cycleDay) return null
+    const diffDays = Math.round((date.getTime() - today.getTime()) / 86400000)
+    const cl = prediction?.cycleLength || 28
+    let day = ((prediction.cycleDay - 1 + diffDays) % cl + cl) % cl + 1
+    return day
+  }
+
+  // Scrollable dates: 10 past → today → 20 future
+  const scrollDates = useMemo(() => {
+    const dates: Date[] = []
+    for (let i = -10; i <= 20; i++) dates.push(addDays(today, i))
+    return dates
+  }, [today])
+
+  // Auto-scroll date strip to today
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (dateStripRef.current) {
+        const el = dateStripRef.current.querySelector('[data-today="true"]')
+        if (el) el.scrollIntoView({ inline: 'center', block: 'nearest' })
+      }
+    }, 150)
+    return () => clearTimeout(timer)
+  }, [loading])
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 flex flex-col" style={{ maxWidth: 430, margin: '0 auto' }}>
+      <style>{`
+        .hide-scrollbar::-webkit-scrollbar { display: none }
+        .hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+      `}</style>
       {/* Header */}
       <div className="sticky top-0 z-20 backdrop-blur-xl border-b border-rose-100" style={{ backgroundColor: 'rgba(255,241,242,0.85)' }}>
         <div className="flex items-center px-5 pt-4 pb-2 gap-3">
@@ -518,125 +581,315 @@ export default function TrackerPage() {
           </div>
         ) : tab === 'calendar' ? (
           <>
-            {/* Month Navigation */}
-            <div className="mx-5 mt-4 bg-white rounded-3xl shadow-lg overflow-hidden">
-            <div className="px-4 py-3 flex items-center justify-between">
-              <button
-                onClick={prevMonth}
-                className="w-9 h-9 flex items-center justify-center rounded-2xl bg-rose-50 text-rose-500 active:scale-95 transition-all"
-              >
-                ←
-              </button>
-              <span className="text-base font-extrabold text-gray-900">
-                {MONTHS[selectedMonth.getMonth()]} {selectedMonth.getFullYear()}
-              </span>
-              <button
-                onClick={nextMonth}
-                className="w-9 h-9 flex items-center justify-center rounded-2xl bg-rose-50 text-rose-500 active:scale-95 transition-all"
-              >
-                →
-              </button>
+            {/* ═══ Premium Cycle Circle ═══ */}
+            <div className="mx-4 mt-4 rounded-3xl overflow-hidden shadow-xl" style={{ background: 'linear-gradient(160deg, #2a1631 0%, #1a1028 50%, #150e22 100%)' }}>
+              <div className="pt-6 pb-5">
+                <svg viewBox="0 0 280 280" className="w-60 h-60 mx-auto" style={{ filter: 'drop-shadow(0 0 20px rgba(255,107,138,0.15))' }}>
+                  <defs>
+                    <filter id="arcGlow" x="-30%" y="-30%" width="160%" height="160%">
+                      <feGaussianBlur stdDeviation="4" result="blur" />
+                      <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                    </filter>
+                    <filter id="markerDrop" x="-50%" y="-50%" width="200%" height="200%">
+                      <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000" floodOpacity="0.4" />
+                    </filter>
+                  </defs>
+                  {/* Background track */}
+                  <circle cx="140" cy="140" r="110" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="22" />
+                  {/* Phase arcs */}
+                  {(() => {
+                    const cx = 140, cy = 140, r = 110
+                    const cl = prediction?.cycleLength || 28
+                    const pl = prediction?.periodLength || 5
+                    const ovDay = cl - 14
+                    const cd = prediction?.cycleDay || 0
+                    const GAP = 4
+                    const phases = [
+                      { days: pl, color: PHASE_COLORS.menstrual },
+                      { days: Math.max(1, ovDay - pl - 2), color: PHASE_COLORS.follicular },
+                      { days: 3, color: PHASE_COLORS.ovulation },
+                      { days: Math.max(1, cl - ovDay - 1), color: PHASE_COLORS.luteal },
+                    ]
+                    let cum = 0
+                    const arcs = phases.map((p) => {
+                      const sA = (cum / cl) * 360 + GAP / 2
+                      const eA = ((cum + p.days) / cl) * 360 - GAP / 2
+                      const start = cum
+                      cum += p.days
+                      const active = cd > start && cd <= start + p.days
+                      return { ...p, sA, eA, active }
+                    })
+                    const dayAngle = cd > 0 ? ((cd - 0.5) / cl) * 360 : 0
+                    const mPos = cd > 0 ? polarToCart(cx, cy, r, dayAngle) : null
+                    const activeColor = cd > 0 ? (arcs.find(a => a.active)?.color || PHASE_COLORS.menstrual) : PHASE_COLORS.menstrual
+                    return (
+                      <>
+                        {arcs.map((a, i) => (
+                          <path
+                            key={i}
+                            d={svgArc(cx, cy, r, a.sA, a.eA)}
+                            fill="none"
+                            stroke={a.color}
+                            strokeWidth={a.active ? 22 : 12}
+                            strokeLinecap="round"
+                            opacity={a.active ? 1 : 0.28}
+                            filter={a.active ? 'url(#arcGlow)' : undefined}
+                            className="transition-all duration-700"
+                          />
+                        ))}
+                        {mPos && (
+                          <g filter="url(#markerDrop)">
+                            <circle cx={mPos.x} cy={mPos.y} r={14} fill="white" />
+                            <circle cx={mPos.x} cy={mPos.y} r={10.5} fill={activeColor} />
+                          </g>
+                        )}
+                      </>
+                    )
+                  })()}
+                  {/* Center content */}
+                  <text x="140" y="116" textAnchor="middle" fontSize="46" fontWeight="900" fill="white" fontFamily="system-ui">
+                    {prediction?.cycleDay || '--'}
+                  </text>
+                  <text x="140" y="138" textAnchor="middle" fontSize="11" fill="rgba(255,255,255,0.4)" fontWeight="700" letterSpacing="2.5">
+                    {prediction?.cycleDay ? 'CYCLE DAY' : 'NO DATA'}
+                  </text>
+                  <text x="140" y="160" textAnchor="middle" fontSize="13" fill="rgba(255,255,255,0.8)" fontWeight="600">
+                    {phaseInfo.name}
+                  </text>
+                  {typeof prediction?.daysUntilPeriod === 'number' && (
+                    <>
+                      <rect x="88" y="172" width="104" height="24" rx="12" fill="rgba(255,107,138,0.2)" />
+                      <text x="140" y="188" textAnchor="middle" fontSize="11" fill="#FF8FAB" fontWeight="700">
+                        {prediction.daysUntilPeriod === 0 ? '🩸 Period today' : prediction.daysUntilPeriod < 0 ? '🩸 Period started' : `🩸 in ${prediction.daysUntilPeriod} days`}
+                      </text>
+                    </>
+                  )}
+                </svg>
+
+                {/* Phase legend */}
+                <div className="flex justify-center gap-4 mt-3 px-6">
+                  {[
+                    { label: 'Period', color: PHASE_COLORS.menstrual },
+                    { label: 'Follicular', color: PHASE_COLORS.follicular },
+                    { label: 'Ovulation', color: PHASE_COLORS.ovulation },
+                    { label: 'Luteal', color: PHASE_COLORS.luteal },
+                  ].map(p => (
+                    <div key={p.label} className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
+                      <span className="text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>{p.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            {/* Calendar Grid */}
-            <div className="px-3 pb-4">
-              {/* Day headers */}
-              <div className="grid grid-cols-7 mb-1">
-                {DAYS_SHORT.map(d => (
-                  <div key={d} className="text-center text-xs font-semibold text-gray-400 py-1">
-                    {d}
-                  </div>
-                ))}
-              </div>
-              {/* Date cells */}
-              <div className="grid grid-cols-7 gap-1">
-                {calendarCells.map((date, idx) => {
-                  if (!date) return <div key={idx} />
+            {/* ═══ Scrollable Date Strip ═══ */}
+            <div className="mt-3 mx-3">
+              <div
+                ref={dateStripRef}
+                className="flex gap-1.5 overflow-x-auto pb-2 px-1 hide-scrollbar"
+              >
+                {scrollDates.map((date, i) => {
+                  const isToday2 = isSameDay(date, today)
                   const key = date.toISOString().slice(0, 10)
                   const types = calendarMarkers[key] || []
-                  const { bg, text, border } = getDayCellStyle(date)
-                  const isToday = isSameDay(date, today)
-                  const hasSymptom = symptomDays.has(key)
-                  const isOvulation = types.includes('ovulation')
+                  const cycleDayNum = getCycleDayForDate(date)
+                  const phase = cycleDayNum ? getPhaseForDay(cycleDayNum) : null
+                  const isSelected2 = selectedDate && isSameDay(date, selectedDate)
+                  const isPeriod = types.includes('period')
+                  const isOvulation2 = types.includes('ovulation')
+                  const isFertile2 = types.includes('fertile')
+                  const isPredicted = types.includes('predicted')
+
+                  let bg2 = 'bg-white'
+                  let tc2 = 'text-gray-700'
+                  if (isPeriod) { bg2 = ''; tc2 = 'text-white' }
+                  else if (isOvulation2) { bg2 = ''; tc2 = 'text-white' }
+                  else if (isFertile2) { bg2 = 'bg-teal-50 border border-teal-200' }
+                  else if (isPredicted) { bg2 = 'bg-rose-50 border border-dashed border-rose-200'; tc2 = 'text-rose-400' }
+
                   return (
-                    <div
-                      key={idx}
-                      className={`relative flex flex-col items-center justify-center rounded-full aspect-square text-sm font-medium transition-all ${bg} ${text} ${border}`}
+                    <button
+                      key={i}
+                      data-today={isToday2 ? 'true' : undefined}
+                      onClick={() => setSelectedDate(isSelected2 ? null : date)}
+                      className={`flex-shrink-0 flex flex-col items-center w-[46px] py-2.5 rounded-2xl transition-all shadow-sm ${bg2} ${
+                        isToday2 ? 'ring-2 ring-rose-400 ring-offset-2' : ''
+                      } ${isSelected2 && !isToday2 ? 'ring-2 ring-gray-800 ring-offset-1' : ''}`}
+                      style={isPeriod ? { backgroundColor: PHASE_COLORS.menstrual } : isOvulation2 ? { backgroundColor: PHASE_COLORS.ovulation } : undefined}
                     >
-                      <span className={isToday && !bg ? 'font-black text-gray-900' : ''}>
+                      <span className={`text-[9px] font-bold uppercase ${
+                        isPeriod || isOvulation2 ? 'text-white/60' : 'text-gray-400'
+                      }`}>
+                        {['Su','Mo','Tu','We','Th','Fr','Sa'][date.getDay()]}
+                      </span>
+                      <span className={`text-[15px] font-extrabold leading-none mt-1 ${tc2}`}>
                         {date.getDate()}
                       </span>
-                      {isOvulation && (
-                        <span className="text-[8px] leading-none">⭐</span>
+                      {phase && !isPeriod && !isOvulation2 && (
+                        <div className="w-1.5 h-1.5 rounded-full mt-1.5" style={{ backgroundColor: phase.color }} />
                       )}
-                      {hasSymptom && !isOvulation && (
-                        <span className="absolute bottom-0.5 w-1 h-1 rounded-full bg-rose-400" />
+                      {(isPeriod || isOvulation2) && (
+                        <div className="w-1.5 h-1.5 rounded-full mt-1.5 bg-white/40" />
                       )}
-                    </div>
+                    </button>
                   )
                 })}
               </div>
-
-              {/* Legend */}
-              <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 px-1">
-                {[
-                  { color: 'bg-rose-500', label: 'Period' },
-                  { color: 'bg-emerald-100 border border-emerald-300', label: 'Fertile' },
-                  { color: 'bg-amber-400', label: 'Ovulation ⭐' },
-                  { color: 'bg-purple-100', label: 'PMS' },
-                  { color: 'border-2 border-dashed border-rose-300', label: 'Predicted' },
-                ].map(({ color, label }) => (
-                  <div key={label} className="flex items-center gap-1">
-                    <div className={`w-3 h-3 rounded-sm flex-shrink-0 ${color}`} />
-                    <span className="text-xs text-gray-500">{label}</span>
-                  </div>
-                ))}
-              </div>
             </div>
+
+            {/* ═══ Selected / Today Detail Card ═══ */}
+            {(() => {
+              const showDate = selectedDate || today
+              const key2 = showDate.toISOString().slice(0, 10)
+              const types2 = calendarMarkers[key2] || []
+              const cdNum = getCycleDayForDate(showDate)
+              const phase2 = cdNum ? getPhaseForDay(cdNum) : null
+              const dayLabel = showDate.toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' })
+              const isToday3 = isSameDay(showDate, today)
+              return (
+                <div className="mx-4 mt-2 bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-bold text-gray-800">
+                        {isToday3 ? 'Today' : dayLabel}
+                        {isToday3 && <span className="text-gray-400 font-normal ml-1.5 text-xs">{dayLabel}</span>}
+                      </p>
+                      {phase2 && (
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: phase2.color }} />
+                          <span className="text-xs font-semibold" style={{ color: phase2.color }}>{phase2.name} Phase</span>
+                          {cdNum && <span className="text-xs text-gray-400 ml-0.5">· Day {cdNum}</span>}
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-2xl">{phase2?.emoji || '📅'}</span>
+                  </div>
+                  {types2.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2.5">
+                      {types2.includes('period') && <span className="text-[10px] bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full font-bold">Period</span>}
+                      {types2.includes('fertile') && <span className="text-[10px] bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full font-bold">Fertile Window</span>}
+                      {types2.includes('ovulation') && <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">Ovulation Day</span>}
+                      {types2.includes('predicted') && <span className="text-[10px] bg-rose-50 text-rose-400 px-2 py-0.5 rounded-full font-bold">Predicted Period</span>}
+                      {types2.includes('pms') && <span className="text-[10px] bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full font-bold">PMS</span>}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* ═══ Monthly Calendar (collapsible) ═══ */}
+            <div className="mx-4 mt-3">
+              <button
+                onClick={() => setShowFullCalendar(!showFullCalendar)}
+                className="w-full flex items-center justify-between bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-100 active:scale-[0.99] transition-transform"
+              >
+                <span className="text-sm font-bold text-gray-700">📅 Monthly Calendar</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400">{MONTHS[selectedMonth.getMonth()].slice(0, 3)} {selectedMonth.getFullYear()}</span>
+                  <svg className={`w-4 h-4 text-gray-400 transition-transform ${showFullCalendar ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </button>
+              {showFullCalendar && (
+                <div className="bg-white rounded-2xl mt-1 shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="px-4 py-2.5 flex items-center justify-between border-b border-gray-50">
+                    <button onClick={prevMonth} className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-50 text-gray-500 active:scale-95">←</button>
+                    <span className="text-sm font-bold text-gray-800">{MONTHS[selectedMonth.getMonth()]} {selectedMonth.getFullYear()}</span>
+                    <button onClick={nextMonth} className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-50 text-gray-500 active:scale-95">→</button>
+                  </div>
+                  <div className="px-3 pb-3 pt-2">
+                    <div className="grid grid-cols-7 mb-1">
+                      {DAYS_SHORT.map(d => (
+                        <div key={d} className="text-center text-[10px] font-semibold text-gray-400 py-1">{d.slice(0, 2)}</div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-7 gap-0.5">
+                      {calendarCells.map((date, idx) => {
+                        if (!date) return <div key={idx} />
+                        const key = date.toISOString().slice(0, 10)
+                        const types = calendarMarkers[key] || []
+                        const { bg, text, border } = getDayCellStyle(date)
+                        const isToday4 = isSameDay(date, today)
+                        const hasSymptom = symptomDays.has(key)
+                        const isOvulation3 = types.includes('ovulation')
+                        return (
+                          <div
+                            key={idx}
+                            onClick={() => setSelectedDate(date)}
+                            className={`relative flex flex-col items-center justify-center rounded-full aspect-square text-xs font-medium cursor-pointer transition-all ${bg} ${text} ${border}`}
+                          >
+                            <span className={isToday4 && !bg ? 'font-black text-gray-900' : ''}>{date.getDate()}</span>
+                            {isOvulation3 && <span className="text-[7px] leading-none">⭐</span>}
+                            {hasSymptom && !isOvulation3 && <span className="absolute bottom-0.5 w-1 h-1 rounded-full bg-rose-400" />}
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 px-1">
+                      {[
+                        { color: 'bg-rose-500', label: 'Period' },
+                        { color: 'bg-emerald-100 border border-emerald-300', label: 'Fertile' },
+                        { color: 'bg-amber-400', label: 'Ovulation' },
+                        { color: 'bg-purple-100', label: 'PMS' },
+                        { color: 'border-2 border-dashed border-rose-300', label: 'Predicted' },
+                      ].map(({ color, label }) => (
+                        <div key={label} className="flex items-center gap-1">
+                          <div className={`w-2.5 h-2.5 rounded-sm flex-shrink-0 ${color}`} />
+                          <span className="text-[10px] text-gray-400">{label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Phase Timeline Bar */}
-            <div className="bg-white mx-5 mt-3 rounded-2xl p-4 shadow-lg">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-bold text-gray-700">Cycle Phase</span>
+            <div className="bg-white mx-4 mt-3 rounded-2xl p-4 shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between mb-2.5">
+                <span className="text-sm font-bold text-gray-700">Cycle Timeline</span>
                 {prediction?.cycleDay && (
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-semibold">
-                    Day {prediction.cycleDay}
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full" style={{
+                    backgroundColor: getPhaseForDay(prediction.cycleDay).color + '18',
+                    color: getPhaseForDay(prediction.cycleDay).color,
+                  }}>
+                    Day {prediction.cycleDay} of {prediction?.cycleLength || 28}
                   </span>
                 )}
               </div>
-              {/* Bar */}
-              <div className="flex rounded-full overflow-hidden h-5 mb-2">
+              <div className="flex rounded-full overflow-hidden h-6 mb-2 bg-gray-100">
                 {[
-                  { label: 'M', days: phaseData.menstrual, color: 'bg-rose-400', phase: 'menstrual' },
-                  { label: 'F', days: phaseData.follicular, color: 'bg-green-400', phase: 'follicular' },
-                  { label: 'O', days: phaseData.ovulation, color: 'bg-purple-400', phase: 'ovulat' },
-                  { label: 'L', days: phaseData.luteal, color: 'bg-amber-400', phase: 'luteal' },
+                  { label: 'M', days: phaseData.menstrual, color: PHASE_COLORS.menstrual, phase: 'menstrual' },
+                  { label: 'F', days: phaseData.follicular, color: PHASE_COLORS.follicular, phase: 'follicular' },
+                  { label: 'O', days: phaseData.ovulation, color: PHASE_COLORS.ovulation, phase: 'ovulat' },
+                  { label: 'L', days: phaseData.luteal, color: PHASE_COLORS.luteal, phase: 'luteal' },
                 ].map(seg => {
                   const pct = (seg.days / phaseData.cycleLength) * 100
                   const isActive = currentPhase?.toLowerCase().includes(seg.phase.slice(0, 4))
                   return (
                     <div
                       key={seg.phase}
-                      className={`${seg.color} flex items-center justify-center text-white text-xs font-bold transition-all ${isActive ? 'opacity-100' : 'opacity-40'}`}
-                      style={{ width: `${pct}%` }}
+                      className="flex items-center justify-center text-white text-[10px] font-bold transition-all"
+                      style={{ width: `${pct}%`, backgroundColor: seg.color, opacity: isActive ? 1 : 0.3 }}
                     >
                       {pct > 12 ? seg.label : ''}
                     </div>
                   )
                 })}
               </div>
-              <div className="flex text-xs text-gray-400">
+              <div className="flex text-[10px]">
                 {[
-                  { label: '🔴 Men', days: phaseData.menstrual },
-                  { label: '🟡 Fol', days: phaseData.follicular },
-                  { label: '🟢 Ov', days: phaseData.ovulation },
-                  { label: '🟣 Lut', days: phaseData.luteal },
+                  { label: 'Menstrual', days: phaseData.menstrual, color: PHASE_COLORS.menstrual },
+                  { label: 'Follicular', days: phaseData.follicular, color: PHASE_COLORS.follicular },
+                  { label: 'Ovulation', days: phaseData.ovulation, color: PHASE_COLORS.ovulation },
+                  { label: 'Luteal', days: phaseData.luteal, color: PHASE_COLORS.luteal },
                 ].map(s => (
                   <div
                     key={s.label}
-                    className="text-center overflow-hidden"
-                    style={{ width: `${(s.days / phaseData.cycleLength) * 100}%` }}
+                    className="text-center overflow-hidden font-medium"
+                    style={{ width: `${(s.days / phaseData.cycleLength) * 100}%`, color: s.color }}
                   >
                     {s.days}d
                   </div>
@@ -645,32 +898,32 @@ export default function TrackerPage() {
             </div>
 
             {/* Cycle Stats Row */}
-            <div className="mt-3 px-5">
-              <div className="flex gap-2 overflow-x-auto pb-1">
+            <div className="mt-3 px-4">
+              <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
                 {[
-                  { icon: '📊', label: 'Avg Cycle', value: `${stats.avgCycle} days` },
-                  { icon: '📅', label: 'Last Period', value: stats.lastPeriod },
-                  { icon: '⏱️', label: 'Avg Duration', value: `${stats.avgDuration} days` },
-                  { icon: '📈', label: 'Regularity', value: stats.regularity > 0 ? `${stats.regularity}%` : 'N/A' },
-                  { icon: '🔢', label: 'Tracked', value: `${stats.count} cycles` },
+                  { icon: '📊', label: 'Avg Cycle', value: `${stats.avgCycle}d`, accent: PHASE_COLORS.follicular },
+                  { icon: '📅', label: 'Last Period', value: stats.lastPeriod, accent: PHASE_COLORS.menstrual },
+                  { icon: '⏱️', label: 'Duration', value: `${stats.avgDuration}d`, accent: PHASE_COLORS.ovulation },
+                  { icon: '📈', label: 'Regularity', value: stats.regularity > 0 ? `${stats.regularity}%` : 'N/A', accent: PHASE_COLORS.luteal },
+                  { icon: '🔢', label: 'Tracked', value: `${stats.count}`, accent: '#6B7280' },
                 ].map(card => (
                   <div
                     key={card.label}
-                    className="bg-white rounded-2xl p-3 shadow-lg flex-shrink-0 min-w-[88px] text-center"
+                    className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex-shrink-0 min-w-[80px] text-center"
                   >
-                    <div className="text-xl mb-1">{card.icon}</div>
-                    <div className="text-sm font-bold text-gray-800 whitespace-nowrap">{card.value}</div>
-                    <div className="text-xs text-gray-400 mt-0.5 whitespace-nowrap">{card.label}</div>
+                    <div className="text-lg mb-0.5">{card.icon}</div>
+                    <div className="text-sm font-extrabold whitespace-nowrap" style={{ color: card.accent }}>{card.value}</div>
+                    <div className="text-[10px] text-gray-400 mt-0.5 font-medium whitespace-nowrap">{card.label}</div>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Past Period History */}
-            <div className="mt-3 px-5">
+            <div className="mt-3 px-4">
               <h3 className="text-sm font-bold text-gray-700 mb-2">Period History</h3>
               {sortedCycles.length === 0 ? (
-                <div className="bg-white rounded-3xl p-6 text-center text-gray-400 text-sm shadow-lg">
+                <div className="bg-white rounded-2xl p-6 text-center text-gray-400 text-sm shadow-sm border border-gray-100">
                   No periods logged yet. Tap + Log Period to get started!
                 </div>
               ) : (
@@ -684,7 +937,7 @@ export default function TrackerPage() {
                         : cycle.periodLength || '?'
                     const isExpanded = expandedCycle === i
                     return (
-                      <div key={cycle.id || i} className="bg-white rounded-3xl shadow-lg overflow-hidden">
+                      <div key={cycle.id || i} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                         <button
                           className="w-full flex items-center justify-between px-4 py-3 text-left"
                           onClick={() => setExpandedCycle(isExpanded ? null : i)}
