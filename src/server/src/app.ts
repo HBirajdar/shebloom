@@ -45,6 +45,7 @@ import doshaRoutes from './routes/dosha.routes';
 import weatherRoutes from './routes/weather.routes';
 import financeRoutes from './routes/finance.routes';
 import programRoutes from './routes/program.routes';
+import sellerRoutes from './routes/seller.routes';
 
 const app = express();
 
@@ -228,6 +229,7 @@ app.use('/api/v1/dosha', doshaRoutes);
 app.use('/api/v1/weather', weatherRoutes);
 app.use('/api/v1/finance', financeRoutes);
 app.use('/api/v1/programs', programRoutes);
+app.use('/api/v1/sellers', sellerRoutes);
 if (process.env.NODE_ENV !== 'production') {
   app.use('/api/v1/debug', debugRoutes);
 }

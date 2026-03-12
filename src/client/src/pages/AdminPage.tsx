@@ -163,7 +163,7 @@ const FormCheckbox = ({ label, checked, onChange }: { label: string; checked: bo
 );
 type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'NO_SHOW' | 'CANCELLED';
 
-type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness' | 'programs' | 'add_program' | 'edit_program' | 'program_content';
+type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness' | 'programs' | 'add_program' | 'edit_program' | 'program_content' | 'sellers' | 'seller_detail' | 'seller_payouts';
 
 // ─── Finance Admin Tab ──────────────────────────────────
 // Platform config, coupons, revenue analytics — like Practo/Zomato/Amazon admin
@@ -1135,6 +1135,16 @@ export default function AdminPage() {
   const [cfIsFree, setCfIsFree] = useState(false);
   const [cfSaving, setCfSaving] = useState(false);
 
+  // Sellers state
+  const [sellers, setSellers] = useState<any[]>([]);
+  const [sellersLoading, setSellersLoading] = useState(false);
+  const [sellerStatusFilter, setSellerStatusFilter] = useState('');
+  const [sellerSearch, setSellerSearch] = useState('');
+  const [sellerDetail, setSellerDetail] = useState<any>(null);
+  const [sellerEarnings, setSellerEarnings] = useState<any>(null);
+  const [sellerPayouts, setSellerPayouts] = useState<any[]>([]);
+  const [sellerAnalytics, setSellerAnalytics] = useState<any>(null);
+
   // Search states for all tabs (client-side filtering)
   const [doctorSearch, setDoctorSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
@@ -1468,6 +1478,72 @@ export default function AdminPage() {
     finally { setCfSaving(false); }
   };
 
+  // ─── Seller functions ─────────────────────────────
+  const fetchSellers = async () => {
+    if (!ensureToken()) return;
+    setSellersLoading(true);
+    try {
+      const params: any = {};
+      if (sellerStatusFilter) params.status = sellerStatusFilter;
+      if (sellerSearch) params.search = sellerSearch;
+      const res = await apiService.getSellers(params);
+      setSellers(res.data || []);
+    } catch { toast.error('Failed to load sellers'); }
+    finally { setSellersLoading(false); }
+  };
+  const fetchSellerDetail = async (id: string) => {
+    try {
+      const [detailRes, earningsRes] = await Promise.all([
+        apiService.getSellerDetail(id),
+        apiService.getSellerEarnings(id),
+      ]);
+      setSellerDetail(detailRes.data);
+      setSellerEarnings(earningsRes.data);
+    } catch { toast.error('Failed to load seller details'); }
+  };
+  const fetchSellerPayouts = async () => {
+    try {
+      const res = await apiService.getAllSellerPayouts({});
+      setSellerPayouts(res.data || []);
+    } catch { toast.error('Failed to load payouts'); }
+  };
+  const fetchSellerAnalytics = async () => {
+    try {
+      const res = await apiService.getSellerAnalytics();
+      setSellerAnalytics(res.data);
+    } catch { toast.error('Failed to load analytics'); }
+  };
+  const handleUpdateSellerStatus = async (id: string, status: string, reason?: string) => {
+    try {
+      await apiService.updateSellerStatus(id, { status, reason });
+      toast.success(`Seller ${status.toLowerCase()}`);
+      fetchSellers();
+      if (sellerDetail?.id === id) fetchSellerDetail(id);
+    } catch (e: any) { toast.error(e?.response?.data?.error || 'Update failed'); }
+  };
+  const handleGenerateSellerPayout = async (sellerId: string) => {
+    try {
+      const res = await apiService.generateSellerPayout(sellerId);
+      toast.success(res.data?.message || 'Payout generated');
+      fetchSellerPayouts();
+      fetchSellerDetail(sellerId);
+    } catch (e: any) { toast.error(e?.response?.data?.error || 'Payout generation failed'); }
+  };
+  const handleExportCsv = async (type: 'transactions' | 'payouts' | 'sellers') => {
+    try {
+      let res;
+      if (type === 'transactions') res = await apiService.exportSellerTransactionsCsv({});
+      else if (type === 'payouts') res = await apiService.exportSellerPayoutsCsv();
+      else res = await apiService.exportSellersCsv();
+      const blob = new Blob([res.data], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `${type}-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click(); window.URL.revokeObjectURL(url);
+      toast.success(`${type} CSV downloaded`);
+    } catch { toast.error('Export failed'); }
+  };
+
   // Load data when tab changes
   useEffect(() => {
     if (!isUnlocked) return;
@@ -1483,6 +1559,8 @@ export default function AdminPage() {
     if (tab === 'payouts') { fetchPayoutSummary(); fetchPayoutList(); }
     if (tab === 'wellness') fetchWellness();
     if (tab === 'programs') fetchPrograms();
+    if (tab === 'sellers') { fetchSellers(); fetchSellerAnalytics(); }
+    if (tab === 'seller_payouts') fetchSellerPayouts();
   }, [tab, isUnlocked]);
 
   // ─── Auth ───────────────────────────────────────────
@@ -1906,6 +1984,7 @@ export default function AdminPage() {
     { id: 'programs', icon: '🎓', label: 'Programs' },
     { id: 'finance', icon: '🏦', label: 'Finance' },
     { id: 'audit_log', icon: '\u{1F4CB}', label: 'Audit Log' },
+    { id: 'sellers', icon: '🏪', label: 'Sellers' },
   ];
 
   const roleBadge = (role: string) => {
@@ -3717,6 +3796,378 @@ export default function AdminPage() {
 
           {/* ════════ FINANCE ════════ */}
           {tab === 'finance' && (<FinanceTab />)}
+
+          {/* ════════ SELLERS / VENDORS ════════ */}
+          {tab === 'sellers' && (<>
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-extrabold text-gray-900">🏪 Seller Management</h3>
+              <div className="flex gap-2">
+                <button onClick={() => { fetchSellerPayouts(); setTab('seller_payouts'); }}
+                  className="px-3 py-1.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full active:scale-95">💰 Payouts</button>
+                <button onClick={() => handleExportCsv('sellers')}
+                  className="px-3 py-1.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full active:scale-95">📤 CSV</button>
+              </div>
+            </div>
+
+            {/* Analytics overview cards */}
+            {sellerAnalytics && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
+                  <p className="text-2xl font-extrabold text-purple-600">{sellerAnalytics.sellers?.total || 0}</p>
+                  <p className="text-[9px] text-gray-400">Total Sellers</p>
+                  <div className="flex justify-center gap-2 mt-1">
+                    <span className="text-[8px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-full">{sellerAnalytics.sellers?.approved || 0} active</span>
+                    <span className="text-[8px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full">{sellerAnalytics.sellers?.pending || 0} pending</span>
+                  </div>
+                </div>
+                <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
+                  <p className="text-2xl font-extrabold text-emerald-600">₹{((sellerAnalytics.revenue?.allTime?.grossSales || 0) / 1000).toFixed(1)}K</p>
+                  <p className="text-[9px] text-gray-400">Seller Sales (All Time)</p>
+                  <p className="text-[8px] text-purple-600 mt-1">Platform: ₹{((sellerAnalytics.revenue?.allTime?.platformCommission || 0) / 1000).toFixed(1)}K</p>
+                </div>
+                <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
+                  <p className="text-2xl font-extrabold text-blue-600">₹{((sellerAnalytics.revenue?.thisMonth?.grossSales || 0) / 1000).toFixed(1)}K</p>
+                  <p className="text-[9px] text-gray-400">This Month Sales</p>
+                  <p className="text-[8px] text-gray-400">{sellerAnalytics.revenue?.thisMonth?.totalOrders || 0} orders</p>
+                </div>
+                <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
+                  <p className="text-2xl font-extrabold text-pink-600">{sellerAnalytics.revenue?.allTime?.totalOrders || 0}</p>
+                  <p className="text-[9px] text-gray-400">Total Seller Orders</p>
+                </div>
+              </div>
+            )}
+
+            {/* Top sellers */}
+            {sellerAnalytics?.topSellers?.length > 0 && (
+              <div className="bg-white rounded-2xl p-4 shadow-sm">
+                <h4 className="text-xs font-bold text-gray-900 mb-3">🏆 Top Sellers</h4>
+                {sellerAnalytics.topSellers.slice(0, 5).map((ts: any, i: number) => (
+                  <div key={ts.sellerId} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
+                    <span className="text-sm font-extrabold text-gray-300 w-5">#{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-gray-800 truncate">{ts.businessName}</p>
+                      <p className="text-[9px] text-gray-400">{ts.orders} orders • {ts.units} units</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-bold text-emerald-600">₹{ts.grossSales.toLocaleString()}</p>
+                      <p className="text-[8px] text-gray-400">commission ₹{ts.commission.toLocaleString()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Top products */}
+            {sellerAnalytics?.topProducts?.length > 0 && (
+              <div className="bg-white rounded-2xl p-4 shadow-sm">
+                <h4 className="text-xs font-bold text-gray-900 mb-3">📦 Highest Selling Products</h4>
+                {sellerAnalytics.topProducts.slice(0, 5).map((tp: any, i: number) => (
+                  <div key={tp.productId} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
+                    <span className="text-sm font-extrabold text-gray-300 w-5">#{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-gray-800 truncate">{tp.productName}</p>
+                      <p className="text-[9px] text-gray-400">{tp.unitsSold} units sold</p>
+                    </div>
+                    <p className="text-xs font-bold text-emerald-600">₹{tp.grossSales.toLocaleString()}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Area-wise sales */}
+            {sellerAnalytics?.salesByState?.length > 0 && (
+              <div className="bg-white rounded-2xl p-4 shadow-sm">
+                <h4 className="text-xs font-bold text-gray-900 mb-3">📍 Sales by Region</h4>
+                {sellerAnalytics.salesByState.slice(0, 10).map((st: any) => (
+                  <div key={st.state} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-gray-700">{st.state}</p>
+                      <p className="text-[9px] text-gray-400">{st.orders} orders</p>
+                    </div>
+                    <p className="text-xs font-bold text-blue-600">₹{st.revenue.toLocaleString()}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Status filter + search */}
+            <div className="flex gap-2 flex-wrap">
+              {[{ k: '', l: 'All' }, { k: 'PENDING', l: '⏳ Pending' }, { k: 'APPROVED', l: '✅ Active' }, { k: 'SUSPENDED', l: '🚫 Suspended' }, { k: 'REJECTED', l: '❌ Rejected' }].map(f => (
+                <button key={f.k} onClick={() => { setSellerStatusFilter(f.k); setTimeout(fetchSellers, 0); }}
+                  className={'px-3 py-1.5 rounded-full text-[10px] font-bold transition-all ' + (sellerStatusFilter === f.k ? 'bg-purple-500 text-white' : 'bg-gray-100 text-gray-500')}>
+                  {f.l}
+                </button>
+              ))}
+            </div>
+            <div className="relative">
+              <input type="text" placeholder="Search sellers..." value={sellerSearch}
+                onChange={e => setSellerSearch(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && fetchSellers()}
+                className="w-full bg-white rounded-xl px-4 py-2.5 pl-9 text-xs border border-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-200" />
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 text-sm">🔍</span>
+            </div>
+
+            {/* Sellers list */}
+            {sellersLoading ? (
+              <div className="flex justify-center py-16"><div className="w-8 h-8 border-3 border-purple-200 border-t-purple-600 rounded-full animate-spin" /></div>
+            ) : sellers.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-2xl">
+                <span className="text-3xl block mb-2">🏪</span>
+                <p className="text-xs font-bold text-gray-500">No sellers found</p>
+              </div>
+            ) : sellers.map(sl => {
+              const statusColors: Record<string, string> = {
+                PENDING: 'bg-amber-100 text-amber-700',
+                APPROVED: 'bg-emerald-100 text-emerald-700',
+                SUSPENDED: 'bg-red-100 text-red-700',
+                REJECTED: 'bg-gray-100 text-gray-500',
+                DEACTIVATED: 'bg-gray-100 text-gray-400',
+              };
+              return (
+                <div key={sl.id} className="bg-white rounded-2xl p-4 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center text-lg flex-shrink-0">🏪</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-xs font-extrabold text-gray-800 truncate">{sl.businessName}</h4>
+                        <span className={`text-[7px] font-bold px-1.5 py-0.5 rounded-full ${statusColors[sl.status] || ''}`}>{sl.status}</span>
+                      </div>
+                      <p className="text-[9px] text-gray-400">{sl.user?.fullName} • {sl.contactEmail}</p>
+                      <p className="text-[9px] text-gray-400">{sl.city || ''}{sl.state ? `, ${sl.state}` : ''} • {sl._count?.products || 0} products • {sl._count?.transactions || 0} sales</p>
+                      <div className="flex gap-1.5 mt-1">
+                        <span className="text-[8px] bg-gray-50 text-gray-500 px-1.5 py-0.5 rounded">{sl.businessType}</span>
+                        <span className="text-[8px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{sl.commissionRate}% comm</span>
+                        {sl.gstin && <span className="text-[8px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded">GST</span>}
+                        {sl.isVerified && <span className="text-[8px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded">✓ KYC</span>}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Action buttons */}
+                  <div className="flex gap-2 mt-3 flex-wrap">
+                    <button onClick={() => { fetchSellerDetail(sl.id); setTab('seller_detail'); }}
+                      className="px-3 py-1.5 bg-blue-50 text-blue-600 text-[9px] font-bold rounded-lg active:scale-95">View Details</button>
+                    {sl.status === 'PENDING' && (
+                      <button onClick={() => handleUpdateSellerStatus(sl.id, 'APPROVED')}
+                        className="px-3 py-1.5 bg-emerald-50 text-emerald-600 text-[9px] font-bold rounded-lg active:scale-95">✅ Approve</button>
+                    )}
+                    {sl.status === 'PENDING' && (
+                      <button onClick={() => { const r = prompt('Rejection reason:'); if (r) handleUpdateSellerStatus(sl.id, 'REJECTED', r); }}
+                        className="px-3 py-1.5 bg-red-50 text-red-600 text-[9px] font-bold rounded-lg active:scale-95">❌ Reject</button>
+                    )}
+                    {sl.status === 'APPROVED' && (
+                      <button onClick={() => { const r = prompt('Suspension reason:'); if (r) handleUpdateSellerStatus(sl.id, 'SUSPENDED', r); }}
+                        className="px-3 py-1.5 bg-orange-50 text-orange-600 text-[9px] font-bold rounded-lg active:scale-95">🚫 Suspend</button>
+                    )}
+                    {sl.status === 'SUSPENDED' && (
+                      <button onClick={() => handleUpdateSellerStatus(sl.id, 'APPROVED')}
+                        className="px-3 py-1.5 bg-emerald-50 text-emerald-600 text-[9px] font-bold rounded-lg active:scale-95">🔓 Reactivate</button>
+                    )}
+                    <button onClick={() => handleGenerateSellerPayout(sl.id)}
+                      className="px-3 py-1.5 bg-purple-50 text-purple-600 text-[9px] font-bold rounded-lg active:scale-95">💰 Generate Payout</button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Export buttons */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+              <h4 className="text-xs font-bold text-gray-700">📤 Export Reports (CSV for Accountant)</h4>
+              <div className="grid grid-cols-3 gap-2">
+                <button onClick={() => handleExportCsv('sellers')}
+                  className="py-2.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-xl active:scale-95">Sellers</button>
+                <button onClick={() => handleExportCsv('transactions')}
+                  className="py-2.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-xl active:scale-95">Transactions</button>
+                <button onClick={() => handleExportCsv('payouts')}
+                  className="py-2.5 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-xl active:scale-95">Payouts</button>
+              </div>
+            </div>
+          </>)}
+
+          {/* ════════ SELLER DETAIL ════════ */}
+          {tab === 'seller_detail' && sellerDetail && (<>
+            <div className="flex items-center gap-3">
+              <button onClick={() => setTab('sellers')} className="text-gray-400 text-lg active:scale-90">←</button>
+              <h3 className="text-base font-extrabold text-gray-900">🏪 {sellerDetail.businessName}</h3>
+            </div>
+
+            {/* Status + KYC */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <span className={`text-[9px] font-bold px-2 py-1 rounded-full ${
+                    sellerDetail.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
+                    sellerDetail.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
+                    'bg-red-100 text-red-700'
+                  }`}>{sellerDetail.status}</span>
+                  {sellerDetail.isVerified && <span className="ml-2 text-[9px] font-bold bg-green-100 text-green-600 px-2 py-1 rounded-full">✓ KYC Verified</span>}
+                </div>
+                <p className="text-[9px] text-gray-400">Joined {new Date(sellerDetail.createdAt).toLocaleDateString()}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div><p className="text-[9px] text-gray-400">Owner</p><p className="font-bold">{sellerDetail.user?.fullName}</p></div>
+                <div><p className="text-[9px] text-gray-400">Type</p><p className="font-bold">{sellerDetail.businessType}</p></div>
+                <div><p className="text-[9px] text-gray-400">Email</p><p className="font-bold">{sellerDetail.contactEmail}</p></div>
+                <div><p className="text-[9px] text-gray-400">Phone</p><p className="font-bold">{sellerDetail.contactPhone}</p></div>
+                <div><p className="text-[9px] text-gray-400">Location</p><p className="font-bold">{sellerDetail.city || '-'}, {sellerDetail.state || '-'}</p></div>
+                <div><p className="text-[9px] text-gray-400">GSTIN</p><p className="font-bold">{sellerDetail.gstin || 'N/A'}</p></div>
+                <div><p className="text-[9px] text-gray-400">PAN</p><p className="font-bold">{sellerDetail.panNumber || 'N/A'}</p></div>
+                <div><p className="text-[9px] text-gray-400">FSSAI</p><p className="font-bold">{sellerDetail.fssaiLicense || 'N/A'}</p></div>
+              </div>
+            </div>
+
+            {/* Commission control */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <h4 className="text-xs font-bold text-gray-700 mb-2">💰 Commission & TDS</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[9px] text-gray-400">Commission Rate (%)</label>
+                  <input type="number" defaultValue={sellerDetail.commissionRate} id={`comm-${sellerDetail.id}`}
+                    className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none" />
+                </div>
+                <div>
+                  <label className="text-[9px] text-gray-400">TDS Rate (%)</label>
+                  <input type="number" defaultValue={sellerDetail.tdsRate} id={`tds-${sellerDetail.id}`}
+                    className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none" />
+                </div>
+              </div>
+              <button onClick={async () => {
+                const commEl = document.getElementById(`comm-${sellerDetail.id}`) as HTMLInputElement;
+                const tdsEl = document.getElementById(`tds-${sellerDetail.id}`) as HTMLInputElement;
+                try {
+                  await apiService.updateSellerCommission(sellerDetail.id, {
+                    commissionRate: parseFloat(commEl.value),
+                    tdsRate: parseFloat(tdsEl.value),
+                  });
+                  toast.success('Commission updated');
+                  fetchSellerDetail(sellerDetail.id);
+                } catch { toast.error('Update failed'); }
+              }} className="mt-3 px-4 py-2 bg-purple-600 text-white text-[10px] font-bold rounded-xl active:scale-95">Save Rates</button>
+            </div>
+
+            {/* Bank details */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <h4 className="text-xs font-bold text-gray-700 mb-2">🏦 Bank Details</h4>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div><p className="text-[9px] text-gray-400">Account Name</p><p className="font-bold">{sellerDetail.bankAccountName || 'N/A'}</p></div>
+                <div><p className="text-[9px] text-gray-400">Account No.</p><p className="font-bold">{sellerDetail.bankAccountNumber || 'N/A'}</p></div>
+                <div><p className="text-[9px] text-gray-400">IFSC</p><p className="font-bold">{sellerDetail.bankIfsc || 'N/A'}</p></div>
+                <div><p className="text-[9px] text-gray-400">Bank</p><p className="font-bold">{sellerDetail.bankName || 'N/A'}</p></div>
+                <div><p className="text-[9px] text-gray-400">UPI</p><p className="font-bold">{sellerDetail.upiId || 'N/A'}</p></div>
+              </div>
+            </div>
+
+            {/* Earnings */}
+            {sellerEarnings && (
+              <div className="bg-white rounded-2xl p-4 shadow-sm">
+                <h4 className="text-xs font-bold text-gray-700 mb-3">📊 Earnings Breakdown</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-emerald-50 rounded-xl p-3 text-center">
+                    <p className="text-lg font-extrabold text-emerald-600">₹{(sellerEarnings.allTime?.grossSales || 0).toLocaleString()}</p>
+                    <p className="text-[9px] text-gray-500">Gross Sales (All Time)</p>
+                  </div>
+                  <div className="bg-purple-50 rounded-xl p-3 text-center">
+                    <p className="text-lg font-extrabold text-purple-600">₹{(sellerEarnings.allTime?.commission || 0).toLocaleString()}</p>
+                    <p className="text-[9px] text-gray-500">Platform Commission</p>
+                  </div>
+                  <div className="bg-blue-50 rounded-xl p-3 text-center">
+                    <p className="text-lg font-extrabold text-blue-600">₹{(sellerEarnings.allTime?.tds || 0).toLocaleString()}</p>
+                    <p className="text-[9px] text-gray-500">TDS Deducted</p>
+                  </div>
+                  <div className="bg-amber-50 rounded-xl p-3 text-center">
+                    <p className="text-lg font-extrabold text-amber-600">₹{(sellerEarnings.allTime?.netEarnings || 0).toLocaleString()}</p>
+                    <p className="text-[9px] text-gray-500">Net Payable</p>
+                  </div>
+                </div>
+                <div className="mt-3 bg-gray-50 rounded-xl p-3">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">Unsettled amount:</span>
+                    <span className="font-bold text-red-600">₹{(sellerEarnings.unsettled?.amount || 0).toLocaleString()} ({sellerEarnings.unsettled?.count || 0} txns)</span>
+                  </div>
+                  <div className="flex justify-between text-xs mt-1">
+                    <span className="text-gray-500">This month:</span>
+                    <span className="font-bold">₹{(sellerEarnings.thisMonth?.grossSales || 0).toLocaleString()} ({sellerEarnings.thisMonth?.totalOrders || 0} orders)</span>
+                  </div>
+                </div>
+                <button onClick={() => handleGenerateSellerPayout(sellerDetail.id)}
+                  className="w-full mt-3 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold rounded-xl active:scale-95">
+                  💰 Generate Payout (₹{(sellerEarnings.unsettled?.amount || 0).toLocaleString()})
+                </button>
+              </div>
+            )}
+
+            {/* Products & Stats */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <h4 className="text-xs font-bold text-gray-700 mb-2">📦 Stats</h4>
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div><p className="text-lg font-extrabold text-gray-800">{sellerDetail._count?.products || 0}</p><p className="text-[9px] text-gray-400">Products</p></div>
+                <div><p className="text-lg font-extrabold text-gray-800">{sellerDetail._count?.transactions || 0}</p><p className="text-[9px] text-gray-400">Sales</p></div>
+                <div><p className="text-lg font-extrabold text-gray-800">{sellerDetail.rating || 5.0}</p><p className="text-[9px] text-gray-400">Rating</p></div>
+              </div>
+            </div>
+          </>)}
+
+          {/* ════════ SELLER PAYOUTS ════════ */}
+          {tab === 'seller_payouts' && (<>
+            <div className="flex items-center gap-3">
+              <button onClick={() => setTab('sellers')} className="text-gray-400 text-lg active:scale-90">←</button>
+              <h3 className="text-base font-extrabold text-gray-900">💰 Seller Payouts</h3>
+              <button onClick={() => handleExportCsv('payouts')}
+                className="ml-auto px-3 py-1.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full active:scale-95">📤 Export CSV</button>
+            </div>
+
+            {sellerPayouts.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-2xl">
+                <span className="text-3xl block mb-2">💰</span>
+                <p className="text-xs font-bold text-gray-500">No payouts yet</p>
+              </div>
+            ) : sellerPayouts.map(p => {
+              const statusColors: Record<string, string> = {
+                PENDING: 'bg-amber-100 text-amber-700', PROCESSING: 'bg-blue-100 text-blue-700',
+                PAID: 'bg-emerald-100 text-emerald-700', FAILED: 'bg-red-100 text-red-700',
+                ON_HOLD: 'bg-gray-100 text-gray-600',
+              };
+              return (
+                <div key={p.id} className="bg-white rounded-2xl p-4 shadow-sm">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <p className="text-xs font-extrabold text-gray-800">{p.seller?.businessName || 'Unknown'}</p>
+                      <p className="text-[9px] text-gray-400">{new Date(p.periodStart).toLocaleDateString()} - {new Date(p.periodEnd).toLocaleDateString()}</p>
+                    </div>
+                    <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full ${statusColors[p.status] || ''}`}>{p.status}</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 text-center text-[10px] mb-3">
+                    <div><p className="font-bold text-gray-800">₹{p.totalSales?.toLocaleString()}</p><p className="text-gray-400">Sales</p></div>
+                    <div><p className="font-bold text-purple-600">₹{p.platformFee?.toLocaleString()}</p><p className="text-gray-400">Comm.</p></div>
+                    <div><p className="font-bold text-blue-600">₹{p.tdsDeducted?.toLocaleString()}</p><p className="text-gray-400">TDS</p></div>
+                    <div><p className="font-bold text-emerald-600">₹{p.netPayout?.toLocaleString()}</p><p className="text-gray-400">Net Pay</p></div>
+                  </div>
+                  {p.status === 'PENDING' && (
+                    <div className="flex gap-2">
+                      <button onClick={async () => {
+                        const txnId = prompt('Enter UTR / Transaction ID:');
+                        if (!txnId) return;
+                        const method = prompt('Payment method (UPI/NEFT/IMPS):') || 'UPI';
+                        try {
+                          await apiService.updateSellerPayout(p.id, { status: 'PAID', transactionId: txnId, paymentMethod: method });
+                          toast.success('Marked as paid');
+                          fetchSellerPayouts();
+                        } catch { toast.error('Update failed'); }
+                      }} className="flex-1 py-2 bg-emerald-50 text-emerald-600 text-[10px] font-bold rounded-lg active:scale-95">✅ Mark Paid</button>
+                      <button onClick={async () => {
+                        try {
+                          await apiService.updateSellerPayout(p.id, { status: 'ON_HOLD', adminNotes: 'On hold for review' });
+                          toast.success('Put on hold');
+                          fetchSellerPayouts();
+                        } catch { toast.error('Update failed'); }
+                      }} className="flex-1 py-2 bg-gray-50 text-gray-600 text-[10px] font-bold rounded-lg active:scale-95">⏸️ Hold</button>
+                    </div>
+                  )}
+                  {p.transactionId && <p className="text-[9px] text-gray-400 mt-2">UTR: {p.transactionId} • {p.paymentMethod}</p>}
+                </div>
+              );
+            })}
+          </>)}
 
           {/* ════════ AUDIT LOG ════════ */}
           {tab === 'audit_log' && (<AuditLogTab />)}

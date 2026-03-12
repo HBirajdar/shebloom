@@ -131,6 +131,7 @@ model User {
   productReviews   ProductReview[]
   wishlistItems    WishlistItem[]
   programEnrollments ProgramEnrollment[]
+  seller             Seller?              @relation("SellerUser")
 
   @@index([role])
   @@map("users")
@@ -779,6 +780,9 @@ model Product {
   shelfLife      String?                   // "6 months", "1 year"
   certifications String[]  @default([])   // ["organic", "cruelty-free", "lab-tested", "GMP"]
   weight         String?                   // "100ml", "200g"
+  // Seller / Vendor
+  sellerId       String?                   // Foreign key to Seller (null = platform-owned)
+  seller         Seller?   @relation(fields: [sellerId], references: [id])
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -789,6 +793,7 @@ model Product {
   @@index([category])
   @@index([isPublished])
   @@index([rating])
+  @@index([sellerId])
   @@map("products")
 }
 
@@ -924,10 +929,12 @@ model OrderItem {
   quantity    Int
   price       Float
   totalPrice  Float
+  sellerId    String? // Seller who owns this product (snapshot at order time)
   order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product     Product @relation(fields: [productId], references: [id])
 
   @@index([orderId])
+  @@index([sellerId])
   @@map("order_items")
 }
 
@@ -1075,6 +1082,7 @@ enum CouponScope {
 
 model ProductPayout {
   id              String        @id @default(cuid())
+  sellerId        String?       // Null = platform-owned products payout
   periodStart     DateTime
   periodEnd       DateTime
   totalSales      Float         // Gross sales in period
@@ -1084,6 +1092,7 @@ model ProductPayout {
   commissionRate  Float         @default(15) // % platform keeps
   gstCollected    Float         @default(0)  // GST collected
   deliveryCharges Float         @default(0)  // Total delivery charges collected
+  tdsDeducted     Float         @default(0)  // TDS deducted (1% above 5L annually)
   status          PayoutStatus  @default(PENDING)
   paymentMethod   String?
   transactionId   String?
@@ -1092,6 +1101,9 @@ model ProductPayout {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
+  seller          Seller?       @relation(fields: [sellerId], references: [id])
+
+  @@index([sellerId])
   @@index([status])
   @@index([createdAt])
   @@map("product_payouts")
@@ -1266,4 +1278,133 @@ model ProgramEnrollment {
   @@index([programId])
   @@index([status])
   @@map("program_enrollments")
+}
+
+// ═══════════════════════════════════════════════════════
+// ─── SELLER / VENDOR MARKETPLACE ─────────────────────
+// ═══════════════════════════════════════════════════════
+// Amazon/Flipkart-style seller system: sellers list products,
+// platform collects payment, deducts commission + TDS, settles to seller.
+
+model Seller {
+  id                String       @id @default(cuid())
+  userId            String       @unique
+  user              User         @relation("SellerUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Business info
+  businessName      String                  // "Shruthi Ayurveda Labs"
+  businessType      String       @default("INDIVIDUAL") // INDIVIDUAL, COMPANY, PARTNERSHIP, LLP
+  gstin             String?                 // GST Identification Number
+  panNumber         String?                 // PAN (for TDS)
+  fssaiLicense      String?                 // FSSAI for food/ayurvedic products
+  drugLicense        String?                // Drug license for ayurvedic medicines
+  businessAddress   String?
+  city              String?
+  state             String?
+  pincode           String?
+  logoUrl           String?
+
+  // Contact
+  contactEmail      String
+  contactPhone      String
+  whatsapp          String?
+
+  // Bank details (for payout settlement)
+  bankAccountName   String?
+  bankAccountNumber String?
+  bankIfsc          String?
+  bankName          String?
+  upiId             String?                 // UPI for quick payouts
+
+  // Commission & terms
+  commissionRate    Float        @default(15)  // Platform commission % (can override global)
+  tdsRate           Float        @default(1)   // TDS % (1% above 5L annually per Indian tax law)
+
+  // Performance
+  totalSales        Float        @default(0)   // Lifetime gross sales
+  totalOrders       Int          @default(0)   // Lifetime order count
+  totalProducts     Int          @default(0)   // Active product count
+  rating            Float        @default(5.0) // Average seller rating
+  returnRate        Float        @default(0)   // Return/refund % (quality metric)
+
+  // Status
+  status            SellerStatus @default(PENDING)
+  isVerified        Boolean      @default(false)  // KYC verified
+  verifiedAt        DateTime?
+  approvedBy        String?      // Admin who approved
+  rejectionReason   String?
+  suspensionReason  String?
+
+  // Onboarding
+  agreementAccepted Boolean      @default(false)
+  agreementDate     DateTime?
+
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  // Relations
+  products          Product[]
+  transactions      SellerTransaction[]
+  payouts           ProductPayout[]
+
+  @@index([status])
+  @@index([city])
+  @@index([state])
+  @@index([totalSales])
+  @@map("sellers")
+}
+
+enum SellerStatus {
+  PENDING       // Applied, awaiting admin review
+  APPROVED      // Active seller
+  SUSPENDED     // Temporarily suspended
+  REJECTED      // Application rejected
+  DEACTIVATED   // Self-deactivated by seller
+}
+
+// Per-order-item transaction record for seller
+// Every time a seller's product is purchased, one record is created.
+// This is the source of truth for seller earnings calculations.
+model SellerTransaction {
+  id              String   @id @default(cuid())
+  sellerId        String
+  orderId         String
+  orderItemId     String
+  productId       String
+  productName     String
+
+  // Financial
+  quantity        Int
+  salePrice       Float       // Price per unit (what buyer paid)
+  grossAmount     Float       // salePrice × quantity
+  commissionRate  Float       // Platform commission % at time of sale
+  commissionAmount Float      // Platform commission deducted
+  tdsRate         Float       @default(0)  // TDS % applied
+  tdsAmount       Float       @default(0)  // TDS deducted
+  shippingCredit  Float       @default(0)  // Shipping contribution to seller
+  netAmount       Float       // Amount seller will receive (gross - commission - tds + shipping)
+
+  // Context
+  buyerCity       String?     // For area-wise analytics
+  buyerState      String?
+  buyerPincode    String?
+  paymentMethod   String?     // razorpay, COD
+  orderDate       DateTime    @default(now())
+
+  // Settlement
+  payoutId        String?     // Linked to ProductPayout when settled
+  isSettled       Boolean     @default(false)
+  settledAt       DateTime?
+
+  createdAt       DateTime    @default(now())
+
+  seller          Seller      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([sellerId])
+  @@index([orderId])
+  @@index([productId])
+  @@index([isSettled])
+  @@index([orderDate])
+  @@index([buyerState])
+  @@map("seller_transactions")
 }

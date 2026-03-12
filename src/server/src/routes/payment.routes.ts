@@ -164,6 +164,68 @@ async function auditLog(entry: {
   });
 }
 
+// Helper: create seller transaction records for each order item
+async function createSellerTransactions(orderId: string, orderItems: any[], deliveryAddress: any, paymentMethod: string) {
+  try {
+    // Fetch products with seller info
+    const productIds = orderItems.map((i: any) => i.productId);
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, sellerId: true },
+    });
+    const sellerMap = new Map(products.map(p => [p.id, p.sellerId]));
+
+    for (const item of orderItems) {
+      const sellerId = sellerMap.get(item.productId);
+      if (!sellerId) continue; // Platform-owned product, skip
+
+      const seller = await prisma.seller.findUnique({ where: { id: sellerId } });
+      if (!seller || seller.status !== 'APPROVED') continue;
+
+      const grossAmount = item.price * item.quantity;
+      const commissionRate = seller.commissionRate;
+      const commissionAmount = Math.round(grossAmount * commissionRate / 100 * 100) / 100;
+      const tdsRate = seller.tdsRate || 0;
+      const tdsAmount = Math.round(grossAmount * tdsRate / 100 * 100) / 100;
+      const netAmount = Math.round((grossAmount - commissionAmount - tdsAmount) * 100) / 100;
+
+      const addr = deliveryAddress || {};
+      await prisma.sellerTransaction.create({
+        data: {
+          sellerId,
+          orderId,
+          orderItemId: item.id || '',
+          productId: item.productId,
+          productName: item.productName,
+          quantity: item.quantity,
+          salePrice: item.price,
+          grossAmount,
+          commissionRate,
+          commissionAmount,
+          tdsRate,
+          tdsAmount,
+          netAmount,
+          buyerCity: addr.city || null,
+          buyerState: addr.state || null,
+          buyerPincode: addr.pincode || null,
+          paymentMethod,
+        },
+      });
+
+      // Update seller lifetime stats
+      await prisma.seller.update({
+        where: { id: sellerId },
+        data: {
+          totalSales: { increment: grossAmount },
+          totalOrders: { increment: 1 },
+        },
+      }).catch(() => {});
+    }
+  } catch (e: any) {
+    console.error('[SellerTransaction] Failed:', e.message);
+  }
+}
+
 // POST /payments/create-order
 r.post('/create-order', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
@@ -192,7 +254,7 @@ r.post('/create-order', async (q: AuthRequest, s: Response, n: NextFunction) => 
       const price = (product as any).discountPrice ?? (product as any).price;
       const totalPrice = price * item.quantity;
       subtotal += totalPrice;
-      orderItems.push({ productId: product.id, productName: (product as any).name, quantity: item.quantity, price, totalPrice });
+      orderItems.push({ productId: product.id, productName: (product as any).name, quantity: item.quantity, price, totalPrice, sellerId: (product as any).sellerId || null });
     }
 
     // Min order check
@@ -321,6 +383,9 @@ r.post('/verify', async (q: AuthRequest, s: Response, n: NextFunction) => {
         deliveryCharge: order.deliveryCharge, totalAmount: order.totalAmount,
         paymentMethod: 'razorpay', ipAddress: q.ip || undefined,
       });
+
+      // Create seller transactions for marketplace payouts
+      createSellerTransactions(order.id, order.items, order.deliveryAddress, 'razorpay').catch(() => {});
     }
 
     // Send order confirmation email (best-effort)
@@ -368,7 +433,7 @@ r.post('/cod', async (q: AuthRequest, s: Response, n: NextFunction) => {
       const price = (product as any).discountPrice ?? (product as any).price;
       const totalPrice = price * item.quantity;
       subtotal += totalPrice;
-      orderItems.push({ productId: product.id, productName: (product as any).name, quantity: item.quantity, price, totalPrice });
+      orderItems.push({ productId: product.id, productName: (product as any).name, quantity: item.quantity, price, totalPrice, sellerId: (product as any).sellerId || null });
     }
 
     if (config.minOrderAmount > 0 && subtotal < config.minOrderAmount) {
@@ -429,6 +494,9 @@ r.post('/cod', async (q: AuthRequest, s: Response, n: NextFunction) => {
       paymentMethod: 'COD', ipAddress: q.ip || undefined,
       userAgent: q.headers['user-agent'] || undefined,
     });
+
+    // Create seller transactions for marketplace payouts
+    createSellerTransactions(order.id, order.items, deliveryAddress, 'COD').catch(() => {});
 
     // Send order confirmation email
     if (order.user.email) {

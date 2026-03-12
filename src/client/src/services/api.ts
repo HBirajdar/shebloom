@@ -366,6 +366,32 @@ export const adminAPI = {
   updateProgramContent: (contentId: string, d: any) => api.put(`/admin/programs/contents/${contentId}`, d),
   deleteProgramContent: (contentId: string) => api.delete(`/admin/programs/contents/${contentId}`),
   getProgramEnrollments: (id: string) => api.get(`/admin/programs/${id}/enrollments`),
+  // Sellers
+  getSellers: (params?: { status?: string; search?: string }) => api.get('/sellers/admin/list', { params }),
+  getSellerDetail: (id: string) => api.get(`/sellers/admin/${id}`),
+  updateSellerStatus: (id: string, d: { status: string; reason?: string }) => api.patch(`/sellers/admin/${id}/status`, d),
+  updateSellerCommission: (id: string, d: { commissionRate?: number; tdsRate?: number }) => api.patch(`/sellers/admin/${id}/commission`, d),
+  getSellerEarnings: (id: string) => api.get(`/sellers/admin/${id}/earnings`),
+  generateSellerPayout: (id: string) => api.post(`/sellers/admin/${id}/generate-payout`),
+  getAllSellerPayouts: (params?: { status?: string; sellerId?: string }) => api.get('/sellers/admin/payouts/all', { params }),
+  updateSellerPayout: (payoutId: string, d: any) => api.patch(`/sellers/admin/payouts/${payoutId}`, d),
+  getSellerAnalytics: () => api.get('/sellers/admin/analytics/overview'),
+  exportSellerTransactionsCsv: (params?: any) => api.get('/sellers/admin/export/transactions', { params, responseType: 'blob' }),
+  exportSellerPayoutsCsv: () => api.get('/sellers/admin/export/payouts', { responseType: 'blob' }),
+  exportSellersCsv: () => api.get('/sellers/admin/export/sellers', { responseType: 'blob' }),
+};
+
+// ─── Seller (self-service) ────────────────────────────
+export const sellerAPI = {
+  register: (d: any) => api.post('/sellers/register', d),
+  getProfile: () => api.get('/sellers/me'),
+  updateProfile: (d: any) => api.put('/sellers/me', d),
+  getProducts: () => api.get('/sellers/me/products'),
+  getDashboard: () => api.get('/sellers/me/dashboard'),
+  getTransactions: (params?: any) => api.get('/sellers/me/transactions', { params }),
+  getPayouts: () => api.get('/sellers/me/payouts'),
+  getTopProducts: () => api.get('/sellers/me/top-products'),
+  getAreaSales: () => api.get('/sellers/me/area-sales'),
 };
 
 // ─── Finance (Coupons, Config, Analytics) ────────────
