@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import prisma from '../config/database';
 import { cacheSet, cacheGet, cacheDel } from '../config/redis';
 import { logger } from '../config/logger';
@@ -76,7 +77,7 @@ export class AuthService {
 
   async sendOtp(phone: string): Promise<{ smsSent: boolean; debugOtp?: string }> {
     const normalized = normalizePhone(phone);
-    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    const otp = crypto.randomInt(100000, 999999).toString();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
     // Store in all three layers: Redis → in-memory → DB
     await cacheSet(`otp:${normalized}`, otp, 300);

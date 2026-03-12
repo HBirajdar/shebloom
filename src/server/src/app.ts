@@ -3,6 +3,7 @@
 // ══════════════════════════════════════════════════════
 
 import express from 'express';
+import compression from 'compression';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -14,9 +15,7 @@ import { notFoundHandler } from './middleware/notFoundHandler';
 import { requestLogger } from './middleware/requestLogger';
 import path from 'path';
 import fs from 'fs';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from './config/database';
 
 // Route imports
 import authRoutes from './routes/auth.routes';
@@ -87,6 +86,9 @@ app.use(cors(corsOptions));
 
 // Handle preflight explicitly (use same corsOptions to restrict origins)
 app.options('*', cors(corsOptions));
+
+// ─── Compression ────────────────────────────────────
+app.use(compression());
 
 // ─── Body Parsing ───────────────────────────────────
 app.use(express.json({ limit: '10mb' }));

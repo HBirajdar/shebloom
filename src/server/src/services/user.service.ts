@@ -17,7 +17,17 @@ export class UserService {
     });
   }
   async updateProfile(userId: string, data: any) {
-    return prisma.userProfile.upsert({ where: { userId }, update: data, create: { userId, ...data } });
+    // Allowlist to prevent mass assignment (e.g., doshaVerified, doshaVerifiedBy)
+    const safeFields = [
+      'cycleLength', 'periodLength', 'lastPeriodDate', 'primaryGoal', 'interests',
+      'height', 'weight', 'bloodGroup', 'medicalConditions', 'allergies',
+      'isPregnant', 'pregnancyWeek', 'contraceptiveMethod', 'doshaType',
+      'skinType', 'hairType', 'dietPreference', 'activityLevel',
+    ];
+    const allowed: Record<string, any> = {};
+    for (const k of safeFields) { if (data[k] !== undefined) allowed[k] = data[k]; }
+    if (allowed.lastPeriodDate && typeof allowed.lastPeriodDate === 'string') allowed.lastPeriodDate = new Date(allowed.lastPeriodDate);
+    return prisma.userProfile.upsert({ where: { userId }, update: allowed, create: { userId, ...allowed } });
   }
   async exportData(userId: string) {
     return prisma.user.findUnique({ where: { id: userId }, include: { profile: true, cycles: true, moodLogs: true } });

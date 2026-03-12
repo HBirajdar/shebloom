@@ -1,5 +1,6 @@
 // ═══ routes/user.routes.ts ═══
 import { Router, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { UserService } from '../services/user.service';
 import prisma from '../config/database';
@@ -40,7 +41,7 @@ router.post('/me/mobile/send-otp', async (req: AuthRequest, res: Response) => {
     }
 
     // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = crypto.randomInt(100000, 999999).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     // Delete any existing OTP for this phone, then create fresh
