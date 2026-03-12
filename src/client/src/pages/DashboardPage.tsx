@@ -52,17 +52,17 @@ const CycleHeroRing = ({ day, total, phase, periodLength, luteal }: { day: numbe
   return (
     <svg viewBox="0 0 240 240" className="w-full h-full">
       <defs>
-        <linearGradient id="dg_per" x1="0%" y1="0%" x2="100%"><stop offset="0%" stopColor="#FF6B8A" /><stop offset="100%" stopColor="#FF8FA3" /></linearGradient>
-        <linearGradient id="dg_fol" x1="0%" y1="0%" x2="100%"><stop offset="0%" stopColor="#5EEFC7" /><stop offset="100%" stopColor="#7DFCD8" /></linearGradient>
-        <linearGradient id="dg_fer" x1="0%" y1="0%" x2="100%"><stop offset="0%" stopColor="#FFD166" /><stop offset="100%" stopColor="#FFE08A" /></linearGradient>
-        <linearGradient id="dg_lut" x1="0%" y1="0%" x2="100%"><stop offset="0%" stopColor="#B491FF" /><stop offset="100%" stopColor="#CDB4FF" /></linearGradient>
+        <linearGradient id="dg_per" x1="0%" y1="0%" x2="100%"><stop offset="0%" stopColor="#BE123C" /><stop offset="100%" stopColor="#F43F5E" /></linearGradient>
+        <linearGradient id="dg_fol" x1="0%" y1="0%" x2="100%"><stop offset="0%" stopColor="#059669" /><stop offset="100%" stopColor="#34D399" /></linearGradient>
+        <linearGradient id="dg_fer" x1="0%" y1="0%" x2="100%"><stop offset="0%" stopColor="#6D28D9" /><stop offset="100%" stopColor="#C084FC" /></linearGradient>
+        <linearGradient id="dg_lut" x1="0%" y1="0%" x2="100%"><stop offset="0%" stopColor="#B45309" /><stop offset="100%" stopColor="#FDE68A" /></linearGradient>
         <filter id="dg_glow"><feGaussianBlur stdDeviation="3" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
         <filter id="dg_shadow"><feDropShadow dx="0" dy="1" stdDeviation="2" floodColor="#00000020" /></filter>
       </defs>
       {/* Background track */}
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={sw} />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F1F5F9" strokeWidth={sw} />
       {/* Inner depth ring */}
-      <circle cx={cx} cy={cy} r={r - 12} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth={4} />
+      <circle cx={cx} cy={cy} r={r - 12} fill="none" stroke="#F8FAFC" strokeWidth={4} />
       {/* Phase arcs */}
       <path d={arcPath(1, periodLength)} fill="none" stroke="url(#dg_per)" strokeWidth={sw} strokeLinecap="round" />
       {periodLength + 1 < fS && <path d={arcPath(periodLength + 1, fS - 1)} fill="none" stroke="url(#dg_fol)" strokeWidth={sw} strokeLinecap="round" opacity="0.7" />}
@@ -72,8 +72,8 @@ const CycleHeroRing = ({ day, total, phase, periodLength, luteal }: { day: numbe
       {(() => { const a = ((ov - 0.5) / total) * 360 - 90, rd = (a * Math.PI) / 180, ox = cx + r * Math.cos(rd), oy = cy + r * Math.sin(rd); return <polygon points={`${ox},${oy-6} ${ox+5},${oy} ${ox},${oy+6} ${ox-5},${oy}`} fill="#7C3AED" stroke="white" strokeWidth="1.5" />; })()}
       {/* Day position dot */}
       <g filter="url(#dg_shadow)">
-        <circle cx={cx + r * Math.cos(dR)} cy={cy + r * Math.sin(dR)} r={13} fill="rgba(255,255,255,0.15)" stroke="white" strokeWidth="2.5" />
-        <text x={cx + r * Math.cos(dR)} y={cy + r * Math.sin(dR) + 1} textAnchor="middle" dominantBaseline="central" fill="white" fontSize="9" fontWeight="800">{day}</text>
+        <circle cx={cx + r * Math.cos(dR)} cy={cy + r * Math.sin(dR)} r={13} fill="white" stroke={theme.color} strokeWidth="3" />
+        <text x={cx + r * Math.cos(dR)} y={cy + r * Math.sin(dR) + 1} textAnchor="middle" dominantBaseline="central" fill={theme.color} fontSize="9" fontWeight="800">{day}</text>
       </g>
     </svg>
   );
@@ -308,66 +308,47 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen pb-28 bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
-      <style>{`
-        .dash-hide-scroll::-webkit-scrollbar { display: none }
-        .dash-hide-scroll { scrollbar-width: none; -ms-overflow-style: none; }
-      `}</style>
       {/* ─── Header ─── */}
-      <div className="sticky top-0 z-20 backdrop-blur-2xl border-b border-white/30" style={{ background: 'linear-gradient(135deg, rgba(255,241,242,0.92), rgba(252,231,243,0.88))' }}>
-        <div className="px-5 py-3.5 flex items-center justify-between">
+      <div className="sticky top-0 z-20 backdrop-blur-xl border-b border-rose-100" style={{ backgroundColor: 'rgba(255,241,242,0.85)' }}>
+        <div className="px-5 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-extrabold text-base shadow-lg" style={{ background: theme.gradient }}>
-                {user?.fullName?.charAt(0) || 'S'}
-              </div>
-              <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center" style={{ backgroundColor: theme.color }}>
-                <span className="text-[7px]">{theme.emoji}</span>
-              </div>
+            <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-extrabold text-sm shadow-md" style={{ background: theme.gradient }}>
+              {user?.fullName?.charAt(0) || 'S'}
             </div>
             <div>
-              <p className="text-[10px] text-gray-400 font-semibold tracking-wide">{greeting}</p>
-              <p className="text-base font-extrabold text-gray-900 -mt-0.5">{user?.fullName?.split(' ')[0] || 'User'}</p>
+              <p className="text-[10px] text-gray-400 font-medium">{greeting}</p>
+              <p className="text-sm font-extrabold text-gray-900">{user?.fullName?.split(' ')[0] || 'User'}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowGoalPicker(true)} className="px-3 py-1.5 rounded-xl text-[9px] font-bold border border-white/60 backdrop-blur-sm active:scale-95 transition-transform shadow-sm" style={{ color: theme.color, background: theme.bg + 'cc' }}>
+            <button onClick={() => setShowGoalPicker(true)} className="px-2.5 py-1 rounded-lg text-[9px] font-bold border border-gray-200 active:scale-95 transition-transform" style={{ color: theme.color, backgroundColor: theme.bg }}>
               {curGoal.emoji} {curGoal.short}
             </button>
-            <button onClick={() => nav('/notifications')} className="relative w-10 h-10 rounded-xl bg-white/60 backdrop-blur-sm flex items-center justify-center active:scale-95 transition-transform text-sm shadow-sm border border-white/40">
+            <button onClick={() => nav('/notifications')} className="relative w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center active:scale-95 transition-transform text-sm">
               🔔
-              {notifCount > 0 && <div className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 rounded-full border-2 border-white flex items-center justify-center shadow-sm"><span className="text-[8px] text-white font-extrabold">{notifCount}</span></div>}
+              {notifCount > 0 && <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 rounded-full border-2 border-white flex items-center justify-center"><span className="text-[7px] text-white font-extrabold">{notifCount}</span></div>}
             </button>
           </div>
         </div>
       </div>
 
-      <div className="px-4 pt-4 space-y-3.5">
+      <div className="px-5 pt-4 space-y-4">
 
         {/* ─── Quick Log Strip ─── */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-3 shadow-sm border border-white/60">
-          <div className="flex items-center justify-between mb-2.5">
-            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Quick Log</p>
-            <div className="flex items-center gap-1">
-              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: wellnessScore >= 75 ? '#10B981' : wellnessScore >= 50 ? '#F59E0B' : '#E11D48' }} />
-              <span className="text-[9px] font-bold text-gray-400">{wellnessScore}%</span>
-            </div>
-          </div>
+        <div className="bg-white rounded-3xl p-3 shadow-lg">
+          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Quick Log</p>
           <div className="grid grid-cols-4 gap-2">
             {[
-              { e: '💧', l: 'Water', val: water + '/8', action: () => logWater(Math.min(8, water + 1)), done: water >= 8, color: '#3B82F6' },
-              { e: '😴', l: 'Sleep', val: sleepHours > 0 ? sleepHours + 'h' : 'Log', action: () => setShowSleepPicker(true), done: sleepHours > 0, color: '#8B5CF6' },
-              { e: '🏃', l: 'Exercise', val: exerciseDone ? '✓' : 'Log', action: logExercise, done: exerciseDone, color: '#F59E0B' },
-              { e: '😊', l: 'Mood', val: mood && mood !== 'LOGGED' ? moods.find(m => m.key === mood)?.l || '✓' : mood === 'LOGGED' ? '✓' : 'Log', action: () => setShowMoodSheet(true), done: !!mood, color: '#EC4899' },
+              { e: '💧', l: 'Water', val: water + '/8', action: () => logWater(Math.min(8, water + 1)), done: water >= 8 },
+              { e: '😴', l: 'Sleep', val: sleepHours > 0 ? sleepHours + 'h' : 'Log', action: () => setShowSleepPicker(true), done: sleepHours > 0 },
+              { e: '🏃', l: 'Exercise', val: exerciseDone ? 'Done ✓' : 'Log', action: logExercise, done: exerciseDone },
+              { e: '😊', l: 'Mood', val: mood && mood !== 'LOGGED' ? moods.find(m => m.key === mood)?.l || '✓' : mood === 'LOGGED' ? '✓' : 'Log', action: () => setShowMoodSheet(true), done: !!mood },
             ].map(item => (
               <button key={item.l} onClick={item.action}
-                className="flex flex-col items-center gap-1 py-2.5 rounded-xl active:scale-95 transition-all border"
-                style={{
-                  backgroundColor: item.done ? item.color + '10' : '#F9FAFB',
-                  borderColor: item.done ? item.color + '30' : 'transparent',
-                }}>
+                className={'flex flex-col items-center gap-1 py-2.5 rounded-xl active:scale-95 transition-transform ' + (item.done ? 'bg-emerald-50' : 'bg-gray-50')}>
                 <span className="text-lg">{item.e}</span>
-                <span className="text-[9px] font-extrabold" style={{ color: item.done ? item.color : '#9CA3AF' }}>{item.val}</span>
-                <span className="text-[7px] text-gray-400 font-medium">{item.l}</span>
+                <span className={'text-[8px] font-bold ' + (item.done ? 'text-emerald-600' : 'text-gray-500')}>{item.val}</span>
+                <span className="text-[7px] text-gray-400">{item.l}</span>
               </button>
             ))}
           </div>
@@ -377,49 +358,53 @@ export default function DashboardPage() {
         {dashLoading ? <SkeletonCard /> : !hasRealData && goal !== 'pregnancy' ? <OnboardingCard /> : (
           <>
             {(goal === 'periods' || goal === 'wellness') && (
-              <div className="rounded-3xl overflow-hidden shadow-xl" style={{ background: 'linear-gradient(160deg, #2a1631 0%, #1a1028 50%, #150e22 100%)' }}>
-                <div className="p-5 pb-5">
+              <div className="bg-white rounded-3xl shadow-lg overflow-hidden">
+                {/* Gradient top accent bar */}
+                <div className="h-1.5 w-full" style={{ background: theme.gradient }} />
+
+                <div className="p-5">
                   {/* Phase badge + next period at top */}
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base" style={{ backgroundColor: theme.bg }}>
                         {theme.emoji}
                       </div>
                       <div>
-                        <p className="text-[9px] text-white/40 uppercase tracking-widest font-bold">Current Phase</p>
-                        <p className="text-sm font-extrabold text-white">{theme.name}</p>
+                        <p className="text-[9px] text-gray-400 uppercase tracking-widest font-bold">Current Phase</p>
+                        <p className="text-sm font-extrabold" style={{ color: theme.color }}>{theme.name}</p>
                       </div>
                     </div>
-                    <div className="text-right bg-white/10 rounded-xl px-3 py-1.5">
-                      <p className="text-[8px] text-white/40 uppercase font-bold">Next Period</p>
-                      <p className="text-sm font-extrabold text-rose-300">{daysUntilPeriod}d</p>
+                    <div className="text-right">
+                      <p className="text-[9px] text-gray-400 uppercase tracking-widest font-bold">Next Period</p>
+                      <p className="text-sm font-extrabold text-rose-600">{daysUntilPeriod}d away</p>
                     </div>
                   </div>
 
                   {/* Big centered ring with overlay */}
-                  <div className="relative w-52 h-52 mx-auto mb-3">
+                  <div className="relative w-56 h-56 mx-auto mb-4">
                     <CycleHeroRing day={cycleDay} total={cycleLength} phase={phase} periodLength={periodLength} luteal={lutealPhase} />
+                    {/* Center overlay content */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                      <span className="text-5xl font-black leading-none text-white">{cycleDay}</span>
+                      <span className="text-5xl font-black leading-none" style={{ color: theme.color }}>{cycleDay}</span>
                       <span className="text-xl mt-0.5">{theme.emoji}</span>
-                      <span className="text-[9px] font-bold uppercase tracking-widest mt-0.5 text-white/60">{theme.name} Phase</span>
-                      <span className="text-[8px] text-white/35 mt-1 text-center px-10 leading-tight">{theme.msg}</span>
+                      <span className="text-[9px] font-bold uppercase tracking-widest mt-0.5" style={{ color: theme.color }}>{theme.name}</span>
+                      <span className="text-[8px] text-gray-400 mt-0.5 text-center px-8 leading-tight">{theme.msg}</span>
                     </div>
                   </div>
 
-                  {/* Phase legend */}
-                  <div className="flex gap-2 overflow-x-auto pb-1 dash-hide-scroll">
+                  {/* Horizontal scrollable phase legend */}
+                  <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
                     {[
-                      { c: '#FF6B8A', l: 'Period', days: `Day 1\u2013${periodLength}` },
-                      { c: '#5EEFC7', l: 'Follicular', days: `Day ${periodLength + 1}\u2013${Math.max(1, fertStart - 1)}` },
-                      { c: '#FFD166', l: 'Fertile', days: `Day ${fertStart}\u2013${fertEnd}` },
-                      { c: '#B491FF', l: 'Luteal', days: `Day ${fertEnd + 1}\u2013${cycleLength}` },
+                      { c: '#BE123C', l: 'Period', days: `Day 1\u2013${periodLength}` },
+                      { c: '#059669', l: 'Follicular', days: `Day ${periodLength + 1}\u2013${Math.max(1, fertStart - 1)}` },
+                      { c: '#7C3AED', l: 'Fertile', days: `Day ${fertStart}\u2013${fertEnd}` },
+                      { c: '#D97706', l: 'Luteal', days: `Day ${fertEnd + 1}\u2013${cycleLength}` },
                     ].map(p => (
-                      <div key={p.l} className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}>
+                      <div key={p.l} className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl" style={{ backgroundColor: p.c + '15' }}>
                         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.c }} />
                         <div>
                           <p className="text-[9px] font-bold" style={{ color: p.c }}>{p.l}</p>
-                          <p className="text-[8px] text-white/30">{p.days}</p>
+                          <p className="text-[8px] text-gray-400">{p.days}</p>
                         </div>
                       </div>
                     ))}
@@ -428,7 +413,7 @@ export default function DashboardPage() {
               </div>
             )}
             {goal === 'fertility' && (
-              <div className="rounded-3xl overflow-hidden shadow-xl" style={{ background: isFertile ? 'linear-gradient(160deg, #3b1a5e 0%, #7C3AED 40%, #EC4899 100%)' : 'linear-gradient(160deg, #2a1631 0%, #1a1028 50%, #150e22 100%)' }}>
+              <div className="rounded-3xl shadow-sm overflow-hidden" style={{ background: isFertile ? 'linear-gradient(135deg,#7C3AED,#EC4899)' : theme.gradient }}>
                 <div className="p-5 text-white">
                   <div className="flex items-start justify-between">
                     <div><p className="text-white/60 text-[10px] uppercase tracking-widest font-bold">{isFertile ? 'Fertile Window Open' : theme.name + ' Phase'}</p><p className="text-4xl font-extrabold mt-1">Day {cycleDay}</p></div>
@@ -446,7 +431,7 @@ export default function DashboardPage() {
         )}
 
         {goal === 'pregnancy' && (
-          <div className="rounded-3xl overflow-hidden shadow-xl" style={{ background: 'linear-gradient(160deg, #2a1631 0%, #7C3AED 40%, #EC4899 100%)' }}>
+          <div className="rounded-3xl shadow-sm overflow-hidden" style={{ background: 'linear-gradient(135deg,#7C3AED,#A855F7,#EC4899)' }}>
             <div className="p-5 text-white">
               <div className="flex items-center justify-between">
                 <div><p className="text-white/60 text-[10px] uppercase tracking-widest font-bold">Pregnancy</p><p className="text-5xl font-extrabold mt-1">Week {pregnancyWeek}</p><p className="text-white/70 text-xs mt-1">of 40 · {Math.round(pregnancyWeek / 40 * 100)}% complete</p></div>
@@ -459,18 +444,18 @@ export default function DashboardPage() {
 
         {/* ─── Horizontal Scroll Prediction Cards ─── */}
         {hasRealData && goal !== 'pregnancy' && (
-          <div className="flex gap-2.5 overflow-x-auto pb-1 dash-hide-scroll">
+          <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
             {[
-              { e: '🌸', l: 'Next Period', v: daysUntilPeriod + ' days', sub: 'away', accent: '#FF6B8A' },
-              { e: '⭐', l: 'Ovulation', v: daysToOv > 0 ? daysToOv + ' days' : isOvToday ? 'Today!' : 'Passed', sub: daysToOv > 0 ? 'away' : '', accent: '#B491FF' },
-              { e: '💚', l: 'Fertile Window', v: 'Day ' + fertStart, sub: '– Day ' + fertEnd, accent: '#5EEFC7' },
-              { e: '🌙', l: 'PMS Warning', v: daysToPMS > 0 ? daysToPMS + ' days' : 'Active', sub: daysToPMS > 0 ? 'away' : 'self-care time', accent: '#FFD166' },
+              { e: '🌸', l: 'Next Period', v: daysUntilPeriod + ' days', sub: 'away', g: 'linear-gradient(135deg,#E11D48,#F43F5E)' },
+              { e: '⭐', l: 'Ovulation', v: daysToOv > 0 ? daysToOv + ' days' : isOvToday ? 'Today!' : 'Passed', sub: daysToOv > 0 ? 'away' : '', g: 'linear-gradient(135deg,#7C3AED,#8B5CF6)' },
+              { e: '💚', l: 'Fertile Window', v: 'Day ' + fertStart, sub: '– Day ' + fertEnd, g: 'linear-gradient(135deg,#059669,#10B981)' },
+              { e: '🌙', l: 'PMS Warning', v: daysToPMS > 0 ? daysToPMS + ' days' : 'Active', sub: daysToPMS > 0 ? 'away' : 'self-care time', g: 'linear-gradient(135deg,#D97706,#F59E0B)' },
             ].map(c => (
-              <div key={c.l} className="flex-shrink-0 w-[7.5rem] rounded-2xl p-3 backdrop-blur-sm border border-white/60 shadow-sm" style={{ background: 'linear-gradient(160deg, rgba(255,255,255,0.95), rgba(255,255,255,0.75))' }}>
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg mb-2" style={{ backgroundColor: c.accent + '18' }}>{c.e}</div>
-                <p className="text-[8px] font-bold uppercase tracking-wide text-gray-400">{c.l}</p>
-                <p className="text-[15px] font-extrabold leading-tight text-gray-800">{c.v}</p>
-                {c.sub && <p className="text-[8px] font-semibold" style={{ color: c.accent }}>{c.sub}</p>}
+              <div key={c.l} className="flex-shrink-0 w-28 rounded-2xl p-3 text-white shadow-sm" style={{ background: c.g }}>
+                <span className="text-lg block mb-1.5">{c.e}</span>
+                <p className="text-[8px] text-white/70 font-bold uppercase">{c.l}</p>
+                <p className="text-base font-extrabold leading-tight">{c.v}</p>
+                {c.sub && <p className="text-[8px] text-white/70">{c.sub}</p>}
               </div>
             ))}
           </div>
@@ -478,7 +463,7 @@ export default function DashboardPage() {
 
         {/* ─── Doctor/Admin Quick Access — Role Switcher ─── */}
         {(user?.role === 'DOCTOR' || user?.role === 'ADMIN') && (
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-3 shadow-sm border border-white/60">
+          <div className="bg-white rounded-3xl p-3 shadow-lg border border-gray-100/50">
             <div className="flex items-center gap-2 mb-2 px-1">
               <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.4)]" />
               <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">You're viewing as User</p>
@@ -506,7 +491,7 @@ export default function DashboardPage() {
         )}
 
         {/* ─── Quick Actions Row 1 ─── */}
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-4 gap-2.5">
           {(goal === 'periods' || goal === 'wellness' ? [
             { l: 'Tracker', p: '/tracker', bg: '#FFF1F2', e: '📅', c: '#E11D48' },
             { l: 'Ayurveda', p: '/ayurveda', bg: '#ECFDF5', e: '🌿', c: '#059669' },
@@ -524,14 +509,14 @@ export default function DashboardPage() {
             { l: 'Hospitals', p: '/hospitals', bg: '#FFF1F2', e: '🏥', c: '#E11D48' },
           ]).map(a => (
             <button key={a.l} onClick={() => nav(a.p)} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
-              <div className="w-[3.4rem] h-[3.4rem] rounded-2xl flex items-center justify-center text-2xl border border-white/70 shadow-sm backdrop-blur-sm" style={{ background: `linear-gradient(145deg, ${a.bg}, rgba(255,255,255,0.9))` }}>{a.e}</div>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-sm" style={{ backgroundColor: a.bg }}>{a.e}</div>
               <span className="text-[10px] font-bold" style={{ color: a.c }}>{a.l}</span>
             </button>
           ))}
         </div>
 
         {/* ─── Quick Actions Row 2 ─── */}
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-4 gap-2.5">
           {[
             { l: 'Community', p: '/community', bg: '#FDF2F8', e: '💬', c: '#DB2777' },
             { l: 'Programs', p: '/programs', bg: '#F5F3FF', e: '🎯', c: '#7C3AED' },
@@ -539,7 +524,7 @@ export default function DashboardPage() {
             { l: 'Appointments', p: '/appointments', bg: '#EFF6FF', e: '📋', c: '#2563EB' },
           ].map(a => (
             <button key={a.l} onClick={() => nav(a.p)} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
-              <div className="w-[3.4rem] h-[3.4rem] rounded-2xl flex items-center justify-center text-2xl border border-white/70 shadow-sm backdrop-blur-sm" style={{ background: `linear-gradient(145deg, ${a.bg}, rgba(255,255,255,0.9))` }}>{a.e}</div>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-sm" style={{ backgroundColor: a.bg }}>{a.e}</div>
               <span className="text-[10px] font-bold" style={{ color: a.c }}>{a.l}</span>
             </button>
           ))}
@@ -569,7 +554,7 @@ export default function DashboardPage() {
 
         {/* ─── Your Body Today (API-powered hormones) ─── */}
         {hasRealData && goal !== 'pregnancy' && (
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-white/60">
+          <div className="bg-white rounded-3xl p-4 shadow-lg">
             <h3 className="text-xs font-extrabold text-gray-800 mb-3">🧬 Your Body Today</h3>
             {(() => {
               const h = predictionData?.hormones;
@@ -614,7 +599,7 @@ export default function DashboardPage() {
         )}
 
         {/* ─── Mood Logger ─── */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-white/60">
+        <div className="bg-white rounded-3xl p-4 shadow-lg">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs font-bold text-gray-800">How are you feeling? 💭</h3>
             <button onClick={() => nav('/mood/history')}
@@ -636,7 +621,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ─── Water Tracker ─── */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-white/60">
+        <div className="bg-white rounded-3xl p-4 shadow-lg">
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-xs font-bold text-gray-800">💧 Hydration</h3>
             <div className="flex items-center gap-1.5"><span className="text-xs font-extrabold text-blue-600">{water}</span><span className="text-[10px] text-gray-400">/ 8 glasses</span></div>
@@ -654,7 +639,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ─── Wellness Score ─── */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-white/60">
+        <div className="bg-white rounded-3xl p-4 shadow-lg">
           <h3 className="text-xs font-bold text-gray-800 mb-3">⚡ Today's Wellness Score</h3>
           <div className="flex items-center gap-4">
             <WellnessRing score={wellnessScore} />
@@ -677,9 +662,9 @@ export default function DashboardPage() {
 
         {/* ─── Ayurvedic Daily Insight (personalized) ─── */}
         {ayurvedaData?.dailyTip ? (
-          <div className="rounded-2xl p-4 shadow-sm backdrop-blur-sm border" style={{
-            background: ayurvedaData.dosha === 'Vata' ? 'linear-gradient(145deg, rgba(245,243,255,0.9), rgba(255,255,255,0.85))' : ayurvedaData.dosha === 'Pitta' ? 'linear-gradient(145deg, rgba(255,247,237,0.9), rgba(255,255,255,0.85))' : 'linear-gradient(145deg, rgba(236,253,245,0.9), rgba(255,255,255,0.85))',
-            borderColor: ayurvedaData.dosha === 'Vata' ? 'rgba(221,214,254,0.5)' : ayurvedaData.dosha === 'Pitta' ? 'rgba(254,215,170,0.5)' : 'rgba(167,243,208,0.5)',
+          <div className="rounded-3xl p-4 shadow-lg border" style={{
+            backgroundColor: ayurvedaData.dosha === 'Vata' ? '#F5F3FF' : ayurvedaData.dosha === 'Pitta' ? '#FFF7ED' : '#ECFDF5',
+            borderColor: ayurvedaData.dosha === 'Vata' ? '#DDD6FE' : ayurvedaData.dosha === 'Pitta' ? '#FED7AA' : '#A7F3D0',
           }}>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xl">{ayurvedaData.dailyTip.emoji}</span>
@@ -696,7 +681,7 @@ export default function DashboardPage() {
             </button>
           </div>
         ) : (
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-white/60">
+          <div className="bg-white rounded-3xl p-4 shadow-lg">
             <h3 className="text-xs font-bold text-gray-800 mb-2">💡 Daily Tip</h3>
             <p className="text-[11px] text-gray-600 leading-relaxed">
               {!hasRealData && goal !== 'pregnancy' ? 'Log your first period to get personalized phase-based tips tailored to your body.' :
@@ -708,7 +693,7 @@ export default function DashboardPage() {
 
         {/* ─── Ayurvedic Phase Guidance Quick View ─── */}
         {ayurvedaData?.guidance && hasRealData && goal !== 'pregnancy' && (
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-white/60">
+          <div className="bg-white rounded-3xl p-4 shadow-lg">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-xs font-extrabold text-gray-800">🌿 Ayurvedic Care — {phase} phase</h3>
               <span className="text-[9px] px-2 py-0.5 rounded-full font-bold" style={{
@@ -768,7 +753,7 @@ export default function DashboardPage() {
 
         {/* ─── Prediction Confidence (for data nerds) ─── */}
         {predictionData?.confidence && hasRealData && goal !== 'pregnancy' && (
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-white/60">
+          <div className="bg-white rounded-3xl p-4 shadow-lg">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-xs font-extrabold text-gray-800">📊 Prediction Confidence</h3>
               <span className={'text-[10px] font-bold px-2 py-0.5 rounded-full ' + (predictionData.confidence.score >= 70 ? 'bg-emerald-100 text-emerald-700' : predictionData.confidence.score >= 40 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700')}>
@@ -812,7 +797,7 @@ export default function DashboardPage() {
 
         {/* ─── Conception Quick Card (TTC users) ─── */}
         {ayurvedaData?.conceptionGuide && hasRealData && (goal === 'fertility') && (
-          <div className="rounded-2xl p-4 shadow-sm backdrop-blur-sm border border-pink-200/50" style={{ background: 'linear-gradient(145deg, rgba(253,242,248,0.9), rgba(255,241,242,0.85))' }}>
+          <div className="rounded-3xl p-4 shadow-lg bg-gradient-to-br from-pink-50 to-rose-50 border border-pink-200">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-xl">🤰</span>
               <div>
@@ -838,7 +823,7 @@ export default function DashboardPage() {
 
         {/* ─── Weather-Based Ayurvedic Wisdom ─── */}
         {ayurvedaData?.weatherInsight && hasRealData && goal !== 'pregnancy' && (
-          <div className="rounded-2xl p-4 shadow-sm backdrop-blur-sm border border-sky-200/50" style={{ background: 'linear-gradient(145deg, rgba(240,249,255,0.9), rgba(255,255,255,0.85))' }}>
+          <div className="bg-sky-50 rounded-3xl p-4 shadow-sm border border-sky-200">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-lg">{ayurvedaData.weatherInsight.weather?.condition === 'rain' ? '🌧️' : ayurvedaData.weatherInsight.weather?.temperature > 30 ? '☀️' : ayurvedaData.weatherInsight.weather?.temperature < 15 ? '❄️' : '🌤️'}</span>
               <div>
@@ -861,7 +846,7 @@ export default function DashboardPage() {
 
         {/* ─── Seasonal Wisdom (fallback when no weather) ─── */}
         {!ayurvedaData?.weatherInsight && ayurvedaData?.seasonalAdjustment && hasRealData && goal !== 'pregnancy' && (
-          <div className="rounded-2xl p-4 shadow-sm backdrop-blur-sm border border-teal-200/50" style={{ background: 'linear-gradient(145deg, rgba(240,253,250,0.9), rgba(255,255,255,0.85))' }}>
+          <div className="bg-teal-50 rounded-3xl p-4 shadow-sm border border-teal-200">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-lg">🍃</span>
               <div>
@@ -877,7 +862,7 @@ export default function DashboardPage() {
 
         {/* ─── Dosha Assessment CTA ─── */}
         {ayurvedaData && (!ayurvedaData.doshaScores || ayurvedaData.doshaScores?.confidence < 60) && (
-          <button onClick={() => nav('/dosha-assessment')} className="w-full rounded-2xl p-4 shadow-sm backdrop-blur-sm border border-amber-200/50 text-left active:scale-[0.98] transition-transform" style={{ background: 'linear-gradient(145deg, rgba(255,251,235,0.9), rgba(255,241,242,0.85))' }}>
+          <button onClick={() => nav('/dosha-assessment')} className="w-full bg-gradient-to-r from-amber-50 to-rose-50 rounded-3xl p-4 shadow-sm border border-amber-200 text-left active:scale-[0.98] transition-transform">
             <div className="flex items-center gap-3">
               <span className="text-2xl">☯️</span>
               <div className="flex-1">
