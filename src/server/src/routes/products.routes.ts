@@ -72,6 +72,7 @@ r.get('/', async (req: Request, res: Response, next: NextFunction) => {
         where, orderBy,
         take: Math.min(Math.max(Number(limit) || 50, 1), 100),
         skip: Math.max(Number(offset) || 0, 0),
+        include: { seller: { select: { id: true, businessName: true, fssaiStatus: true, ayushStatus: true, gstStatus: true } } },
       }),
       prisma.product.count({ where }),
     ]);

@@ -58,6 +58,24 @@ const apiService = {
   addProgramContent:         (id: string, d: any) => wrap(adminAPI.addProgramContent(id, d)),
   updateProgramContent:      (cId: string, d: any) => wrap(adminAPI.updateProgramContent(cId, d)),
   deleteProgramContent:      (cId: string)   => wrap(adminAPI.deleteProgramContent(cId)),
+  // Sellers
+  getSellers:                (p?: any)       => wrap(adminAPI.getSellers(p)),
+  getSellerDetail:           (id: string)    => wrap(adminAPI.getSellerDetail(id)),
+  getSellerEarnings:         (id: string)    => wrap(adminAPI.getSellerEarnings(id)),
+  getSellerAnalytics:        ()              => wrap(adminAPI.getSellerAnalytics()),
+  updateSellerStatus:        (id: string, d: any) => wrap(adminAPI.updateSellerStatus(id, d)),
+  updateSellerCommission:    (id: string, d: any) => wrap(adminAPI.updateSellerCommission(id, d)),
+  generateSellerPayout:      (id: string)    => wrap(adminAPI.generateSellerPayout(id)),
+  getAllSellerPayouts:       (p?: any)       => wrap(adminAPI.getAllSellerPayouts(p)),
+  updateSellerPayout:        (id: string, d: any) => wrap(adminAPI.updateSellerPayout(id, d)),
+  exportSellerTransactionsCsv: (p?: any)    => adminAPI.exportSellerTransactionsCsv(p),
+  exportSellerPayoutsCsv:    ()              => adminAPI.exportSellerPayoutsCsv(),
+  exportSellersCsv:          ()              => adminAPI.exportSellersCsv(),
+  // Seller onboarding (Year 1)
+  createSeller:              (d: any)        => wrap(adminAPI.createSeller(d)),
+  updateSeller:              (id: string, d: any) => wrap(adminAPI.updateSeller(id, d)),
+  updateSellerDocuments:     (id: string, d: any) => wrap(adminAPI.updateSellerDocuments(id, d)),
+  getSellerChecklist:        (id: string)    => wrap(adminAPI.getSellerChecklist(id)),
 };
 import MultiImageUpload from '../components/MultiImageUpload';
 import toast from 'react-hot-toast';
@@ -163,7 +181,7 @@ const FormCheckbox = ({ label, checked, onChange }: { label: string; checked: bo
 );
 type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'NO_SHOW' | 'CANCELLED';
 
-type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness' | 'programs' | 'add_program' | 'edit_program' | 'program_content' | 'sellers' | 'seller_detail' | 'seller_payouts';
+type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness' | 'programs' | 'add_program' | 'edit_program' | 'program_content' | 'sellers' | 'seller_detail' | 'seller_payouts' | 'add_seller';
 
 // ─── Finance Admin Tab ──────────────────────────────────
 // Platform config, coupons, revenue analytics — like Practo/Zomato/Amazon admin
@@ -1144,6 +1162,13 @@ export default function AdminPage() {
   const [sellerEarnings, setSellerEarnings] = useState<any>(null);
   const [sellerPayouts, setSellerPayouts] = useState<any[]>([]);
   const [sellerAnalytics, setSellerAnalytics] = useState<any>(null);
+  const [sellerChecklist, setSellerChecklist] = useState<any>(null);
+  const [addSellerForm, setAddSellerForm] = useState({
+    userId: '', businessName: '', businessType: 'INDIVIDUAL', gstin: '', panNumber: '',
+    contactEmail: '', contactPhone: '', businessAddress: '', city: '', state: '', pincode: '',
+    fssaiNumber: '', ayushLicense: '', drugLicense: '', commissionRate: 15, tdsRate: 1,
+  });
+  const [addSellerSaving, setAddSellerSaving] = useState(false);
 
   // Search states for all tabs (client-side filtering)
   const [doctorSearch, setDoctorSearch] = useState('');
@@ -1493,12 +1518,14 @@ export default function AdminPage() {
   };
   const fetchSellerDetail = async (id: string) => {
     try {
-      const [detailRes, earningsRes] = await Promise.all([
+      const [detailRes, earningsRes, checklistRes] = await Promise.all([
         apiService.getSellerDetail(id),
         apiService.getSellerEarnings(id),
+        apiService.getSellerChecklist(id),
       ]);
       setSellerDetail(detailRes.data);
       setSellerEarnings(earningsRes.data);
+      setSellerChecklist(checklistRes.data);
     } catch { toast.error('Failed to load seller details'); }
   };
   const fetchSellerPayouts = async () => {
@@ -1528,6 +1555,39 @@ export default function AdminPage() {
       fetchSellerPayouts();
       fetchSellerDetail(sellerId);
     } catch (e: any) { toast.error(e?.response?.data?.error || 'Payout generation failed'); }
+  };
+  const fetchSellerChecklist = async (id: string) => {
+    try {
+      const res = await apiService.getSellerChecklist(id);
+      setSellerChecklist(res.data);
+    } catch { toast.error('Failed to load checklist'); }
+  };
+  const handleCreateSeller = async () => {
+    if (!addSellerForm.userId || !addSellerForm.businessName) {
+      toast.error('User ID and Business Name are required');
+      return;
+    }
+    setAddSellerSaving(true);
+    try {
+      await apiService.createSeller(addSellerForm);
+      toast.success('Seller created successfully');
+      setAddSellerForm({
+        userId: '', businessName: '', businessType: 'INDIVIDUAL', gstin: '', panNumber: '',
+        contactEmail: '', contactPhone: '', businessAddress: '', city: '', state: '', pincode: '',
+        fssaiNumber: '', ayushLicense: '', drugLicense: '', commissionRate: 15, tdsRate: 1,
+      });
+      setTab('sellers');
+      fetchSellers();
+    } catch (e: any) { toast.error(e?.response?.data?.error || 'Failed to create seller'); }
+    finally { setAddSellerSaving(false); }
+  };
+  const handleUpdateDocStatus = async (sellerId: string, field: string, status: string) => {
+    try {
+      await apiService.updateSellerDocuments(sellerId, { [field]: status });
+      toast.success('Document status updated');
+      fetchSellerDetail(sellerId);
+      fetchSellerChecklist(sellerId);
+    } catch (e: any) { toast.error(e?.response?.data?.error || 'Update failed'); }
   };
   const handleExportCsv = async (type: 'transactions' | 'payouts' | 'sellers') => {
     try {
@@ -3802,6 +3862,8 @@ export default function AdminPage() {
             <div className="flex items-center justify-between">
               <h3 className="text-base font-extrabold text-gray-900">🏪 Seller Management</h3>
               <div className="flex gap-2">
+                <button onClick={() => setTab('add_seller')}
+                  className="px-3 py-1.5 bg-purple-600 text-white text-[10px] font-bold rounded-full active:scale-95">+ Add Seller</button>
                 <button onClick={() => { fetchSellerPayouts(); setTab('seller_payouts'); }}
                   className="px-3 py-1.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full active:scale-95">💰 Payouts</button>
                 <button onClick={() => handleExportCsv('sellers')}
@@ -3983,12 +4045,123 @@ export default function AdminPage() {
             </div>
           </>)}
 
+          {/* ════════ ADD SELLER (Admin Onboarding) ════════ */}
+          {tab === 'add_seller' && (<>
+            <div className="flex items-center gap-3">
+              <button onClick={() => setTab('sellers')} className="text-gray-400 text-lg active:scale-90">{'\u2190'}</button>
+              <h3 className="text-base font-extrabold text-gray-900">+ Add New Seller</h3>
+            </div>
+            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+              <p className="text-[10px] text-gray-400">Admin manually onboards trusted sellers. No public registration.</p>
+              <FormField label="User ID (existing user account)" value={addSellerForm.userId} onChange={v => setAddSellerForm(f => ({ ...f, userId: v }))} placeholder="Paste user UUID" />
+              <FormField label="Business Name *" value={addSellerForm.businessName} onChange={v => setAddSellerForm(f => ({ ...f, businessName: v }))} placeholder="e.g. Kama Ayurveda" />
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Business Type</label>
+                <select value={addSellerForm.businessType} onChange={e => setAddSellerForm(f => ({ ...f, businessType: e.target.value }))}
+                  className="w-full mt-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none">
+                  <option value="INDIVIDUAL">Individual</option>
+                  <option value="PROPRIETORSHIP">Proprietorship</option>
+                  <option value="PARTNERSHIP">Partnership</option>
+                  <option value="PRIVATE_LIMITED">Pvt. Ltd.</option>
+                  <option value="LLP">LLP</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <FormField label="GSTIN" value={addSellerForm.gstin} onChange={v => setAddSellerForm(f => ({ ...f, gstin: v }))} placeholder="22AAAAA0000A1Z5" />
+                <FormField label="PAN" value={addSellerForm.panNumber} onChange={v => setAddSellerForm(f => ({ ...f, panNumber: v }))} placeholder="ABCDE1234F" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <FormField label="Contact Email" value={addSellerForm.contactEmail} onChange={v => setAddSellerForm(f => ({ ...f, contactEmail: v }))} placeholder="seller@example.com" />
+                <FormField label="Contact Phone" value={addSellerForm.contactPhone} onChange={v => setAddSellerForm(f => ({ ...f, contactPhone: v }))} placeholder="+91..." />
+              </div>
+              <FormField label="Business Address" value={addSellerForm.businessAddress} onChange={v => setAddSellerForm(f => ({ ...f, businessAddress: v }))} placeholder="Full address" multiline />
+              <div className="grid grid-cols-3 gap-3">
+                <FormField label="City" value={addSellerForm.city} onChange={v => setAddSellerForm(f => ({ ...f, city: v }))} placeholder="Mumbai" />
+                <FormField label="State" value={addSellerForm.state} onChange={v => setAddSellerForm(f => ({ ...f, state: v }))} placeholder="Maharashtra" />
+                <FormField label="Pincode" value={addSellerForm.pincode} onChange={v => setAddSellerForm(f => ({ ...f, pincode: v }))} placeholder="400001" />
+              </div>
+              <div className="border-t border-gray-100 pt-3">
+                <p className="text-[10px] font-bold text-gray-500 uppercase mb-2">Certificates & Licenses</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField label="FSSAI Number" value={addSellerForm.fssaiNumber} onChange={v => setAddSellerForm(f => ({ ...f, fssaiNumber: v }))} placeholder="14-digit FSSAI" />
+                  <FormField label="AYUSH License" value={addSellerForm.ayushLicense} onChange={v => setAddSellerForm(f => ({ ...f, ayushLicense: v }))} placeholder="License number" />
+                  <FormField label="Drug License" value={addSellerForm.drugLicense} onChange={v => setAddSellerForm(f => ({ ...f, drugLicense: v }))} placeholder="DL number" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <FormNumField label="Commission Rate (%)" value={addSellerForm.commissionRate} onChange={v => setAddSellerForm(f => ({ ...f, commissionRate: v }))} />
+                <FormNumField label="TDS Rate (%)" value={addSellerForm.tdsRate} onChange={v => setAddSellerForm(f => ({ ...f, tdsRate: v }))} />
+              </div>
+              <button onClick={handleCreateSeller} disabled={addSellerSaving}
+                className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-500 text-white text-sm font-bold rounded-xl active:scale-95 disabled:opacity-50">
+                {addSellerSaving ? 'Creating...' : 'Create Seller Account'}
+              </button>
+            </div>
+          </>)}
+
           {/* ════════ SELLER DETAIL ════════ */}
           {tab === 'seller_detail' && sellerDetail && (<>
             <div className="flex items-center gap-3">
-              <button onClick={() => setTab('sellers')} className="text-gray-400 text-lg active:scale-90">←</button>
-              <h3 className="text-base font-extrabold text-gray-900">🏪 {sellerDetail.businessName}</h3>
+              <button onClick={() => setTab('sellers')} className="text-gray-400 text-lg active:scale-90">{'\u2190'}</button>
+              <h3 className="text-base font-extrabold text-gray-900">{'\u{1F3EA}'} {sellerDetail.businessName}</h3>
             </div>
+
+            {/* Onboarding Checklist */}
+            {sellerChecklist && (
+              <div className="bg-white rounded-2xl p-4 shadow-sm">
+                <h4 className="text-xs font-bold text-gray-900 mb-3">{'\u{1F4CB}'} Onboarding Checklist</h4>
+                {(() => {
+                  const docStatusIcon = (s: string) => s === 'VERIFIED' ? '\u2705' : s === 'UNDER_REVIEW' ? '\u23F3' : s === 'REJECTED' ? '\u274C' : s === 'EXPIRED' ? '\u26A0\uFE0F' : '\u2B1C';
+                  const docStatusColor = (s: string) => s === 'VERIFIED' ? 'text-emerald-600 bg-emerald-50' : s === 'UNDER_REVIEW' ? 'text-amber-600 bg-amber-50' : s === 'REJECTED' ? 'text-red-600 bg-red-50' : s === 'EXPIRED' ? 'text-orange-600 bg-orange-50' : 'text-gray-400 bg-gray-50';
+                  const statuses = ['NOT_SUBMITTED', 'UNDER_REVIEW', 'VERIFIED', 'EXPIRED', 'REJECTED'];
+                  const items = sellerChecklist.checklist || [];
+                  return (
+                    <div className="space-y-2">
+                      {items.map((item: any) => (
+                        <div key={item.field} className="flex items-center gap-3 py-2 px-3 rounded-xl bg-gray-50">
+                          <span className="text-sm">{docStatusIcon(item.status)}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-gray-700">{item.label}</p>
+                            <p className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full inline-block mt-0.5 ${docStatusColor(item.status)}`}>{item.status.replace('_', ' ')}</p>
+                          </div>
+                          {item.field !== 'agreementSigned' && item.field !== 'bankVerified' && (
+                            <select value={item.status} onChange={e => handleUpdateDocStatus(sellerDetail.id, item.field, e.target.value)}
+                              className="text-[9px] px-2 py-1 border border-gray-200 rounded-lg bg-white focus:outline-none">
+                              {statuses.map(st => <option key={st} value={st}>{st.replace('_', ' ')}</option>)}
+                            </select>
+                          )}
+                          {item.field === 'agreementSigned' && (
+                            <button onClick={() => handleUpdateDocStatus(sellerDetail.id, 'sellerAgreementSigned', (!sellerDetail.sellerAgreementSigned).toString())}
+                              className={`text-[9px] font-bold px-2 py-1 rounded-lg ${sellerDetail.sellerAgreementSigned ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                              {sellerDetail.sellerAgreementSigned ? 'Signed' : 'Mark Signed'}
+                            </button>
+                          )}
+                          {item.field === 'bankVerified' && (
+                            <button onClick={() => handleUpdateDocStatus(sellerDetail.id, 'bankVerified', (!sellerDetail.bankVerified).toString())}
+                              className={`text-[9px] font-bold px-2 py-1 rounded-lg ${sellerDetail.bankVerified ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                              {sellerDetail.bankVerified ? 'Verified' : 'Mark Verified'}
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {/* Eligibility Summary */}
+                      <div className={`mt-3 p-3 rounded-xl border ${sellerChecklist.eligibility?.eligible ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+                        <p className={`text-xs font-bold ${sellerChecklist.eligibility?.eligible ? 'text-emerald-700' : 'text-red-700'}`}>
+                          {sellerChecklist.eligibility?.eligible ? '\u2705 Eligible to list products' : '\u274C Cannot list products yet'}
+                        </p>
+                        {sellerChecklist.eligibility?.reasons?.length > 0 && (
+                          <ul className="mt-1 space-y-0.5">
+                            {sellerChecklist.eligibility.reasons.map((r: string, i: number) => (
+                              <li key={i} className="text-[9px] text-red-600">{'\u25A1'} {r}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
 
             {/* Status + KYC */}
             <div className="bg-white rounded-2xl p-4 shadow-sm">
@@ -3999,7 +4172,7 @@ export default function AdminPage() {
                     sellerDetail.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
                     'bg-red-100 text-red-700'
                   }`}>{sellerDetail.status}</span>
-                  {sellerDetail.isVerified && <span className="ml-2 text-[9px] font-bold bg-green-100 text-green-600 px-2 py-1 rounded-full">✓ KYC Verified</span>}
+                  {sellerDetail.isVerified && <span className="ml-2 text-[9px] font-bold bg-green-100 text-green-600 px-2 py-1 rounded-full">{'\u2713'} KYC Verified</span>}
                 </div>
                 <p className="text-[9px] text-gray-400">Joined {new Date(sellerDetail.createdAt).toLocaleDateString()}</p>
               </div>
@@ -4012,7 +4185,9 @@ export default function AdminPage() {
                 <div><p className="text-[9px] text-gray-400">Location</p><p className="font-bold">{sellerDetail.city || '-'}, {sellerDetail.state || '-'}</p></div>
                 <div><p className="text-[9px] text-gray-400">GSTIN</p><p className="font-bold">{sellerDetail.gstin || 'N/A'}</p></div>
                 <div><p className="text-[9px] text-gray-400">PAN</p><p className="font-bold">{sellerDetail.panNumber || 'N/A'}</p></div>
-                <div><p className="text-[9px] text-gray-400">FSSAI</p><p className="font-bold">{sellerDetail.fssaiLicense || 'N/A'}</p></div>
+                <div><p className="text-[9px] text-gray-400">FSSAI</p><p className="font-bold">{sellerDetail.fssaiNumber || sellerDetail.fssaiLicense || 'N/A'}</p></div>
+                <div><p className="text-[9px] text-gray-400">AYUSH License</p><p className="font-bold">{sellerDetail.ayushLicense || 'N/A'}</p></div>
+                <div><p className="text-[9px] text-gray-400">Drug License</p><p className="font-bold">{sellerDetail.drugLicense || 'N/A'}</p></div>
               </div>
             </div>
 

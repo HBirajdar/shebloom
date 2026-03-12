@@ -780,6 +780,14 @@ model Product {
   shelfLife      String?                   // "6 months", "1 year"
   certifications String[]  @default([])   // ["organic", "cruelty-free", "lab-tested", "GMP"]
   weight         String?                   // "100ml", "200g"
+  // Product-level certificates & compliance
+  productCertificates String[] @default([]) // Cloudinary URLs of product certificates
+  labReportUrl   String?                    // Cloudinary URL of lab test report
+  ingredientList String?                    // Full INCI / detailed ingredient list
+  manufacturerName String?                  // "Shruthi Ayurveda Labs Pvt Ltd"
+  countryOfOrigin String    @default("India")
+  certifiedOrganic Boolean  @default(false) // Has organic certification
+  ayushApproved  Boolean    @default(false) // AYUSH ministry approved product
   // Seller / Vendor
   sellerId       String?                   // Foreign key to Seller (null = platform-owned)
   seller         Seller?   @relation(fields: [sellerId], references: [id])
@@ -1283,8 +1291,8 @@ model ProgramEnrollment {
 // ═══════════════════════════════════════════════════════
 // ─── SELLER / VENDOR MARKETPLACE ─────────────────────
 // ═══════════════════════════════════════════════════════
-// Amazon/Flipkart-style seller system: sellers list products,
-// platform collects payment, deducts commission + TDS, settles to seller.
+// Year 1: Curated marketplace — admin manually onboards 2-3 premium sellers.
+// No public registration. Sellers cannot list products until verified.
 
 model Seller {
   id                String       @id @default(cuid())
@@ -1296,8 +1304,6 @@ model Seller {
   businessType      String       @default("INDIVIDUAL") // INDIVIDUAL, COMPANY, PARTNERSHIP, LLP
   gstin             String?                 // GST Identification Number
   panNumber         String?                 // PAN (for TDS)
-  fssaiLicense      String?                 // FSSAI for food/ayurvedic products
-  drugLicense        String?                // Drug license for ayurvedic medicines
   businessAddress   String?
   city              String?
   state             String?
@@ -1315,6 +1321,33 @@ model Seller {
   bankIfsc          String?
   bankName          String?
   upiId             String?                 // UPI for quick payouts
+  bankVerified      Boolean      @default(false)
+
+  // ─── Certificates & Compliance ─────────────────────
+  // FSSAI (mandatory for food/ayurvedic products in India)
+  fssaiNumber       String?                 // FSSAI license number
+  fssaiExpiry       DateTime?               // License expiry date
+  fssaiStatus       DocumentStatus @default(NOT_SUBMITTED)
+
+  // AYUSH license (for ayurvedic medicines — Dept of AYUSH, Govt of India)
+  ayushLicense      String?                 // License number
+  ayushExpiry       DateTime?               // License expiry date
+  ayushStatus       DocumentStatus @default(NOT_SUBMITTED)
+
+  // GST verification status
+  gstStatus         DocumentStatus @default(NOT_SUBMITTED)
+
+  // GMP Certificate (Good Manufacturing Practice)
+  gmpCertificate    String?                 // Cloudinary URL of GMP certificate
+  // Lab test reports (product quality)
+  labTestReport     String?                 // Cloudinary URL of lab report
+
+  // Drug license (for ayurvedic medicines)
+  drugLicense       String?
+
+  // Seller agreement
+  sellerAgreementSigned Boolean  @default(false)
+  agreementSignedDate   DateTime?
 
   // Commission & terms
   commissionRate    Float        @default(15)  // Platform commission % (can override global)
@@ -1329,13 +1362,13 @@ model Seller {
 
   // Status
   status            SellerStatus @default(PENDING)
-  isVerified        Boolean      @default(false)  // KYC verified
+  isVerified        Boolean      @default(false)  // Overall KYC verified
   verifiedAt        DateTime?
   approvedBy        String?      // Admin who approved
   rejectionReason   String?
   suspensionReason  String?
 
-  // Onboarding
+  // Legacy (kept for migration compat)
   agreementAccepted Boolean      @default(false)
   agreementDate     DateTime?
 
@@ -1355,11 +1388,19 @@ model Seller {
 }
 
 enum SellerStatus {
-  PENDING       // Applied, awaiting admin review
-  APPROVED      // Active seller
+  PENDING       // Admin created, awaiting document verification
+  APPROVED      // Active seller — can list products
   SUSPENDED     // Temporarily suspended
   REJECTED      // Application rejected
-  DEACTIVATED   // Self-deactivated by seller
+  DEACTIVATED   // Deactivated by admin
+}
+
+enum DocumentStatus {
+  NOT_SUBMITTED
+  UNDER_REVIEW
+  VERIFIED
+  EXPIRED
+  REJECTED
 }
 
 // Per-order-item transaction record for seller

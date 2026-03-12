@@ -379,11 +379,15 @@ export const adminAPI = {
   exportSellerTransactionsCsv: (params?: any) => api.get('/sellers/admin/export/transactions', { params, responseType: 'blob' }),
   exportSellerPayoutsCsv: () => api.get('/sellers/admin/export/payouts', { responseType: 'blob' }),
   exportSellersCsv: () => api.get('/sellers/admin/export/sellers', { responseType: 'blob' }),
+  // Seller onboarding (Year 1 — admin manually adds sellers)
+  createSeller: (d: any) => api.post('/sellers/admin/create', d),
+  updateSeller: (id: string, d: any) => api.put(`/sellers/admin/${id}`, d),
+  updateSellerDocuments: (id: string, d: any) => api.patch(`/sellers/admin/${id}/documents`, d),
+  getSellerChecklist: (id: string) => api.get(`/sellers/admin/${id}/checklist`),
 };
 
 // ─── Seller (self-service) ────────────────────────────
 export const sellerAPI = {
-  register: (d: any) => api.post('/sellers/register', d),
   getProfile: () => api.get('/sellers/me'),
   updateProfile: (d: any) => api.put('/sellers/me', d),
   getProducts: () => api.get('/sellers/me/products'),

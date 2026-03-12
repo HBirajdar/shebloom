@@ -548,14 +548,17 @@ export default function AyurvedaPage() {
                       </div>
                       <Stars r={p.rating} />
                     </div>
-                    {/* Certifications badges */}
-                    {(p as any).certifications?.length > 0 && (
-                      <div className="flex gap-1 mt-1">
-                        {(p as any).certifications.slice(0, 3).map((c: string) => (
-                          <span key={c} className="text-[7px] font-bold bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full">{'\u2705'} {c}</span>
-                        ))}
-                      </div>
-                    )}
+                    {/* Trust badges — based on seller/product certificates */}
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {(p as any).ayushApproved && <span className="text-[7px] font-bold bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-full">{'\u{1F33F}'} AYUSH</span>}
+                      {(p as any).labReportUrl && <span className="text-[7px] font-bold bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-full">{'\u{1F52C}'} Lab Tested</span>}
+                      {(p as any).certifiedOrganic && <span className="text-[7px] font-bold bg-lime-50 text-lime-700 px-1.5 py-0.5 rounded-full">{'\u{1F331}'} Organic</span>}
+                      {(p as any).seller?.fssaiStatus === 'VERIFIED' && <span className="text-[7px] font-bold bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full">{'\u2705'} FSSAI</span>}
+                      {(p as any).seller?.ayushStatus === 'VERIFIED' && !(p as any).ayushApproved && <span className="text-[7px] font-bold bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-full">{'\u{1F33F}'} AYUSH Seller</span>}
+                      {(p as any).certifications?.length > 0 && (p as any).certifications.slice(0, 2).map((c: string) => (
+                        <span key={c} className="text-[7px] font-bold bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full">{'\u2705'} {c}</span>
+                      ))}
+                    </div>
                   </div>
                 </button>
                 <div className="flex flex-col items-center gap-2 justify-center">
@@ -678,13 +681,15 @@ export default function AyurvedaPage() {
                 <div className="flex items-center gap-2 mt-1">
                   <Stars r={selProduct.rating} />
                   <span className="text-[10px] text-gray-400">({selProduct.reviews} reviews)</span>
-                  {(selProduct as any).certifications?.length > 0 && (
-                    <div className="flex gap-1 ml-1">
-                      {(selProduct as any).certifications.slice(0, 2).map((c: string) => (
-                        <span key={c} className="text-[7px] font-bold bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full">{'\u2705'} {c}</span>
-                      ))}
-                    </div>
-                  )}
+                  <div className="flex flex-wrap gap-1 ml-1">
+                    {(selProduct as any).ayushApproved && <span className="text-[7px] font-bold bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-full">{'\u{1F33F}'} AYUSH Approved</span>}
+                    {(selProduct as any).labReportUrl && <span className="text-[7px] font-bold bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-full">{'\u{1F52C}'} Lab Tested</span>}
+                    {(selProduct as any).certifiedOrganic && <span className="text-[7px] font-bold bg-lime-50 text-lime-700 px-1.5 py-0.5 rounded-full">{'\u{1F331}'} Certified Organic</span>}
+                    {(selProduct as any).seller?.fssaiStatus === 'VERIFIED' && <span className="text-[7px] font-bold bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full">{'\u2705'} FSSAI Certified</span>}
+                    {(selProduct as any).certifications?.length > 0 && (selProduct as any).certifications.map((c: string) => (
+                      <span key={c} className="text-[7px] font-bold bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full">{'\u2705'} {c}</span>
+                    ))}
+                  </div>
                 </div>
                 <div className="flex items-center gap-3 mt-2">
                   <span className="text-2xl font-extrabold text-emerald-700">{'\u20B9'}{selProduct.discountPrice || selProduct.price}</span>
@@ -707,6 +712,16 @@ export default function AyurvedaPage() {
                   {(selProduct as any).doshaTypes.map((d: string) => (
                     <span key={d} className="text-[9px] font-bold bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full">{d}</span>
                   ))}
+                </div>
+              )}
+
+              {/* Product origin & certifications */}
+              {((selProduct as any).manufacturerName || (selProduct as any).countryOfOrigin || (selProduct as any).ingredientList) && (
+                <div className="bg-gray-50 rounded-xl p-3 space-y-1">
+                  <p className="text-[10px] font-bold text-gray-600 uppercase">{'\u{1F3ED}'} Product Info</p>
+                  {(selProduct as any).manufacturerName && <p className="text-[10px] text-gray-600">Manufacturer: <span className="font-bold">{(selProduct as any).manufacturerName}</span></p>}
+                  {(selProduct as any).countryOfOrigin && <p className="text-[10px] text-gray-600">Origin: <span className="font-bold">{(selProduct as any).countryOfOrigin}</span></p>}
+                  {(selProduct as any).ingredientList && <p className="text-[10px] text-gray-500 mt-1">{(selProduct as any).ingredientList}</p>}
                 </div>
               )}
 

@@ -1,6 +1,7 @@
 // ═══════════════════════════════════════════════════════
-// Seller Routes — Registration, Dashboard, Earnings, Products
-// Amazon/Flipkart-style marketplace seller panel
+// Seller Routes — Admin-only onboarding, Dashboard, Earnings
+// Year 1: Curated marketplace — admin manually onboards 2-3 premium sellers.
+// No public registration. Seller must pass compliance checks to list products.
 // ═══════════════════════════════════════════════════════
 
 import { Router, Response, NextFunction, Request } from 'express';
@@ -13,52 +14,15 @@ const r = Router();
 
 r.use(authenticate);
 
-// ─── Seller Registration ─────────────────────────────
-r.post('/register', async (q: AuthRequest, s: Response, n: NextFunction) => {
-  try {
-    const userId = q.user!.id;
-    const existing = await prisma.seller.findUnique({ where: { userId } });
-    if (existing) {
-      if (existing.status === 'REJECTED' || existing.status === 'DEACTIVATED') {
-        const updated = await prisma.seller.update({
-          where: { id: existing.id },
-          data: { ...q.body, status: 'PENDING', rejectionReason: null, suspensionReason: null },
-        });
-        successResponse(s, updated, 'Re-applied as seller');
-        return;
-      }
-      errorResponse(s, 'You already have a seller account', 400); return;
-    }
-
-    const {
-      businessName, businessType, gstin, panNumber, fssaiLicense, drugLicense,
-      businessAddress, city, state, pincode, logoUrl,
-      contactEmail, contactPhone, whatsapp,
-      bankAccountName, bankAccountNumber, bankIfsc, bankName, upiId,
-    } = q.body;
-
-    if (!businessName || !contactEmail || !contactPhone) {
-      errorResponse(s, 'Business name, email, and phone are required', 400); return;
-    }
-
-    const seller = await prisma.seller.create({
-      data: {
-        userId,
-        businessName, businessType: businessType || 'INDIVIDUAL',
-        gstin: gstin || null, panNumber: panNumber || null,
-        fssaiLicense: fssaiLicense || null, drugLicense: drugLicense || null,
-        businessAddress: businessAddress || null,
-        city: city || null, state: state || null, pincode: pincode || null,
-        logoUrl: logoUrl || null,
-        contactEmail, contactPhone, whatsapp: whatsapp || null,
-        bankAccountName: bankAccountName || null, bankAccountNumber: bankAccountNumber || null,
-        bankIfsc: bankIfsc || null, bankName: bankName || null, upiId: upiId || null,
-      },
-    });
-
-    successResponse(s, seller, 'Seller registration submitted! Awaiting admin approval.', 201);
-  } catch (e) { n(e); }
-});
+// ─── Helper: check if seller is eligible to list products ─
+function isEligibleToList(seller: any): { eligible: boolean; reasons: string[] } {
+  const reasons: string[] = [];
+  if (seller.gstStatus !== 'VERIFIED') reasons.push('GST not verified');
+  if (!seller.sellerAgreementSigned) reasons.push('Agreement not signed');
+  const hasCert = seller.fssaiStatus === 'VERIFIED' || seller.ayushStatus === 'VERIFIED';
+  if (!hasCert) reasons.push('At least one product certificate (FSSAI or AYUSH) must be verified');
+  return { eligible: reasons.length === 0, reasons };
+}
 
 // ─── Get my seller profile ───────────────────────────
 r.get('/me', async (q: AuthRequest, s: Response, n: NextFunction) => {
@@ -68,18 +32,18 @@ r.get('/me', async (q: AuthRequest, s: Response, n: NextFunction) => {
       include: { _count: { select: { products: true, transactions: true } } },
     });
     if (!seller) { errorResponse(s, 'No seller account found', 404); return; }
-    successResponse(s, seller);
+    const eligibility = isEligibleToList(seller);
+    successResponse(s, { ...seller, eligibility });
   } catch (e) { n(e); }
 });
 
-// ─── Update my seller profile ────────────────────────
+// ─── Update my seller profile (limited fields) ──────
 r.put('/me', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const seller = await prisma.seller.findUnique({ where: { userId: q.user!.id } });
     if (!seller) { errorResponse(s, 'No seller account found', 404); return; }
 
     const allowed = [
-      'businessName', 'businessType', 'gstin', 'panNumber', 'fssaiLicense', 'drugLicense',
       'businessAddress', 'city', 'state', 'pincode', 'logoUrl',
       'contactEmail', 'contactPhone', 'whatsapp',
       'bankAccountName', 'bankAccountNumber', 'bankIfsc', 'bankName', 'upiId',
@@ -91,6 +55,15 @@ r.put('/me', async (q: AuthRequest, s: Response, n: NextFunction) => {
 
     const updated = await prisma.seller.update({ where: { id: seller.id }, data });
     successResponse(s, updated, 'Profile updated');
+  } catch (e) { n(e); }
+});
+
+// ─── Check listing eligibility ───────────────────────
+r.get('/me/eligibility', async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const seller = await prisma.seller.findUnique({ where: { userId: q.user!.id } });
+    if (!seller) { errorResponse(s, 'No seller account', 404); return; }
+    successResponse(s, isEligibleToList(seller));
   } catch (e) { n(e); }
 });
 
@@ -264,8 +237,146 @@ r.get('/me/area-sales', async (q: AuthRequest, s: Response, n: NextFunction) => 
 });
 
 // ═══════════════════════════════════════════════════════
-// ADMIN: Seller management
+// ADMIN: Seller management (admin-only onboarding)
 // ═══════════════════════════════════════════════════════
+
+// ─── Admin: Create seller (manual onboarding) ────────
+r.post('/admin/create', requireAdmin, async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const {
+      userId, businessName, businessType, gstin, panNumber,
+      businessAddress, city, state, pincode, logoUrl,
+      contactEmail, contactPhone, whatsapp,
+      bankAccountName, bankAccountNumber, bankIfsc, bankName, upiId,
+      fssaiNumber, fssaiExpiry, ayushLicense, ayushExpiry,
+      gmpCertificate, labTestReport, drugLicense,
+      commissionRate, tdsRate,
+    } = q.body;
+
+    if (!userId || !businessName || !contactEmail || !contactPhone) {
+      errorResponse(s, 'userId, businessName, contactEmail, and contactPhone are required', 400); return;
+    }
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) { errorResponse(s, 'User not found', 404); return; }
+
+    // Check if already a seller
+    const existing = await prisma.seller.findUnique({ where: { userId } });
+    if (existing) { errorResponse(s, 'This user is already a seller', 400); return; }
+
+    const seller = await prisma.seller.create({
+      data: {
+        userId,
+        businessName, businessType: businessType || 'INDIVIDUAL',
+        gstin: gstin || null, panNumber: panNumber || null,
+        businessAddress: businessAddress || null,
+        city: city || null, state: state || null, pincode: pincode || null,
+        logoUrl: logoUrl || null,
+        contactEmail, contactPhone, whatsapp: whatsapp || null,
+        bankAccountName: bankAccountName || null, bankAccountNumber: bankAccountNumber || null,
+        bankIfsc: bankIfsc || null, bankName: bankName || null, upiId: upiId || null,
+        fssaiNumber: fssaiNumber || null,
+        fssaiExpiry: fssaiExpiry ? new Date(fssaiExpiry) : null,
+        ayushLicense: ayushLicense || null,
+        ayushExpiry: ayushExpiry ? new Date(ayushExpiry) : null,
+        gmpCertificate: gmpCertificate || null,
+        labTestReport: labTestReport || null,
+        drugLicense: drugLicense || null,
+        commissionRate: commissionRate ? Number(commissionRate) : 15,
+        tdsRate: tdsRate ? Number(tdsRate) : 1,
+        status: 'PENDING',
+        approvedBy: q.user!.id,
+      },
+    });
+
+    successResponse(s, seller, 'Seller created successfully', 201);
+  } catch (e) { n(e); }
+});
+
+// ─── Admin: Update seller (full access to all fields) ─
+r.put('/admin/:id', requireAdmin, async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const allowed = [
+      'businessName', 'businessType', 'gstin', 'panNumber',
+      'businessAddress', 'city', 'state', 'pincode', 'logoUrl',
+      'contactEmail', 'contactPhone', 'whatsapp',
+      'bankAccountName', 'bankAccountNumber', 'bankIfsc', 'bankName', 'upiId', 'bankVerified',
+      'fssaiNumber', 'ayushLicense', 'gmpCertificate', 'labTestReport', 'drugLicense',
+      'fssaiStatus', 'ayushStatus', 'gstStatus',
+      'sellerAgreementSigned', 'commissionRate', 'tdsRate',
+    ];
+    const data: any = {};
+    for (const f of allowed) {
+      if (q.body[f] !== undefined) {
+        if (['commissionRate', 'tdsRate'].includes(f)) data[f] = Number(q.body[f]);
+        else if (['bankVerified', 'sellerAgreementSigned'].includes(f)) data[f] = q.body[f] === true || q.body[f] === 'true';
+        else data[f] = q.body[f];
+      }
+    }
+    // Handle date fields
+    if (q.body.fssaiExpiry) data.fssaiExpiry = new Date(q.body.fssaiExpiry);
+    if (q.body.ayushExpiry) data.ayushExpiry = new Date(q.body.ayushExpiry);
+    if (q.body.sellerAgreementSigned && !q.body.agreementSignedDate) {
+      data.agreementSignedDate = new Date();
+    }
+    if (q.body.agreementSignedDate) data.agreementSignedDate = new Date(q.body.agreementSignedDate);
+
+    const seller = await prisma.seller.update({ where: { id: q.params.id }, data });
+    successResponse(s, seller, 'Seller updated');
+  } catch (e: any) {
+    if (e.code === 'P2025') { errorResponse(s, 'Seller not found', 404); return; }
+    n(e);
+  }
+});
+
+// ─── Admin: Update document verification status ──────
+r.patch('/admin/:id/documents', requireAdmin, async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const { fssaiStatus, ayushStatus, gstStatus, sellerAgreementSigned, bankVerified } = q.body;
+    const data: any = {};
+    const validStatuses = ['NOT_SUBMITTED', 'UNDER_REVIEW', 'VERIFIED', 'EXPIRED', 'REJECTED'];
+    if (fssaiStatus && validStatuses.includes(fssaiStatus)) data.fssaiStatus = fssaiStatus;
+    if (ayushStatus && validStatuses.includes(ayushStatus)) data.ayushStatus = ayushStatus;
+    if (gstStatus && validStatuses.includes(gstStatus)) data.gstStatus = gstStatus;
+    if (sellerAgreementSigned !== undefined) {
+      data.sellerAgreementSigned = sellerAgreementSigned === true || sellerAgreementSigned === 'true';
+      if (data.sellerAgreementSigned) data.agreementSignedDate = new Date();
+    }
+    if (bankVerified !== undefined) {
+      data.bankVerified = bankVerified === true || bankVerified === 'true';
+    }
+
+    const seller = await prisma.seller.update({ where: { id: q.params.id }, data });
+    successResponse(s, seller, 'Document status updated');
+  } catch (e: any) {
+    if (e.code === 'P2025') { errorResponse(s, 'Seller not found', 404); return; }
+    n(e);
+  }
+});
+
+// ─── Admin: Get onboarding checklist for a seller ────
+r.get('/admin/:id/checklist', requireAdmin, async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const seller = await prisma.seller.findUnique({ where: { id: q.params.id } });
+    if (!seller) { errorResponse(s, 'Seller not found', 404); return; }
+
+    const checklist = [
+      { field: 'gstStatus', label: 'GST Verified', status: seller.gstStatus, required: true },
+      { field: 'panNumber', label: 'PAN Submitted', status: seller.panNumber ? 'VERIFIED' : 'NOT_SUBMITTED', required: false },
+      { field: 'fssaiStatus', label: 'FSSAI License', status: seller.fssaiStatus, required: false },
+      { field: 'ayushStatus', label: 'AYUSH License', status: seller.ayushStatus, required: false },
+      { field: 'gmpCertificate', label: 'GMP Certificate', status: seller.gmpCertificate ? 'VERIFIED' : 'NOT_SUBMITTED', required: false },
+      { field: 'labTestReport', label: 'Lab Test Report', status: seller.labTestReport ? 'VERIFIED' : 'NOT_SUBMITTED', required: false },
+      { field: 'agreementSigned', label: 'Agreement Signed', status: seller.sellerAgreementSigned ? 'VERIFIED' : 'NOT_SUBMITTED', required: true },
+      { field: 'bankVerified', label: 'Bank Details Verified', status: seller.bankVerified ? 'VERIFIED' : 'NOT_SUBMITTED', required: true },
+    ];
+
+    const eligibility = isEligibleToList(seller);
+
+    successResponse(s, { checklist, eligibility });
+  } catch (e) { n(e); }
+});
 
 // ─── List all sellers ────────────────────────────────
 r.get('/admin/list', requireAdmin, async (q: AuthRequest, s: Response, n: NextFunction) => {
@@ -697,7 +808,7 @@ r.get('/admin/export/sellers', requireAdmin, async (q: AuthRequest, s: Response,
 
     const rows = sellers.map(sl => [
       sl.id, sl.user.fullName, sl.user.email || '', sl.user.phone || '',
-      sl.businessName, sl.businessType, sl.gstin || '', sl.panNumber || '', sl.fssaiLicense || '', sl.drugLicense || '',
+      sl.businessName, sl.businessType, sl.gstin || '', sl.panNumber || '', sl.fssaiNumber || '', sl.drugLicense || '',
       sl.city || '', sl.state || '', sl.pincode || '',
       sl.contactEmail, sl.contactPhone, sl.whatsapp || '',
       sl.bankName || '', sl.bankAccountNumber || '', sl.bankIfsc || '', sl.upiId || '',
