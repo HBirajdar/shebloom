@@ -65,7 +65,7 @@
   },
   "prisma": {
     "schema": "prisma/schema.prisma",
-    "seed": "tsx seeds/index.ts"
+    "seed": "tsx prisma/seed.ts"
   },
   "engines": {
     "node": ">=18.0.0"
