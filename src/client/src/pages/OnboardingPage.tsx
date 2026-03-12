@@ -66,7 +66,7 @@ export default function OnboardingPage() {
   const TOTAL = 5;
 
   return (
-    <div className={'min-h-screen flex flex-col max-w-[430px] mx-auto ' + (step === 0 ? '' : 'bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50')} style={step === 0 ? { background: 'linear-gradient(135deg,#E11D48,#EC4899,#8B5CF6)' } : undefined}>
+    <div className={'h-[100dvh] flex flex-col max-w-[430px] mx-auto overflow-hidden ' + (step === 0 ? '' : 'bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50')} style={step === 0 ? { background: 'linear-gradient(135deg,#E11D48,#EC4899,#8B5CF6)' } : undefined}>
 
       {/* Progress bar (steps 1-5) */}
       {step > 0 && (
@@ -82,7 +82,7 @@ export default function OnboardingPage() {
         </div>
       )}
 
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-y-auto">
 
         {/* STEP 0: Welcome */}
         {step === 0 && (
@@ -238,7 +238,7 @@ export default function OnboardingPage() {
 
       {/* Next button (steps 1–4) */}
       {step > 0 && step < 5 && (
-        <div className="px-5 pb-8 pt-4">
+        <div className="shrink-0 px-5 pb-6 pt-3" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
           <button onClick={() => setStep(step + 1)} disabled={!canNext()}
             className="w-full py-4 rounded-2xl text-white font-extrabold text-base active:scale-95 transition-transform shadow-lg disabled:opacity-40"
             style={{ background: 'linear-gradient(135deg,#E11D48,#F43F5E)' }}>
