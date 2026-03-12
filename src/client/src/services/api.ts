@@ -173,11 +173,28 @@ export const uploadAPI = {
 };
 
 export const productAPI = {
+  // Public
   list: (params?: any) => api.get('/products', { params }),
+  get: (id: string) => api.get('/products/' + id),
+  searchSuggestions: (q: string) => api.get('/products/search/suggestions', { params: { q } }),
+  byDosha: (dosha: string) => api.get('/products/by-dosha/' + dosha),
+  related: (id: string) => api.get('/products/' + id + '/related'),
+  getReviews: (id: string, params?: any) => api.get('/products/' + id + '/reviews', { params }),
+  // Authenticated
+  submitReview: (id: string, d: { rating: number; title?: string; comment?: string; images?: string[] }) => api.post('/products/' + id + '/reviews', d),
+  updateReview: (id: string, d: any) => api.put('/products/' + id + '/reviews', d),
+  markHelpful: (productId: string, reviewId: string) => api.post('/products/' + productId + '/reviews/helpful', { reviewId }),
+  getWishlist: () => api.get('/products/wishlist/mine'),
+  getWishlistIds: () => api.get('/products/wishlist/ids'),
+  toggleWishlist: (productId: string) => api.post('/products/wishlist/toggle', { productId }),
+  recommendations: () => api.get('/products/recommendations/for-me'),
+  // Admin
   create: (d: any) => api.post('/products', d),
   update: (id: string, d: any) => api.put('/products/' + id, d),
   remove: (id: string) => api.delete('/products/' + id),
   togglePublish: (id: string) => api.post('/products/' + id + '/toggle-publish'),
+  deleteReview: (reviewId: string) => api.delete('/products/reviews/' + reviewId),
+  replyReview: (reviewId: string, reply: string) => api.put('/products/reviews/' + reviewId + '/reply', { reply }),
 };
 
 export const paymentAPI = {

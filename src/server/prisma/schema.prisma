@@ -128,6 +128,8 @@ model User {
   orders           Order[]
   doctorProfile    Doctor?          @relation("DoctorUser")
   doctorReviews    DoctorReview[]
+  productReviews   ProductReview[]
+  wishlistItems    WishlistItem[]
 
   @@index([email])
   @@index([phone])
@@ -767,14 +769,69 @@ model Product {
   approvedAt     DateTime?
   stock          Int       @default(0)
   unit           String    @default("piece")
+  // Ayurveda-specific (like Forest Essentials / Kama Ayurveda)
+  doshaTypes     String[]  @default([])   // ["VATA","PITTA","KAPHA"] — which doshas this product suits
+  bestFor        String[]  @default([])   // ["dry_skin","hair_fall","stress"] — searchable benefit tags
+  skinType       String?                   // "oily", "dry", "combination", "sensitive", "normal"
+  preparationMethod String?                // "cold-pressed", "steam-distilled", "hand-ground"
+  shelfLife      String?                   // "6 months", "1 year"
+  certifications String[]  @default([])   // ["organic", "cruelty-free", "lab-tested", "GMP"]
+  weight         String?                   // "100ml", "200g"
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  orderItems     OrderItem[]
+  orderItems      OrderItem[]
+  productReviews  ProductReview[]
+  wishlistItems   WishlistItem[]
 
   @@index([category])
   @@index([isPublished])
+  @@index([rating])
   @@map("products")
+}
+
+// ─── PRODUCT REVIEWS ──────────────────────────────────
+// Like Amazon/Flipkart verified purchase reviews with star ratings
+
+model ProductReview {
+  id              String   @id @default(cuid())
+  productId       String
+  userId          String
+  rating          Float                    // 1-5 stars
+  title           String?                  // Review headline
+  comment         String?                  // Review body
+  isVerifiedPurchase Boolean @default(false) // User actually bought this product
+  helpfulCount    Int      @default(0)     // Upvotes
+  images          String[] @default([])    // Review photos
+  adminReply      String?                  // Seller/admin response
+  isApproved      Boolean  @default(true)  // Moderation flag
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, userId])            // One review per product per user
+  @@index([productId, isApproved])
+  @@index([userId])
+  @@map("product_reviews")
+}
+
+// ─── WISHLIST ─────────────────────────────────────────
+// Server-persisted wishlist (syncs across devices, unlike localStorage)
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@map("wishlist_items")
 }
 
 // ─── CALLBACK REQUESTS ─────────────────────────────
