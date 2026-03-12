@@ -199,10 +199,10 @@ export default function DoctorDashboard() {
   };
 
   const handleDeleteArticle = async (id: string) => {
-    if (!confirm('Delete this article?')) return;
+    if (!confirm('Request admin to delete this article?')) return;
     try {
       await doctorDashAPI.deleteArticle(id);
-      toast.success('Article deleted');
+      toast.success('Delete request sent to admin');
       fetchArticles();
     } catch (e: any) { toast.error(e.message || 'Failed'); }
   };
@@ -433,18 +433,25 @@ export default function DoctorDashboard() {
                       {art.status === 'REVIEW' && (
                         <p className="text-[10px] text-amber-600 bg-amber-50 rounded-lg px-2 py-1 mb-2 font-medium">Waiting for admin approval</p>
                       )}
+                      {art.status === 'ARCHIVED' && (
+                        <p className="text-[10px] text-red-600 bg-red-50 rounded-lg px-2 py-1 mb-2 font-medium">Delete requested — waiting for admin approval</p>
+                      )}
                       <div className="flex gap-2">
-                        <button onClick={() => {
-                          setEditingArticle(art);
-                          setArticleForm({ title: art.title, content: art.content, category: art.category, tags: (art.tags || []).join(', '), excerpt: art.excerpt || '', emoji: art.emoji || '' });
-                          setShowArticleForm(true);
-                        }} className="flex-1 py-2 rounded-xl bg-blue-50 text-blue-700 text-[11px] font-bold active:scale-95">
-                          Edit
-                        </button>
-                        <button onClick={() => handleDeleteArticle(art.id)}
-                          className="flex-1 py-2 rounded-xl bg-red-50 text-red-600 text-[11px] font-bold active:scale-95">
-                          Delete
-                        </button>
+                        {art.status !== 'ARCHIVED' && (
+                          <>
+                            <button onClick={() => {
+                              setEditingArticle(art);
+                              setArticleForm({ title: art.title, content: art.content, category: art.category, tags: (art.tags || []).join(', '), excerpt: art.excerpt || '', emoji: art.emoji || '' });
+                              setShowArticleForm(true);
+                            }} className="flex-1 py-2 rounded-xl bg-blue-50 text-blue-700 text-[11px] font-bold active:scale-95">
+                              Edit
+                            </button>
+                            <button onClick={() => handleDeleteArticle(art.id)}
+                              className="flex-1 py-2 rounded-xl bg-red-50 text-red-600 text-[11px] font-bold active:scale-95">
+                              Request Delete
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))

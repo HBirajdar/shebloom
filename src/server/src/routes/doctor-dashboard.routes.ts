@@ -329,7 +329,7 @@ r.put('/articles/:id', async (q: AuthRequest, s: Response, n: NextFunction) => {
   } catch (e) { n(e); }
 });
 
-// ─── DELETE /doctor/articles/:id — delete own article ──
+// ─── DELETE /doctor/articles/:id — request deletion (sets ARCHIVED, admin must approve actual delete) ──
 r.delete('/articles/:id', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const doctor = await getDoctorProfile(q.user!.id);
@@ -338,8 +338,8 @@ r.delete('/articles/:id', async (q: AuthRequest, s: Response, n: NextFunction) =
     const existing = await prisma.article.findFirst({ where: { id: q.params.id, doctorId: doctor.id } });
     if (!existing) { errorResponse(s, 'Article not found', 404); return; }
 
-    await prisma.article.delete({ where: { id: q.params.id } });
-    successResponse(s, null, 'Article deleted');
+    await prisma.article.update({ where: { id: q.params.id }, data: { status: 'ARCHIVED' } });
+    successResponse(s, null, 'Delete request sent to admin for approval');
   } catch (e) { n(e); }
 });
 
