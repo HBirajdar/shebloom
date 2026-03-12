@@ -392,12 +392,16 @@ r.post('/articles', async (q: AuthRequest, s: Response, n: NextFunction) => {
     const doctor = await getDoctorProfile(q.user!.id);
     if (!doctor) { errorResponse(s, 'Doctor profile not found', 404); return; }
 
-    const { title, content, category, tags, excerpt, emoji, coverImageUrl, readTimeMinutes } = q.body;
+    const { title, content, category, tags, excerpt, emoji, coverImageUrl, readTimeMinutes,
+      references, sources, disclaimer, evidenceLevel } = q.body;
     if (!title || !content || !category) {
       errorResponse(s, 'Title, content and category are required', 400); return;
     }
 
     const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now().toString(36);
+
+    // Build author qualification from doctor profile
+    const authorQualification = (doctor.qualifications || []).join(', ') || null;
 
     const article = await prisma.article.create({
       data: {
@@ -412,6 +416,11 @@ r.post('/articles', async (q: AuthRequest, s: Response, n: NextFunction) => {
         coverImageUrl: coverImageUrl || null,
         readTimeMinutes: readTimeMinutes || Math.ceil(content.split(/\s+/).length / 200) || 5,
         authorName: doctor.fullName,
+        authorQualification,
+        references: Array.isArray(references) ? references : (references ? references.split('\n').map((r: string) => r.trim()).filter(Boolean) : []),
+        sources: Array.isArray(sources) ? sources : (sources ? sources.split('\n').map((s: string) => s.trim()).filter(Boolean) : []),
+        disclaimer: disclaimer || null,
+        evidenceLevel: evidenceLevel || null,
         status: 'REVIEW',
       },
     });
@@ -428,7 +437,8 @@ r.put('/articles/:id', async (q: AuthRequest, s: Response, n: NextFunction) => {
     const existing = await prisma.article.findFirst({ where: { id: q.params.id, doctorId: doctor.id } });
     if (!existing) { errorResponse(s, 'Article not found', 404); return; }
 
-    const { title, content, category, tags, excerpt, emoji, coverImageUrl, readTimeMinutes } = q.body;
+    const { title, content, category, tags, excerpt, emoji, coverImageUrl, readTimeMinutes,
+      references, sources, disclaimer, evidenceLevel } = q.body;
     const data: any = {};
     if (title !== undefined) data.title = title;
     if (content !== undefined) {
@@ -440,6 +450,12 @@ r.put('/articles/:id', async (q: AuthRequest, s: Response, n: NextFunction) => {
     if (excerpt !== undefined) data.excerpt = excerpt;
     if (emoji !== undefined) data.emoji = emoji;
     if (coverImageUrl !== undefined) data.coverImageUrl = coverImageUrl;
+    if (references !== undefined) data.references = Array.isArray(references) ? references : references.split('\n').map((r: string) => r.trim()).filter(Boolean);
+    if (sources !== undefined) data.sources = Array.isArray(sources) ? sources : sources.split('\n').map((s: string) => s.trim()).filter(Boolean);
+    if (disclaimer !== undefined) data.disclaimer = disclaimer || null;
+    if (evidenceLevel !== undefined) data.evidenceLevel = evidenceLevel || null;
+    // Update author qualification from current doctor profile
+    data.authorQualification = (doctor.qualifications || []).join(', ') || null;
     // Re-submit for review on edit
     data.status = 'REVIEW';
     data.approvedBy = null;

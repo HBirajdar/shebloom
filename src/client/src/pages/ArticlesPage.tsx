@@ -806,7 +806,7 @@ export default function ArticlesPage() {
             summary: a.excerpt || a.summary || '',
             content: a.content || '',
             category: a.category || 'Wellness',
-            author: a.doctor?.fullName || 'chief',
+            author: a.doctor?.fullName || a.authorName || 'chief',
             readTime: a.readTimeMinutes ? `${a.readTimeMinutes} min` : a.readTime || '5 min',
             emoji: a.coverImageUrl ? '' : '\uD83D\uDCDD',
             isPublished: a.status === 'PUBLISHED' || a.isPublished,
@@ -815,6 +815,12 @@ export default function ArticlesPage() {
             createdAt: a.publishedAt || a.createdAt || '',
             coverImageUrl: a.coverImageUrl || null,
             imageUrl: a.coverImageUrl || null,
+            references: a.references || [],
+            sources: a.sources || [],
+            disclaimer: a.disclaimer || null,
+            evidenceLevel: a.evidenceLevel || null,
+            authorQualification: a.authorQualification || null,
+            authorName: a.authorName || null,
           }));
           setApiArticles(mapped);
         }
@@ -906,9 +912,15 @@ export default function ArticlesPage() {
             <div>
               <p className="text-sm font-bold text-gray-800">{authorName(readingArticle)}</p>
               <p className="text-[10px] text-gray-400">
-                {readingArticle.author === 'chief' ? chief.specialization + ' • ' : ''}
+                {readingArticle.authorQualification ? readingArticle.authorQualification + ' • ' : (readingArticle.author === 'chief' ? chief.specialization + ' • ' : '')}
                 {readingArticle.readTime} read
               </p>
+              {readingArticle.evidenceLevel && (
+                <span className="inline-flex items-center gap-1 mt-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+                  {readingArticle.evidenceLevel === 'peer-reviewed' ? '🔬' : readingArticle.evidenceLevel === 'clinical-study' ? '🏥' : readingArticle.evidenceLevel === 'traditional-knowledge' ? '📜' : '👨‍⚕️'}
+                  {' '}{readingArticle.evidenceLevel.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
+                </span>
+              )}
             </div>
           </div>
 
@@ -928,6 +940,66 @@ export default function ArticlesPage() {
               if (isNumbered) return <p key={i} className="text-[14px] text-gray-700 leading-[1.7] pl-2 font-medium">{trimmed}</p>;
               return <p key={i} className="text-[14px] text-gray-700 leading-[1.8]">{trimmed}</p>;
             })}
+          </div>
+
+          {/* ─── Medical Disclaimer ─── */}
+          <div className="mt-8 bg-amber-50/80 rounded-2xl p-4 border border-amber-100/60">
+            <div className="flex items-start gap-2.5">
+              <span className="text-base mt-0.5">⚠️</span>
+              <div>
+                <p className="text-[11px] font-bold text-amber-800 mb-1">Medical Disclaimer</p>
+                <p className="text-[11px] text-amber-700 leading-relaxed">
+                  {readingArticle.disclaimer || 'This article is for informational and educational purposes only. It is not intended as a substitute for professional medical advice, diagnosis, or treatment. Always consult a qualified healthcare provider before making any changes to your health regimen.'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* ─── References & Sources ─── */}
+          {((readingArticle.references && readingArticle.references.length > 0) || (readingArticle.sources && readingArticle.sources.length > 0)) && (
+            <div className="mt-6 bg-gray-50/80 rounded-2xl p-4 border border-gray-100">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-sm">📚</span>
+                <h3 className="text-[12px] font-extrabold text-gray-700 uppercase tracking-wider">References & Sources</h3>
+              </div>
+
+              {readingArticle.references && readingArticle.references.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">References</p>
+                  <ol className="space-y-1.5">
+                    {readingArticle.references.map((ref: string, i: number) => (
+                      <li key={i} className="text-[11px] text-gray-600 leading-relaxed flex gap-2">
+                        <span className="text-gray-400 font-bold flex-shrink-0">[{i + 1}]</span>
+                        <span>{ref}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+
+              {readingArticle.sources && readingArticle.sources.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Source Links</p>
+                  <ul className="space-y-1">
+                    {readingArticle.sources.map((src: string, i: number) => (
+                      <li key={i} className="text-[11px]">
+                        {src.startsWith('http') ? (
+                          <a href={src} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline break-all hover:text-blue-800">{src}</a>
+                        ) : (
+                          <span className="text-gray-600">{src}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ─── Verified Badge ─── */}
+          <div className="mt-4 flex items-center gap-2 px-1">
+            <span className="text-xs">✅</span>
+            <p className="text-[10px] text-gray-400">This article has been reviewed and approved by the VedaClue medical team before publishing.</p>
           </div>
 
           {/* CTA */}

@@ -56,7 +56,7 @@ export default function DoctorDashboard() {
   const [articlesLoading, setArticlesLoading] = useState(true);
   const [showArticleForm, setShowArticleForm] = useState(false);
   const [editingArticle, setEditingArticle] = useState<any>(null);
-  const [articleForm, setArticleForm] = useState({ title: '', content: '', category: 'wellness', tags: '', excerpt: '', emoji: '' });
+  const [articleForm, setArticleForm] = useState({ title: '', content: '', category: 'wellness', tags: '', excerpt: '', emoji: '', references: '', sources: '', disclaimer: '', evidenceLevel: '' });
 
   // Availability & Slots state
   const [slots, setSlots] = useState<any[]>([]);
@@ -273,7 +273,7 @@ export default function DoctorDashboard() {
       }
       setShowArticleForm(false);
       setEditingArticle(null);
-      setArticleForm({ title: '', content: '', category: 'wellness', tags: '', excerpt: '', emoji: '' });
+      setArticleForm({ title: '', content: '', category: 'wellness', tags: '', excerpt: '', emoji: '', references: '', sources: '', disclaimer: '', evidenceLevel: '' });
       fetchArticles();
     } catch (e: any) { toast.error(e.message || 'Failed to submit'); }
   };
@@ -528,7 +528,7 @@ export default function DoctorDashboard() {
                       <p className="text-[9px] text-gray-400">Review requests</p>
                     </div>
                   </button>
-                  <button onClick={() => { setShowArticleForm(true); setEditingArticle(null); setArticleForm({ title: '', content: '', category: 'wellness', tags: '', excerpt: '', emoji: '' }); setTab('articles'); }}
+                  <button onClick={() => { setShowArticleForm(true); setEditingArticle(null); setArticleForm({ title: '', content: '', category: 'wellness', tags: '', excerpt: '', emoji: '', references: '', sources: '', disclaimer: '', evidenceLevel: '' }); setTab('articles'); }}
                     className="flex items-center gap-2.5 p-3 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100/50 active:scale-[0.97] transition-transform">
                     <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white text-sm shadow-sm">✍️</div>
                     <div className="text-left">
@@ -866,7 +866,7 @@ export default function DoctorDashboard() {
           <>
             {!showArticleForm ? (
               <>
-                <button onClick={() => { setEditingArticle(null); setArticleForm({ title: '', content: '', category: 'wellness', tags: '', excerpt: '', emoji: '' }); setShowArticleForm(true); }}
+                <button onClick={() => { setEditingArticle(null); setArticleForm({ title: '', content: '', category: 'wellness', tags: '', excerpt: '', emoji: '', references: '', sources: '', disclaimer: '', evidenceLevel: '' }); setShowArticleForm(true); }}
                   className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold active:scale-[0.97] shadow-lg shadow-emerald-200 transition-transform">
                   <span className="text-base">✍️</span> Write New Article
                 </button>
@@ -918,7 +918,7 @@ export default function DoctorDashboard() {
                           <>
                             <button onClick={() => {
                               setEditingArticle(art);
-                              setArticleForm({ title: art.title, content: art.content, category: art.category, tags: (art.tags || []).join(', '), excerpt: art.excerpt || '', emoji: art.emoji || '' });
+                              setArticleForm({ title: art.title, content: art.content, category: art.category, tags: (art.tags || []).join(', '), excerpt: art.excerpt || '', emoji: art.emoji || '', references: (art.references || []).join('\n'), sources: (art.sources || []).join('\n'), disclaimer: art.disclaimer || '', evidenceLevel: art.evidenceLevel || '' });
                               setShowArticleForm(true);
                             }} className="flex-1 py-2 rounded-xl bg-blue-50 text-blue-700 text-[11px] font-bold active:scale-95 border border-blue-100">
                               ✏️ Edit
@@ -982,6 +982,52 @@ export default function DoctorDashboard() {
                       placeholder="e.g. 📝" className="w-full mt-1.5 px-3.5 py-2.5 border border-gray-200 rounded-xl text-xs focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
                   </div>
                 </div>
+                {/* ─── Credibility & References Section ─── */}
+                <div className="border-t border-gray-100 pt-4 mt-2">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-sm">📚</span>
+                    <h4 className="text-[11px] font-extrabold text-gray-700 uppercase tracking-wider">References & Credibility</h4>
+                  </div>
+                  <p className="text-[10px] text-gray-400 mb-3 leading-relaxed">Adding references and sources improves article credibility and helps pass admin review faster. Medical articles should cite peer-reviewed sources.</p>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Evidence Level</label>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {[
+                      { k: 'peer-reviewed', l: 'Peer-Reviewed Study', e: '🔬' },
+                      { k: 'clinical-study', l: 'Clinical Study', e: '🏥' },
+                      { k: 'traditional-knowledge', l: 'Traditional Knowledge', e: '📜' },
+                      { k: 'expert-opinion', l: 'Expert Opinion', e: '👨‍⚕️' },
+                    ].map(ev => (
+                      <button key={ev.k} onClick={() => setArticleForm(p => ({ ...p, evidenceLevel: p.evidenceLevel === ev.k ? '' : ev.k }))}
+                        className={'px-2.5 py-1.5 rounded-xl text-[10px] font-bold transition-all active:scale-95 border ' + (articleForm.evidenceLevel === ev.k ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-gray-50 text-gray-500 border-gray-100')}>
+                        {ev.e} {ev.l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">References (one per line)</label>
+                  <textarea value={articleForm.references} onChange={e => setArticleForm(p => ({ ...p, references: e.target.value }))}
+                    placeholder={"e.g.\nAyurvedic Pharmacology & Therapeutic Uses of Medicinal Plants — Vaidya V.M. Gogte\nCharaka Samhita, Chikitsasthanam Chapter 30\nJ Ethnopharmacol. 2019;234:112-120"}
+                    rows={4}
+                    className="w-full mt-1.5 px-3.5 py-2.5 border border-gray-200 rounded-xl text-xs focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 resize-none leading-relaxed" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Source Links (one per line)</label>
+                  <textarea value={articleForm.sources} onChange={e => setArticleForm(p => ({ ...p, sources: e.target.value }))}
+                    placeholder={"e.g.\nhttps://pubmed.ncbi.nlm.nih.gov/12345678\nhttps://www.who.int/traditional-medicine"}
+                    rows={3}
+                    className="w-full mt-1.5 px-3.5 py-2.5 border border-gray-200 rounded-xl text-xs focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 resize-none leading-relaxed" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Custom Disclaimer (optional)</label>
+                  <textarea value={articleForm.disclaimer} onChange={e => setArticleForm(p => ({ ...p, disclaimer: e.target.value }))}
+                    placeholder="e.g. This article is for educational purposes only. Consult your doctor before starting any treatment."
+                    rows={2}
+                    className="w-full mt-1.5 px-3.5 py-2.5 border border-gray-200 rounded-xl text-xs focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 resize-none" />
+                </div>
+
                 <button onClick={handleSubmitArticle}
                   className="w-full py-3.5 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-emerald-500 to-teal-500 active:scale-[0.97] shadow-lg shadow-emerald-200 transition-transform">
                   {editingArticle ? '✏️ Update & Re-submit for Review' : '📤 Submit for Admin Review'}

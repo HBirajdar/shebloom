@@ -431,6 +431,17 @@ model Article {
   approvedBy      String?
   approvedAt      DateTime?
   authorName      String        @default("VedaClue Team")
+
+  // ─── Credibility & Audit fields ───
+  references      String[]      @default([]) // Medical references (journal articles, textbooks, etc.)
+  sources         String[]      @default([]) // Source URLs or citations
+  disclaimer      String?       // Custom disclaimer for this article
+  reviewNotes     String?       // Internal notes from admin review
+  medicalReviewedBy String?     // Name/ID of medical reviewer
+  medicalReviewedAt DateTime?   // When medical review was done
+  evidenceLevel   String?       // e.g. "peer-reviewed", "clinical-study", "traditional-knowledge", "expert-opinion"
+  authorQualification String?   // Doctor's qualification shown on article (e.g. "BAMS, MD Ayurveda")
+
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 

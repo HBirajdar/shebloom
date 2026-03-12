@@ -19,6 +19,8 @@ export interface Article {
   author: string; readTime: string; emoji: string;
   isPublished: boolean; isFeatured: boolean;
   targetAudience: TargetAudience[]; createdAt: string;
+  references?: string[]; sources?: string[]; disclaimer?: string;
+  evidenceLevel?: string; authorQualification?: string; authorName?: string;
 }
 
 export interface DIYRecipe {
