@@ -13,20 +13,41 @@ const r = Router();
 r.use(authenticate, requireDoctor);
 
 // Helper: get doctor profile from the logged-in user
-// Falls back to matching by user's fullName and auto-links if found
+// 1. Find by userId link
+// 2. Fallback: match by fullName and auto-link
+// 3. Auto-create: if user has DOCTOR role but no profile, create one
 async function getDoctorProfile(userId: string) {
   let doctor = await prisma.doctor.findFirst({ where: { userId } });
-  if (!doctor) {
-    // Try to find unlinked doctor by matching user's name
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { fullName: true } });
-    if (user?.fullName) {
-      doctor = await prisma.doctor.findFirst({ where: { fullName: user.fullName, userId: null } });
-      if (doctor) {
-        doctor = await prisma.doctor.update({ where: { id: doctor.id }, data: { userId } });
-      }
+  if (doctor) return doctor;
+
+  // Try to find unlinked doctor by matching user's name
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { fullName: true, email: true, role: true, avatarUrl: true } });
+  if (user?.fullName) {
+    doctor = await prisma.doctor.findFirst({ where: { fullName: user.fullName, userId: null } });
+    if (doctor) {
+      doctor = await prisma.doctor.update({ where: { id: doctor.id }, data: { userId } });
+      return doctor;
     }
   }
-  return doctor;
+
+  // Auto-create a doctor profile for users with DOCTOR role who don't have one
+  if (user && user.role === 'DOCTOR') {
+    doctor = await prisma.doctor.create({
+      data: {
+        userId,
+        fullName: user.fullName || 'Doctor',
+        specialization: 'General',
+        qualifications: [],
+        experienceYears: 0,
+        consultationFee: 0,
+        avatarUrl: user.avatarUrl || null,
+        status: 'active',
+      },
+    });
+    return doctor;
+  }
+
+  return null;
 }
 
 // ─── GET /doctor/dashboard ───────────────────────────
@@ -40,7 +61,7 @@ r.get('/dashboard', async (q: AuthRequest, s: Response, n: NextFunction) => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const [todayAppointments, pendingCount, totalPatients, reviews] = await Promise.all([
+    const [todayAppointments, pendingCount, totalPatients, reviews, recentAppointments] = await Promise.all([
       prisma.appointment.count({
         where: { doctorId: doctor.id, scheduledAt: { gte: today, lt: tomorrow } },
       }),
@@ -54,13 +75,25 @@ r.get('/dashboard', async (q: AuthRequest, s: Response, n: NextFunction) => {
         where: { doctorId: doctor.id },
         select: { rating: true },
       }),
+      prisma.appointment.findMany({
+        where: { doctorId: doctor.id, scheduledAt: { gte: today }, status: { in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'] } },
+        include: { user: { select: { id: true, fullName: true, email: true, phone: true } } },
+        orderBy: { scheduledAt: 'asc' },
+        take: 5,
+      }),
     ]);
 
     const averageRating = reviews.length
       ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10
       : 0;
 
-    successResponse(s, { todayAppointments, pendingCount, totalPatients, averageRating, totalReviews: reviews.length });
+    // Map user names for frontend compatibility
+    const mappedRecent = recentAppointments.map((a: any) => ({
+      ...a,
+      user: a.user ? { id: a.user.id, name: a.user.fullName, email: a.user.email, phone: a.user.phone } : null,
+    }));
+
+    successResponse(s, { todayAppointments, pendingCount, totalPatients, averageRating, totalReviews: reviews.length, recentAppointments: mappedRecent });
   } catch (e) { n(e); }
 });
 
@@ -164,11 +197,13 @@ r.patch('/appointments/:id/complete', async (q: AuthRequest, s: Response, n: Nex
 // ─── GET /doctor/profile ──────────────────────────────
 r.get('/profile', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
-    const doctor = await prisma.doctor.findFirst({
-      where: { userId: q.user!.id },
+    const docBase = await getDoctorProfile(q.user!.id);
+    if (!docBase) { errorResponse(s, 'Doctor profile not found', 404); return; }
+    // Re-fetch with reviews included
+    const doctor = await prisma.doctor.findUnique({
+      where: { id: docBase.id },
       include: { reviews: { select: { rating: true, comment: true, createdAt: true, user: { select: { fullName: true } } } } },
     });
-    if (!doctor) { errorResponse(s, 'Doctor profile not found', 404); return; }
     successResponse(s, doctor);
   } catch (e) { n(e); }
 });

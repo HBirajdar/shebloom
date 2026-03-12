@@ -64,7 +64,10 @@ export default function DoctorDashboard() {
     try {
       const res = await doctorDashAPI.getDashboard();
       setStats(res.data.data);
-    } catch { toast.error('Failed to load stats'); }
+    } catch (e: any) {
+      // Don't show error toast for 404 (profile being set up)
+      if (e.response?.status !== 404) toast.error('Failed to load stats');
+    }
     finally { setStatsLoading(false); }
   }, []);
 
@@ -73,7 +76,9 @@ export default function DoctorDashboard() {
     try {
       const res = await doctorDashAPI.getAppointments(statusFilter ? { status: statusFilter } : {});
       setAppts(res.data.data || []);
-    } catch { toast.error('Failed to load appointments'); }
+    } catch (e: any) {
+      if (e.response?.status !== 404) toast.error('Failed to load appointments');
+    }
     finally { setApptsLoading(false); }
   }, [statusFilter]);
 
