@@ -305,6 +305,10 @@ export const financeAPI = {
   getProductPayouts: (params?: { status?: string }) => api.get('/finance/product-payouts', { params }),
   generateProductPayout: (d?: { commissionRate?: number }) => api.post('/finance/product-payouts/generate', d || {}),
   updateProductPayout: (id: string, d: any) => api.patch(`/finance/product-payouts/${id}`, d),
+  // Admin: audit log
+  getAuditLog: (params?: { eventType?: string; period?: string; page?: number; limit?: number }) => api.get('/finance/audit-log', { params }),
+  getAuditSummary: () => api.get('/finance/audit-log/summary'),
+  exportAuditCsv: (params?: { eventType?: string; period?: string }) => api.get('/finance/audit-log/export', { params, responseType: 'blob' }),
 };
 
 // ─── Dosha Assessment ────────────────────────────────

@@ -444,4 +444,130 @@ r.patch('/product-payouts/:id', requireAdmin, async (req: Request, res: Response
   }
 });
 
+// ─── Audit Log (immutable payment ledger) ──
+
+// GET /finance/audit-log — Paginated, filterable audit log
+r.get('/audit-log', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { eventType, period, page = '1', limit = '50' } = req.query;
+    const where: any = {};
+
+    if (eventType && eventType !== 'ALL') where.eventType = eventType;
+
+    // Period filter
+    if (period) {
+      const now = new Date();
+      let from: Date | null = null;
+      if (period === 'today') { from = new Date(now.getFullYear(), now.getMonth(), now.getDate()); }
+      else if (period === 'week') { from = new Date(now.getTime() - 7 * 86400000); }
+      else if (period === 'month') { from = new Date(now.getFullYear(), now.getMonth(), 1); }
+      else if (period === 'year') { from = new Date(now.getFullYear(), 0, 1); }
+      if (from) where.createdAt = { gte: from };
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const [logs, total] = await Promise.all([
+      prisma.paymentAuditLog.findMany({
+        where, orderBy: { createdAt: 'desc' },
+        skip, take: Number(limit),
+      }),
+      prisma.paymentAuditLog.count({ where }),
+    ]);
+
+    successResponse(res, { logs, total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / Number(limit)) });
+  } catch (e) { next(e); }
+});
+
+// GET /finance/audit-log/summary — Revenue summary (today/week/month)
+r.get('/audit-log/summary', requireAdmin, async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(now.getTime() - 7 * 86400000);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // Only count actual payment events (not order creation)
+    const paidEvents = ['ORDER_PAID', 'ORDER_COD', 'WEBHOOK_CAPTURED', 'APPOINTMENT_PAID'];
+
+    const [todayLogs, weekLogs, monthLogs, allLogs] = await Promise.all([
+      prisma.paymentAuditLog.findMany({ where: { eventType: { in: paidEvents }, createdAt: { gte: todayStart } } }),
+      prisma.paymentAuditLog.findMany({ where: { eventType: { in: paidEvents }, createdAt: { gte: weekStart } } }),
+      prisma.paymentAuditLog.findMany({ where: { eventType: { in: paidEvents }, createdAt: { gte: monthStart } } }),
+      prisma.paymentAuditLog.findMany({ where: { eventType: { in: paidEvents } } }),
+    ]);
+
+    const summarize = (logs: any[]) => ({
+      revenue: logs.reduce((s, l) => s + (l.totalAmount || 0), 0),
+      platformFees: logs.reduce((s, l) => s + (l.platformFee || 0), 0),
+      couponDiscounts: logs.reduce((s, l) => s + (l.couponDiscount || 0), 0),
+      deliveryCharges: logs.reduce((s, l) => s + (l.deliveryCharge || 0), 0),
+      codCharges: logs.reduce((s, l) => s + (l.codCharge || 0), 0),
+      count: logs.length,
+    });
+
+    // Event type breakdown (all time)
+    const eventCounts: Record<string, number> = {};
+    const allEvents = await prisma.paymentAuditLog.findMany({ select: { eventType: true } });
+    for (const e of allEvents) eventCounts[e.eventType] = (eventCounts[e.eventType] || 0) + 1;
+
+    successResponse(res, {
+      today: summarize(todayLogs),
+      week: summarize(weekLogs),
+      month: summarize(monthLogs),
+      allTime: summarize(allLogs),
+      eventBreakdown: eventCounts,
+    });
+  } catch (e) { next(e); }
+});
+
+// GET /finance/audit-log/export — CSV export for CA/accountant
+r.get('/audit-log/export', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { eventType, period } = req.query;
+    const where: any = {};
+
+    if (eventType && eventType !== 'ALL') where.eventType = eventType;
+    if (period) {
+      const now = new Date();
+      let from: Date | null = null;
+      if (period === 'today') from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      else if (period === 'week') from = new Date(now.getTime() - 7 * 86400000);
+      else if (period === 'month') from = new Date(now.getFullYear(), now.getMonth(), 1);
+      else if (period === 'year') from = new Date(now.getFullYear(), 0, 1);
+      if (from) where.createdAt = { gte: from };
+    }
+
+    const logs = await prisma.paymentAuditLog.findMany({ where, orderBy: { createdAt: 'desc' } });
+
+    // Build CSV
+    const headers = [
+      'Date', 'Event Type', 'User ID', 'Order ID', 'Appointment ID', 'Order Number',
+      'Razorpay Order ID', 'Razorpay Payment ID', 'Subtotal', 'Coupon Code', 'Coupon Discount',
+      'Platform Fee', 'Delivery Charge', 'COD Charge', 'GST Amount', 'Total Amount',
+      'Payment Method', 'Currency', 'Doctor ID', 'Commission Rate', 'IP Address',
+    ];
+
+    const escCsv = (v: any) => {
+      if (v === null || v === undefined) return '';
+      const s = String(v);
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+
+    const rows = logs.map(l => [
+      new Date(l.createdAt).toISOString(), l.eventType, l.userId, l.orderId || '',
+      l.appointmentId || '', l.orderNumber || '', l.razorpayOrderId || '',
+      l.razorpayPaymentId || '', l.subtotal, l.couponCode || '', l.couponDiscount,
+      l.platformFee, l.deliveryCharge, l.codCharge, l.gstAmount, l.totalAmount,
+      l.paymentMethod || '', l.currency, l.doctorId || '', l.commissionRate ?? '',
+      l.ipAddress || '',
+    ].map(escCsv).join(','));
+
+    const csv = [headers.join(','), ...rows].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="payment-audit-${new Date().toISOString().slice(0, 10)}.csv"`);
+    res.send(csv);
+  } catch (e) { next(e); }
+});
+
 export default r;

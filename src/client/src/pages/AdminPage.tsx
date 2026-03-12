@@ -147,7 +147,7 @@ const FormCheckbox = ({ label, checked, onChange }: { label: string; checked: bo
 );
 type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'NO_SHOW' | 'CANCELLED';
 
-type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance';
+type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log';
 
 // ─── Finance Admin Tab ──────────────────────────────────
 // Platform config, coupons, revenue analytics — like Practo/Zomato/Amazon admin
@@ -561,6 +561,231 @@ function FinanceTab() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Audit Log Tab ──────────────────────────────────────
+// Immutable payment ledger — revenue summary, filterable events, CSV export
+function AuditLogTab() {
+  const [summary, setSummary] = useState<any>(null);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [eventFilter, setEventFilter] = useState('ALL');
+  const [periodFilter, setPeriodFilter] = useState('month');
+  const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+
+  const eventTypes = ['ALL', 'ORDER_CREATED', 'ORDER_PAID', 'ORDER_COD', 'WEBHOOK_CAPTURED', 'APPOINTMENT_ORDER_CREATED', 'APPOINTMENT_PAID'];
+  const periods = [
+    { k: 'today', l: 'Today' }, { k: 'week', l: 'This Week' },
+    { k: 'month', l: 'This Month' }, { k: 'year', l: 'This Year' }, { k: '', l: 'All Time' },
+  ];
+
+  const loadSummary = useCallback(async () => {
+    try {
+      const r = await financeAPI.getAuditSummary();
+      setSummary(r.data?.data || r.data);
+    } catch {}
+  }, []);
+
+  const loadLogs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await financeAPI.getAuditLog({ eventType: eventFilter, period: periodFilter, page, limit: 25 });
+      const d = r.data?.data || r.data;
+      setLogs(d.logs || []);
+      setTotal(d.total || 0);
+      setTotalPages(d.totalPages || 1);
+    } catch {}
+    setLoading(false);
+  }, [eventFilter, periodFilter, page]);
+
+  useEffect(() => { loadSummary(); }, [loadSummary]);
+  useEffect(() => { loadLogs(); }, [loadLogs]);
+  useEffect(() => { setPage(1); }, [eventFilter, periodFilter]);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const r = await financeAPI.exportAuditCsv({ eventType: eventFilter, period: periodFilter });
+      const blob = new Blob([r.data], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `payment-audit-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('CSV downloaded');
+    } catch { toast.error('Export failed'); }
+    setExporting(false);
+  };
+
+  const fmt = (n: number) => '\u20B9' + (n || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+  const eventLabel: Record<string, { color: string; short: string }> = {
+    ORDER_CREATED: { color: 'bg-blue-100 text-blue-700', short: 'Created' },
+    ORDER_PAID: { color: 'bg-emerald-100 text-emerald-700', short: 'Paid' },
+    ORDER_COD: { color: 'bg-amber-100 text-amber-700', short: 'COD' },
+    WEBHOOK_CAPTURED: { color: 'bg-purple-100 text-purple-700', short: 'Webhook' },
+    APPOINTMENT_ORDER_CREATED: { color: 'bg-sky-100 text-sky-700', short: 'Appt Order' },
+    APPOINTMENT_PAID: { color: 'bg-teal-100 text-teal-700', short: 'Appt Paid' },
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-base font-extrabold text-gray-900">{'\u{1F4CB}'} Payment Audit Log</h3>
+        <button onClick={handleExport} disabled={exporting}
+          className="px-3 py-1.5 rounded-xl text-[10px] font-bold bg-gradient-to-r from-emerald-500 to-teal-500 text-white active:scale-95 shadow-sm transition-all disabled:opacity-50">
+          {exporting ? 'Exporting...' : '\u{1F4E5} Export CSV'}
+        </button>
+      </div>
+
+      {/* Revenue Summary Cards */}
+      {summary && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { label: 'Today Revenue', val: summary.today?.revenue, sub: `${summary.today?.count || 0} txns`, color: 'from-emerald-500 to-teal-500' },
+              { label: 'This Week', val: summary.week?.revenue, sub: `${summary.week?.count || 0} txns`, color: 'from-blue-500 to-indigo-500' },
+              { label: 'This Month', val: summary.month?.revenue, sub: `${summary.month?.count || 0} txns`, color: 'from-violet-500 to-purple-500' },
+              { label: 'All Time', val: summary.allTime?.revenue, sub: `${summary.allTime?.count || 0} txns`, color: 'from-rose-500 to-pink-500' },
+            ] as const).map((c, i) => (
+              <div key={i} className={`bg-gradient-to-br ${c.color} rounded-2xl p-4 text-white shadow-sm`}>
+                <p className="text-[9px] font-bold uppercase opacity-80">{c.label}</p>
+                <p className="text-lg font-extrabold mt-0.5">{fmt(c.val)}</p>
+                <p className="text-[9px] opacity-70">{c.sub}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Platform Fees & Coupon Cost */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-white rounded-2xl p-3 shadow-sm text-center">
+              <p className="text-[9px] text-gray-500 font-bold">Platform Fees</p>
+              <p className="text-sm font-extrabold text-emerald-600 mt-0.5">{fmt(summary.month?.platformFees)}</p>
+              <p className="text-[8px] text-gray-400">this month</p>
+            </div>
+            <div className="bg-white rounded-2xl p-3 shadow-sm text-center">
+              <p className="text-[9px] text-gray-500 font-bold">Coupon Cost</p>
+              <p className="text-sm font-extrabold text-red-500 mt-0.5">{fmt(summary.month?.couponDiscounts)}</p>
+              <p className="text-[8px] text-gray-400">this month</p>
+            </div>
+            <div className="bg-white rounded-2xl p-3 shadow-sm text-center">
+              <p className="text-[9px] text-gray-500 font-bold">Delivery</p>
+              <p className="text-sm font-extrabold text-blue-600 mt-0.5">{fmt(summary.month?.deliveryCharges)}</p>
+              <p className="text-[8px] text-gray-400">this month</p>
+            </div>
+          </div>
+
+          {/* Event Breakdown */}
+          {summary.eventBreakdown && (
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <p className="text-[10px] font-bold text-gray-500 uppercase mb-2">Event Breakdown (All Time)</p>
+              <div className="flex flex-wrap gap-1.5">
+                {Object.entries(summary.eventBreakdown).map(([evt, count]) => (
+                  <span key={evt} className={`px-2 py-1 rounded-full text-[9px] font-bold ${eventLabel[evt]?.color || 'bg-gray-100 text-gray-600'}`}>
+                    {eventLabel[evt]?.short || evt}: {count as number}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+        <p className="text-[10px] font-bold text-gray-500 uppercase">Filters</p>
+        <div className="flex flex-wrap gap-1.5">
+          {periods.map(p => (
+            <button key={p.k} onClick={() => setPeriodFilter(p.k)}
+              className={`px-2.5 py-1 rounded-full text-[9px] font-bold transition-all ${periodFilter === p.k ? 'bg-rose-500 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+              {p.l}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {eventTypes.map(e => (
+            <button key={e} onClick={() => setEventFilter(e)}
+              className={`px-2.5 py-1 rounded-full text-[9px] font-bold transition-all ${eventFilter === e ? 'bg-indigo-500 text-white shadow-sm' : (eventLabel[e]?.color || 'bg-gray-100 text-gray-600') + ' hover:opacity-80'}`}>
+              {e === 'ALL' ? 'All Events' : eventLabel[e]?.short || e}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Log Table */}
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+          <p className="text-[10px] font-bold text-gray-500">{total} records</p>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page <= 1}
+              className="px-2 py-1 rounded text-[10px] font-bold bg-gray-100 disabled:opacity-30">{'\u2190'}</button>
+            <span className="text-[10px] text-gray-500">{page}/{totalPages}</span>
+            <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page >= totalPages}
+              className="px-2 py-1 rounded text-[10px] font-bold bg-gray-100 disabled:opacity-30">{'\u2192'}</button>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-3 border-rose-400 border-t-transparent rounded-full" /></div>
+        ) : logs.length === 0 ? (
+          <p className="text-center text-sm text-gray-400 py-8">No audit logs found</p>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {logs.map((log: any) => (
+              <div key={log.id} className="px-4 py-3 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center justify-between mb-1">
+                  <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold ${eventLabel[log.eventType]?.color || 'bg-gray-100 text-gray-600'}`}>
+                    {eventLabel[log.eventType]?.short || log.eventType}
+                  </span>
+                  <span className="text-[9px] text-gray-400">{new Date(log.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-x-3 gap-y-1 mt-1.5">
+                  <div>
+                    <p className="text-[8px] text-gray-400">Total</p>
+                    <p className="text-[11px] font-bold text-gray-800">{fmt(log.totalAmount)}</p>
+                  </div>
+                  {log.platformFee > 0 && (
+                    <div>
+                      <p className="text-[8px] text-gray-400">Platform Fee</p>
+                      <p className="text-[11px] font-bold text-emerald-600">{fmt(log.platformFee)}</p>
+                    </div>
+                  )}
+                  {log.couponCode && (
+                    <div>
+                      <p className="text-[8px] text-gray-400">Coupon</p>
+                      <p className="text-[11px] font-bold text-red-500">{log.couponCode} (-{fmt(log.couponDiscount)})</p>
+                    </div>
+                  )}
+                  {log.paymentMethod && (
+                    <div>
+                      <p className="text-[8px] text-gray-400">Method</p>
+                      <p className="text-[11px] font-bold text-gray-600">{log.paymentMethod}</p>
+                    </div>
+                  )}
+                  {log.orderNumber && (
+                    <div>
+                      <p className="text-[8px] text-gray-400">Order</p>
+                      <p className="text-[11px] font-bold text-gray-600">{log.orderNumber}</p>
+                    </div>
+                  )}
+                  {log.razorpayPaymentId && (
+                    <div>
+                      <p className="text-[8px] text-gray-400">Payment ID</p>
+                      <p className="text-[11px] font-bold text-gray-500 truncate">{log.razorpayPaymentId}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -1433,6 +1658,7 @@ export default function AdminPage() {
     { id: 'ayurveda', icon: '☯️', label: 'Ayurveda' },
     { id: 'payouts', icon: '\u{1F4B0}', label: 'Payouts' },
     { id: 'finance', icon: '🏦', label: 'Finance' },
+    { id: 'audit_log', icon: '\u{1F4CB}', label: 'Audit Log' },
   ];
 
   const roleBadge = (role: string) => {
@@ -2789,6 +3015,9 @@ export default function AdminPage() {
 
           {/* ════════ FINANCE ════════ */}
           {tab === 'finance' && (<FinanceTab />)}
+
+          {/* ════════ AUDIT LOG ════════ */}
+          {tab === 'audit_log' && (<AuditLogTab />)}
 
           {/* ════════ SETTINGS ════════ */}
           {tab === 'settings' && (<>
