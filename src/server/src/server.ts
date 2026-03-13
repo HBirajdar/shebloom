@@ -187,10 +187,21 @@ async function bootstrap() {
     }
   });
 
-  // 4e. Expire seller licenses (FSSAI/AYUSH) past their expiry date (daily at midnight)
+  // 4e. Expire seller licenses (FSSAI/AYUSH) + unpublish their products (daily at midnight)
   cron.schedule('0 0 * * *', async () => {
     try {
       const now = new Date();
+      // Find sellers whose licenses are about to expire
+      const expiringSellers = await prisma.seller.findMany({
+        where: {
+          OR: [
+            { fssaiStatus: 'VERIFIED', fssaiExpiry: { not: null, lt: now } },
+            { ayushStatus: 'VERIFIED', ayushExpiry: { not: null, lt: now } },
+          ],
+        },
+        select: { id: true, fssaiStatus: true, fssaiExpiry: true, ayushStatus: true, ayushExpiry: true },
+      });
+
       const fssai = await prisma.seller.updateMany({
         where: {
           fssaiStatus: 'VERIFIED',
@@ -205,6 +216,25 @@ async function bootstrap() {
         },
         data: { ayushStatus: 'EXPIRED' },
       });
+
+      // Unpublish products for sellers who now have NO valid license
+      if (expiringSellers.length > 0) {
+        for (const seller of expiringSellers) {
+          const fssaiStillValid = seller.fssaiStatus === 'VERIFIED' && (!seller.fssaiExpiry || seller.fssaiExpiry > now);
+          const ayushStillValid = seller.ayushStatus === 'VERIFIED' && (!seller.ayushExpiry || seller.ayushExpiry > now);
+          // If neither license is valid after expiry, unpublish their products
+          if (!fssaiStillValid && !ayushStillValid) {
+            const hidden = await prisma.product.updateMany({
+              where: { sellerId: seller.id, isPublished: true },
+              data: { isPublished: false, status: 'suspended' },
+            });
+            if (hidden.count > 0) {
+              logger.info(`Cron: unpublished ${hidden.count} product(s) for seller ${seller.id} (license expired)`);
+            }
+          }
+        }
+      }
+
       if (fssai.count > 0 || ayush.count > 0) {
         logger.info(`Cron: expired ${fssai.count} FSSAI + ${ayush.count} AYUSH license(s)`);
       }
