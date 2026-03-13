@@ -330,8 +330,15 @@ r.put('/admin/:id', requireAdmin, async (q: AuthRequest, s: Response, n: NextFun
     const data: any = {};
     for (const f of allowed) {
       if (q.body[f] !== undefined) {
-        if (['commissionRate', 'tdsRate'].includes(f)) data[f] = Number(q.body[f]);
-        else if (['bankVerified', 'sellerAgreementSigned'].includes(f)) data[f] = q.body[f] === true || q.body[f] === 'true';
+        if (f === 'commissionRate') {
+          const v = Number(q.body[f]);
+          if (isNaN(v) || v < 0 || v > 60) { errorResponse(s, 'Commission rate must be 0-60%', 400); return; }
+          data[f] = v;
+        } else if (f === 'tdsRate') {
+          const v = Number(q.body[f]);
+          if (isNaN(v) || v < 0 || v > 30) { errorResponse(s, 'TDS rate must be 0-30%', 400); return; }
+          data[f] = v;
+        } else if (['bankVerified', 'sellerAgreementSigned'].includes(f)) data[f] = q.body[f] === true || q.body[f] === 'true';
         else data[f] = q.body[f];
       }
     }

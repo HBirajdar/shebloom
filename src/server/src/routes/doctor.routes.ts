@@ -119,7 +119,14 @@ r.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response
     }
     if (req.body.experienceYears !== undefined) data.experienceYears = Number(req.body.experienceYears);
     if (req.body.consultationFee !== undefined) data.consultationFee = Number(req.body.consultationFee);
-    if (req.body.commissionRate !== undefined) data.commissionRate = req.body.commissionRate === null || req.body.commissionRate === '' ? null : Number(req.body.commissionRate);
+    if (req.body.commissionRate !== undefined) {
+      if (req.body.commissionRate === null || req.body.commissionRate === '') { data.commissionRate = null; }
+      else {
+        const cr = Number(req.body.commissionRate);
+        if (isNaN(cr) || cr < 0 || cr > 60) { res.status(400).json({ success: false, error: 'Commission rate must be 0-60%' }); return; }
+        data.commissionRate = cr;
+      }
+    }
     if (req.body.isAvailable !== undefined) data.isAvailable = req.body.isAvailable;
     if (req.body.isVerified !== undefined) data.isVerified = req.body.isVerified;
     if (req.body.isPublished !== undefined) data.isPublished = req.body.isPublished;

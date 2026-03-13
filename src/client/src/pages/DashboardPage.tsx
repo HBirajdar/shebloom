@@ -286,7 +286,7 @@ export default function DashboardPage() {
       }));
       setCarouselDoctors(mapped);
     }).catch(() => {}).finally(() => setDoctorsLoading(false));
-  }, []);
+  }, [user]);
 
   const logMood = (key: string) => {
     setMood(key);

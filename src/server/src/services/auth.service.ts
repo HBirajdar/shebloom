@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
 import prisma from '../config/database';
-import { cacheSet, cacheGet, cacheDel } from '../config/redis';
+import { cacheSet, cacheGet, cacheDel, cacheIncr } from '../config/redis';
 import { logger } from '../config/logger';
 import { AppError } from '../middleware/errorHandler';
 
@@ -78,6 +78,11 @@ export class AuthService {
 
   async sendOtp(phone: string): Promise<{ smsSent: boolean }> {
     const normalized = normalizePhone(phone);
+
+    // Per-phone rate limit: max 5 OTP requests per 15 minutes
+    const attempts = await cacheIncr(`otp_rate:${normalized}`, 900);
+    if (attempts > 5) throw new AppError('Too many OTP requests. Please try again after 15 minutes.', 429);
+
     const otp = crypto.randomInt(100000, 999999).toString();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
     // Store in all three layers: Redis → in-memory → DB

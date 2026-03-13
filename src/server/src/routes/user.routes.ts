@@ -6,6 +6,7 @@ import { UserService } from '../services/user.service';
 import prisma from '../config/database';
 import { successResponse, errorResponse } from '../utils/response.utils';
 import { sendOTPEmail } from '../services/email.service';
+import { cacheIncr } from '../config/redis';
 
 const router = Router();
 const svc = new UserService();
@@ -45,6 +46,10 @@ router.post('/me/email/send-otp', async (req: AuthRequest, res: Response) => {
     const existing = await prisma.user.findFirst({ where: { email, id: { not: req.user!.id } } });
     if (existing) { errorResponse(res, 'This email is already registered to another account', 400); return; }
 
+    // Per-email rate limit: max 5 OTP requests per 15 minutes
+    const emailAttempts = await cacheIncr(`otp_rate:email:${email}`, 900);
+    if (emailAttempts > 5) { errorResponse(res, 'Too many OTP requests. Please try again after 15 minutes.', 429); return; }
+
     // Generate 6-digit OTP
     const otp = crypto.randomInt(100000, 999999).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
@@ -60,9 +65,7 @@ router.post('/me/email/send-otp', async (req: AuthRequest, res: Response) => {
 
     console.log(`[OTP] Email verification for user ${req.user!.id}: email=${email} otp=${otp}`);
 
-    successResponse(res, {
-      ...(process.env.NODE_ENV !== 'production' ? { otp } : {}),
-    }, 'Verification code sent to email');
+    successResponse(res, {}, 'Verification code sent to email');
   } catch (err: any) { errorResponse(res, err.message, 500); }
 });
 
@@ -111,6 +114,10 @@ router.post('/me/mobile/send-otp', async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    // Per-phone rate limit: max 5 OTP requests per 15 minutes
+    const phoneAttempts = await cacheIncr(`otp_rate:${phone}`, 900);
+    if (phoneAttempts > 5) { errorResponse(res, 'Too many OTP requests. Please try again after 15 minutes.', 429); return; }
+
     // Generate 6-digit OTP
     const otp = crypto.randomInt(100000, 999999).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
@@ -124,9 +131,7 @@ router.post('/me/mobile/send-otp', async (req: AuthRequest, res: Response) => {
 
     // TODO: Send SMS via Twilio/AWS SNS
 
-    successResponse(res, {
-      ...(process.env.NODE_ENV !== 'production' ? { otp } : {}),
-    }, 'OTP sent to mobile number');
+    successResponse(res, {}, 'OTP sent to mobile number');
   } catch (err: any) {
     errorResponse(res, err.message, 500);
   }

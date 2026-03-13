@@ -981,15 +981,6 @@ export default function AdminPage() {
   const user = useAuthStore(s => s.user);
   const isAuthenticated = useAuthStore(s => s.isAuthenticated);
 
-  // Must be logged in to access admin
-  if (!isAuthenticated || !user) {
-    return <Navigate to="/auth" replace />;
-  }
-  // Must have ADMIN role
-  if (user.role !== 'ADMIN') {
-    return <Navigate to="/dashboard" replace />;
-  }
-
   // Auth state (PIN is additional security layer on top of JWT auth)
   const [isUnlocked, setIsUnlocked] = useState(() => sessionStorage.getItem('sb_admin_unlocked') === '1');
   const [password, setPassword] = useState('');
@@ -1174,6 +1165,14 @@ export default function AdminPage() {
   const [orderSearch, setOrderSearch] = useState('');
   const [callbackSearch, setCallbackSearch] = useState('');
   const [prescriptionSearch, setPrescriptionSearch] = useState('');
+
+  // ─── Auth guards (after all hooks to satisfy Rules of Hooks) ───
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/auth" replace />;
+  }
+  if (user.role !== 'ADMIN') {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   // ─── Helpers ────────────────────────────────────────
   // Verify token exists before any admin API call; redirect to login if missing

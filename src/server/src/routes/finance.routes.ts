@@ -172,10 +172,14 @@ r.put('/config', requireAdmin, async (req: Request, res: Response, next: NextFun
     for (const f of allowed) {
       if (req.body[f] !== undefined) {
         if (booleanFields.includes(f)) {
-          // Boolean fields: handle "true"/"false" strings and actual booleans
           data[f] = req.body[f] === true || req.body[f] === 'true';
         } else {
-          data[f] = typeof req.body[f] === 'string' ? parseFloat(req.body[f]) : req.body[f];
+          const v = typeof req.body[f] === 'string' ? parseFloat(req.body[f]) : req.body[f];
+          // Bounds validation for commission rates
+          if (f === 'defaultDoctorCommission' || f === 'defaultProductCommission') {
+            if (isNaN(v) || v < 0 || v > 60) { res.status(400).json({ success: false, error: `${f} must be 0-60%` }); return; }
+          }
+          data[f] = v;
         }
       }
     }

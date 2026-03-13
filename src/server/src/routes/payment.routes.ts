@@ -65,14 +65,26 @@ r.post('/webhook', async (req: Request, res: Response) => {
           });
           // Only decrement stock + record coupon if WE were the one who updated
           if (updated.count > 0) {
-            for (const item of order.items) {
-              await prisma.product.updateMany({
-                where: { id: item.productId, stock: { gte: item.quantity } },
-                data: { stock: { decrement: item.quantity } },
-              }).catch((e: any) => console.error('[Stock] Decrement failed for product', item.productId, ':', e.message));
-            }
-            if (order.couponCode) {
-              await recordCouponRedemption(order.couponCode, order.userId, order.couponDiscount || 0, order.id).catch((e: any) => console.error('[Coupon] Redemption recording failed:', e.message));
+            try {
+              await prisma.$transaction(async (tx) => {
+                for (const item of order.items) {
+                  await tx.product.updateMany({
+                    where: { id: item.productId, stock: { gte: item.quantity } },
+                    data: { stock: { decrement: item.quantity } },
+                  });
+                }
+                if (order.couponCode) {
+                  const coupon = await tx.coupon.findUnique({ where: { code: order.couponCode! } });
+                  if (coupon) {
+                    await tx.couponRedemption.create({
+                      data: { couponId: coupon.id, userId: order.userId, orderId: order.id, discount: order.couponDiscount || 0 },
+                    });
+                    await tx.coupon.update({ where: { id: coupon.id }, data: { currentUses: { increment: 1 } } });
+                  }
+                }
+              });
+            } catch (e: any) {
+              console.error('[CRITICAL] Webhook stock/coupon transaction failed for order', order.id, ':', e.message);
             }
             // Audit log: webhook captured
             auditLog({
@@ -370,14 +382,26 @@ r.post('/verify', async (q: AuthRequest, s: Response, n: NextFunction) => {
 
     // Only decrement stock + record coupon if WE were the one who updated
     if (updated.count > 0) {
-      for (const item of order.items) {
-        await prisma.product.updateMany({
-          where: { id: item.productId, stock: { gte: item.quantity } },
-          data: { stock: { decrement: item.quantity } },
-        }).catch((e: any) => console.error('[Stock] Decrement failed for product', item.productId, ':', e.message));
-      }
-      if (order.couponCode) {
-        await recordCouponRedemption(order.couponCode, order.userId, order.couponDiscount || 0, order.id).catch((e: any) => console.error('[Coupon] Redemption recording failed:', e.message));
+      try {
+        await prisma.$transaction(async (tx) => {
+          for (const item of order.items) {
+            await tx.product.updateMany({
+              where: { id: item.productId, stock: { gte: item.quantity } },
+              data: { stock: { decrement: item.quantity } },
+            });
+          }
+          if (order.couponCode) {
+            const coupon = await tx.coupon.findUnique({ where: { code: order.couponCode! } });
+            if (coupon) {
+              await tx.couponRedemption.create({
+                data: { couponId: coupon.id, userId: order.userId, orderId: order.id, discount: order.couponDiscount || 0 },
+              });
+              await tx.coupon.update({ where: { id: coupon.id }, data: { currentUses: { increment: 1 } } });
+            }
+          }
+        });
+      } catch (e: any) {
+        console.error('[CRITICAL] Verify stock/coupon transaction failed for order', order.id, ':', e.message);
       }
       // Audit log: order paid
       auditLog({
@@ -482,17 +506,27 @@ r.post('/cod', async (q: AuthRequest, s: Response, n: NextFunction) => {
       include: { items: true, user: { select: { email: true, fullName: true } } },
     });
 
-    // Record coupon
-    if (couponResult.couponCode) {
-      await recordCouponRedemption(couponResult.couponCode, uid, couponDiscount, order.id).catch((e: any) => console.error('[Coupon] Redemption recording failed:', e.message));
-    }
-
-    // Reduce stock (safe guard: only decrement if sufficient stock remains)
-    for (const item of orderItems) {
-      await prisma.product.updateMany({
-        where: { id: item.productId, stock: { gte: item.quantity } },
-        data: { stock: { decrement: item.quantity } },
-      }).catch((e: any) => console.error('[Stock] Decrement failed for product', item.productId, ':', e.message));
+    // Atomically decrement stock + record coupon in a single transaction
+    try {
+      await prisma.$transaction(async (tx) => {
+        for (const item of orderItems) {
+          await tx.product.updateMany({
+            where: { id: item.productId, stock: { gte: item.quantity } },
+            data: { stock: { decrement: item.quantity } },
+          });
+        }
+        if (couponResult.couponCode) {
+          const coupon = await tx.coupon.findUnique({ where: { code: couponResult.couponCode! } });
+          if (coupon) {
+            await tx.couponRedemption.create({
+              data: { couponId: coupon.id, userId: uid, orderId: order.id, discount: couponDiscount },
+            });
+            await tx.coupon.update({ where: { id: coupon.id }, data: { currentUses: { increment: 1 } } });
+          }
+        }
+      });
+    } catch (e: any) {
+      console.error('[CRITICAL] COD stock/coupon transaction failed for order', order.id, ':', e.message);
     }
 
     // Audit log: COD order placed

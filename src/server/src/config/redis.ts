@@ -63,6 +63,19 @@ export const cacheDel = async (key: string): Promise<void> => {
   }
 };
 
+/** Increment a counter key with TTL. Returns the new count. Used for per-key rate limiting. */
+export const cacheIncr = async (key: string, ttlSeconds: number): Promise<number> => {
+  if (!redis || !isConnected) return 0; // fail-open if Redis is down
+  try {
+    const count = await redis.incr(key);
+    if (count === 1) await redis.expire(key, ttlSeconds); // set TTL on first hit
+    return count;
+  } catch (err: any) {
+    logger.error(`Cache INCR error for key ${key}: ${err.message}`);
+    return 0;
+  }
+};
+
 export const cacheDelPattern = async (pattern: string): Promise<void> => {
   if (!redis || !isConnected) return;
   try {
