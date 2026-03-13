@@ -51,7 +51,18 @@ function PageTracker() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   useEffect(() => {
     if (isAuthenticated) {
-      trackEvent('page_view', { category: 'page', label: location.pathname });
+      // Capture UTM params from URL
+      const params = new URLSearchParams(location.search);
+      const utm: Record<string, string> = {};
+      for (const key of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content']) {
+        const val = params.get(key);
+        if (val) utm[key] = val;
+      }
+      trackEvent('page_view', {
+        category: 'page',
+        label: location.pathname,
+        metadata: Object.keys(utm).length > 0 ? utm : undefined,
+      });
     }
   }, [location.pathname, isAuthenticated]);
   return null;

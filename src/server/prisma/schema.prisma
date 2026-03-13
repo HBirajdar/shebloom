@@ -138,6 +138,7 @@ model User {
   communityReports   CommunityReport[]
   subscriptions      UserSubscription[]
   events             UserEvent[]
+  npsSurveys         NpsSurvey[]
 
   @@index([role])
   @@map("users")
@@ -1221,6 +1222,41 @@ model UserEvent {
   @@index([userId, event])       // Fast lookup: "all paywall_viewed by user X"
   @@index([event, createdAt])    // Fast lookup: "all checkout_started in last 7 days"
   @@map("user_events")
+}
+
+// ─── NPS / FEEDBACK SURVEYS ─────────────────────────
+model NpsSurvey {
+  id        String   @id @default(cuid())
+  userId    String
+  score     Int      // 0-10 NPS score
+  feedback  String?  // Optional text feedback
+  page      String?  // Which page/feature triggered the survey
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([score])
+  @@map("nps_surveys")
+}
+
+// ─── PUSH CAMPAIGNS ────────────────────────────────
+model PushCampaign {
+  id          String   @id @default(cuid())
+  title       String
+  body        String
+  segment     String   // e.g. "premium", "free", "inactive_7d", "all"
+  sentCount   Int      @default(0)
+  status      String   @default("draft") // draft, sent, failed
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("push_campaigns")
 }
 
 // ─── PRODUCT PAYOUTS (seller/vendor settlement) ──────

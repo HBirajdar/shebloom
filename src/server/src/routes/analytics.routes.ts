@@ -31,6 +31,9 @@ r.post('/track', authenticate, async (req: AuthRequest, res: Response) => {
       'article_viewed', 'search_performed', 'feature_used',
       'appointment_started', 'appointment_abandoned',
       'session_start', 'session_end',
+      // Tier 2 events
+      'nps_submitted', 'referral_click', 'share_clicked',
+      'streak_milestone', 'ab_variant_shown',
     ];
     if (!ALLOWED_EVENTS.includes(event)) {
       return errorResponse(res, 'Invalid event type', 400);
@@ -1333,6 +1336,724 @@ r.get('/admin/cohorts', authenticate, requireAdmin, async (req: AuthRequest, res
   } catch (err: any) {
     console.error('[Analytics] Cohorts error:', err.message);
     return errorResponse(res, 'Failed to fetch cohorts', 500);
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// ADMIN: User Journey / Path Analysis
+// ═══════════════════════════════════════════════════════
+
+r.get('/admin/journeys', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { days = '7' } = req.query as any;
+    const since = new Date(Date.now() - parseInt(days) * 86400000);
+
+    // Get sessions: group events by sessionId, ordered by time
+    const sessions = await prisma.userEvent.findMany({
+      where: { createdAt: { gte: since }, sessionId: { not: null }, event: 'page_view' },
+      orderBy: { createdAt: 'asc' },
+      select: { sessionId: true, label: true, userId: true, createdAt: true },
+    });
+
+    // Build path sequences per session
+    const sessionPaths = new Map<string, string[]>();
+    for (const e of sessions) {
+      if (!e.sessionId || !e.label) continue;
+      if (!sessionPaths.has(e.sessionId)) sessionPaths.set(e.sessionId, []);
+      const path = sessionPaths.get(e.sessionId)!;
+      // Avoid consecutive duplicates
+      if (path[path.length - 1] !== e.label) path.push(e.label);
+    }
+
+    // Count page-to-page transitions
+    const transitions: Record<string, Record<string, number>> = {};
+    const pageVisits: Record<string, number> = {};
+    const entryPages: Record<string, number> = {};
+    const exitPages: Record<string, number> = {};
+
+    for (const [, path] of sessionPaths) {
+      if (path.length === 0) continue;
+      entryPages[path[0]] = (entryPages[path[0]] || 0) + 1;
+      exitPages[path[path.length - 1]] = (exitPages[path[path.length - 1]] || 0) + 1;
+
+      for (let i = 0; i < path.length; i++) {
+        pageVisits[path[i]] = (pageVisits[path[i]] || 0) + 1;
+        if (i < path.length - 1) {
+          if (!transitions[path[i]]) transitions[path[i]] = {};
+          transitions[path[i]][path[i + 1]] = (transitions[path[i]][path[i + 1]] || 0) + 1;
+        }
+      }
+    }
+
+    // Top flows (most common 3-step paths)
+    const flowCounts: Record<string, number> = {};
+    for (const [, path] of sessionPaths) {
+      for (let i = 0; i <= path.length - 3; i++) {
+        const flow = path.slice(i, i + 3).join(' → ');
+        flowCounts[flow] = (flowCounts[flow] || 0) + 1;
+      }
+    }
+    const topFlows = Object.entries(flowCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 15)
+      .map(([flow, count]) => ({ flow, count }));
+
+    // Top transitions
+    const topTransitions: { from: string; to: string; count: number }[] = [];
+    for (const [from, tos] of Object.entries(transitions)) {
+      for (const [to, count] of Object.entries(tos)) {
+        topTransitions.push({ from, to, count });
+      }
+    }
+    topTransitions.sort((a, b) => b.count - a.count);
+
+    // Page popularity
+    const pages = Object.entries(pageVisits)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20)
+      .map(([page, visits]) => ({ page, visits, entries: entryPages[page] || 0, exits: exitPages[page] || 0 }));
+
+    return successResponse(res, {
+      totalSessions: sessionPaths.size,
+      avgPathLength: sessionPaths.size > 0 ? Math.round([...sessionPaths.values()].reduce((s, p) => s + p.length, 0) / sessionPaths.size * 10) / 10 : 0,
+      pages,
+      topFlows,
+      topTransitions: topTransitions.slice(0, 20),
+      period: `${days} days`,
+    });
+  } catch (err: any) {
+    console.error('[Analytics] Journeys error:', err.message);
+    return errorResponse(res, 'Failed to fetch journeys', 500);
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// ADMIN: Geo Analytics (users by location)
+// ═══════════════════════════════════════════════════════
+
+r.get('/admin/geo', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    // Get user locations from profiles
+    const profiles = await prisma.userProfile.findMany({
+      where: { locationLatitude: { not: null } },
+      select: { locationLatitude: true, locationLongitude: true, userId: true },
+    });
+
+    // Get referrer domains for geo-like source data
+    const referrers = await prisma.userEvent.groupBy({
+      by: ['referrer'],
+      where: { referrer: { not: null }, createdAt: { gte: new Date(Date.now() - 30 * 86400000) } },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+      take: 20,
+    });
+
+    // Get user-agent breakdown (mobile vs desktop)
+    const recentEvents = await prisma.userEvent.findMany({
+      where: { userAgent: { not: null }, createdAt: { gte: new Date(Date.now() - 7 * 86400000) } },
+      select: { userAgent: true, userId: true },
+      distinct: ['userId'],
+    });
+
+    let mobile = 0, desktop = 0, tablet = 0;
+    for (const e of recentEvents) {
+      const ua = (e.userAgent || '').toLowerCase();
+      if (ua.includes('mobile') || ua.includes('android') || ua.includes('iphone')) mobile++;
+      else if (ua.includes('ipad') || ua.includes('tablet')) tablet++;
+      else desktop++;
+    }
+
+    // IP-based city grouping (approximate from first IP octet patterns)
+    const ipEvents = await prisma.userEvent.findMany({
+      where: { ipAddress: { not: null }, createdAt: { gte: new Date(Date.now() - 30 * 86400000) } },
+      select: { ipAddress: true, userId: true },
+      distinct: ['userId'],
+    });
+
+    // Group by IP prefix (rough geo proxy)
+    const ipPrefixes: Record<string, number> = {};
+    for (const e of ipEvents) {
+      if (!e.ipAddress) continue;
+      const prefix = e.ipAddress.split('.').slice(0, 2).join('.');
+      ipPrefixes[prefix] = (ipPrefixes[prefix] || 0) + 1;
+    }
+    const topRegions = Object.entries(ipPrefixes)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 15)
+      .map(([prefix, count]) => ({ region: prefix, users: count }));
+
+    return successResponse(res, {
+      totalWithLocation: profiles.length,
+      devices: { mobile, desktop, tablet, total: mobile + desktop + tablet },
+      topReferrers: referrers.map(r => ({ source: r.referrer, count: r._count.id })),
+      topRegions,
+    });
+  } catch (err: any) {
+    console.error('[Analytics] Geo error:', err.message);
+    return errorResponse(res, 'Failed to fetch geo data', 500);
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// ADMIN: Referral / Traffic Sources
+// ═══════════════════════════════════════════════════════
+
+r.get('/admin/referrals', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { days = '30' } = req.query as any;
+    const since = new Date(Date.now() - parseInt(days) * 86400000);
+
+    // Referrer breakdown from page_view events
+    const referrers = await prisma.userEvent.groupBy({
+      by: ['referrer'],
+      where: { event: 'page_view', referrer: { not: null }, createdAt: { gte: since } },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+      take: 30,
+    });
+
+    // Categorize referrers
+    const sources: Record<string, number> = { direct: 0, google: 0, social: 0, other: 0 };
+    const detailedSources: { source: string; domain: string; visits: number; category: string }[] = [];
+
+    for (const r of referrers) {
+      const ref = r.referrer || '';
+      let domain = '';
+      try { domain = new URL(ref).hostname; } catch { domain = ref; }
+      let category = 'other';
+      if (!ref || ref === '') { category = 'direct'; sources.direct += r._count.id; }
+      else if (domain.includes('google')) { category = 'google'; sources.google += r._count.id; }
+      else if (domain.includes('facebook') || domain.includes('instagram') || domain.includes('twitter') || domain.includes('linkedin') || domain.includes('youtube') || domain.includes('whatsapp') || domain.includes('t.co')) {
+        category = 'social'; sources.social += r._count.id;
+      } else { sources.other += r._count.id; }
+
+      detailedSources.push({ source: ref, domain, visits: r._count.id, category });
+    }
+
+    // UTM tracking from page_view metadata
+    const utmEvents = await prisma.userEvent.findMany({
+      where: {
+        event: 'page_view',
+        createdAt: { gte: since },
+        metadata: { not: null },
+      },
+      select: { metadata: true },
+      take: 5000,
+    });
+
+    const utmSources: Record<string, number> = {};
+    const utmMediums: Record<string, number> = {};
+    const utmCampaigns: Record<string, number> = {};
+    for (const e of utmEvents) {
+      const m = e.metadata as any;
+      if (m?.utm_source) utmSources[m.utm_source] = (utmSources[m.utm_source] || 0) + 1;
+      if (m?.utm_medium) utmMediums[m.utm_medium] = (utmMediums[m.utm_medium] || 0) + 1;
+      if (m?.utm_campaign) utmCampaigns[m.utm_campaign] = (utmCampaigns[m.utm_campaign] || 0) + 1;
+    }
+
+    // Conversion by source: users who came from each referrer and then subscribed
+    const totalPageViews = await prisma.userEvent.count({
+      where: { event: 'page_view', createdAt: { gte: since } },
+    });
+    const uniqueVisitors = await prisma.userEvent.groupBy({
+      by: ['userId'],
+      where: { event: 'page_view', createdAt: { gte: since }, userId: { not: null } },
+    });
+
+    return successResponse(res, {
+      sources,
+      detailedSources: detailedSources.slice(0, 20),
+      utm: {
+        sources: Object.entries(utmSources).sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ name: k, count: v })),
+        mediums: Object.entries(utmMediums).sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ name: k, count: v })),
+        campaigns: Object.entries(utmCampaigns).sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ name: k, count: v })),
+      },
+      totalPageViews,
+      uniqueVisitors: uniqueVisitors.length,
+      period: `${days} days`,
+    });
+  } catch (err: any) {
+    console.error('[Analytics] Referrals error:', err.message);
+    return errorResponse(res, 'Failed to fetch referrals', 500);
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// ADMIN: Engagement Streaks
+// ═══════════════════════════════════════════════════════
+
+r.get('/admin/streaks', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { minStreak = '3', page = '1', limit = '30' } = req.query as any;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const take = parseInt(limit);
+
+    // Get all active users with events
+    const activeUsers = await prisma.userEvent.groupBy({
+      by: ['userId'],
+      where: { userId: { not: null }, createdAt: { gte: new Date(Date.now() - 60 * 86400000) } },
+      _count: { id: true },
+    });
+
+    const userIds = activeUsers.map(u => u.userId!).filter(Boolean);
+
+    // For each user, get distinct active days
+    const userStreaks: { userId: string; currentStreak: number; longestStreak: number; totalActiveDays: number; lastActiveDate: string }[] = [];
+
+    // Batch fetch: get all events for these users, grouped by day
+    for (const userId of userIds) {
+      const events = await prisma.userEvent.findMany({
+        where: { userId, createdAt: { gte: new Date(Date.now() - 60 * 86400000) } },
+        select: { createdAt: true },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // Get unique days
+      const days = new Set(events.map(e => e.createdAt.toISOString().split('T')[0]));
+      const sortedDays = [...days].sort().reverse();
+      const totalActiveDays = sortedDays.length;
+
+      if (totalActiveDays === 0) continue;
+
+      // Calculate current streak (from today backwards)
+      const today = new Date().toISOString().split('T')[0];
+      let currentStreak = 0;
+      let checkDate = new Date(today);
+      while (days.has(checkDate.toISOString().split('T')[0])) {
+        currentStreak++;
+        checkDate = new Date(checkDate.getTime() - 86400000);
+      }
+      // If today not in set, check from yesterday
+      if (currentStreak === 0) {
+        checkDate = new Date(Date.now() - 86400000);
+        while (days.has(checkDate.toISOString().split('T')[0])) {
+          currentStreak++;
+          checkDate = new Date(checkDate.getTime() - 86400000);
+        }
+      }
+
+      // Calculate longest streak
+      let longest = 0, current = 1;
+      for (let i = 1; i < sortedDays.length; i++) {
+        const prev = new Date(sortedDays[i - 1]);
+        const curr = new Date(sortedDays[i]);
+        if (prev.getTime() - curr.getTime() === 86400000) {
+          current++;
+        } else {
+          longest = Math.max(longest, current);
+          current = 1;
+        }
+      }
+      longest = Math.max(longest, current);
+
+      if (currentStreak >= parseInt(minStreak) || longest >= parseInt(minStreak)) {
+        userStreaks.push({
+          userId,
+          currentStreak,
+          longestStreak: longest,
+          totalActiveDays,
+          lastActiveDate: sortedDays[0],
+        });
+      }
+    }
+
+    // Sort by current streak descending
+    userStreaks.sort((a, b) => b.currentStreak - a.currentStreak);
+    const total = userStreaks.length;
+    const paginated = userStreaks.slice(skip, skip + take);
+
+    // Fetch user details
+    const paginatedIds = paginated.map(s => s.userId);
+    const users = await prisma.user.findMany({
+      where: { id: { in: paginatedIds } },
+      select: { id: true, fullName: true, email: true, phone: true, lastLoginAt: true },
+    });
+    const userMap = new Map(users.map(u => [u.id, u]));
+
+    // Summary stats
+    const streakDist = { '1-3': 0, '4-7': 0, '8-14': 0, '15-30': 0, '30+': 0 };
+    for (const s of userStreaks) {
+      if (s.currentStreak >= 30) streakDist['30+']++;
+      else if (s.currentStreak >= 15) streakDist['15-30']++;
+      else if (s.currentStreak >= 8) streakDist['8-14']++;
+      else if (s.currentStreak >= 4) streakDist['4-7']++;
+      else streakDist['1-3']++;
+    }
+
+    return successResponse(res, {
+      streaks: paginated.map(s => ({ ...s, user: userMap.get(s.userId) || null })),
+      total,
+      distribution: streakDist,
+      avgStreak: total > 0 ? Math.round(userStreaks.reduce((s, u) => s + u.currentStreak, 0) / total * 10) / 10 : 0,
+      page: parseInt(page),
+      limit: take,
+    });
+  } catch (err: any) {
+    console.error('[Analytics] Streaks error:', err.message);
+    return errorResponse(res, 'Failed to fetch streaks', 500);
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// NPS: Submit Survey (user-facing)
+// ═══════════════════════════════════════════════════════
+
+r.post('/nps', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { score, feedback, page } = req.body;
+    if (score == null || score < 0 || score > 10) {
+      return errorResponse(res, 'Score must be 0-10', 400);
+    }
+    // Rate limit: 1 NPS per user per 30 days
+    const recent = await prisma.npsSurvey.findFirst({
+      where: { userId: req.user!.id, createdAt: { gte: new Date(Date.now() - 30 * 86400000) } },
+    });
+    if (recent) return errorResponse(res, 'Already submitted recently', 429);
+
+    await prisma.npsSurvey.create({
+      data: { userId: req.user!.id, score, feedback: feedback || null, page: page || null },
+    });
+
+    return successResponse(res, { message: 'Thank you for your feedback!' });
+  } catch (err: any) {
+    return errorResponse(res, 'Failed to submit NPS', 500);
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// ADMIN: NPS Results
+// ═══════════════════════════════════════════════════════
+
+r.get('/admin/nps', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { days = '90' } = req.query as any;
+    const since = new Date(Date.now() - parseInt(days) * 86400000);
+
+    const surveys = await prisma.npsSurvey.findMany({
+      where: { createdAt: { gte: since } },
+      orderBy: { createdAt: 'desc' },
+      include: { user: { select: { fullName: true, email: true } } },
+    });
+
+    const total = surveys.length;
+    if (total === 0) {
+      return successResponse(res, { nps: 0, total: 0, promoters: 0, passives: 0, detractors: 0, surveys: [], trend: [] });
+    }
+
+    let promoters = 0, passives = 0, detractors = 0;
+    for (const s of surveys) {
+      if (s.score >= 9) promoters++;
+      else if (s.score >= 7) passives++;
+      else detractors++;
+    }
+    const nps = Math.round((promoters / total - detractors / total) * 100);
+
+    // Score distribution
+    const distribution: Record<number, number> = {};
+    for (let i = 0; i <= 10; i++) distribution[i] = 0;
+    for (const s of surveys) distribution[s.score]++;
+
+    // Monthly NPS trend
+    const months = new Map<string, { p: number; d: number; t: number }>();
+    for (const s of surveys) {
+      const key = s.createdAt.toISOString().slice(0, 7);
+      if (!months.has(key)) months.set(key, { p: 0, d: 0, t: 0 });
+      const m = months.get(key)!;
+      m.t++;
+      if (s.score >= 9) m.p++;
+      else if (s.score < 7) m.d++;
+    }
+    const trend = [...months.entries()].map(([month, v]) => ({
+      month,
+      nps: Math.round((v.p / v.t - v.d / v.t) * 100),
+      responses: v.t,
+    }));
+
+    return successResponse(res, {
+      nps,
+      total,
+      promoters,
+      passives,
+      detractors,
+      distribution,
+      trend,
+      recentFeedback: surveys.filter(s => s.feedback).slice(0, 20).map(s => ({
+        score: s.score, feedback: s.feedback, user: s.user.fullName || s.user.email, createdAt: s.createdAt,
+      })),
+    });
+  } catch (err: any) {
+    console.error('[Analytics] NPS error:', err.message);
+    return errorResponse(res, 'Failed to fetch NPS', 500);
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// ADMIN: Push Campaign Manager
+// ═══════════════════════════════════════════════════════
+
+r.get('/admin/campaigns', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const campaigns = await prisma.pushCampaign.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+    return successResponse(res, { campaigns });
+  } catch (err: any) {
+    return errorResponse(res, 'Failed to fetch campaigns', 500);
+  }
+});
+
+r.post('/admin/campaigns', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { title, body, segment } = req.body;
+    if (!title || !body || !segment) return errorResponse(res, 'Title, body, segment required', 400);
+
+    const campaign = await prisma.pushCampaign.create({
+      data: { title, body, segment, createdBy: req.user?.id },
+    });
+    res.status(201);
+    return successResponse(res, { campaign });
+  } catch (err: any) {
+    return errorResponse(res, 'Failed to create campaign', 500);
+  }
+});
+
+r.post('/admin/campaigns/:id/send', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const campaign = await prisma.pushCampaign.findUnique({ where: { id } });
+    if (!campaign) return errorResponse(res, 'Campaign not found', 404);
+
+    // Build user filter based on segment
+    const where: any = { fcmToken: { not: null } };
+    switch (campaign.segment) {
+      case 'premium': where.subscriptions = { some: { status: { in: ['ACTIVE', 'TRIAL'] } } }; break;
+      case 'free': where.subscriptions = { none: { status: { in: ['ACTIVE', 'TRIAL'] } } }; break;
+      case 'inactive_7d':
+        where.OR = [
+          { lastLoginAt: { lt: new Date(Date.now() - 7 * 86400000) } },
+          { lastLoginAt: null },
+        ]; break;
+      case 'inactive_30d':
+        where.OR = [
+          { lastLoginAt: { lt: new Date(Date.now() - 30 * 86400000) } },
+          { lastLoginAt: null },
+        ]; break;
+      case 'new_7d': where.createdAt = { gte: new Date(Date.now() - 7 * 86400000) }; break;
+      // "all" = no extra filter
+    }
+
+    const users = await prisma.user.findMany({ where, select: { id: true, fcmToken: true } });
+
+    // Create notifications in DB for all matched users
+    if (users.length > 0) {
+      await prisma.notification.createMany({
+        data: users.map(u => ({
+          userId: u.id,
+          title: campaign.title,
+          body: campaign.body,
+          type: 'campaign',
+          data: { campaignId: id },
+        })),
+      });
+    }
+
+    // Update campaign status
+    await prisma.pushCampaign.update({
+      where: { id },
+      data: { status: 'sent', sentCount: users.length, sentAt: new Date() },
+    });
+
+    return successResponse(res, { sentTo: users.length });
+  } catch (err: any) {
+    console.error('[Analytics] Campaign send error:', err.message);
+    return errorResponse(res, 'Failed to send campaign', 500);
+  }
+});
+
+r.delete('/admin/campaigns/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    await prisma.pushCampaign.delete({ where: { id: req.params.id } });
+    return successResponse(res, { message: 'Deleted' });
+  } catch (err: any) {
+    return errorResponse(res, 'Failed to delete campaign', 500);
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// ADMIN: Lifetime Value (LTV) Analysis
+// ═══════════════════════════════════════════════════════
+
+r.get('/admin/ltv', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    // Get all users with their total spending
+    const orderSpending = await prisma.order.groupBy({
+      by: ['userId'],
+      where: { orderStatus: { in: ['DELIVERED', 'SHIPPED', 'PROCESSING'] } },
+      _sum: { totalAmount: true },
+      _count: { id: true },
+    });
+
+    const subSpending = await prisma.userSubscription.groupBy({
+      by: ['userId'],
+      where: { pricePaid: { gt: 0 } },
+      _sum: { pricePaid: true },
+      _count: { id: true },
+    });
+
+    // Merge spending
+    const userLTV = new Map<string, number>();
+    for (const o of orderSpending) {
+      userLTV.set(o.userId, (userLTV.get(o.userId) || 0) + (o._sum.totalAmount || 0));
+    }
+    for (const s of subSpending) {
+      userLTV.set(s.userId, (userLTV.get(s.userId) || 0) + (s._sum.pricePaid || 0));
+    }
+
+    const totalUsers = await prisma.user.count();
+    const ltvValues = [...userLTV.values()].sort((a, b) => b - a);
+    const totalLTV = ltvValues.reduce((s, v) => s + v, 0);
+    const avgLTV = totalUsers > 0 ? Math.round(totalLTV / totalUsers) : 0;
+    const payingUsers = ltvValues.length;
+    const avgPayingLTV = payingUsers > 0 ? Math.round(totalLTV / payingUsers) : 0;
+
+    // LTV distribution buckets
+    const buckets = { '₹0': 0, '₹1-100': 0, '₹101-500': 0, '₹501-1000': 0, '₹1001-5000': 0, '₹5000+': 0 };
+    const allUsers = totalUsers - payingUsers;
+    buckets['₹0'] = allUsers;
+    for (const v of ltvValues) {
+      if (v <= 100) buckets['₹1-100']++;
+      else if (v <= 500) buckets['₹101-500']++;
+      else if (v <= 1000) buckets['₹501-1000']++;
+      else if (v <= 5000) buckets['₹1001-5000']++;
+      else buckets['₹5000+']++;
+    }
+
+    // Top 20 highest LTV users
+    const topUserIds = [...userLTV.entries()].sort((a, b) => b[1] - a[1]).slice(0, 20).map(([id]) => id);
+    const topUsers = await prisma.user.findMany({
+      where: { id: { in: topUserIds } },
+      select: { id: true, fullName: true, email: true, createdAt: true },
+    });
+    const topUserMap = new Map(topUsers.map(u => [u.id, u]));
+
+    // LTV by cohort (signup month)
+    const allUsersWithDate = await prisma.user.findMany({
+      select: { id: true, createdAt: true },
+    });
+    const cohortLTV: Record<string, { total: number; users: number }> = {};
+    for (const u of allUsersWithDate) {
+      const month = u.createdAt.toISOString().slice(0, 7);
+      if (!cohortLTV[month]) cohortLTV[month] = { total: 0, users: 0 };
+      cohortLTV[month].users++;
+      cohortLTV[month].total += userLTV.get(u.id) || 0;
+    }
+
+    const cohortData = Object.entries(cohortLTV)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(-6)
+      .map(([month, v]) => ({ month, avgLTV: v.users > 0 ? Math.round(v.total / v.users) : 0, users: v.users, totalRevenue: Math.round(v.total) }));
+
+    // Projected annual LTV
+    const avgMonthlyRev = totalLTV / Math.max(1, Object.keys(cohortLTV).length);
+    const projectedAnnualLTV = Math.round(avgMonthlyRev * 12 / Math.max(1, totalUsers));
+
+    return successResponse(res, {
+      summary: {
+        totalUsers,
+        payingUsers,
+        avgLTV,
+        avgPayingLTV,
+        medianLTV: ltvValues.length > 0 ? ltvValues[Math.floor(ltvValues.length / 2)] : 0,
+        totalRevenue: Math.round(totalLTV),
+        projectedAnnualLTV,
+      },
+      distribution: buckets,
+      topUsers: topUserIds.map(id => ({
+        user: topUserMap.get(id),
+        ltv: Math.round(userLTV.get(id) || 0),
+      })),
+      cohortLTV: cohortData,
+    });
+  } catch (err: any) {
+    console.error('[Analytics] LTV error:', err.message);
+    return errorResponse(res, 'Failed to fetch LTV', 500);
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// ADMIN: A/B Test Tracking
+// ═══════════════════════════════════════════════════════
+
+r.get('/admin/ab-tests', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { days = '30' } = req.query as any;
+    const since = new Date(Date.now() - parseInt(days) * 86400000);
+
+    // Get all A/B variant events
+    const variantEvents = await prisma.userEvent.findMany({
+      where: { event: 'ab_variant_shown', createdAt: { gte: since } },
+      select: { userId: true, label: true, metadata: true, createdAt: true },
+    });
+
+    // Group by test name → variant → metrics
+    const tests = new Map<string, Map<string, { shown: Set<string>; converted: Set<string> }>>();
+
+    for (const e of variantEvents) {
+      const m = e.metadata as any;
+      const testName = m?.test || e.label || 'unknown';
+      const variant = m?.variant || 'control';
+
+      if (!tests.has(testName)) tests.set(testName, new Map());
+      const test = tests.get(testName)!;
+      if (!test.has(variant)) test.set(variant, { shown: new Set(), converted: new Set() });
+      if (e.userId) test.get(variant)!.shown.add(e.userId);
+    }
+
+    // Check conversions (checkout_completed) for users in each variant
+    const allVariantUserIds = new Set<string>();
+    for (const [, variants] of tests) {
+      for (const [, data] of variants) {
+        for (const uid of data.shown) allVariantUserIds.add(uid);
+      }
+    }
+
+    if (allVariantUserIds.size > 0) {
+      const conversions = await prisma.userEvent.findMany({
+        where: {
+          event: 'checkout_completed',
+          userId: { in: [...allVariantUserIds] },
+          createdAt: { gte: since },
+        },
+        select: { userId: true },
+        distinct: ['userId'],
+      });
+      const convertedSet = new Set(conversions.map(c => c.userId));
+
+      for (const [, variants] of tests) {
+        for (const [, data] of variants) {
+          for (const uid of data.shown) {
+            if (convertedSet.has(uid)) data.converted.add(uid);
+          }
+        }
+      }
+    }
+
+    // Format results
+    const results = [...tests.entries()].map(([name, variants]) => ({
+      test: name,
+      variants: [...variants.entries()].map(([variant, data]) => ({
+        variant,
+        shown: data.shown.size,
+        converted: data.converted.size,
+        conversionRate: data.shown.size > 0 ? Math.round(data.converted.size / data.shown.size * 100 * 10) / 10 : 0,
+      })),
+    }));
+
+    return successResponse(res, { tests: results, period: `${days} days` });
+  } catch (err: any) {
+    console.error('[Analytics] AB tests error:', err.message);
+    return errorResponse(res, 'Failed to fetch AB tests', 500);
   }
 });
 

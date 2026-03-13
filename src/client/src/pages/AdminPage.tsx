@@ -177,7 +177,7 @@ const FormCheckbox = ({ label, checked, onChange }: { label: string; checked: bo
 );
 type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'NO_SHOW' | 'CANCELLED';
 
-type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness' | 'programs' | 'add_program' | 'edit_program' | 'program_content' | 'sellers' | 'seller_detail' | 'seller_payouts' | 'add_seller' | 'community' | 'content' | 'subscriptions' | 'leads' | 'insights' | 'user_detail' | 'live_feed' | 'churn_risk' | 'segments' | 'alerts' | 'forecast' | 'cohorts' | 'exports';
+type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness' | 'programs' | 'add_program' | 'edit_program' | 'program_content' | 'sellers' | 'seller_detail' | 'seller_payouts' | 'add_seller' | 'community' | 'content' | 'subscriptions' | 'leads' | 'insights' | 'user_detail' | 'live_feed' | 'churn_risk' | 'segments' | 'alerts' | 'forecast' | 'cohorts' | 'exports' | 'journeys' | 'geo' | 'referrals' | 'streaks' | 'campaigns' | 'nps' | 'ltv' | 'ab_tests';
 
 // ─── Finance Admin Tab ──────────────────────────────────
 // Platform config, coupons, revenue analytics — like Practo/Zomato/Amazon admin
@@ -1790,6 +1790,743 @@ function CohortsTab() {
         </table>
       </div>
     </div>
+  </>);
+}
+
+// ─── User Journey / Path Analysis Tab ─────────────────
+function JourneysTab() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [days, setDays] = useState(7);
+
+  useEffect(() => {
+    setLoading(true);
+    analyticsAPI.adminJourneys(days).then(res => setData(res.data?.data || res.data)).catch(() => {}).finally(() => setLoading(false));
+  }, [days]);
+
+  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin w-8 h-8 border-4 border-rose-400 border-t-transparent rounded-full" /></div>;
+  if (!data) return <p className="text-center text-gray-400 py-8">No journey data</p>;
+
+  return (<>
+    <div className="flex items-center justify-between">
+      <h3 className="text-base font-extrabold text-gray-900">{'\u{1F6E4}\uFE0F'} User Journeys</h3>
+      <div className="flex gap-1">
+        {[7, 14, 30].map(d => (
+          <button key={d} onClick={() => setDays(d)}
+            className={'px-2.5 py-1 rounded-full text-[10px] font-bold ' + (days === d ? 'bg-rose-500 text-white' : 'bg-gray-100 text-gray-500')}>{d}d</button>
+        ))}
+      </div>
+    </div>
+
+    <div className="grid grid-cols-2 gap-3">
+      <div className="bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl p-4 text-white">
+        <div className="text-[9px] font-bold text-white/60">SESSIONS</div>
+        <div className="text-2xl font-extrabold">{data.totalSessions}</div>
+      </div>
+      <div className="bg-gradient-to-br from-rose-500 to-pink-500 rounded-2xl p-4 text-white">
+        <div className="text-[9px] font-bold text-white/60">AVG PATH LENGTH</div>
+        <div className="text-2xl font-extrabold">{data.avgPathLength} pages</div>
+      </div>
+    </div>
+
+    {/* Top Flows */}
+    <div className="bg-white rounded-2xl p-4 shadow-sm">
+      <h4 className="text-sm font-bold text-gray-700 mb-3">Most Common Flows (3-step)</h4>
+      {(data.topFlows || []).length === 0 ? (
+        <p className="text-[10px] text-gray-400 text-center py-4">Not enough session data yet</p>
+      ) : (
+        <div className="space-y-1.5">
+          {(data.topFlows || []).slice(0, 10).map((f: any, i: number) => (
+            <div key={i} className="flex items-center gap-2">
+              <span className="text-[9px] font-bold text-gray-400 w-4">{i + 1}</span>
+              <div className="flex-1 bg-gray-50 rounded-lg px-3 py-2">
+                <span className="text-[10px] font-mono text-gray-700">{f.flow}</span>
+              </div>
+              <span className="text-[10px] font-bold text-gray-600">{f.count}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+
+    {/* Page Popularity */}
+    <div className="bg-white rounded-2xl p-4 shadow-sm">
+      <h4 className="text-sm font-bold text-gray-700 mb-3">Page Popularity</h4>
+      <div className="space-y-1.5">
+        {(data.pages || []).slice(0, 12).map((p: any) => {
+          const maxV = data.pages[0]?.visits || 1;
+          return (
+            <div key={p.page} className="flex items-center gap-2">
+              <span className="text-[9px] text-gray-600 w-20 truncate flex-shrink-0">{p.page.replace(/^\//,'')}</span>
+              <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
+                <div className="bg-gradient-to-r from-indigo-400 to-purple-500 h-full rounded-full" style={{ width: `${p.visits / maxV * 100}%` }} />
+              </div>
+              <span className="text-[8px] text-gray-500 w-8 text-right flex-shrink-0">{p.visits}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+
+    {/* Top Transitions */}
+    <div className="bg-white rounded-2xl p-4 shadow-sm">
+      <h4 className="text-sm font-bold text-gray-700 mb-3">Top Page Transitions</h4>
+      <div className="space-y-1">
+        {(data.topTransitions || []).slice(0, 10).map((t: any, i: number) => (
+          <div key={i} className="flex items-center gap-1.5 text-[10px]">
+            <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded truncate max-w-[100px]">{t.from.replace(/^\//,'')}</span>
+            <span className="text-gray-400">{'\u2192'}</span>
+            <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded truncate max-w-[100px]">{t.to.replace(/^\//,'')}</span>
+            <span className="text-gray-500 font-bold ml-auto">{t.count}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  </>);
+}
+
+// ─── Geo Analytics Tab ─────────────────────────────────
+function GeoTab() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    analyticsAPI.adminGeo().then(res => setData(res.data?.data || res.data)).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin w-8 h-8 border-4 border-rose-400 border-t-transparent rounded-full" /></div>;
+  if (!data) return <p className="text-center text-gray-400 py-8">No geo data</p>;
+
+  const d = data.devices || {};
+  const totalDevices = d.total || 1;
+
+  return (<>
+    <h3 className="text-base font-extrabold text-gray-900">{'\u{1F30D}'} Geo & Device Analytics</h3>
+
+    {/* Device Breakdown */}
+    <div className="bg-white rounded-2xl p-4 shadow-sm">
+      <h4 className="text-sm font-bold text-gray-700 mb-3">Device Breakdown</h4>
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        {[{ l: 'Mobile', v: d.mobile, e: '\u{1F4F1}', c: 'from-blue-500 to-indigo-500' },
+          { l: 'Desktop', v: d.desktop, e: '\u{1F4BB}', c: 'from-emerald-500 to-teal-500' },
+          { l: 'Tablet', v: d.tablet, e: '\u{1F4F2}', c: 'from-orange-500 to-red-500' }].map(x => (
+          <div key={x.l} className={`bg-gradient-to-br ${x.c} rounded-xl p-3 text-white text-center`}>
+            <div className="text-lg">{x.e}</div>
+            <div className="text-lg font-extrabold">{x.v || 0}</div>
+            <div className="text-[8px] text-white/70">{Math.round((x.v || 0) / totalDevices * 100)}%</div>
+          </div>
+        ))}
+      </div>
+      <div className="w-full bg-gray-100 rounded-full h-3 flex overflow-hidden">
+        <div className="bg-blue-500 h-full" style={{ width: `${(d.mobile || 0) / totalDevices * 100}%` }} />
+        <div className="bg-emerald-500 h-full" style={{ width: `${(d.desktop || 0) / totalDevices * 100}%` }} />
+        <div className="bg-orange-500 h-full" style={{ width: `${(d.tablet || 0) / totalDevices * 100}%` }} />
+      </div>
+    </div>
+
+    {/* Top Referrers */}
+    <div className="bg-white rounded-2xl p-4 shadow-sm">
+      <h4 className="text-sm font-bold text-gray-700 mb-3">Top Traffic Sources</h4>
+      {(data.topReferrers || []).length === 0 ? (
+        <p className="text-[10px] text-gray-400 text-center py-4">No referrer data yet</p>
+      ) : (
+        <div className="space-y-1.5">
+          {(data.topReferrers || []).slice(0, 10).map((r: any, i: number) => (
+            <div key={i} className="flex items-center gap-2">
+              <span className="text-[10px] text-gray-600 truncate flex-1">{r.source || 'Direct'}</span>
+              <span className="text-[10px] font-bold text-gray-700">{r.count}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+
+    {/* IP Regions */}
+    <div className="bg-white rounded-2xl p-4 shadow-sm">
+      <h4 className="text-sm font-bold text-gray-700 mb-3">Network Regions (IP prefix)</h4>
+      <div className="space-y-1.5">
+        {(data.topRegions || []).map((r: any, i: number) => (
+          <div key={i} className="flex items-center gap-2">
+            <span className="text-[10px] font-mono text-gray-600">{r.region}.*</span>
+            <div className="flex-1 bg-gray-100 rounded-full h-2.5">
+              <div className="bg-gradient-to-r from-emerald-400 to-teal-500 h-full rounded-full"
+                style={{ width: `${Math.max(5, r.users / (data.topRegions[0]?.users || 1) * 100)}%` }} />
+            </div>
+            <span className="text-[9px] font-bold text-gray-600">{r.users}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  </>);
+}
+
+// ─── Referral Tracking Tab ─────────────────────────────
+function ReferralsTab() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [days, setDays] = useState(30);
+
+  useEffect(() => {
+    setLoading(true);
+    analyticsAPI.adminReferrals(days).then(res => setData(res.data?.data || res.data)).catch(() => {}).finally(() => setLoading(false));
+  }, [days]);
+
+  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin w-8 h-8 border-4 border-rose-400 border-t-transparent rounded-full" /></div>;
+  if (!data) return <p className="text-center text-gray-400 py-8">No referral data</p>;
+
+  const src = data.sources || {};
+  const totalSrc = Object.values(src).reduce((a: number, b: any) => a + b, 0) || 1;
+
+  return (<>
+    <div className="flex items-center justify-between">
+      <h3 className="text-base font-extrabold text-gray-900">{'\u{1F517}'} Traffic & Referrals</h3>
+      <div className="flex gap-1">
+        {[7, 30, 90].map(d => (
+          <button key={d} onClick={() => setDays(d)}
+            className={'px-2.5 py-1 rounded-full text-[10px] font-bold ' + (days === d ? 'bg-rose-500 text-white' : 'bg-gray-100 text-gray-500')}>{d}d</button>
+        ))}
+      </div>
+    </div>
+
+    <div className="grid grid-cols-2 gap-3">
+      <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
+        <div className="text-2xl font-extrabold text-gray-800">{(data.totalPageViews || 0).toLocaleString()}</div>
+        <div className="text-[9px] text-gray-400">Total Page Views</div>
+      </div>
+      <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
+        <div className="text-2xl font-extrabold text-gray-800">{data.uniqueVisitors || 0}</div>
+        <div className="text-[9px] text-gray-400">Unique Visitors</div>
+      </div>
+    </div>
+
+    {/* Source Breakdown */}
+    <div className="bg-white rounded-2xl p-4 shadow-sm">
+      <h4 className="text-sm font-bold text-gray-700 mb-3">Traffic Sources</h4>
+      <div className="space-y-2">
+        {[{ k: 'direct', l: 'Direct', c: 'bg-blue-500', e: '\u{1F310}' }, { k: 'google', l: 'Google', c: 'bg-red-500', e: '\u{1F50D}' },
+          { k: 'social', l: 'Social', c: 'bg-purple-500', e: '\u{1F4F1}' }, { k: 'other', l: 'Other', c: 'bg-gray-400', e: '\u{1F517}' }].map(s => (
+          <div key={s.k} className="flex items-center gap-2">
+            <span className="text-sm">{s.e}</span>
+            <span className="text-[10px] text-gray-600 w-12">{s.l}</span>
+            <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
+              <div className={`${s.c} h-full rounded-full`} style={{ width: `${(src[s.k] || 0) / totalSrc * 100}%` }} />
+            </div>
+            <span className="text-[10px] font-bold text-gray-700 w-10 text-right">{src[s.k] || 0}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {/* UTM Breakdown */}
+    {data.utm && (data.utm.sources?.length > 0 || data.utm.campaigns?.length > 0) && (
+      <div className="bg-white rounded-2xl p-4 shadow-sm">
+        <h4 className="text-sm font-bold text-gray-700 mb-3">UTM Tracking</h4>
+        {data.utm.sources?.length > 0 && (<>
+          <p className="text-[9px] font-bold text-gray-500 mb-1">Sources</p>
+          <div className="flex flex-wrap gap-1 mb-2">
+            {data.utm.sources.map((s: any) => (
+              <span key={s.name} className="text-[9px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{s.name}: {s.count}</span>
+            ))}
+          </div>
+        </>)}
+        {data.utm.campaigns?.length > 0 && (<>
+          <p className="text-[9px] font-bold text-gray-500 mb-1">Campaigns</p>
+          <div className="flex flex-wrap gap-1">
+            {data.utm.campaigns.map((c: any) => (
+              <span key={c.name} className="text-[9px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">{c.name}: {c.count}</span>
+            ))}
+          </div>
+        </>)}
+      </div>
+    )}
+
+    {/* Detailed Sources */}
+    <div className="bg-white rounded-2xl p-4 shadow-sm">
+      <h4 className="text-sm font-bold text-gray-700 mb-3">Detailed Referrers</h4>
+      <div className="space-y-1">
+        {(data.detailedSources || []).slice(0, 15).map((s: any, i: number) => (
+          <div key={i} className="flex items-center gap-2 text-[10px]">
+            <span className={'px-1.5 py-0.5 rounded text-[8px] font-bold ' +
+              (s.category === 'google' ? 'bg-red-50 text-red-600' : s.category === 'social' ? 'bg-purple-50 text-purple-600' : 'bg-gray-50 text-gray-500')}>{s.category}</span>
+            <span className="text-gray-600 truncate flex-1">{s.domain || 'direct'}</span>
+            <span className="font-bold text-gray-700">{s.visits}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  </>);
+}
+
+// ─── Engagement Streaks Tab ─────────────────────────────
+function StreaksTab({ onViewUser }: { onViewUser: (id: string) => void }) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [minStreak, setMinStreak] = useState(3);
+
+  useEffect(() => {
+    setLoading(true);
+    analyticsAPI.adminStreaks({ minStreak }).then(res => setData(res.data?.data || res.data)).catch(() => {}).finally(() => setLoading(false));
+  }, [minStreak]);
+
+  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin w-8 h-8 border-4 border-rose-400 border-t-transparent rounded-full" /></div>;
+  if (!data) return <p className="text-center text-gray-400 py-8">No streak data</p>;
+
+  const dist = data.distribution || {};
+
+  return (<>
+    <h3 className="text-base font-extrabold text-gray-900">{'\u{1F525}'} Engagement Streaks</h3>
+    <p className="text-[10px] text-gray-500 -mt-2">Users with consecutive daily activity (like Duolingo streaks)</p>
+
+    <div className="grid grid-cols-2 gap-3">
+      <div className="bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl p-4 text-white">
+        <div className="text-[9px] font-bold text-white/60">USERS WITH STREAKS</div>
+        <div className="text-2xl font-extrabold">{data.total}</div>
+      </div>
+      <div className="bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl p-4 text-white">
+        <div className="text-[9px] font-bold text-white/60">AVG STREAK</div>
+        <div className="text-2xl font-extrabold">{data.avgStreak} days</div>
+      </div>
+    </div>
+
+    {/* Streak Distribution */}
+    <div className="bg-white rounded-2xl p-4 shadow-sm">
+      <h4 className="text-sm font-bold text-gray-700 mb-3">Distribution</h4>
+      <div className="flex items-end gap-2 h-24">
+        {Object.entries(dist).map(([range, count]: any) => {
+          const maxCount = Math.max(...Object.values(dist) as number[], 1);
+          return (
+            <div key={range} className="flex-1 flex flex-col items-center gap-0.5">
+              <span className="text-[8px] font-bold text-gray-600">{count}</span>
+              <div className="w-full rounded-t bg-gradient-to-t from-orange-500 to-amber-400" style={{ height: `${Math.max(4, count / maxCount * 70)}px` }} />
+              <span className="text-[7px] text-gray-400">{range}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+
+    {/* Min streak filter */}
+    <div className="flex gap-1.5">
+      {[1, 3, 7, 14, 30].map(m => (
+        <button key={m} onClick={() => setMinStreak(m)}
+          className={'px-3 py-1.5 rounded-full text-[10px] font-bold ' + (minStreak === m ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white' : 'bg-gray-100 text-gray-500')}>
+          {m}+ days
+        </button>
+      ))}
+    </div>
+
+    {/* User Streaks List */}
+    <div className="bg-white rounded-2xl p-4 shadow-sm space-y-2">
+      {(data.streaks || []).map((s: any) => (
+        <div key={s.userId} className="border border-gray-100 rounded-xl p-3 flex items-center gap-3 hover:shadow-sm transition-all">
+          <div className="text-center flex-shrink-0 w-12">
+            <div className="text-xl font-extrabold text-orange-600">{s.currentStreak}</div>
+            <div className="text-[7px] text-gray-400">current</div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-gray-800 truncate">{s.user?.fullName || 'Unknown'}</p>
+            <p className="text-[9px] text-gray-400">Best: {s.longestStreak}d {'\u2022'} Active: {s.totalActiveDays}d</p>
+          </div>
+          <button onClick={() => onViewUser(s.userId)} className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">View</button>
+        </div>
+      ))}
+      {(data.streaks || []).length === 0 && <p className="text-center text-gray-400 text-sm py-4">No users with {minStreak}+ day streaks</p>}
+    </div>
+  </>);
+}
+
+// ─── Push Campaign Manager Tab ─────────────────────────
+function CampaignsTab() {
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({ title: '', body: '', segment: 'all' });
+  const [sending, setSending] = useState('');
+
+  const fetchCampaigns = async () => {
+    setLoading(true);
+    try {
+      const res = await analyticsAPI.adminCampaigns();
+      setCampaigns((res.data?.data || res.data)?.campaigns || []);
+    } catch { setCampaigns([]); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchCampaigns(); }, []);
+
+  const handleCreate = async () => {
+    if (!form.title || !form.body) return toast.error('Title and body required');
+    try {
+      await analyticsAPI.adminCreateCampaign(form);
+      toast.success('Campaign created');
+      setForm({ title: '', body: '', segment: 'all' });
+      setShowCreate(false);
+      fetchCampaigns();
+    } catch { toast.error('Failed to create'); }
+  };
+
+  const handleSend = async (id: string) => {
+    setSending(id);
+    try {
+      const res = await analyticsAPI.adminSendCampaign(id);
+      const sentTo = (res.data?.data || res.data)?.sentTo || 0;
+      toast.success(`Sent to ${sentTo} users`);
+      fetchCampaigns();
+    } catch { toast.error('Failed to send'); }
+    finally { setSending(''); }
+  };
+
+  const handleDelete = async (id: string) => {
+    try { await analyticsAPI.adminDeleteCampaign(id); fetchCampaigns(); toast.success('Deleted'); } catch { toast.error('Failed'); }
+  };
+
+  const segments = [
+    { k: 'all', l: 'All Users' }, { k: 'premium', l: 'Premium Users' }, { k: 'free', l: 'Free Users' },
+    { k: 'inactive_7d', l: 'Inactive 7d' }, { k: 'inactive_30d', l: 'Inactive 30d' }, { k: 'new_7d', l: 'New Users (7d)' },
+  ];
+
+  return (<>
+    <div className="flex items-center justify-between">
+      <h3 className="text-base font-extrabold text-gray-900">{'\u{1F4E3}'} Push Campaigns</h3>
+      <button onClick={() => setShowCreate(!showCreate)}
+        className="px-3 py-1.5 rounded-full text-[10px] font-bold bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm">
+        {showCreate ? 'Cancel' : '+ New Campaign'}
+      </button>
+    </div>
+
+    {showCreate && (
+      <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3 border-2 border-rose-200">
+        <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Notification title"
+          className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none" />
+        <textarea value={form.body} onChange={e => setForm({ ...form, body: e.target.value })} placeholder="Notification body"
+          className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none resize-none" rows={2} />
+        <div>
+          <label className="text-[9px] font-bold text-gray-500 uppercase">Target Segment</label>
+          <div className="flex flex-wrap gap-1.5 mt-1">
+            {segments.map(s => (
+              <button key={s.k} onClick={() => setForm({ ...form, segment: s.k })}
+                className={'px-3 py-1.5 rounded-full text-[10px] font-bold ' + (form.segment === s.k ? 'bg-rose-100 text-rose-700' : 'bg-gray-100 text-gray-500')}>
+                {s.l}
+              </button>
+            ))}
+          </div>
+        </div>
+        <button onClick={handleCreate} className="w-full py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm">
+          Create Campaign
+        </button>
+      </div>
+    )}
+
+    {loading ? (
+      <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-3 border-rose-400 border-t-transparent rounded-full" /></div>
+    ) : campaigns.length === 0 ? (
+      <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
+        <p className="text-4xl mb-2">{'\u{1F4E3}'}</p>
+        <p className="text-sm text-gray-500">No campaigns yet. Create one to reach your users.</p>
+      </div>
+    ) : (
+      <div className="space-y-2">
+        {campaigns.map((c: any) => (
+          <div key={c.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div className="flex items-start justify-between mb-1">
+              <div>
+                <p className="text-sm font-bold text-gray-800">{c.title}</p>
+                <p className="text-[10px] text-gray-500">{c.body}</p>
+              </div>
+              <span className={'text-[8px] font-bold px-2 py-0.5 rounded-full ' +
+                (c.status === 'sent' ? 'bg-emerald-100 text-emerald-700' : c.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500')}>
+                {c.status.toUpperCase()}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-[9px] text-gray-400 mt-2">
+              <span>Segment: {c.segment}</span>
+              {c.sentCount > 0 && <span>{'\u2022'} Sent to {c.sentCount} users</span>}
+              <span>{'\u2022'} {new Date(c.createdAt).toLocaleDateString()}</span>
+            </div>
+            {c.status === 'draft' && (
+              <div className="flex gap-2 mt-2">
+                <button onClick={() => handleSend(c.id)} disabled={sending === c.id}
+                  className="flex-1 py-2 rounded-xl text-[10px] font-bold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-50">
+                  {sending === c.id ? 'Sending...' : 'Send Now'}
+                </button>
+                <button onClick={() => handleDelete(c.id)} className="py-2 px-4 rounded-xl text-[10px] font-bold bg-red-50 text-red-600 hover:bg-red-100">Delete</button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    )}
+  </>);
+}
+
+// ─── NPS / Feedback Tab ─────────────────────────────────
+function NpsTab() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    analyticsAPI.adminNps(90).then(res => setData(res.data?.data || res.data)).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin w-8 h-8 border-4 border-rose-400 border-t-transparent rounded-full" /></div>;
+  if (!data) return <p className="text-center text-gray-400 py-8">No NPS data</p>;
+
+  const npsColor = data.nps >= 50 ? 'text-emerald-600' : data.nps >= 0 ? 'text-amber-600' : 'text-red-600';
+  const dist = data.distribution || {};
+
+  return (<>
+    <h3 className="text-base font-extrabold text-gray-900">{'\u{2B50}'} NPS & Feedback</h3>
+
+    {data.total === 0 ? (
+      <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
+        <p className="text-4xl mb-2">{'\u{2B50}'}</p>
+        <p className="text-sm text-gray-500">No NPS responses yet. Users will see the survey after using the app for a while.</p>
+      </div>
+    ) : (<>
+      {/* NPS Score */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm text-center">
+        <div className={'text-5xl font-extrabold ' + npsColor}>{data.nps}</div>
+        <div className="text-[10px] text-gray-400 mt-1">Net Promoter Score</div>
+        <div className="grid grid-cols-3 gap-3 mt-4">
+          <div>
+            <div className="text-lg font-bold text-emerald-600">{data.promoters}</div>
+            <div className="text-[8px] text-gray-400">Promoters (9-10)</div>
+          </div>
+          <div>
+            <div className="text-lg font-bold text-amber-600">{data.passives}</div>
+            <div className="text-[8px] text-gray-400">Passives (7-8)</div>
+          </div>
+          <div>
+            <div className="text-lg font-bold text-red-600">{data.detractors}</div>
+            <div className="text-[8px] text-gray-400">Detractors (0-6)</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Score Distribution */}
+      <div className="bg-white rounded-2xl p-4 shadow-sm">
+        <h4 className="text-sm font-bold text-gray-700 mb-3">Score Distribution</h4>
+        <div className="flex items-end gap-1 h-20">
+          {Array.from({ length: 11 }, (_, i) => {
+            const count = dist[i] || 0;
+            const maxCount = Math.max(...Object.values(dist) as number[], 1);
+            const color = i >= 9 ? 'bg-emerald-500' : i >= 7 ? 'bg-amber-400' : 'bg-red-400';
+            return (
+              <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+                {count > 0 && <span className="text-[7px] font-bold text-gray-600">{count}</span>}
+                <div className={`w-full rounded-t ${color}`} style={{ height: `${Math.max(2, count / maxCount * 60)}px` }} />
+                <span className="text-[7px] text-gray-400">{i}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* NPS Trend */}
+      {(data.trend || []).length > 1 && (
+        <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <h4 className="text-sm font-bold text-gray-700 mb-3">Monthly NPS Trend</h4>
+          <div className="flex items-end gap-2 h-20">
+            {(data.trend || []).map((t: any) => (
+              <div key={t.month} className="flex-1 flex flex-col items-center gap-0.5">
+                <span className={'text-[8px] font-bold ' + (t.nps >= 0 ? 'text-emerald-600' : 'text-red-600')}>{t.nps}</span>
+                <div className={'w-full rounded-t ' + (t.nps >= 0 ? 'bg-emerald-400' : 'bg-red-400')} style={{ height: `${Math.max(4, Math.abs(t.nps))}px` }} />
+                <span className="text-[7px] text-gray-400">{t.month.slice(5)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recent Feedback */}
+      {(data.recentFeedback || []).length > 0 && (
+        <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <h4 className="text-sm font-bold text-gray-700 mb-3">Recent Feedback</h4>
+          <div className="space-y-2">
+            {(data.recentFeedback || []).map((f: any, i: number) => (
+              <div key={i} className="border border-gray-100 rounded-xl p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={'text-[9px] font-bold px-1.5 py-0.5 rounded-full ' +
+                    (f.score >= 9 ? 'bg-emerald-100 text-emerald-700' : f.score >= 7 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700')}>{f.score}/10</span>
+                  <span className="text-[10px] font-bold text-gray-700">{f.user}</span>
+                  <span className="text-[8px] text-gray-400 ml-auto">{new Date(f.createdAt).toLocaleDateString()}</span>
+                </div>
+                <p className="text-[10px] text-gray-600">{f.feedback}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>)}
+  </>);
+}
+
+// ─── Lifetime Value Tab ─────────────────────────────────
+function LtvTab({ onViewUser }: { onViewUser: (id: string) => void }) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    analyticsAPI.adminLtv().then(res => setData(res.data?.data || res.data)).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin w-8 h-8 border-4 border-rose-400 border-t-transparent rounded-full" /></div>;
+  if (!data) return <p className="text-center text-gray-400 py-8">No LTV data</p>;
+
+  const s = data.summary || {};
+  const dist = data.distribution || {};
+  const maxBucket = Math.max(...Object.values(dist) as number[], 1);
+
+  return (<>
+    <h3 className="text-base font-extrabold text-gray-900">{'\u{1F4B5}'} Lifetime Value (LTV)</h3>
+
+    <div className="grid grid-cols-2 gap-3">
+      <div className="bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl p-4 text-white">
+        <div className="text-[9px] font-bold text-white/60">AVG LTV (ALL)</div>
+        <div className="text-2xl font-extrabold">{'\u20B9'}{s.avgLTV?.toLocaleString('en-IN')}</div>
+      </div>
+      <div className="bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl p-4 text-white">
+        <div className="text-[9px] font-bold text-white/60">AVG LTV (PAYING)</div>
+        <div className="text-2xl font-extrabold">{'\u20B9'}{s.avgPayingLTV?.toLocaleString('en-IN')}</div>
+      </div>
+    </div>
+
+    <div className="grid grid-cols-3 gap-2">
+      <div className="bg-white rounded-xl p-3 shadow-sm text-center">
+        <div className="text-lg font-extrabold text-gray-800">{s.totalUsers}</div>
+        <div className="text-[8px] text-gray-400">Total Users</div>
+      </div>
+      <div className="bg-white rounded-xl p-3 shadow-sm text-center">
+        <div className="text-lg font-extrabold text-emerald-600">{s.payingUsers}</div>
+        <div className="text-[8px] text-gray-400">Paying Users</div>
+      </div>
+      <div className="bg-white rounded-xl p-3 shadow-sm text-center">
+        <div className="text-lg font-extrabold text-indigo-600">{'\u20B9'}{s.projectedAnnualLTV}</div>
+        <div className="text-[8px] text-gray-400">Proj. Annual LTV</div>
+      </div>
+    </div>
+
+    {/* Distribution */}
+    <div className="bg-white rounded-2xl p-4 shadow-sm">
+      <h4 className="text-sm font-bold text-gray-700 mb-3">LTV Distribution</h4>
+      <div className="space-y-1.5">
+        {Object.entries(dist).map(([bucket, count]: any) => (
+          <div key={bucket} className="flex items-center gap-2">
+            <span className="text-[9px] text-gray-600 w-16 flex-shrink-0">{bucket}</span>
+            <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
+              <div className="bg-gradient-to-r from-emerald-400 to-teal-500 h-full rounded-full" style={{ width: `${count / maxBucket * 100}%` }} />
+            </div>
+            <span className="text-[9px] font-bold text-gray-600 w-8 text-right">{count}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {/* Cohort LTV */}
+    {(data.cohortLTV || []).length > 0 && (
+      <div className="bg-white rounded-2xl p-4 shadow-sm">
+        <h4 className="text-sm font-bold text-gray-700 mb-3">LTV by Signup Month</h4>
+        <div className="space-y-1.5">
+          {(data.cohortLTV || []).map((c: any) => (
+            <div key={c.month} className="flex items-center gap-2">
+              <span className="text-[9px] text-gray-600 w-14 flex-shrink-0">{c.month}</span>
+              <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
+                <div className="bg-gradient-to-r from-amber-400 to-orange-500 h-full rounded-full"
+                  style={{ width: `${c.avgLTV / Math.max(...data.cohortLTV.map((x: any) => x.avgLTV), 1) * 100}%` }} />
+              </div>
+              <span className="text-[9px] font-bold text-gray-600 w-14 text-right">{'\u20B9'}{c.avgLTV}</span>
+              <span className="text-[8px] text-gray-400 w-10 text-right">{c.users}u</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {/* Top LTV Users */}
+    <div className="bg-white rounded-2xl p-4 shadow-sm">
+      <h4 className="text-sm font-bold text-gray-700 mb-3">Top 20 Highest LTV Users</h4>
+      <div className="space-y-1.5">
+        {(data.topUsers || []).map((u: any, i: number) => (
+          <div key={i} className="flex items-center gap-2 border border-gray-50 rounded-lg p-2 hover:bg-gray-50 transition-all">
+            <span className="text-[9px] font-bold text-gray-400 w-4">{i + 1}</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-bold text-gray-700 truncate">{u.user?.fullName || u.user?.email || 'Unknown'}</p>
+            </div>
+            <span className="text-[10px] font-extrabold text-emerald-600">{'\u20B9'}{u.ltv.toLocaleString('en-IN')}</span>
+            {u.user?.id && <button onClick={() => onViewUser(u.user.id)} className="text-[8px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">View</button>}
+          </div>
+        ))}
+      </div>
+    </div>
+  </>);
+}
+
+// ─── A/B Test Results Tab ─────────────────────────────────
+function AbTestsTab() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [days, setDays] = useState(30);
+
+  useEffect(() => {
+    setLoading(true);
+    analyticsAPI.adminAbTests(days).then(res => setData(res.data?.data || res.data)).catch(() => {}).finally(() => setLoading(false));
+  }, [days]);
+
+  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin w-8 h-8 border-4 border-rose-400 border-t-transparent rounded-full" /></div>;
+
+  return (<>
+    <div className="flex items-center justify-between">
+      <h3 className="text-base font-extrabold text-gray-900">{'\u{1F9EA}'} A/B Test Results</h3>
+      <div className="flex gap-1">
+        {[7, 30, 90].map(d => (
+          <button key={d} onClick={() => setDays(d)}
+            className={'px-2.5 py-1 rounded-full text-[10px] font-bold ' + (days === d ? 'bg-rose-500 text-white' : 'bg-gray-100 text-gray-500')}>{d}d</button>
+        ))}
+      </div>
+    </div>
+
+    {!data?.tests?.length ? (
+      <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
+        <p className="text-4xl mb-2">{'\u{1F9EA}'}</p>
+        <p className="text-sm font-bold text-gray-700">No A/B Tests Yet</p>
+        <p className="text-[10px] text-gray-400 mt-1">Track tests by firing <code className="bg-gray-100 px-1 rounded">ab_variant_shown</code> events with <code className="bg-gray-100 px-1 rounded">{'{test, variant}'}</code> metadata</p>
+      </div>
+    ) : (
+      <div className="space-y-3">
+        {(data.tests || []).map((test: any) => {
+          const maxShown = Math.max(...test.variants.map((v: any) => v.shown), 1);
+          const bestRate = Math.max(...test.variants.map((v: any) => v.conversionRate));
+          return (
+            <div key={test.test} className="bg-white rounded-2xl p-4 shadow-sm">
+              <h4 className="text-sm font-bold text-gray-800 mb-3">{test.test}</h4>
+              <div className="space-y-2">
+                {test.variants.map((v: any) => (
+                  <div key={v.variant} className="border border-gray-100 rounded-xl p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-bold text-gray-700">{v.variant}</span>
+                      <div className="flex items-center gap-2">
+                        {v.conversionRate === bestRate && test.variants.length > 1 && (
+                          <span className="text-[7px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">WINNER</span>
+                        )}
+                        <span className="text-sm font-extrabold text-gray-800">{v.conversionRate}%</span>
+                      </div>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-2 mb-1">
+                      <div className={'h-full rounded-full ' + (v.conversionRate === bestRate ? 'bg-emerald-500' : 'bg-gray-400')}
+                        style={{ width: `${Math.max(2, v.shown / maxShown * 100)}%` }} />
+                    </div>
+                    <div className="flex justify-between text-[8px] text-gray-400">
+                      <span>{v.shown} shown</span>
+                      <span>{v.converted} converted</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    )}
   </>);
 }
 
@@ -4447,6 +5184,14 @@ export default function AdminPage() {
     { id: 'forecast', icon: '\u{1F52E}', label: 'Forecast' },
     { id: 'cohorts', icon: '\u{1F4C6}', label: 'Cohorts' },
     { id: 'exports', icon: '\u{1F4E5}', label: 'Export' },
+    { id: 'journeys', icon: '\u{1F6E4}\uFE0F', label: 'Journeys' },
+    { id: 'geo', icon: '\u{1F30D}', label: 'Geo' },
+    { id: 'referrals', icon: '\u{1F517}', label: 'Referrals' },
+    { id: 'streaks', icon: '\u{1F525}', label: 'Streaks' },
+    { id: 'campaigns', icon: '\u{1F4E3}', label: 'Campaigns' },
+    { id: 'nps', icon: '\u{2B50}', label: 'NPS' },
+    { id: 'ltv', icon: '\u{1F4B5}', label: 'LTV' },
+    { id: 'ab_tests', icon: '\u{1F9EA}', label: 'A/B Tests' },
     { id: 'orders', icon: '\u{1F6D2}', label: 'Orders' },
     { id: 'subscriptions', icon: '\u{1F48E}', label: 'Subs' },
     { id: 'products', icon: '\u{1F4E6}', label: 'Products' },
@@ -6822,6 +7567,30 @@ export default function AdminPage() {
 
           {/* ════════ EXPORT REPORTS ════════ */}
           {tab === 'exports' && (<ExportTab />)}
+
+          {/* ════════ USER JOURNEYS ════════ */}
+          {tab === 'journeys' && (<JourneysTab />)}
+
+          {/* ════════ GEO ANALYTICS ════════ */}
+          {tab === 'geo' && (<GeoTab />)}
+
+          {/* ════════ REFERRALS ════════ */}
+          {tab === 'referrals' && (<ReferralsTab />)}
+
+          {/* ════════ ENGAGEMENT STREAKS ════════ */}
+          {tab === 'streaks' && (<StreaksTab onViewUser={(id: string) => { setSelectedUserId(id); setTab('user_detail'); }} />)}
+
+          {/* ════════ PUSH CAMPAIGNS ════════ */}
+          {tab === 'campaigns' && (<CampaignsTab />)}
+
+          {/* ════════ NPS / FEEDBACK ════════ */}
+          {tab === 'nps' && (<NpsTab />)}
+
+          {/* ════════ LIFETIME VALUE ════════ */}
+          {tab === 'ltv' && (<LtvTab onViewUser={(id: string) => { setSelectedUserId(id); setTab('user_detail'); }} />)}
+
+          {/* ════════ A/B TESTS ════════ */}
+          {tab === 'ab_tests' && (<AbTestsTab />)}
 
           {/* ════════ SETTINGS ════════ */}
           {tab === 'settings' && (<>

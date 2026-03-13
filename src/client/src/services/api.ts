@@ -528,6 +528,19 @@ export const analyticsAPI = {
   adminExport: (type: string, days?: number) => api.get(`/analytics/admin/export/${type}`, { params: { days }, responseType: 'blob' }),
   adminForecast: () => api.get('/analytics/admin/forecast'),
   adminCohorts: (months?: number) => api.get('/analytics/admin/cohorts', { params: { months } }),
+  // Tier 2 features
+  adminJourneys: (days?: number) => api.get('/analytics/admin/journeys', { params: { days } }),
+  adminGeo: () => api.get('/analytics/admin/geo'),
+  adminReferrals: (days?: number) => api.get('/analytics/admin/referrals', { params: { days } }),
+  adminStreaks: (params?: { minStreak?: number; page?: number }) => api.get('/analytics/admin/streaks', { params }),
+  submitNps: (d: { score: number; feedback?: string; page?: string }) => api.post('/analytics/nps', d),
+  adminNps: (days?: number) => api.get('/analytics/admin/nps', { params: { days } }),
+  adminCampaigns: () => api.get('/analytics/admin/campaigns'),
+  adminCreateCampaign: (d: { title: string; body: string; segment: string }) => api.post('/analytics/admin/campaigns', d),
+  adminSendCampaign: (id: string) => api.post(`/analytics/admin/campaigns/${id}/send`),
+  adminDeleteCampaign: (id: string) => api.delete(`/analytics/admin/campaigns/${id}`),
+  adminLtv: () => api.get('/analytics/admin/ltv'),
+  adminAbTests: (days?: number) => api.get('/analytics/admin/ab-tests', { params: { days } }),
 };
 
 // ─── SUBSCRIPTION API ──────────────────────────────
