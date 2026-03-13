@@ -1,21 +1,13 @@
 // @ts-nocheck
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { useAyurvedaStore } from '../stores/ayurvedaStore';
 import { useChiefDoctor } from '../hooks/useChiefDoctor';
+import { communityAPI } from '../services/api';
 import BottomNav from '../components/BottomNav';
 import toast from 'react-hot-toast';
 
-interface Post {
-  id: string; category: string; content: string; anonymous: boolean;
-  authorName: string; authorInitial: string; likes: number; replies: Reply[];
-  timestamp: string; isDoctor: boolean; isPinned: boolean;
-}
-interface Reply {
-  id: string; content: string; authorName: string; isDoctor: boolean; timestamp: string;
-}
-
+// Backend category keys → frontend display
 const CATEGORIES = [
   { id: 'all', label: 'All', emoji: '🌍' },
   { id: 'periods', label: 'Periods', emoji: '🩸' },
@@ -23,15 +15,15 @@ const CATEGORIES = [
   { id: 'fertility', label: 'Fertility', emoji: '💜' },
   { id: 'pregnancy', label: 'Pregnancy', emoji: '🤰' },
   { id: 'menopause', label: 'Menopause', emoji: '🍂' },
-  { id: 'mental', label: 'Mental Health', emoji: '🧠' },
+  { id: 'mental_health', label: 'Mental Health', emoji: '🧠' },
   { id: 'ayurveda', label: 'Ayurveda', emoji: '🌿' },
-  { id: 'hair', label: 'Hair & Skin', emoji: '✨' },
+  { id: 'hair_skin', label: 'Hair & Skin', emoji: '✨' },
   { id: 'ask_doctor', label: 'Ask Doctor', emoji: '👩‍⚕️' },
 ];
 
 const CAT_COLORS: Record<string, string> = {
   periods: '#E11D48', pcod: '#059669', fertility: '#7C3AED', pregnancy: '#EC4899',
-  menopause: '#D97706', mental: '#6366F1', ayurveda: '#16A34A', hair: '#F59E0B', ask_doctor: '#3B82F6',
+  menopause: '#D97706', mental_health: '#6366F1', ayurveda: '#16A34A', hair_skin: '#F59E0B', ask_doctor: '#3B82F6',
 };
 
 const STORIES = [
@@ -55,54 +47,20 @@ const EXPERT_QA = [
   },
 ];
 
-const WEEKLY_POLL = {
-  question: 'How was your energy level this week?',
-  options: [
-    { id: 'p1', label: 'Very High ⚡', votes: 234 },
-    { id: 'p2', label: 'Good 😊', votes: 389 },
-    { id: 'p3', label: 'Average 😐', votes: 278 },
-    { id: 'p4', label: 'Low 😔', votes: 156 },
-  ],
-};
-
-const defaultPosts: Post[] = [
-  { id: 'p1', category: 'pcod', content: 'I was diagnosed with PCOD 6 months ago. Started Shatavari and changed my diet — no sugar, no dairy. My periods are becoming regular for the first time in 3 years! Don\'t lose hope, sisters. 💚', anonymous: true, authorName: 'Anonymous', authorInitial: 'A', likes: 47, timestamp: '2h ago', isDoctor: false, isPinned: false,
-    replies: [
-      { id: 'r1', content: 'This is wonderful progress! Shatavari combined with dietary changes is very effective for PCOD. I recommend also adding 30 minutes of walking daily and avoiding processed foods. Keep going!', authorName: 'Dr. Shruthi', isDoctor: true, timestamp: '1h ago' },
-      { id: 'r2', content: 'Same here! 4 months in and my cycle is now 32 days instead of 45+. Diet change was the game changer for me.', authorName: 'Anonymous', isDoctor: false, timestamp: '1h ago' },
-    ]},
-  { id: 'p2', category: 'periods', content: 'Does anyone else get terrible cramps on day 2? I\'ve tried everything — hot water bottles, painkillers, nothing helps for more than an hour. Any ayurvedic remedies that actually work?', anonymous: true, authorName: 'Anonymous', authorInitial: 'A', likes: 32, timestamp: '4h ago', isDoctor: false, isPinned: false,
-    replies: [
-      { id: 'r3', content: 'Ajwain water is magic! Boil 1 tbsp ajwain in water, sip warm. Works in 15-20 minutes for me. Also try castor oil pack on lower abdomen with a hot water bottle.', authorName: 'Anonymous', isDoctor: false, timestamp: '3h ago' },
-      { id: 'r4', content: 'Severe cramps that don\'t respond to painkillers should be evaluated. It could be endometriosis. Please book a consultation and we can discuss your specific situation.', authorName: 'Dr. Shruthi', isDoctor: true, timestamp: '2h ago' },
-    ]},
-  { id: 'p3', category: 'ask_doctor', content: 'Dr. Shruthi, is it safe to take Ashwagandha while trying to conceive? My husband and I have been trying for 8 months.', anonymous: true, authorName: 'Anonymous', authorInitial: 'A', likes: 28, timestamp: '6h ago', isDoctor: false, isPinned: true,
-    replies: [
-      { id: 'r5', content: 'Yes, Ashwagandha is safe and actually beneficial when TTC. It reduces cortisol which is one of the top causes of unexplained infertility. I recommend 500mg twice daily for both partners. For you, combine it with Shatavari. Please request a callback so I can create a personalized fertility protocol for you.', authorName: 'Dr. Shruthi', isDoctor: true, timestamp: '5h ago' },
-    ]},
-  { id: 'p4', category: 'pregnancy', content: 'Just found out I\'m pregnant! 6 weeks along. Feeling nauseous all day. Any tips from moms who\'ve been through this? First time pregnancy and I\'m nervous. 🤰', anonymous: false, authorName: 'Priya M.', authorInitial: 'P', likes: 53, timestamp: '8h ago', isDoctor: false, isPinned: false,
-    replies: [
-      { id: 'r6', content: 'Congratulations! Ginger tea with honey helped me a lot. Also eat small meals every 2-3 hours instead of 3 big meals. It gets better after week 12!', authorName: 'Meera K.', isDoctor: false, timestamp: '7h ago' },
-      { id: 'r7', content: 'Congratulations! Nausea in first trimester is actually a good sign — strong hormones. Try ginger, vitamin B6, and keep dry crackers by bedside. Start prenatal vitamins with folic acid immediately if you haven\'t already.', authorName: 'Dr. Shruthi', isDoctor: true, timestamp: '6h ago' },
-    ]},
-  { id: 'p5', category: 'mental', content: 'I feel so anxious and irritable for 10 days before my period every month. It affects my work and relationships. Is this normal or should I be worried?', anonymous: true, authorName: 'Anonymous', authorInitial: 'A', likes: 41, timestamp: '1d ago', isDoctor: false, isPinned: false,
-    replies: [
-      { id: 'r8', content: '10 days of severe PMS symptoms could indicate PMDD (Premenstrual Dysphoric Disorder). This is a real medical condition, not "just PMS." Magnesium supplements, evening primrose oil, and reducing caffeine can help significantly. Please consult — there are effective treatments.', authorName: 'Dr. Shruthi', isDoctor: true, timestamp: '22h ago' },
-    ]},
-  { id: 'p6', category: 'menopause', content: 'I\'m 47 and my periods have become irregular — sometimes 20 days, sometimes 45. Getting hot flashes at night. Is this perimenopause? What should I do?', anonymous: true, authorName: 'Anonymous', authorInitial: 'A', likes: 19, timestamp: '1d ago', isDoctor: false, isPinned: false,
-    replies: [
-      { id: 'r9', content: 'Yes, this sounds like perimenopause. It\'s completely normal from age 40-45. Shatavari is excellent for managing symptoms naturally. For hot flashes, keep the room cool and avoid spicy food and caffeine. This transition can last 4-10 years. You\'re not alone — let\'s talk in a consultation.', authorName: 'Dr. Shruthi', isDoctor: true, timestamp: '20h ago' },
-    ]},
-];
+const REPORT_REASONS = ['Spam', 'Harassment', 'Misinformation', 'Inappropriate content', 'Other'];
 
 export default function CommunityPage() {
   const nav = useNavigate();
   const user = useAuthStore(s => s.user);
-  const { isAdminUnlocked } = useAyurvedaStore();
   const { chief } = useChiefDoctor();
 
+  const isAdmin = user?.role === 'ADMIN';
+  const isModerator = user?.role === 'ADMIN' || user?.role === 'DOCTOR';
+
+  // ─── State ───
   const [cat, setCat] = useState('all');
-  const [posts, setPosts] = useState<Post[]>(defaultPosts);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showCompose, setShowCompose] = useState(false);
   const [newContent, setNewContent] = useState('');
   const [newCat, setNewCat] = useState('periods');
@@ -111,62 +69,192 @@ export default function CommunityPage() {
   const [replyText, setReplyText] = useState('');
   const [searchQ, setSearchQ] = useState('');
   const [viewedStories, setViewedStories] = useState<Set<string>>(new Set());
-  const [pollVote, setPollVote] = useState<string | null>(null);
-  const [pollVotes, setPollVotes] = useState({ p1: 234, p2: 389, p3: 278, p4: 156 });
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [likedQA, setLikedQA] = useState<Set<string>>(new Set());
+  const [submitting, setSubmitting] = useState(false);
 
-  const filtered = useMemo(() => {
-    let result = posts;
-    if (cat !== 'all') result = result.filter(p => p.category === cat);
-    if (searchQ) result = result.filter(p => p.content.toLowerCase().includes(searchQ.toLowerCase()));
-    return [...result].sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
-  }, [posts, cat, searchQ]);
+  // Poll state
+  const [poll, setPoll] = useState<any>(null);
+  const [pollVoted, setPollVoted] = useState<string | null>(null);
 
-  const submitPost = () => {
+  // Report modal
+  const [reportTarget, setReportTarget] = useState<{ type: 'post' | 'reply'; id: string } | null>(null);
+  const [reportReason, setReportReason] = useState('');
+
+  // ─── Fetch posts ───
+  const fetchPosts = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params: any = {};
+      if (cat !== 'all') params.category = cat;
+      if (searchQ) params.search = searchQ;
+      const res = await communityAPI.listPosts(params);
+      setPosts(res.data?.data?.posts || []);
+    } catch {
+      toast.error('Failed to load posts');
+    } finally {
+      setLoading(false);
+    }
+  }, [cat, searchQ]);
+
+  useEffect(() => { fetchPosts(); }, [fetchPosts]);
+
+  // ─── Fetch poll ───
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await communityAPI.getActivePoll();
+        const data = res.data?.data;
+        if (data) setPoll(data);
+      } catch { /* no poll available */ }
+    })();
+  }, []);
+
+  // ─── Fetch single post (for replies) ───
+  const fetchPostDetail = async (postId: string) => {
+    try {
+      const res = await communityAPI.getPost(postId);
+      const detail = res.data?.data;
+      if (detail) {
+        setPosts(prev => prev.map(p => p.id === postId ? { ...p, replies: detail.replies } : p));
+      }
+    } catch { /* silent */ }
+  };
+
+  // ─── Create post ───
+  const submitPost = async () => {
     if (!newContent.trim()) { toast.error('Write something first'); return; }
-    const post: Post = {
-      id: 'p_' + Date.now(), category: newCat, content: newContent.trim(),
-      anonymous: isAnon, authorName: isAnon ? 'Anonymous' : (user?.fullName || 'User'),
-      authorInitial: isAnon ? 'A' : (user?.fullName?.charAt(0) || 'U'),
-      likes: 0, replies: [], timestamp: 'Just now', isDoctor: false, isPinned: false,
-    };
-    setPosts([post, ...posts]);
-    setNewContent(''); setShowCompose(false);
-    localStorage.setItem('sb_community_joined', '1');
-    toast.success('Posted! Dr. Shruthi reviews posts daily.');
+    try {
+      setSubmitting(true);
+      await communityAPI.createPost({ content: newContent.trim(), category: newCat, isAnonymous: isAnon });
+      setNewContent(''); setShowCompose(false);
+      toast.success('Posted! Dr. Shruthi reviews posts daily.');
+      fetchPosts();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to post');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const submitReply = (postId: string) => {
+  // ─── Reply ───
+  const submitReply = async (postId: string) => {
     if (!replyText.trim()) return;
-    const isDoc = isAdminUnlocked;
-    const reply: Reply = {
-      id: 'r_' + Date.now(), content: replyText.trim(),
-      authorName: isDoc ? chief.name : (user?.fullName || 'Anonymous'),
-      isDoctor: isDoc, timestamp: 'Just now',
-    };
-    setPosts(posts.map(p => p.id === postId ? { ...p, replies: [...p.replies, reply] } : p));
-    setReplyText('');
-    toast.success(isDoc ? 'Doctor reply posted!' : 'Reply posted!');
+    try {
+      await communityAPI.reply(postId, { content: replyText.trim(), isAnonymous: false });
+      setReplyText('');
+      toast.success('Reply posted!');
+      fetchPostDetail(postId);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to reply');
+    }
   };
 
-  const likePost = (id: string) => {
-    if (likedPosts.has(id)) return;
-    setLikedPosts(prev => new Set([...prev, id]));
-    setPosts(posts.map(p => p.id === id ? { ...p, likes: p.likes + 1 } : p));
+  // ─── Like post (toggle) ───
+  const likePost = async (id: string) => {
+    try {
+      const res = await communityAPI.likePost(id);
+      const liked = res.data?.data?.liked;
+      setPosts(prev => prev.map(p => p.id === id ? { ...p, likeCount: p.likeCount + (liked ? 1 : -1) } : p));
+      setLikedPosts(prev => {
+        const next = new Set(prev);
+        liked ? next.add(id) : next.delete(id);
+        return next;
+      });
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to like');
+    }
   };
 
-  const handlePollVote = (optId: string) => {
-    if (pollVote) return;
-    setPollVote(optId);
-    setPollVotes(prev => ({ ...prev, [optId]: (prev[optId] || 0) + 1 }));
-    toast.success('Vote submitted! 🗳️');
+  // ─── Poll vote ───
+  const handlePollVote = async (optionId: string) => {
+    if (pollVoted || !poll) return;
+    try {
+      await communityAPI.votePoll(poll.id, optionId);
+      setPollVoted(optionId);
+      setPoll((prev: any) => ({
+        ...prev,
+        totalVotes: (prev.totalVotes || 0) + 1,
+        voteCounts: { ...prev.voteCounts, [optionId]: ((prev.voteCounts?.[optionId]) || 0) + 1 },
+      }));
+      toast.success('Vote submitted! 🗳️');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to vote');
+    }
   };
 
-  const totalPollVotes = Object.values(pollVotes).reduce((a, b) => a + b, 0);
+  // ─── Report ───
+  const submitReport = async () => {
+    if (!reportTarget || !reportReason) return;
+    try {
+      if (reportTarget.type === 'post') {
+        await communityAPI.reportPost(reportTarget.id, { reason: reportReason });
+      } else {
+        await communityAPI.reportReply(reportTarget.id, { reason: reportReason });
+      }
+      toast.success('Report submitted. Moderators will review.');
+      setReportTarget(null); setReportReason('');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to report');
+    }
+  };
+
+  // ─── Moderation actions ───
+  const hidePost = async (id: string) => {
+    try {
+      await communityAPI.hidePost(id, { hidden: true, reason: 'Moderation' });
+      toast.success('Post hidden');
+      fetchPosts();
+    } catch (err: any) { toast.error(err.response?.data?.error || 'Failed'); }
+  };
+  const deletePost = async (id: string) => {
+    try {
+      await communityAPI.deletePost(id);
+      toast.success('Post deleted');
+      fetchPosts();
+    } catch (err: any) { toast.error(err.response?.data?.error || 'Failed'); }
+  };
+  const pinPost = async (id: string) => {
+    try {
+      const res = await communityAPI.pinPost(id);
+      toast.success(res.data?.message || 'Pin toggled');
+      fetchPosts();
+    } catch (err: any) { toast.error(err.response?.data?.error || 'Failed'); }
+  };
+  const hideReply = async (id: string) => {
+    try {
+      await communityAPI.hideReply(id, { hidden: true, reason: 'Moderation' });
+      toast.success('Reply hidden');
+      if (expandedPost) fetchPostDetail(expandedPost);
+    } catch (err: any) { toast.error(err.response?.data?.error || 'Failed'); }
+  };
+  const deleteReply = async (id: string) => {
+    try {
+      await communityAPI.deleteReply(id);
+      toast.success('Reply deleted');
+      if (expandedPost) fetchPostDetail(expandedPost);
+    } catch (err: any) { toast.error(err.response?.data?.error || 'Failed'); }
+  };
+
+  // ─── Helpers ───
   const catColor = (c: string) => CAT_COLORS[c] || '#E11D48';
+  const timeAgo = (d: string) => {
+    const diff = Date.now() - new Date(d).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days}d ago`;
+  };
+  const authorName = (item: any) => item.user?.fullName || 'Anonymous';
+  const authorInitial = (item: any) => (authorName(item))[0] || 'A';
+  const isDocRole = (item: any) => item.user?.role === 'DOCTOR' || item.isDoctor;
 
-  const activeWomen = 1247 + Math.floor(Math.random() * 50);
+  // poll helpers
+  const pollOptions = (poll?.options || []) as { id: string; label: string }[];
+  const pollTotal = poll?.totalVotes || 0;
 
   return (
     <div className="min-h-screen pb-28" style={{ backgroundColor: '#FAFAF9' }}>
@@ -178,7 +266,7 @@ export default function CommunityPage() {
             <button onClick={() => nav('/dashboard')} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-sm active:scale-90 transition-transform">←</button>
             <div>
               <h1 className="text-base font-extrabold text-gray-900">Community 💬</h1>
-              <p className="text-[9px] text-emerald-500 font-bold">● {activeWomen.toLocaleString()} women active today</p>
+              <p className="text-[9px] text-emerald-500 font-bold">● Safe space for women's health</p>
             </div>
           </div>
           <button onClick={() => setShowCompose(true)}
@@ -278,37 +366,37 @@ export default function CommunityPage() {
         )}
 
         {/* ─── Weekly Poll ─── */}
-        {cat === 'all' && !searchQ && (
+        {cat === 'all' && !searchQ && poll && (
           <div className="bg-white rounded-2xl shadow-sm p-4">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-lg">🗳️</span>
               <div>
                 <p className="text-[9px] font-extrabold text-gray-400 uppercase">Weekly Poll</p>
-                <p className="text-xs font-extrabold text-gray-800">{WEEKLY_POLL.question}</p>
+                <p className="text-xs font-extrabold text-gray-800">{poll.question}</p>
               </div>
             </div>
             <div className="space-y-2">
-              {WEEKLY_POLL.options.map(opt => {
-                const votes = pollVotes[opt.id] || opt.votes;
-                const pct = Math.round((votes / totalPollVotes) * 100);
-                const isMyVote = pollVote === opt.id;
+              {pollOptions.map(opt => {
+                const votes = poll.voteCounts?.[opt.id] || 0;
+                const pct = pollTotal > 0 ? Math.round((votes / pollTotal) * 100) : 0;
+                const isMyVote = pollVoted === opt.id;
                 return (
                   <button key={opt.id} onClick={() => handlePollVote(opt.id)}
                     className={'w-full text-left rounded-xl overflow-hidden border-2 transition-all active:scale-[0.99] ' + (isMyVote ? 'border-rose-400' : 'border-gray-100')}
-                    disabled={!!pollVote}>
+                    disabled={!!pollVoted}>
                     <div className="relative h-9">
-                      <div className="absolute inset-0 rounded-xl transition-all" style={{ width: pollVote ? `${pct}%` : '0%', backgroundColor: isMyVote ? '#FFF1F2' : '#F9FAFB' }} />
+                      <div className="absolute inset-0 rounded-xl transition-all" style={{ width: pollVoted ? `${pct}%` : '0%', backgroundColor: isMyVote ? '#FFF1F2' : '#F9FAFB' }} />
                       <div className="absolute inset-0 flex items-center justify-between px-3">
                         <span className="text-[10px] font-bold text-gray-700">{opt.label}</span>
-                        {pollVote && <span className="text-[10px] font-extrabold" style={{ color: isMyVote ? '#E11D48' : '#9CA3AF' }}>{pct}%</span>}
+                        {pollVoted && <span className="text-[10px] font-extrabold" style={{ color: isMyVote ? '#E11D48' : '#9CA3AF' }}>{pct}%</span>}
                       </div>
                     </div>
                   </button>
                 );
               })}
             </div>
-            {!pollVote && <p className="text-[9px] text-gray-400 text-center mt-2">Tap to vote · {totalPollVotes.toLocaleString()} votes</p>}
-            {pollVote && <p className="text-[9px] text-emerald-500 font-bold text-center mt-2">✓ Thanks for voting! · {totalPollVotes.toLocaleString()} total</p>}
+            {!pollVoted && <p className="text-[9px] text-gray-400 text-center mt-2">Tap to vote · {pollTotal.toLocaleString()} votes</p>}
+            {pollVoted && <p className="text-[9px] text-emerald-500 font-bold text-center mt-2">✓ Thanks for voting! · {pollTotal.toLocaleString()} total</p>}
           </div>
         )}
 
@@ -325,17 +413,26 @@ export default function CommunityPage() {
           </div>
         )}
 
+        {/* ─── Loading ─── */}
+        {loading && (
+          <div className="text-center py-16">
+            <div className="w-8 h-8 border-2 border-rose-400 border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-xs text-gray-400 mt-3 font-bold">Loading discussions...</p>
+          </div>
+        )}
+
         {/* ─── Posts ─── */}
-        {filtered.length === 0 ? (
+        {!loading && posts.length === 0 ? (
           <div className="text-center py-16">
             <span className="text-4xl">💬</span>
             <p className="text-sm text-gray-400 mt-2 font-bold">No posts yet in this category</p>
             <button onClick={() => setShowCompose(true)} className="mt-2 text-xs text-rose-500 font-bold active:scale-95 transition-transform">Be the first to ask →</button>
           </div>
-        ) : (
-          filtered.map(post => (
-            <div key={post.id} className={'bg-white rounded-2xl shadow-sm overflow-hidden ' + (post.isPinned ? 'ring-1 ring-amber-200' : '')}>
-              {post.isPinned && <div className="bg-amber-50 px-4 py-1 text-[8px] font-bold text-amber-600">📌 Pinned by Doctor</div>}
+        ) : !loading && (
+          posts.map(post => (
+            <div key={post.id} className={'bg-white rounded-2xl shadow-sm overflow-hidden ' + (post.isPinned ? 'ring-1 ring-amber-200' : '') + (post.isHidden ? ' opacity-50' : '')}>
+              {post.isPinned && <div className="bg-amber-50 px-4 py-1 text-[8px] font-bold text-amber-600">📌 Pinned</div>}
+              {post.isHidden && <div className="bg-red-50 px-4 py-1 text-[8px] font-bold text-red-500">🚫 Hidden by moderator</div>}
               <div className="p-4">
                 {/* Category badge */}
                 <div className="flex items-center gap-2 mb-2">
@@ -345,48 +442,82 @@ export default function CommunityPage() {
                 </div>
                 {/* Author */}
                 <div className="flex items-center gap-2.5 mb-2.5">
-                  <div className={'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ' + (post.isDoctor ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white' : 'bg-gray-100 text-gray-500')}>
-                    {post.isDoctor ? '👩‍⚕️' : post.authorInitial}
+                  <div className={'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ' + (isDocRole(post) ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white' : 'bg-gray-100 text-gray-500')}>
+                    {isDocRole(post) ? '👩‍⚕️' : authorInitial(post)}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-bold text-gray-800">{post.authorName}</span>
-                      {post.isDoctor && <span className="text-[7px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">DOCTOR ✓</span>}
+                      <span className="text-xs font-bold text-gray-800">{authorName(post)}</span>
+                      {isDocRole(post) && <span className="text-[7px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">DOCTOR ✓</span>}
                     </div>
-                    <span className="text-[9px] text-gray-400">{post.timestamp}</span>
+                    <span className="text-[9px] text-gray-400">{timeAgo(post.createdAt)}</span>
                   </div>
                 </div>
                 <p className="text-sm text-gray-700 leading-relaxed">{post.content}</p>
+
                 {/* Actions */}
-                <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-50">
+                <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-50 flex-wrap">
                   <button onClick={() => likePost(post.id)} className={'flex items-center gap-1 text-[10px] active:scale-95 transition-transform ' + (likedPosts.has(post.id) ? 'text-rose-500' : 'text-gray-400')}>
                     <span>{likedPosts.has(post.id) ? '❤️' : '🤍'}</span>
-                    <span className="font-bold">{post.likes}</span>
+                    <span className="font-bold">{post.likeCount || 0}</span>
                   </button>
-                  <button onClick={() => setExpandedPost(expandedPost === post.id ? null : post.id)} className="flex items-center gap-1 text-[10px] text-gray-500 active:scale-95 transition-transform">
+                  <button onClick={() => {
+                    if (expandedPost === post.id) {
+                      setExpandedPost(null);
+                    } else {
+                      setExpandedPost(post.id);
+                      fetchPostDetail(post.id);
+                    }
+                  }} className="flex items-center gap-1 text-[10px] text-gray-500 active:scale-95 transition-transform">
                     <span>💬</span>
-                    <span className="font-bold">{post.replies.length} replies</span>
+                    <span className="font-bold">{post.replyCount || 0} replies</span>
                   </button>
-                  <button onClick={() => toast('Share coming soon!')} className="flex items-center gap-1 text-[10px] text-gray-400 active:scale-95 transition-transform ml-auto">
-                    <span>🔗</span>
+                  <button onClick={() => setReportTarget({ type: 'post', id: post.id })} className="text-[10px] text-gray-400 active:scale-95 transition-transform">
+                    🚩
                   </button>
+                  {/* Moderation buttons */}
+                  {isModerator && (
+                    <button onClick={() => hidePost(post.id)} className="text-[9px] text-orange-500 font-bold active:scale-95 ml-auto">
+                      {post.isHidden ? 'Unhide' : 'Hide'}
+                    </button>
+                  )}
+                  {isAdmin && (
+                    <>
+                      <button onClick={() => pinPost(post.id)} className="text-[9px] text-amber-500 font-bold active:scale-95">
+                        {post.isPinned ? 'Unpin' : 'Pin'}
+                      </button>
+                      <button onClick={() => { if (confirm('Delete this post permanently?')) deletePost(post.id); }} className="text-[9px] text-red-500 font-bold active:scale-95">
+                        Delete
+                      </button>
+                    </>
+                  )}
                 </div>
+
                 {/* Replies */}
                 {expandedPost === post.id && (
                   <div className="mt-3 space-y-2.5">
-                    {post.replies.map(reply => (
-                      <div key={reply.id} className={'rounded-xl p-3 ' + (reply.isDoctor ? 'bg-emerald-50 border border-emerald-100' : 'bg-gray-50')}>
+                    {(post.replies || []).map((reply: any) => (
+                      <div key={reply.id} className={'rounded-xl p-3 ' + (isDocRole(reply) ? 'bg-emerald-50 border border-emerald-100' : 'bg-gray-50')}>
                         <div className="flex items-center gap-1.5 mb-1">
-                          <span className={'text-[10px] font-bold ' + (reply.isDoctor ? 'text-emerald-700' : 'text-gray-600')}>{reply.authorName}</span>
-                          {reply.isDoctor && <span className="text-[7px] font-bold bg-emerald-200 text-emerald-800 px-1 py-0.5 rounded">✓ Verified Doctor</span>}
-                          <span className="text-[9px] text-gray-400">{reply.timestamp}</span>
+                          <span className={'text-[10px] font-bold ' + (isDocRole(reply) ? 'text-emerald-700' : 'text-gray-600')}>{authorName(reply)}</span>
+                          {isDocRole(reply) && <span className="text-[7px] font-bold bg-emerald-200 text-emerald-800 px-1 py-0.5 rounded">✓ Verified Doctor</span>}
+                          <span className="text-[9px] text-gray-400">{timeAgo(reply.createdAt)}</span>
                         </div>
                         <p className="text-xs text-gray-700 leading-relaxed">{reply.content}</p>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <button onClick={() => setReportTarget({ type: 'reply', id: reply.id })} className="text-[9px] text-gray-400 active:scale-95">🚩</button>
+                          {isModerator && (
+                            <button onClick={() => hideReply(reply.id)} className="text-[8px] text-orange-500 font-bold active:scale-95">Hide</button>
+                          )}
+                          {isAdmin && (
+                            <button onClick={() => { if (confirm('Delete reply?')) deleteReply(reply.id); }} className="text-[8px] text-red-500 font-bold active:scale-95">Delete</button>
+                          )}
+                        </div>
                       </div>
                     ))}
                     <div className="flex gap-2">
                       <input value={replyText} onChange={e => setReplyText(e.target.value)}
-                        placeholder={isAdminUnlocked ? 'Reply as ' + chief.name + '...' : 'Write a reply...'}
+                        placeholder={isModerator ? 'Reply as ' + (user?.fullName || 'Doctor') + '...' : 'Write a reply...'}
                         onKeyDown={e => { if (e.key === 'Enter') submitReply(post.id); }}
                         className="flex-1 px-3 py-2 rounded-xl border border-gray-200 text-xs focus:border-rose-400 focus:outline-none" />
                       <button onClick={() => submitReply(post.id)} className="px-3 py-2 rounded-xl bg-rose-500 text-white text-xs font-bold active:scale-95 transition-transform">→</button>
@@ -446,11 +577,35 @@ export default function CommunityPage() {
               <span className="text-xs font-bold text-gray-700">{isAnon ? 'Anonymous' : 'Show my name'}</span>
               {isAnon && <span className="text-[9px] text-gray-400">Your identity is hidden</span>}
             </button>
-            <button onClick={submitPost} disabled={!newContent.trim()}
+            <button onClick={submitPost} disabled={!newContent.trim() || submitting}
               className="w-full mt-4 py-3.5 rounded-2xl text-white font-bold text-sm disabled:opacity-40 active:scale-95 transition-transform"
               style={{ background: 'linear-gradient(135deg,#E11D48,#EC4899)' }}>
-              Post {isAnon ? 'Anonymously' : 'as ' + (user?.fullName || 'User')}
+              {submitting ? 'Posting...' : `Post ${isAnon ? 'Anonymously' : 'as ' + (user?.fullName || 'User')}`}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Report Modal ─── */}
+      {reportTarget && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center" onClick={() => setReportTarget(null)}>
+          <div className="bg-white w-[90%] max-w-[380px] rounded-2xl p-5" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-extrabold text-gray-900 mb-3">Report {reportTarget.type} 🚩</h3>
+            <div className="space-y-2 mb-4">
+              {REPORT_REASONS.map(r => (
+                <button key={r} onClick={() => setReportReason(r)}
+                  className={'w-full text-left px-3 py-2 rounded-xl text-xs font-bold border-2 transition-all ' + (reportReason === r ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-gray-100 text-gray-600')}>
+                  {r}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setReportTarget(null)} className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-600 text-xs font-bold">Cancel</button>
+              <button onClick={submitReport} disabled={!reportReason}
+                className="flex-1 py-2.5 rounded-xl bg-rose-500 text-white text-xs font-bold disabled:opacity-40">
+                Submit Report
+              </button>
+            </div>
           </div>
         </div>
       )}

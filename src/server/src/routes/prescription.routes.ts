@@ -4,6 +4,7 @@ import prisma from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { requireDoctor } from '../middleware/roles.middleware';
 import { successResponse, errorResponse } from '../utils/response.utils';
+import { sendPushNotification } from '../services/push.service';
 
 const r = Router();
 r.use(authenticate);
@@ -49,6 +50,10 @@ r.post('/', requireDoctor, async (req: AuthRequest, res: Response, next: NextFun
         followUpDate: followUpDate ? new Date(followUpDate) : null,
       },
     });
+
+    // Push notification to patient (best-effort)
+    const doctorRecord = await prisma.doctor.findUnique({ where: { id: appt.doctorId }, select: { fullName: true } });
+    sendPushNotification(appt.userId, 'New Prescription', `Dr. ${doctorRecord?.fullName || 'Your doctor'} has issued a new prescription for you.`, 'prescription', { url: `/prescriptions/${prescription.id}` }).catch(() => {});
 
     successResponse(res, prescription, 'Prescription created', 201);
   } catch (e) { next(e); }

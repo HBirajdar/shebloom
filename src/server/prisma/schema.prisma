@@ -132,6 +132,10 @@ model User {
   wishlistItems    WishlistItem[]
   programEnrollments ProgramEnrollment[]
   seller             Seller?              @relation("SellerUser")
+  communityPosts     CommunityPost[]
+  communityReplies   CommunityReply[]
+  communityLikes     CommunityLike[]
+  communityReports   CommunityReport[]
 
   @@index([role])
   @@map("users")
@@ -1452,4 +1456,128 @@ model SellerTransaction {
   @@index([orderDate])
   @@index([buyerState])
   @@map("seller_transactions")
+}
+
+// ─── COMMUNITY ──────────────────────────────────────
+// Forum-style community for women's health discussions
+
+model CommunityPost {
+  id          String   @id @default(cuid())
+  userId      String
+  content     String   @db.Text
+  category    String   // periods, pcod, fertility, pregnancy, menopause, mental_health, ayurveda, hair_skin, ask_doctor
+  isAnonymous Boolean  @default(false)
+  isPinned    Boolean  @default(false)
+  isHidden    Boolean  @default(false)       // Soft-delete / moderation hide
+  hiddenBy    String?                        // Admin/doctor who hid it
+  hiddenReason String?                       // Why it was hidden
+  likeCount   Int      @default(0)
+  replyCount  Int      @default(0)
+  reportCount Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replies CommunityReply[]
+  likes   CommunityLike[]
+  reports CommunityReport[]
+
+  @@index([category])
+  @@index([userId])
+  @@index([isPinned, createdAt])
+  @@index([isHidden])
+  @@map("community_posts")
+}
+
+model CommunityReply {
+  id          String   @id @default(cuid())
+  postId      String
+  userId      String
+  content     String   @db.Text
+  isDoctor    Boolean  @default(false)       // Verified doctor reply
+  isAnonymous Boolean  @default(false)
+  isHidden    Boolean  @default(false)
+  hiddenBy    String?
+  hiddenReason String?
+  likeCount   Int      @default(0)
+  reportCount Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  post    CommunityPost    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes   CommunityLike[]
+  reports CommunityReport[]
+
+  @@index([postId, createdAt])
+  @@index([userId])
+  @@map("community_replies")
+}
+
+model CommunityLike {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String?
+  replyId   String?
+  createdAt DateTime @default(now())
+
+  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post  CommunityPost?  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reply CommunityReply? @relation(fields: [replyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@unique([userId, replyId])
+  @@map("community_likes")
+}
+
+model CommunityReport {
+  id         String   @id @default(cuid())
+  userId     String
+  postId     String?
+  replyId    String?
+  reason     String   // spam, harassment, misinformation, inappropriate, other
+  details    String?
+  status     String   @default("PENDING") // PENDING, REVIEWED, DISMISSED, ACTION_TAKEN
+  reviewedBy String?
+  reviewedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post  CommunityPost?  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reply CommunityReply? @relation(fields: [replyId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([postId])
+  @@index([replyId])
+  @@map("community_reports")
+}
+
+model CommunityPoll {
+  id         String   @id @default(cuid())
+  question   String
+  options    Json     // Array of {id, text}
+  category   String   @default("general")
+  createdBy  String   // Admin/doctor who created it
+  isActive   Boolean  @default(true)
+  expiresAt  DateTime?
+  totalVotes Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  votes CommunityPollVote[]
+
+  @@index([isActive, createdAt])
+  @@map("community_polls")
+}
+
+model CommunityPollVote {
+  id       String   @id @default(cuid())
+  pollId   String
+  userId   String
+  optionId String   // References options[].id from poll
+  createdAt DateTime @default(now())
+
+  poll CommunityPoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, userId])
+  @@index([pollId])
+  @@map("community_poll_votes")
 }

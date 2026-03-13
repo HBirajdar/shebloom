@@ -9,9 +9,43 @@ import { Router, Response, NextFunction } from 'express';
 import prisma from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/response.utils';
+import { getVapidPublicKey } from '../services/push.service';
 
 const r = Router();
+
+// ─── Public endpoint (no auth required) ──────────────
+// GET /notifications/vapid-key — VAPID public key for client push subscription
+r.get('/vapid-key', (_req, res) => {
+  const key = getVapidPublicKey();
+  if (!key) { res.status(503).json({ success: false, error: 'Push not configured' }); return; }
+  successResponse(res, { publicKey: key });
+});
+
 r.use(authenticate);
+
+// POST /notifications/subscribe — save push subscription
+r.post('/subscribe', async (req: AuthRequest, res: Response) => {
+  try {
+    const { subscription } = req.body;
+    if (!subscription?.endpoint) { errorResponse(res, 'Invalid subscription', 400); return; }
+    await prisma.user.update({
+      where: { id: req.user!.id },
+      data: { fcmToken: JSON.stringify(subscription) },
+    });
+    successResponse(res, null, 'Push subscription saved');
+  } catch (e: any) { errorResponse(res, e.message, 500); }
+});
+
+// POST /notifications/unsubscribe — remove push subscription
+r.post('/unsubscribe', async (req: AuthRequest, res: Response) => {
+  try {
+    await prisma.user.update({
+      where: { id: req.user!.id },
+      data: { fcmToken: null },
+    });
+    successResponse(res, null, 'Push subscription removed');
+  } catch (e: any) { errorResponse(res, e.message, 500); }
+});
 
 // ─── Smart notification generator ───────────────────
 async function generateSmartNotifications(userId: string) {

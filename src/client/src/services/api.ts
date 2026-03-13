@@ -176,6 +176,9 @@ export const notificationAPI = {
   list: () => api.get('/notifications'),
   markRead: (id: string) => api.put('/notifications/' + id + '/read'),
   markAllRead: () => api.put('/notifications/read-all'),
+  getVapidKey: () => api.get('/notifications/vapid-key'),
+  subscribe: (subscription: any) => api.post('/notifications/subscribe', { subscription }),
+  unsubscribe: () => api.post('/notifications/unsubscribe'),
 };
 
 export const cartAPI = {
@@ -437,4 +440,31 @@ export const doshaAPI = {
 export const weatherAPI = {
   saveLocation: (latitude: number, longitude: number) => api.post('/weather/location', { latitude, longitude }),
   getCurrent: () => api.get('/weather/current'),
+};
+
+export const communityAPI = {
+  // Posts
+  listPosts: (params?: any) => api.get('/community/posts', { params }),
+  getPost: (id: string) => api.get(`/community/posts/${id}`),
+  createPost: (d: any) => api.post('/community/posts', d),
+  // Replies
+  reply: (postId: string, d: any) => api.post(`/community/posts/${postId}/replies`, d),
+  // Likes
+  likePost: (id: string) => api.post(`/community/posts/${id}/like`),
+  likeReply: (id: string) => api.post(`/community/replies/${id}/like`),
+  // Reports
+  reportPost: (id: string, d: any) => api.post(`/community/posts/${id}/report`, d),
+  reportReply: (id: string, d: any) => api.post(`/community/replies/${id}/report`, d),
+  // Polls
+  getActivePoll: () => api.get('/community/polls/active'),
+  votePoll: (id: string, optionId: string) => api.post(`/community/polls/${id}/vote`, { optionId }),
+  // Moderation (admin/doctor)
+  hidePost: (id: string, d: any) => api.patch(`/community/posts/${id}/hide`, d),
+  hideReply: (id: string, d: any) => api.patch(`/community/replies/${id}/hide`, d),
+  deletePost: (id: string) => api.delete(`/community/posts/${id}`),
+  deleteReply: (id: string) => api.delete(`/community/replies/${id}`),
+  pinPost: (id: string) => api.patch(`/community/posts/${id}/pin`),
+  createPoll: (d: any) => api.post('/community/polls', d),
+  getReports: (params?: any) => api.get('/community/reports', { params }),
+  updateReport: (id: string, d: any) => api.patch(`/community/reports/${id}`, d),
 };

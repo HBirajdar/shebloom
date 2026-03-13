@@ -9,6 +9,7 @@ import prisma from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/response.utils';
 import { sendOrderConfirmation } from '../services/email.service';
+import { sendPushNotification } from '../services/push.service';
 
 const r = Router();
 
@@ -434,6 +435,9 @@ r.post('/verify', async (q: AuthRequest, s: Response, n: NextFunction) => {
       }).catch(() => {});
     }
 
+    // Push notification (best-effort)
+    sendPushNotification(order.userId, 'Order Confirmed', `Your order #${order.orderNumber} has been confirmed! Estimated delivery: 5-7 business days.`, 'order', { url: `/orders/${order.id}` }).catch(() => {});
+
     successResponse(s, { success: true, orderId, orderNumber: order.orderNumber });
   } catch (e) { n(e); }
 });
@@ -557,6 +561,9 @@ r.post('/cod', async (q: AuthRequest, s: Response, n: NextFunction) => {
         estimatedDelivery: '5-7 business days',
       }).catch(() => {});
     }
+
+    // Push notification (best-effort)
+    sendPushNotification(uid, 'Order Placed', `Your COD order #${order.orderNumber} has been placed! Estimated delivery: 5-7 business days.`, 'order', { url: `/orders/${order.id}` }).catch(() => {});
 
     successResponse(s, {
       success: true, orderId: order.id, orderNumber: order.orderNumber,

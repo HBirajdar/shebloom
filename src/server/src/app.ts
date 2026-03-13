@@ -46,6 +46,7 @@ import weatherRoutes from './routes/weather.routes';
 import financeRoutes from './routes/finance.routes';
 import programRoutes from './routes/program.routes';
 import sellerRoutes from './routes/seller.routes';
+import communityRoutes from './routes/community.routes';
 
 // ─── Startup security checks ─────────────────────────
 if (process.env.NODE_ENV === 'production') {
@@ -240,6 +241,7 @@ app.use('/api/v1/weather', weatherRoutes);
 app.use('/api/v1/finance', financeRoutes);
 app.use('/api/v1/programs', programRoutes);
 app.use('/api/v1/sellers', sellerRoutes);
+app.use('/api/v1/community', communityRoutes);
 if (process.env.NODE_ENV !== 'production') {
   app.use('/api/v1/debug', debugRoutes);
 }

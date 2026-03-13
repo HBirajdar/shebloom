@@ -8,6 +8,7 @@ import prisma from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { requireDoctor } from '../middleware/roles.middleware';
 import { successResponse, errorResponse } from '../utils/response.utils';
+import { sendPushNotification } from '../services/push.service';
 import doshaService from '../services/dosha.service';
 
 const r = Router();
@@ -149,6 +150,9 @@ r.patch('/appointments/:id/accept', async (q: AuthRequest, s: Response, n: NextF
       include: { user: { select: { email: true, fullName: true } } },
     });
 
+    // Push notification to patient (best-effort)
+    sendPushNotification(appt.userId, 'Appointment Confirmed', `Your appointment with Dr. ${doctor.fullName} has been confirmed.`, 'appointment', { url: '/appointments' }).catch(() => {});
+
     successResponse(s, updated, 'Appointment confirmed');
   } catch (e) { n(e); }
 });
@@ -170,6 +174,9 @@ r.patch('/appointments/:id/reject', async (q: AuthRequest, s: Response, n: NextF
       data: { status: 'REJECTED', rejectionReason: reason || 'No reason given' },
       include: { user: { select: { email: true, fullName: true } } },
     });
+
+    // Push notification to patient (best-effort)
+    sendPushNotification(appt.userId, 'Appointment Declined', `Your appointment with Dr. ${doctor.fullName} could not be confirmed. ${reason ? 'Reason: ' + reason : 'Please book another slot.'}`, 'appointment', { url: '/appointments' }).catch(() => {});
 
     successResponse(s, updated, 'Appointment rejected');
   } catch (e) { n(e); }
