@@ -252,13 +252,16 @@ export default function CommunityPage() {
     return Math.max(0, Math.ceil((EDIT_WINDOW_MS - elapsed) / 60000));
   };
 
+  const [editSaving, setEditSaving] = useState(false);
+
   const startEdit = (type: 'post' | 'reply', id: string, content: string) => {
     setEditTarget({ type, id, content });
     setEditContent(content);
   };
   const submitEdit = async () => {
-    if (!editTarget || !editContent.trim()) return;
+    if (!editTarget || !editContent.trim() || editSaving) return;
     try {
+      setEditSaving(true);
       if (editTarget.type === 'post') {
         await communityAPI.editPost(editTarget.id, { content: editContent.trim() });
         fetchPosts();
@@ -270,23 +273,29 @@ export default function CommunityPage() {
       setEditTarget(null); setEditContent('');
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to update');
+    } finally {
+      setEditSaving(false);
     }
   };
   const deleteOwnPost = async (id: string) => {
-    if (!confirm('Delete your post?')) return;
+    if (!confirm('Delete your post?') || editSaving) return;
     try {
+      setEditSaving(true);
       await communityAPI.deleteOwnPost(id);
       toast.success('Post deleted');
       fetchPosts();
     } catch (err: any) { toast.error(err.response?.data?.error || 'Failed'); }
+    finally { setEditSaving(false); }
   };
   const deleteOwnReply = async (id: string) => {
-    if (!confirm('Delete your reply?')) return;
+    if (!confirm('Delete your reply?') || editSaving) return;
     try {
+      setEditSaving(true);
       await communityAPI.deleteOwnReply(id);
       toast.success('Reply deleted');
       if (expandedPost) fetchPostDetail(expandedPost);
     } catch (err: any) { toast.error(err.response?.data?.error || 'Failed'); }
+    finally { setEditSaving(false); }
   };
 
   // ─── Helpers ───
@@ -503,7 +512,7 @@ export default function CommunityPage() {
                       <span className="text-xs font-bold text-gray-800">{authorName(post)}</span>
                       {isDocRole(post) && <span className="text-[7px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">DOCTOR ✓</span>}
                     </div>
-                    <span className="text-[9px] text-gray-400">{timeAgo(post.createdAt)}</span>
+                    <span className="text-[9px] text-gray-400">{timeAgo(post.createdAt)}{post.isEdited && ' · (edited)'}</span>
                   </div>
                 </div>
                 <p className="text-sm text-gray-700 leading-relaxed">{post.content}</p>
@@ -566,7 +575,7 @@ export default function CommunityPage() {
                         <div className="flex items-center gap-1.5 mb-1">
                           <span className={'text-[10px] font-bold ' + (isDocRole(reply) ? 'text-emerald-700' : 'text-gray-600')}>{authorName(reply)}</span>
                           {isDocRole(reply) && <span className="text-[7px] font-bold bg-emerald-200 text-emerald-800 px-1 py-0.5 rounded">✓ Verified Doctor</span>}
-                          <span className="text-[9px] text-gray-400">{timeAgo(reply.createdAt)}</span>
+                          <span className="text-[9px] text-gray-400">{timeAgo(reply.createdAt)}{reply.isEdited && ' · (edited)'}</span>
                         </div>
                         <p className="text-xs text-gray-700 leading-relaxed">{reply.content}</p>
                         <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -694,9 +703,9 @@ export default function CommunityPage() {
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 focus:outline-none resize-none" rows={4} autoFocus />
             <div className="flex gap-2 mt-4">
               <button onClick={() => setEditTarget(null)} className="flex-1 py-3 rounded-2xl bg-gray-100 text-gray-600 font-bold text-sm">Cancel</button>
-              <button onClick={submitEdit} disabled={!editContent.trim() || editContent.trim() === editTarget.content}
+              <button onClick={submitEdit} disabled={!editContent.trim() || editContent.trim() === editTarget.content || editSaving}
                 className="flex-1 py-3 rounded-2xl bg-blue-500 text-white font-bold text-sm disabled:opacity-40 active:scale-95">
-                Save Changes
+                {editSaving ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>

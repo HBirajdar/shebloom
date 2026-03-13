@@ -1474,6 +1474,7 @@ model CommunityPost {
   likeCount   Int      @default(0)
   replyCount  Int      @default(0)
   reportCount Int      @default(0)
+  isEdited    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -1501,6 +1502,7 @@ model CommunityReply {
   hiddenReason String?
   likeCount   Int      @default(0)
   reportCount Int      @default(0)
+  isEdited    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

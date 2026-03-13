@@ -353,6 +353,11 @@ const EDIT_WINDOW_MS = 30 * 60 * 1000; // 30 minutes
 r.patch('/posts/:id', authenticate, async (q: AuthRequest, res: Response, n: NextFunction) => {
   try {
     const userId = q.user!.id;
+
+    // Rate limit: max 10 edits per hour
+    const edits = await cacheIncr('community_edit:' + userId, 3600);
+    if (edits > 10) { errorResponse(res, 'Too many edits. Please wait.', 429); return; }
+
     const post = await prisma.communityPost.findUnique({ where: { id: q.params.id } });
     if (!post) { errorResponse(res, 'Post not found', 404); return; }
     if (post.userId !== userId) { errorResponse(res, 'You can only edit your own posts', 403); return; }
@@ -365,7 +370,7 @@ r.patch('/posts/:id', authenticate, async (q: AuthRequest, res: Response, n: Nex
 
     const updated = await prisma.communityPost.update({
       where: { id: q.params.id },
-      data: { content: content.trim() },
+      data: { content: content.trim(), isEdited: true },
       include: { user: { select: { fullName: true, avatarUrl: true, role: true } } },
     });
 
@@ -393,6 +398,11 @@ r.delete('/posts/:id/own', authenticate, async (q: AuthRequest, res: Response, n
 r.patch('/replies/:id', authenticate, async (q: AuthRequest, res: Response, n: NextFunction) => {
   try {
     const userId = q.user!.id;
+
+    // Rate limit: max 10 edits per hour (shared with post edits)
+    const edits = await cacheIncr('community_edit:' + userId, 3600);
+    if (edits > 10) { errorResponse(res, 'Too many edits. Please wait.', 429); return; }
+
     const reply = await prisma.communityReply.findUnique({ where: { id: q.params.id } });
     if (!reply) { errorResponse(res, 'Reply not found', 404); return; }
     if (reply.userId !== userId) { errorResponse(res, 'You can only edit your own replies', 403); return; }
@@ -405,7 +415,7 @@ r.patch('/replies/:id', authenticate, async (q: AuthRequest, res: Response, n: N
 
     const updated = await prisma.communityReply.update({
       where: { id: q.params.id },
-      data: { content: content.trim() },
+      data: { content: content.trim(), isEdited: true },
       include: { user: { select: { fullName: true, avatarUrl: true, role: true } } },
     });
 
