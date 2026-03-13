@@ -134,7 +134,7 @@ r.post('/create', async (q: AuthRequest, s: Response, n: NextFunction) => {
 
     // Cleanup only EXPIRED pending subscriptions (not all — user may have active checkout in another tab)
     await prisma.pendingSubscription.deleteMany({
-      where: { OR: [{ userId: q.user!.id, expiresAt: { lt: new Date() } }, { expiresAt: { lt: new Date() } }] },
+      where: { userId: q.user!.id, expiresAt: { lt: new Date() } },
     });
 
     const plan = await prisma.subscriptionPlan.findUnique({ where: { id: planId } });

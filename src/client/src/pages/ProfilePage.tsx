@@ -289,7 +289,7 @@ export default function ProfilePage() {
         const fd = new FormData();
         fd.append('image', file);
         const uploadRes = await api.post('/upload/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-        const photoUrl = uploadRes.data.data.url;
+        const photoUrl = uploadRes?.data?.data?.url || uploadRes?.data?.url;
         await userAPI.update({ photoUrl });
         if (user) setUser({ ...user, avatarUrl: photoUrl, photoUrl });
         toast.success('Avatar updated!');
@@ -388,9 +388,9 @@ export default function ProfilePage() {
                 </p>
                 {isPremium && subscription && (
                   <p className="text-[10px] text-gray-500">
-                    {subscription.status === 'TRIAL' ? `Trial \u2022 ends ${new Date(subscription.trialEndDate!).toLocaleDateString()}` :
-                     subscription.status === 'CANCELLED' ? `Cancelled \u2022 until ${new Date(subscription.currentPeriodEnd).toLocaleDateString()}` :
-                     `Active \u2022 renews ${new Date(subscription.currentPeriodEnd).toLocaleDateString()}`}
+                    {subscription.status === 'TRIAL' && subscription.trialEndDate ? `Trial \u2022 ends ${new Date(subscription.trialEndDate).toLocaleDateString()}` :
+                     subscription.status === 'CANCELLED' && subscription.currentPeriodEnd ? `Cancelled \u2022 until ${new Date(subscription.currentPeriodEnd).toLocaleDateString()}` :
+                     subscription.currentPeriodEnd ? `Active \u2022 renews ${new Date(subscription.currentPeriodEnd).toLocaleDateString()}` : 'Active'}
                   </p>
                 )}
               </div>

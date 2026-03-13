@@ -66,13 +66,13 @@ export default function DoctorsPage() {
   const regular = published.filter(d => !d.isPromoted && !d.isChief);
 
   const applyFilters = (list: any[]) => list.filter(d => {
-    const matchQ = !q || d.name.toLowerCase().includes(q.toLowerCase()) ||
-      d.specialization.toLowerCase().includes(q.toLowerCase()) ||
+    const matchQ = !q || (d.name || '').toLowerCase().includes(q.toLowerCase()) ||
+      (d.specialization || '').toLowerCase().includes(q.toLowerCase()) ||
       (d.tags || []).some((t: string) => t.toLowerCase().includes(q.toLowerCase()));
-    const matchCat = cat === 'All' || d.specialization.toLowerCase().includes(cat.toLowerCase());
+    const matchCat = cat === 'All' || (d.specialization || '').toLowerCase().includes(cat.toLowerCase());
     const matchCity = city === 'All' || d.city === city;
-    const matchFee = d.fee <= maxFee;
-    const matchRating = d.rating >= minRating;
+    const matchFee = (d.fee || 0) <= maxFee;
+    const matchRating = (d.rating || 0) >= minRating;
     const matchFree = !freeOnly || d.feeFreeForPoor;
     return matchQ && matchCat && matchCity && matchFee && matchRating && matchFree;
   });

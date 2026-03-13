@@ -104,25 +104,40 @@ export default function TrackerPage() {
   // Fetch fertility data when fertility tab is active
   useEffect(() => {
     if (tab !== 'fertility') return
+    let active = true
     Promise.all([
       cycleAPI.getBBT(90).catch(() => ({ data: { data: [] } })),
       cycleAPI.getCervicalMucus(90).catch(() => ({ data: { data: [] } })),
       cycleAPI.getFertilityDaily(90).catch(() => ({ data: { data: [] } })),
     ]).then(([bbt, cm, daily]) => {
+      if (!active) return
       setBbtHistory(bbt?.data?.data || [])
       setCmHistory(cm?.data?.data || [])
       setFertilityDaily(daily?.data?.data || [])
     })
+    return () => { active = false }
   }, [tab])
 
   // Fetch Ayurvedic insights when tab is active
+  const [ayurvedaError, setAyurvedaError] = useState<string | null>(null)
   useEffect(() => {
     if (tab !== 'ayurveda') return
+    let active = true
     setAyurvedaLoading(true)
+    setAyurvedaError(null)
     cycleAPI.getAyurvedicInsights()
-      .then(r => setAyurvedaData(r?.data?.data || null))
-      .catch(() => {})
-      .finally(() => setAyurvedaLoading(false))
+      .then(r => { if (active) setAyurvedaData(r?.data?.data || null) })
+      .catch((err: any) => {
+        if (!active) return
+        if (err?.response?.status === 403 && err?.response?.data?.upgrade) {
+          setAyurvedaError('upgrade')
+        } else {
+          setAyurvedaError('error')
+          toast.error('Failed to load Ayurvedic insights. Please try again.')
+        }
+      })
+      .finally(() => { if (active) setAyurvedaLoading(false) })
+    return () => { active = false }
   }, [tab])
 
   const saveFertilityLog = async () => {
@@ -375,7 +390,7 @@ export default function TrackerPage() {
       setLogEndDate(null)
       setCustomStartInput('')
       setCustomEndInput('')
-      cycleAPI.list().then(r => setCycles(r.data.data || []))
+      cycleAPI.list().then(r => setCycles(r?.data?.data || [])).catch(() => {})
     } catch (e) {
       toast.error('Failed to save. Try again.')
     }
@@ -1748,9 +1763,9 @@ export default function TrackerPage() {
                 {ayurvedaData.guidance?.diet?.length > 0 && (
                   <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                     <p className="text-xs font-extrabold text-gray-800 mb-1">🍽️ Diet — {ayurvedaData.phase} phase</p>
-                    <p className="text-[10px] text-gray-400 mb-3">{ayurvedaData.guidance.dominantDosha}</p>
+                    <p className="text-[10px] text-gray-400 mb-3">{ayurvedaData.guidance?.dominantDosha}</p>
                     <div className="space-y-2">
-                      {ayurvedaData.guidance.diet.map((tip, i) => (
+                      {ayurvedaData.guidance?.diet?.map((tip, i) => (
                         <div key={i} className="flex gap-2">
                           <span className="text-emerald-500 text-xs mt-0.5">●</span>
                           <p className="text-[11px] text-gray-600 leading-relaxed">{tip}</p>
@@ -1765,7 +1780,7 @@ export default function TrackerPage() {
                   <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                     <p className="text-xs font-extrabold text-gray-800 mb-3">🌿 Ayurvedic Herbs</p>
                     <div className="space-y-2">
-                      {ayurvedaData.guidance.herbs.map((herb, i) => (
+                      {ayurvedaData.guidance?.herbs?.map((herb, i) => (
                         <div key={i} className="flex gap-2">
                           <span className="text-purple-500 text-xs mt-0.5">●</span>
                           <p className="text-[11px] text-gray-600 leading-relaxed">{herb}</p>
@@ -1812,7 +1827,7 @@ export default function TrackerPage() {
                   <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                     <p className="text-xs font-extrabold text-gray-800 mb-3">🧘 Yoga & Pranayama</p>
                     <div className="space-y-2">
-                      {ayurvedaData.guidance.yoga.map((pose, i) => (
+                      {ayurvedaData.guidance?.yoga?.map((pose, i) => (
                         <div key={i} className="flex gap-2">
                           <span className="text-indigo-500 text-xs mt-0.5">●</span>
                           <p className="text-[11px] text-gray-600 leading-relaxed">{pose}</p>
@@ -1827,17 +1842,17 @@ export default function TrackerPage() {
                   <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                     <p className="text-xs font-extrabold text-gray-800 mb-3">🌸 Lifestyle (Dinacharya)</p>
                     <div className="space-y-2">
-                      {ayurvedaData.guidance.lifestyle.map((tip, i) => (
+                      {ayurvedaData.guidance?.lifestyle?.map((tip, i) => (
                         <div key={i} className="flex gap-2">
                           <span className="text-rose-400 text-xs mt-0.5">●</span>
                           <p className="text-[11px] text-gray-600 leading-relaxed">{tip}</p>
                         </div>
                       ))}
                     </div>
-                    {ayurvedaData.guidance.avoid?.length > 0 && (
+                    {ayurvedaData.guidance?.avoid?.length > 0 && (
                       <div className="mt-3 pt-3 border-t border-gray-100">
                         <p className="text-[10px] font-bold text-red-500 mb-1">⚠️ Avoid</p>
-                        <p className="text-[11px] text-gray-500">{ayurvedaData.guidance.avoid.join(' • ')}</p>
+                        <p className="text-[11px] text-gray-500">{ayurvedaData.guidance?.avoid?.join(' • ')}</p>
                       </div>
                     )}
                   </div>
@@ -1848,7 +1863,7 @@ export default function TrackerPage() {
                   <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4">
                     <p className="text-xs font-extrabold text-violet-800 mb-3">🔍 Your Symptoms — Ayurvedic Lens</p>
                     <div className="space-y-2">
-                      {ayurvedaData.symptomInsights.map((insight, i) => (
+                      {ayurvedaData.symptomInsights?.map((insight, i) => (
                         <p key={i} className="text-[11px] text-violet-700 leading-relaxed">• {insight}</p>
                       ))}
                     </div>
@@ -1958,16 +1973,6 @@ export default function TrackerPage() {
                   </div>
                 )}
 
-                {/* Research References */}
-                {ayurvedaData.references?.length > 0 && (
-                  <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200">
-                    <p className="text-[10px] font-bold text-gray-500 mb-2">📚 Research References</p>
-                    {ayurvedaData.references.map((ref, i) => (
-                      <p key={i} className="text-[10px] text-gray-400 leading-relaxed">• {ref}</p>
-                    ))}
-                  </div>
-                )}
-
                 {/* ── Comprehensive Research References ─── */}
                 <div style={{ background: '#F8F8FC', borderRadius: 12, padding: 14, margin: '16px 0' }}>
                   <button
@@ -2014,6 +2019,15 @@ export default function TrackerPage() {
                   </p>
                 </div>
               </>
+            ) : ayurvedaError === 'upgrade' ? (
+              <UpgradePrompt feature="cycle:ayurvedic-insights" title="Unlock Ayurvedic Insights" description="Upgrade to VedaClue Premium for personalized Ayurvedic guidance based on your dosha and cycle phase." />
+            ) : ayurvedaError === 'error' ? (
+              <div className="text-center py-16">
+                <span className="text-5xl block mb-4">⚠️</span>
+                <p className="text-sm font-bold text-gray-700 mb-1">Could not load Ayurvedic insights</p>
+                <p className="text-xs text-gray-400 mb-4">Please check your connection and try again.</p>
+                <button onClick={() => setTab('calendar')} className="text-xs text-rose-500 font-semibold">Back to Calendar</button>
+              </div>
             ) : (
               <div className="text-center py-16">
                 <span className="text-5xl block mb-4">🌿</span>

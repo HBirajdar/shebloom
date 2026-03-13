@@ -743,7 +743,7 @@ export class CycleService {
     const cycleDay = Math.floor((Date.now() - lastStart.getTime()) / 86400000) + 1;
 
     // Ovulation day = cycle length - individual luteal phase (NOT the mythical -14)
-    const ovulationDay = avgCycleLength - lutealPhase;
+    const ovulationDay = Math.max(1, Math.min(avgCycleLength - 1, avgCycleLength - lutealPhase));
     const ovulationDate = new Date(lastStart.getTime() + ovulationDay * 86400000);
     const nextPeriod = new Date(lastStart.getTime() + avgCycleLength * 86400000);
 
@@ -1232,7 +1232,7 @@ export class CycleService {
       orderBy: { logDate: 'desc' },
       take: 5,
     });
-    const symptomsList = recentSymptoms.flatMap(s => s.symptoms);
+    const symptomsList = recentSymptoms.flatMap(s => Array.isArray(s.symptoms) ? s.symptoms : []);
 
     // ── Resolve dosha for guidance lookup ─────────────────
     // For dual doshas like "Vata-Pitta", get guidance from primary constituent
@@ -1556,7 +1556,7 @@ function computeSymptomPhaseCorrelation(
     else if (dayInCycle <= ovulationDay - 3) phase = 'follicular';
     else if (dayInCycle <= ovulationDay + 2) phase = 'ovulation';
 
-    for (const symptom of log.symptoms) {
+    for (const symptom of (Array.isArray(log.symptoms) ? log.symptoms : [])) {
       phaseSymptoms[phase][symptom] = (phaseSymptoms[phase][symptom] || 0) + 1;
     }
   }
