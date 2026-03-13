@@ -55,21 +55,8 @@ async function ensureChiefDoctor() {
 }
 
 async function runMigrations() {
-  // Step 1: Push schema changes — non-fatal, DB may already be in sync
-  try {
-    logger.info('Running database schema push...');
-    execSync('npx prisma db push --accept-data-loss', {
-      timeout: 60000,
-      stdio: 'pipe',
-      env: process.env as any,
-    });
-    logger.info('Database schema synced');
-  } catch (err: any) {
-    const msg = (err.stdout?.toString() || err.stderr?.toString() || err.message || '').slice(0, 400);
-    logger.warn('Prisma db push skipped (already in sync or conflict): ' + msg);
-  }
-
-  // Step 2: Always regenerate Prisma Client so runtime JS matches current schema file
+  // Schema push is handled by the start command (npm start / nixpacks cmd)
+  // Only regenerate Prisma Client here so runtime JS matches current schema
   try {
     execSync('npx prisma generate', {
       timeout: 30000,

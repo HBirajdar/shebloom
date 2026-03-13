@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "npx prisma generate && tsc",
-    "start": "npx prisma db execute --file ./scripts/cleanup-otp.sql --schema ./prisma/schema.prisma; npx prisma db push --accept-data-loss && node dist/server.js",
+    "start": "npx prisma db push --accept-data-loss && node dist/server.js",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",

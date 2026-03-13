@@ -11,7 +11,7 @@ cmds = [
 ]
 
 [start]
-cmd = "node dist/server.js"
+cmd = "npx prisma db push --accept-data-loss && node dist/server.js"
 
 [variables]
 NODE_ENV = "production"
