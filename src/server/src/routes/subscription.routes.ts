@@ -132,6 +132,11 @@ r.post('/create', async (q: AuthRequest, s: Response, n: NextFunction) => {
     const { planId, couponCode, goal } = q.body;
     if (!planId) { errorResponse(s, 'planId is required', 400); return; }
 
+    // Cleanup stale pending subscriptions for this user (prevents table bloat)
+    await prisma.pendingSubscription.deleteMany({
+      where: { OR: [{ userId: q.user!.id }, { expiresAt: { lt: new Date() } }] },
+    });
+
     const plan = await prisma.subscriptionPlan.findUnique({ where: { id: planId } });
     if (!plan || !plan.isActive) { errorResponse(s, 'Plan not found or inactive', 404); return; }
 
@@ -330,35 +335,41 @@ r.post('/verify', async (q: AuthRequest, s: Response, n: NextFunction) => {
       errorResponse(s, 'Payment session expired. Please try again.', 400); return;
     }
 
-    // 3. Create subscription in a transaction (atomic: sub + coupon + audit)
+    // 3. Delete pending record FIRST (prevents double-verify via atomic unique constraint)
     const verifyIp = q.ip || q.headers['x-forwarded-for']?.toString();
     const verifyUa = q.headers['user-agent'];
 
-    const sub = await prisma.$transaction(async (tx) => {
-      // Create subscription using server-side pricing data
-      const newSub = await subscriptionService.createSubscription(q.user!.id, pending.planId, {
-        razorpaySubscriptionId: razorpaySubscriptionId || undefined,
-        couponCode: pending.couponCode || undefined,
-        goal: pending.goal || undefined,
-        pricePaid: pending.pricePaid,
-        originalPrice: pending.originalPrice,
-        couponDiscount: pending.couponDiscount,
-        promotionId: pending.promotionId || undefined,
-        promotionDiscount: pending.promoDiscount,
-        ipAddress: verifyIp,
-        userAgent: verifyUa,
-      });
+    // Atomically delete the pending record to prevent double-verify
+    try {
+      await prisma.pendingSubscription.delete({ where: { id: pending.id } });
+    } catch {
+      errorResponse(s, 'Payment already processed.', 400); return;
+    }
 
-      // Record coupon redemption atomically
+    // 4. Create subscription (uses its own prisma calls internally)
+    const sub = await subscriptionService.createSubscription(q.user!.id, pending.planId, {
+      razorpaySubscriptionId: razorpaySubscriptionId || undefined,
+      couponCode: pending.couponCode || undefined,
+      goal: pending.goal || undefined,
+      pricePaid: pending.pricePaid,
+      originalPrice: pending.originalPrice,
+      couponDiscount: pending.couponDiscount,
+      promotionId: pending.promotionId || undefined,
+      promotionDiscount: pending.promoDiscount,
+      ipAddress: verifyIp,
+      userAgent: verifyUa,
+    });
+
+    // 5. Coupon redemption + audit log in transaction (atomic for financial consistency)
+    await prisma.$transaction(async (tx) => {
       if (pending.couponCode && pending.couponDiscount > 0) {
-        const coupon = await tx.coupon.findUnique({ where: { code: pending.couponCode.toUpperCase().trim() } });
+        const coupon = await tx.coupon.findUnique({ where: { code: pending.couponCode!.toUpperCase().trim() } });
         if (coupon) {
-          await tx.couponRedemption.create({ data: { couponId: coupon.id, userId: q.user!.id, subscriptionId: newSub.id, discount: pending.couponDiscount } });
+          await tx.couponRedemption.create({ data: { couponId: coupon.id, userId: q.user!.id, subscriptionId: sub.id, discount: pending.couponDiscount } });
           await tx.coupon.update({ where: { id: coupon.id }, data: { currentUses: { increment: 1 } } });
         }
       }
 
-      // Audit log
       await tx.paymentAuditLog.create({
         data: {
           userId: q.user!.id,
@@ -373,11 +384,6 @@ r.post('/verify', async (q: AuthRequest, s: Response, n: NextFunction) => {
           metadata: { planId: pending.planId, goal: pending.goal, promotionId: pending.promotionId, promoDiscount: pending.promoDiscount, razorpaySubscriptionId },
         },
       });
-
-      // Delete pending record (prevents double-verify)
-      await tx.pendingSubscription.delete({ where: { id: pending.id } });
-
-      return newSub;
     });
 
     successResponse(s, { subscription: sub }, 'Subscription activated');

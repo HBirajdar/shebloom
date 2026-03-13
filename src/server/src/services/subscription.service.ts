@@ -246,12 +246,18 @@ class SubscriptionService {
       return sub;
     }
 
-    // Use calendar-based dates instead of fixed day counts
+    // Calendar-based dates with month-end clamping (e.g., Jan 31 + 1 month = Feb 28, not Mar 3)
     let newEnd: Date;
     if (interval === 'YEARLY') {
-      newEnd = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+      const targetMonth = now.getMonth();
+      const targetYear = now.getFullYear() + 1;
+      const lastDayOfMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+      newEnd = new Date(targetYear, targetMonth, Math.min(now.getDate(), lastDayOfMonth));
     } else {
-      newEnd = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+      const targetMonth = now.getMonth() + 1;
+      const targetYear = now.getFullYear();
+      const lastDayOfMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+      newEnd = new Date(targetYear, targetMonth, Math.min(now.getDate(), lastDayOfMonth));
     }
 
     const prev = sub.status;
@@ -469,7 +475,7 @@ class SubscriptionService {
 
     const newEnd = new Date(sub.currentPeriodEnd.getTime() + days * 86400000);
     const prev = sub.status;
-    const newStatus = prev === 'EXPIRED' ? 'ACTIVE' : prev;
+    const newStatus = ['EXPIRED', 'PAST_DUE', 'CANCELLED'].includes(prev) ? 'ACTIVE' : prev;
 
     const updated = await prisma.userSubscription.update({
       where: { id: subscriptionId },
@@ -530,7 +536,9 @@ class SubscriptionService {
   }
 
   async updatePlan(id: string, data: any) {
+    // Remove Prisma virtual/relation fields that frontend may send
     delete data.id; delete data.createdAt; delete data.updatedAt;
+    delete data._count; delete data.subscriptions; delete data.promotions;
     if (typeof data.goalPricing === 'string') try { data.goalPricing = JSON.parse(data.goalPricing); } catch {}
     if (typeof data.highlights === 'string') try { data.highlights = JSON.parse(data.highlights); } catch {}
     if (data.basePrice !== undefined) data.basePrice = Number(data.basePrice);
@@ -569,7 +577,9 @@ class SubscriptionService {
   }
 
   async updatePromotion(id: string, data: any) {
+    // Remove Prisma virtual/relation fields that frontend may send
     delete data.id; delete data.createdAt; delete data.updatedAt;
+    delete data.plan; delete data.currentRedemptions;
     if (typeof data.goals === 'string') try { data.goals = JSON.parse(data.goals); } catch {}
     if (data.discountValue !== undefined) data.discountValue = Number(data.discountValue);
     if (data.maxDiscountAmount !== undefined) data.maxDiscountAmount = data.maxDiscountAmount ? Number(data.maxDiscountAmount) : null;
