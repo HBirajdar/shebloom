@@ -300,7 +300,7 @@ export default function ProfilePage() {
       community: '/community', programs: '/programs', 'my-orders': '/my-orders',
       'about-us': '/about-us', 'privacy-policy': '/privacy-policy',
       'terms-conditions': '/terms-conditions', 'shipping-policy': '/shipping-policy',
-      'refund-policy': '/refund-policy',
+      'refund-policy': '/refund-policy', help: '/help',
     };
     if (action === 'edit') openEdit();
     else if (action === 'contact') window.location.href = 'mailto:vedaclue@gmail.com';

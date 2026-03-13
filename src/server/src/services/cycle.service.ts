@@ -418,12 +418,12 @@ export class CycleService {
       periodWindow: { early: periodWindowEarly, late: periodWindowLate },
       ovulationWindow: { early: ovulationWindowEarly, late: ovulationWindowLate },
 
-      // Countdown
-      daysUntilPeriod: Math.max(0, Math.floor(
+      // Countdown — allow negative values so frontend can detect late/overdue periods
+      daysUntilPeriod: Math.floor(
         ((confirmedOvulation
           ? adjustedOvulationDate.getTime() + lutealPhase * 86400000
           : nextPeriod.getTime()) - Date.now()) / 86400000
-      )),
+      ),
       daysUntilOvulation: Math.max(0, ovulationDay - cycleDay),
 
       // Fertility
@@ -437,6 +437,49 @@ export class CycleService {
       regularityScore,
       cycleLengths: cycleLengths.slice(-12),
       totalCyclesTracked: allCycles.length,
+
+      // Cycle abnormality alerts — evidence-based detection
+      alerts: (() => {
+        const alerts: { type: string; severity: 'info' | 'warning' | 'urgent'; title: string; message: string; ayurvedic?: string }[] = [];
+        const avgLen = cycleLengths.length > 0 ? cycleLengths.reduce((a, b) => a + b, 0) / cycleLengths.length : 28;
+        const daysSinceLastPeriod = Math.floor((Date.now() - allCycles[0]?.startDate?.getTime()) / 86400000);
+
+        // Amenorrhea: >90 days since last period
+        if (daysSinceLastPeriod > 90) {
+          alerts.push({ type: 'amenorrhea', severity: 'urgent', title: 'No Period for ' + daysSinceLastPeriod + ' Days',
+            message: 'Secondary amenorrhea (>90 days). Please consult a gynecologist. Rule out pregnancy, thyroid disorders, PCOS, or hypothalamic amenorrhea.',
+            ayurvedic: 'Artava Kshaya [Sushruta Sha. 2/29]. Vata-dominant condition. Shatavari + Ashwagandha under practitioner supervision.' });
+        }
+        // Oligomenorrhea: cycle length consistently >35 days
+        else if (avgLen > 35 && cycleLengths.length >= 2) {
+          alerts.push({ type: 'oligomenorrhea', severity: 'warning', title: 'Infrequent Cycles (' + Math.round(avgLen) + ' day avg)',
+            message: 'Cycles >35 days may indicate PCOS, thyroid issues, or hormonal imbalance. Track 3+ cycles and consult a doctor if persistent.',
+            ayurvedic: 'Kapha-Vata imbalance blocking Artava Vaha Srotas. Lodhra + Shatavari + Triphala [Charaka].' });
+        }
+        // Polymenorrhea: cycle length consistently <21 days
+        if (avgLen < 21 && cycleLengths.length >= 2) {
+          alerts.push({ type: 'polymenorrhea', severity: 'warning', title: 'Frequent Cycles (' + Math.round(avgLen) + ' day avg)',
+            message: 'Cycles <21 days may indicate luteal phase defect, anovulation, or hormonal imbalance. Please consult a gynecologist.',
+            ayurvedic: 'Pitta excess disturbing Rasa-Rakta dhatu. Ashoka bark + Shatavari (cooling) [Bhavaprakasha].' });
+        }
+        // Sudden cycle length change: latest cycle differs >7 days from average
+        if (cycleLengths.length >= 3) {
+          const latest = cycleLengths[cycleLengths.length - 1];
+          const prevAvg = cycleLengths.slice(0, -1).reduce((a, b) => a + b, 0) / (cycleLengths.length - 1);
+          if (Math.abs(latest - prevAvg) > 7) {
+            alerts.push({ type: 'cycle_change', severity: 'info', title: 'Cycle Length Changed',
+              message: `Your latest cycle (${latest} days) differs significantly from your average (${Math.round(prevAvg)} days). This can be caused by stress, travel, illness, or hormonal changes.`,
+              ayurvedic: 'Vata aggravation from lifestyle change. Restore Dinacharya (daily routine) and Ritucharya (seasonal routine).' });
+          }
+        }
+        // High irregularity: SD > 7 days
+        if (cycleSD > 7 && cycleLengths.length >= 3) {
+          alerts.push({ type: 'irregular', severity: 'warning', title: 'Irregular Cycle Pattern',
+            message: 'Your cycles vary significantly (\u00B1' + Math.round(cycleSD) + ' days). This may indicate PCOS, thyroid, or stress-related hormonal disruption. Consider tracking BBT for 3 cycles.',
+            ayurvedic: 'Vata-dominant Rajodushti. Shatavari + Ashwagandha + Dashmool to stabilize Apana Vata [Charaka Chi. 30].' });
+        }
+        return alerts;
+      })(),
 
       // BBT analysis
       thermalShift: thermalShift.detected ? {
@@ -847,6 +890,9 @@ export class CycleService {
       // Seasonal recommendations (fallback when no weather data)
       seasonalAdjustment: weatherInsight ? null : seasonalAdjustment,
 
+      // Disclaimer
+      disclaimer: 'These Ayurvedic recommendations are for educational purposes only and do not replace professional medical advice. Consult a qualified Ayurvedic practitioner before starting any herbal regimen. If on prescription medication, consult your doctor before taking herbal supplements.',
+
       // Research references
       references: [
         'Charaka Samhita — Sutrasthana, Chikitsasthana (Tridosha & Yoniroga)',
@@ -1032,7 +1078,7 @@ const DOSHA_PHASE_GUIDANCE: Record<string, Record<string, {
       herbs: [
         'Dashmool Kwath — 10-root decoction, calms Vata, relieves cramps (Charaka Chi.30)',
         'Ashoka bark (Saraca indica) — Artava Sthapana, regulates flow',
-        'Shatavari 500mg — nourishes Rasa dhatu, balances hormones',
+        'Shatavari — nourishes Rasa dhatu, balances hormones',
         'Ajwain water — relieves bloating and spasmodic pain',
       ],
       yoga: [
@@ -1060,8 +1106,8 @@ const DOSHA_PHASE_GUIDANCE: Record<string, Record<string, {
         'Flaxseeds — phytoestrogens support follicular development',
       ],
       herbs: [
-        'Ashwagandha 500mg — adaptogenic, reduces cortisol (Withania somnifera)',
-        'Shatavari 500mg — phytoestrogenic, supports follicle maturation',
+        'Ashwagandha (standardized root extract, as directed by practitioner) — adaptogenic, reduces cortisol (Withania somnifera)',
+        'Shatavari — phytoestrogenic, supports follicle maturation',
         'Guduchi (Tinospora) — Rasayana, builds immunity post-period',
         'Triphala at night — gentle detox, supports digestion',
       ],
@@ -1091,8 +1137,8 @@ const DOSHA_PHASE_GUIDANCE: Record<string, Record<string, {
       ],
       herbs: [
         'Shatavari — peak fertility support, nourishes Artava',
-        'Yashtimadhu (Licorice) — cooling, anti-inflammatory',
-        'Rose water internally — cools Pitta, calms mind',
+        'Yashtimadhu (Licorice) — cooling, anti-inflammatory (avoid if hypertensive; limit to 4-6 weeks)',
+        'Gulkand (rose petal preserve) or food-grade rose water (Arq-e-Gulab) — cools Pitta, calms mind',
         'Kumari (Aloe vera) — Pitta-pacifying, supports cervical mucus',
       ],
       yoga: [
@@ -1212,7 +1258,7 @@ const DOSHA_PHASE_GUIDANCE: Record<string, Record<string, {
         'Light meals — strong Agni needs less fuel',
       ],
       herbs: [
-        'Shatavari 1000mg — peak dose during fertile window',
+        'Shatavari (peak dose during fertile window, as directed by practitioner)',
         'Kumari (Aloe) — cools uterine Pitta, supports CM quality',
         'Rose water — internal cooling, emotional balance',
         'Brahmi — calms Pitta mind, reduces over-thinking',
@@ -1244,7 +1290,7 @@ const DOSHA_PHASE_GUIDANCE: Record<string, Record<string, {
       herbs: [
         'Shankhpushpi — calms Pitta-aggravated mind',
         'Brahmi — neuroprotective, reduces PMS irritability',
-        'Yashtimadhu — soothes digestive Pitta',
+        'Yashtimadhu — soothes digestive Pitta (avoid if hypertensive; limit to 4-6 weeks)',
         'Triphala — gentle detox, prepare for upcoming flow',
       ],
       yoga: [
@@ -1278,6 +1324,7 @@ const DOSHA_PHASE_GUIDANCE: Record<string, Record<string, {
         'Trikatu (ginger-pepper-pippali) — kindles Agni, reduces Kapha',
         'Guggulu — anti-inflammatory, reduces water retention',
         'Triphala — prevents sluggish elimination',
+        'Manjistha (Rubia cordifolia) — Rakta Shodhaka, blood purifier, reduces clots',
       ],
       yoga: [
         'Gentle Surya Namaskar — keep energy moving (Kapha stagnates)',
@@ -1367,7 +1414,7 @@ const DOSHA_PHASE_GUIDANCE: Record<string, Record<string, {
         'Punarnava — #1 for Kapha water retention',
         'Trikatu — maintains Agni as Kapha rises',
         'Guggulu — mood support, thyroid balance',
-        'Vacha (Calamus) — clears Kapha mental fog',
+        'Jatamansi (Nardostachys jatamansi) — clears Kapha mental fog',
       ],
       yoga: [
         'Maintain exercise — DON\'T give in to Kapha lethargy',
@@ -1411,8 +1458,8 @@ const CONCEPTION_GUIDANCE: Record<string, {
       'Avoid raw/cold foods — impairs Agni → poor nutrient absorption',
     ],
     herbs: [
-      'Shatavari 1000mg/day — phytoestrogenic, uterine tonic',
-      'Ashwagandha 600mg — reduces cortisol 28%, improves egg quality (Chandrasekhar 2012)',
+      'Shatavari (as directed by practitioner) — phytoestrogenic, uterine tonic',
+      'Ashwagandha (standardized root extract, as directed by practitioner) — reduces cortisol 28%, improves egg quality (Chandrasekhar 2012)',
       'Bala (Sida cordifolia) — Vata-specific reproductive tonic',
       'Dashmool — calms Vata, supports implantation',
     ],
@@ -1443,10 +1490,10 @@ const CONCEPTION_GUIDANCE: Record<string, {
       'Reduce caffeine, spicy food, alcohol — all aggravate Pitta + reduce fertility',
     ],
     herbs: [
-      'Shatavari 1000mg — cooling fertility tonic (best herb for Pitta fertility)',
+      'Shatavari (peak dose during fertile window, as directed by practitioner) — cooling fertility tonic (best herb for Pitta fertility)',
       'Guduchi — Pitta Rasayana, immune modulation',
       'Kumari (Aloe vera) — cools uterine Pitta, improves endometrial lining',
-      'Yashtimadhu — anti-inflammatory, supports implantation',
+      'Yashtimadhu — anti-inflammatory, supports implantation (avoid if hypertensive; limit to 4-6 weeks)',
     ],
     modernTiming: [
       'Pitta cycles are often 26-28 days — ovulation around day 12-14',
@@ -1475,8 +1522,8 @@ const CONCEPTION_GUIDANCE: Record<string, {
       'Sprouted fenugreek — insulin-sensitizing, supports ovulation in PCOS',
     ],
     herbs: [
-      'Shatavari 500mg (lower dose for Kapha — too much increases Kapha)',
-      'Ashwagandha 600mg — adaptogenic, supports thyroid (Kapha tendency: hypothyroid)',
+      'Shatavari (lower dose for Kapha, as directed by practitioner — too much increases Kapha)',
+      'Ashwagandha (standardized root extract, as directed by practitioner) — adaptogenic, supports thyroid (Kapha tendency: hypothyroid)',
       'Guggulu — weight management, thyroid support, anti-Ama',
       'Chitrak + Trikatu — kindles digestive and reproductive Agni',
     ],
@@ -1514,7 +1561,7 @@ function interpretSymptomsForDosha(dosha: string, symptoms: string[], phase: str
     if (s.includes('mood') || s.includes('anxiety') || s.includes('irritab')) {
       if (d === 'Vata') interpretations.push('Anxiety/mood swings = Vata mental imbalance. Brahmi + Shankhpushpi + warm milk');
       else if (d === 'Pitta') interpretations.push('Irritability/anger = Pitta mental heat. Brahmi + Gulkand + cooling pranayama');
-      else interpretations.push('Depression/withdrawal = Kapha mental heaviness. Vacha + Tulsi + vigorous exercise');
+      else interpretations.push('Depression/withdrawal = Kapha mental heaviness. Jatamansi (Nardostachys jatamansi) + Tulsi + vigorous exercise');
     }
     if (s.includes('headache') || s.includes('migraine')) {
       if (d === 'Pitta') interpretations.push('Menstrual migraine = Pitta Rakta imbalance. Sandalwood paste on temples + Shirolepa');
@@ -1580,7 +1627,7 @@ function getDoshaDescription(dosha: string): {
       name: 'Pitta (Fire + Water)',
       element: 'Transformation, metabolism, intellect',
       qualities: 'Hot, sharp, oily, liquid, spreading',
-      cyclePattern: 'Regular, predictable cycles (25-28 days), medium-heavy flow, may be warm/clotty. Prone to PMS irritability, headaches, acne.',
+      cyclePattern: 'Regular, predictable cycles (25-28 days), medium-heavy flow, bright red, may feel warm. Prone to PMS irritability, headaches, acne.',
       fertilityConcern: 'Excess heat can reduce egg quality. Inflammation may affect implantation. Focus on cooling, reducing intensity.',
     },
     Kapha: {

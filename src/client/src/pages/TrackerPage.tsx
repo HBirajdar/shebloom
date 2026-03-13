@@ -667,7 +667,7 @@ export default function TrackerPage() {
                     <>
                       <rect x="88" y="172" width="104" height="24" rx="12" fill="rgba(255,107,138,0.2)" />
                       <text x="140" y="188" textAnchor="middle" fontSize="11" fill="#FF8FAB" fontWeight="700">
-                        {prediction.daysUntilPeriod === 0 ? '🩸 Period today' : prediction.daysUntilPeriod < 0 ? '🩸 Period started' : `🩸 in ${prediction.daysUntilPeriod} days`}
+                        {prediction.daysUntilPeriod === 0 ? '🩸 Period due today' : prediction.daysUntilPeriod < 0 ? `🩸 ${Math.abs(prediction.daysUntilPeriod)}d late` : `🩸 in ${prediction.daysUntilPeriod} days`}
                       </text>
                     </>
                   )}
@@ -982,7 +982,7 @@ export default function TrackerPage() {
                         <p className="text-xs font-extrabold text-white">{getPhaseForDay(prediction.cycleDay).name} Phase</p>
                         <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>
                           Day {prediction.cycleDay} of {prediction?.cycleLength || 28} · {typeof prediction?.daysUntilPeriod === 'number'
-                            ? prediction.daysUntilPeriod === 0 ? 'Period today' : prediction.daysUntilPeriod < 0 ? 'Period started' : `${prediction.daysUntilPeriod}d until next period`
+                            ? prediction.daysUntilPeriod === 0 ? 'Period due today' : prediction.daysUntilPeriod < 0 ? `${Math.abs(prediction.daysUntilPeriod)}d late` : `${prediction.daysUntilPeriod}d until next period`
                             : ''}
                         </p>
                       </div>
@@ -1143,13 +1143,13 @@ export default function TrackerPage() {
                 </div>
               )}
               {typeof prediction?.daysUntilPeriod === 'number' && (
-                <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3">
-                  <div className="text-xs text-rose-500 font-semibold mb-1">Next Period</div>
-                  <div className="text-base font-black text-rose-600">
-                    {prediction.daysUntilPeriod === 0 ? 'Today' : `${prediction.daysUntilPeriod}d`}
+                <div className={`rounded-2xl p-3 border ${prediction.daysUntilPeriod < 0 ? 'bg-red-50 border-red-200' : 'bg-rose-50 border-rose-200'}`}>
+                  <div className={`text-xs font-semibold mb-1 ${prediction.daysUntilPeriod < 0 ? 'text-red-500' : 'text-rose-500'}`}>{prediction.daysUntilPeriod < 0 ? 'Period Late' : 'Next Period'}</div>
+                  <div className={`text-base font-black ${prediction.daysUntilPeriod < 0 ? 'text-red-600' : 'text-rose-600'}`}>
+                    {prediction.daysUntilPeriod === 0 ? 'Today' : prediction.daysUntilPeriod < 0 ? `${Math.abs(prediction.daysUntilPeriod)}d` : `${prediction.daysUntilPeriod}d`}
                   </div>
-                  <div className="text-xs text-rose-400 mt-0.5">
-                    {prediction.daysUntilPeriod === 0 ? 'due' : 'away'}
+                  <div className={`text-xs mt-0.5 ${prediction.daysUntilPeriod < 0 ? 'text-red-400' : 'text-rose-400'}`}>
+                    {prediction.daysUntilPeriod === 0 ? 'due now' : prediction.daysUntilPeriod < 0 ? 'late' : 'away'}
                   </div>
                 </div>
               )}
@@ -1193,19 +1193,139 @@ export default function TrackerPage() {
               </div>
             )}
 
-            {/* Next Period Countdown */}
-            {typeof prediction?.daysUntilPeriod === 'number' && (
-              <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4">
-                <div className="text-sm font-bold text-rose-600 mb-1">Next Period</div>
-                <div className="text-sm text-rose-500">
-                  {prediction.daysUntilPeriod === 0
-                    ? 'Your period is due today'
-                    : prediction.daysUntilPeriod < 0
-                    ? `Period started ${Math.abs(prediction.daysUntilPeriod)} day${Math.abs(prediction.daysUntilPeriod) !== 1 ? 's' : ''} ago`
-                    : `Period in ${prediction.daysUntilPeriod} day${prediction.daysUntilPeriod !== 1 ? 's' : ''}`}
-                </div>
-              </div>
-            )}
+            {/* Next Period Countdown + Late Period Guidance */}
+            {typeof prediction?.daysUntilPeriod === 'number' && (() => {
+              const daysLate = prediction.daysUntilPeriod <= 0 ? Math.abs(prediction.daysUntilPeriod) : 0;
+              const isLate = prediction.daysUntilPeriod < 0;
+              const isDueToday = prediction.daysUntilPeriod === 0;
+              const dosha = ayurvedaData?.dosha || localStorage.getItem('sb_dosha') || '';
+
+              return (
+                <>
+                  <div className={`rounded-2xl p-4 border ${isLate ? 'bg-red-50 border-red-200' : isDueToday ? 'bg-amber-50 border-amber-200' : 'bg-rose-50 border-rose-200'}`}>
+                    <div className="text-sm font-bold mb-1" style={{ color: isLate ? '#DC2626' : isDueToday ? '#D97706' : '#E11D48' }}>
+                      {isLate ? `Period is ${daysLate} Day${daysLate !== 1 ? 's' : ''} Late` : isDueToday ? 'Period Due Today' : 'Next Period'}
+                    </div>
+                    <div className="text-sm" style={{ color: isLate ? '#EF4444' : isDueToday ? '#F59E0B' : '#F43F5E' }}>
+                      {isLate
+                        ? `Your period was expected ${daysLate} day${daysLate !== 1 ? 's' : ''} ago. ${daysLate < 7 ? "A few days' delay is normal." : 'See guidance below.'}`
+                        : isDueToday
+                        ? 'Your period is expected to start today.'
+                        : `Period in ${prediction.daysUntilPeriod} day${prediction.daysUntilPeriod !== 1 ? 's' : ''}`}
+                    </div>
+                  </div>
+
+                  {/* Late Period — Ayurvedic Guidance Card */}
+                  {isLate && (
+                    <div className="bg-white rounded-3xl p-4 shadow-lg border border-rose-100">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-lg">{'\u{1F33F}'}</span>
+                        <p className="text-sm font-extrabold text-gray-800">
+                          {dosha ? `${dosha} Dosha — Late Period Remedies` : 'Ayurvedic Remedies for Delayed Period'}
+                        </p>
+                      </div>
+
+                      {/* Quick causes */}
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        {['Stress', 'Sleep issues', 'Diet changes', 'Weight shift', ...(daysLate >= 7 ? ['PCOS', 'Thyroid', 'Pregnancy'] : [])].map(c => (
+                          <span key={c} className="text-[9px] font-semibold bg-rose-50 text-rose-600 px-2 py-0.5 rounded-full">{c}</span>
+                        ))}
+                      </div>
+
+                      {/* Remedies based on dosha — verified from Charaka Samhita, Sushruta Samhita, Ashtanga Hridaya */}
+                      {dosha === 'Vata' && (
+                        <div className="space-y-2">
+                          <div className="bg-purple-50 rounded-xl p-3">
+                            <p className="text-[10px] font-bold text-purple-700 mb-1">{'\u{1F32C}\u{FE0F}'} Vata Balance \u2014 Warm & Ground (Apana Vata)</p>
+                            <p className="text-[9px] text-purple-400 mb-1.5 italic">Vata governs Apana Vayu \u2014 downward flow. Delay = Apana Vata blockage [Charaka Chi. 30]</p>
+                            <div className="space-y-0.5">
+                              {['Shatavari (Asparagus racemosus) \u2014 primary Artavajanana herb', 'Ashwagandha \u2014 reduces cortisol, calms HPA axis', 'Dashmool Kwath \u2014 10-root decoction for Apana Vata', 'Warm sesame oil Abhyanga daily [Ashtanga Hridaya]', 'Ginger-jaggery water morning & evening', 'Yoga: Baddha Konasana, Viparita Karani, Supta Virasana', 'Sleep by 10 PM \u2014 Dinacharya routine is critical for Vata'].map(r => (
+                                <p key={r} className="text-[10px] text-gray-600 flex items-start gap-1"><span className="text-purple-500 mt-0.5">{'\u2713'}</span>{r}</p>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {dosha === 'Pitta' && (
+                        <div className="space-y-2">
+                          <div className="bg-orange-50 rounded-xl p-3">
+                            <p className="text-[10px] font-bold text-orange-700 mb-1">{'\u{1F525}'} Pitta Balance \u2014 Cool & Soothe</p>
+                            <p className="text-[9px] text-orange-400 mb-1.5 italic">Pitta excess heats Rakta dhatu. Cooling herbs restore balance [Sushruta]</p>
+                            <div className="space-y-0.5">
+                              {['Ashoka bark (Saraca asoca) \u2014 #1 uterine tonic [Bhavaprakasha]', 'Shatavari \u2014 cooling phytoestrogen support', 'Guduchi (Tinospora cordifolia) \u2014 Rasayana, immune balance', 'Gulkand (rose petal preserve) after meals', 'Cooling foods: coconut water, pomegranate, cucumber', 'Sheetali & Chandrabhedana pranayama (cooling breath)', 'Avoid spicy food, excess sun & intense exercise'].map(r => (
+                                <p key={r} className="text-[10px] text-gray-600 flex items-start gap-1"><span className="text-orange-500 mt-0.5">{'\u2713'}</span>{r}</p>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {dosha === 'Kapha' && (
+                        <div className="space-y-2">
+                          <div className="bg-emerald-50 rounded-xl p-3">
+                            <p className="text-[10px] font-bold text-emerald-700 mb-1">{'\u{1F33F}'} Kapha Balance \u2014 Stimulate & Activate</p>
+                            <p className="text-[9px] text-emerald-400 mb-1.5 italic">Kapha blocks Artava Vaha Srotas. Stimulate Agni & movement [Charaka]</p>
+                            <div className="space-y-0.5">
+                              {['Lodhra (Symplocos racemosa) \u2014 classical uterine astringent', 'Manjistha (Rubia cordifolia) \u2014 Rakta Shodhaka, blood purifier', 'Triphala \u2014 detox, activates Agni & hormone regulation', 'Honey + warm water every morning (Kapha reducing)', 'Light, spiced meals: ginger, black pepper, fenugreek', 'Vigorous exercise: brisk walk, Surya Namaskar before 6 AM', 'Kapalbhati & Bhastrika pranayama daily'].map(r => (
+                                <p key={r} className="text-[10px] text-gray-600 flex items-start gap-1"><span className="text-emerald-500 mt-0.5">{'\u2713'}</span>{r}</p>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {!dosha && (
+                        <div className="space-y-2">
+                          <div className="bg-rose-50 rounded-xl p-3">
+                            <p className="text-[10px] font-bold text-rose-700 mb-1">{'\u{1F33F}'} General Ayurvedic Remedies [Charaka Samhita]</p>
+                            <div className="space-y-0.5">
+                              {['Shatavari (Asparagus racemosus) \u2014 primary Artavajanana herb', 'Ashoka bark (Saraca asoca) \u2014 uterine tonic [Bhavaprakasha]', 'Warm ginger-jaggery water twice daily', 'Sesame seeds (Tila) with honey \u2014 1 tsp daily', 'Fennel seed water \u2014 gentle, safe uterine tonic', 'Yoga: Baddha Konasana, Malasana, Viparita Karani', 'Warm oil Abhyanga + Dinacharya (regular routine)'].map(r => (
+                                <p key={r} className="text-[10px] text-gray-600 flex items-start gap-1"><span className="text-rose-500 mt-0.5">{'\u2713'}</span>{r}</p>
+                              ))}
+                            </div>
+                          </div>
+                          <button onClick={() => navigate('/dosha-assessment')} className="w-full py-2 bg-purple-50 border border-purple-200 text-purple-600 rounded-xl text-[10px] font-bold active:scale-95 transition-transform">
+                            {'\u2728'} Take Dosha Assessment for Personalized Remedies
+                          </button>
+                        </div>
+                      )}
+
+                      {/* CRITICAL: Pregnancy + Herb Safety Warning */}
+                      <div className="bg-red-50 border border-red-200 rounded-xl p-3 mt-2">
+                        <p className="text-[10px] font-bold text-red-700 mb-1">{'\u{26A0}\u{FE0F}'} Safety First</p>
+                        <p className="text-[10px] text-red-600 leading-relaxed">If pregnancy is possible, take a test BEFORE any herbal remedy. Herbs like Ashoka, Guggulu & Aloe vera stimulate uterine contractions. On prescription medication? Consult your doctor first.</p>
+                      </div>
+
+                      {/* Doctor warning — always show, expanded for 7+ days */}
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mt-2">
+                        <p className="text-[10px] font-bold text-amber-700">{'\u{26A0}\u{FE0F}'} When to See a Doctor</p>
+                        <div className="space-y-0.5 mt-1">
+                          {[
+                            'Take a pregnancy test if sexually active',
+                            ...(daysLate >= 7 ? ['Period delayed more than 2 weeks', 'Unusual pain, discharge, or spotting', 'History of PCOS or thyroid issues', 'Previously regular cycles becoming irregular'] : ['Delay persists beyond 7 days']),
+                          ].map(w => (
+                            <p key={w} className="text-[10px] text-amber-600 flex items-start gap-1"><span>{'\u2022'}</span>{w}</p>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Medical disclaimer */}
+                      <p className="text-[8px] text-gray-400 text-center leading-relaxed mt-2">
+                        For educational purposes only. Not medical advice. Refs: Charaka Samhita Chi. 30, Sushruta Samhita Sha. 2/29, Ashtanga Hridaya, Bhavaprakasha Nighantu.
+                      </p>
+
+                      {/* Quick actions */}
+                      <div className="flex gap-2 mt-3">
+                        <button onClick={() => { setShowLogSheet(true); }} className="flex-1 py-2 bg-rose-500 text-white rounded-xl text-[10px] font-bold active:scale-95 transition-transform">
+                          {'\u{1F4C5}'} Log Period Now
+                        </button>
+                        <button onClick={() => navigate('/doctors')} className="flex-1 py-2 bg-white border border-rose-200 text-rose-600 rounded-xl text-[10px] font-bold active:scale-95 transition-transform">
+                          {'\u{1F469}\u200D\u2695\u{FE0F}'} Book Consultation
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
             {/* Hormone Levels — period users see Estrogen + Progesterone only; fertility users see all 4 */}
             <div className="bg-white rounded-3xl p-4 shadow-lg">

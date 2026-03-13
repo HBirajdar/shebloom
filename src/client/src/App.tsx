@@ -41,6 +41,7 @@ const TermsPage = lazy(() => import('./pages/TermsPage'));
 const ShippingPolicyPage = lazy(() => import('./pages/ShippingPolicyPage'));
 const AboutPage = lazy(() => import('./pages/AboutPage'));
 const RefundPolicyPage = lazy(() => import('./pages/RefundPolicyPage'));
+const HelpCenterPage = lazy(() => import('./pages/HelpCenterPage'));
 
 // Loading spinner
 const LoadingScreen = () => (
@@ -121,6 +122,7 @@ export default function App() {
           <Route path="/shipping-policy" element={<ShippingPolicyPage />} />
           <Route path="/about-us" element={<AboutPage />} />
           <Route path="/refund-policy" element={<RefundPolicyPage />} />
+          <Route path="/help" element={<HelpCenterPage />} />
 
           {/* Debug / 404 */}
           <Route path="/debug" element={<DebugPage />} />

@@ -72,8 +72,8 @@ const KEYWORD_RESPONSES: Array<{ keywords: RegExp; response: string }> = [
     response: 'Ayurvedic support for cycles: Shatavari (hormone balance), Ashwagandha (stress adaptogen), Triphala (digestion), and Turmeric (anti-inflammatory). Please consult an Ayurvedic practitioner before starting supplements — dosage and combinations matter for your specific constitution (dosha).',
   },
   {
-    keywords: /late period|missed period|irregular|spotting/i,
-    response: 'Late or irregular periods can be caused by stress, significant weight changes, thyroid issues, PCOS, or early pregnancy. A single late period is often stress-related. If you miss 2+ consecutive periods or have other symptoms, please see a gynaecologist. A home pregnancy test is a good first step if there\'s any possibility.',
+    keywords: /late period|missed period|irregular|spotting|delayed period|period delay|period late|not getting period/i,
+    response: 'Late or irregular periods can be caused by stress, sleep disruption, significant weight changes, thyroid issues, PCOS, or early pregnancy. A single late period is often stress-related.\n\n\u{1F33F} Ayurvedic remedies: Shatavari (hormone balance), Ashoka bark (uterine health), Ashwagandha (stress relief). Try warm ginger-jaggery water twice daily, sesame seeds with honey, and warm oil self-massage (Abhyanga). Yoga poses like Baddha Konasana and Supta Virasana help stimulate pelvic blood flow.\n\n\u26A0\uFE0F See a doctor if: period is 2+ weeks late, you have severe pain or unusual discharge, there\'s a possibility of pregnancy, or you have a history of PCOS/thyroid issues.\n\nCheck your Dashboard and Tracker for personalized dosha-specific guidance!',
   },
 ];
 

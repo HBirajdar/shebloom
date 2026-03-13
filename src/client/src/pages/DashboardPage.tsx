@@ -410,8 +410,8 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-[9px] text-gray-400 uppercase tracking-widest font-bold">Next Period</p>
-                      <p className="text-sm font-extrabold text-rose-600">{daysUntilPeriod}d away</p>
+                      <p className="text-[9px] text-gray-400 uppercase tracking-widest font-bold">{daysUntilPeriod <= 0 ? 'Period' : 'Next Period'}</p>
+                      <p className="text-sm font-extrabold text-rose-600">{daysUntilPeriod > 0 ? daysUntilPeriod + 'd away' : daysUntilPeriod === 0 ? 'Due today' : Math.abs(daysUntilPeriod) + 'd late'}</p>
                     </div>
                   </div>
                   <div className="relative w-56 h-56 mx-auto mb-4">
@@ -500,7 +500,7 @@ export default function DashboardPage() {
                     <div className="text-center bg-white/15 rounded-2xl px-4 py-3"><p className="text-3xl font-extrabold">{conception.pct}%</p><p className="text-[9px] text-white/70 font-bold">{conception.label}</p></div>
                   </div>
                   <div className="flex gap-2 mt-3">
-                    {[{ l: 'Ovulation', v: daysToOv > 0 ? daysToOv + 'd' : isOvToday ? 'Today!' : 'Passed' }, { l: 'Next Period', v: daysUntilPeriod + 'd' }, { l: 'Fertile', v: 'Day ' + fertStart + '-' + fertEnd }].map(s => (
+                    {[{ l: 'Ovulation', v: daysToOv > 0 ? daysToOv + 'd' : isOvToday ? 'Today!' : 'Passed' }, { l: daysUntilPeriod <= 0 ? 'Period' : 'Next Period', v: daysUntilPeriod > 0 ? daysUntilPeriod + 'd' : daysUntilPeriod === 0 ? 'Today' : Math.abs(daysUntilPeriod) + 'd late' }, { l: 'Fertile', v: 'Day ' + fertStart + '-' + fertEnd }].map(s => (
                       <div key={s.l} className="bg-white/15 rounded-xl px-3 py-2 text-center flex-1"><p className="text-[8px] text-white/50 uppercase">{s.l}</p><p className="text-sm font-extrabold">{s.v}</p></div>
                     ))}
                   </div>
@@ -527,7 +527,7 @@ export default function DashboardPage() {
           <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
             {(goal === 'periods' ? [
               /* PERIODS: Only period-relevant predictions — no ovulation/fertile window */
-              { e: '🌸', l: 'Next Period', v: daysUntilPeriod + ' days', sub: 'away', g: 'linear-gradient(135deg,#E11D48,#F43F5E)' },
+              { e: '🌸', l: daysUntilPeriod <= 0 ? 'Period' : 'Next Period', v: daysUntilPeriod > 0 ? daysUntilPeriod + ' days' : daysUntilPeriod === 0 ? 'Today' : Math.abs(daysUntilPeriod) + ' days', sub: daysUntilPeriod > 0 ? 'away' : daysUntilPeriod === 0 ? 'due now' : 'late', g: daysUntilPeriod <= 0 ? 'linear-gradient(135deg,#DC2626,#EF4444)' : 'linear-gradient(135deg,#E11D48,#F43F5E)' },
               { e: '📅', l: 'Cycle Day', v: 'Day ' + cycleDay, sub: 'of ' + cycleLength, g: 'linear-gradient(135deg,#059669,#10B981)' },
               { e: '🌙', l: 'PMS Warning', v: daysToPMS > 0 ? daysToPMS + ' days' : 'Active', sub: daysToPMS > 0 ? 'away' : 'self-care time', g: 'linear-gradient(135deg,#D97706,#F59E0B)' },
               { e: '🔄', l: 'Cycle Length', v: cycleLength + ' days', sub: 'average', g: 'linear-gradient(135deg,#6366F1,#818CF8)' },
@@ -536,7 +536,7 @@ export default function DashboardPage() {
               { e: '⭐', l: 'Ovulation', v: daysToOv > 0 ? daysToOv + ' days' : isOvToday ? 'Today!' : 'Passed', sub: daysToOv > 0 ? 'away' : '', g: 'linear-gradient(135deg,#7C3AED,#8B5CF6)' },
               { e: '💚', l: 'Fertile Window', v: 'Day ' + fertStart, sub: '– Day ' + fertEnd, g: 'linear-gradient(135deg,#059669,#10B981)' },
               { e: '💜', l: 'Conception', v: conception.pct + '%', sub: conception.label, g: 'linear-gradient(135deg,#EC4899,#F472B6)' },
-              { e: '🌸', l: 'Next Period', v: daysUntilPeriod + ' days', sub: 'away', g: 'linear-gradient(135deg,#E11D48,#F43F5E)' },
+              { e: '🌸', l: daysUntilPeriod <= 0 ? 'Period' : 'Next Period', v: daysUntilPeriod > 0 ? daysUntilPeriod + ' days' : daysUntilPeriod === 0 ? 'Today' : Math.abs(daysUntilPeriod) + ' days', sub: daysUntilPeriod > 0 ? 'away' : daysUntilPeriod === 0 ? 'due now' : 'late', g: daysUntilPeriod <= 0 ? 'linear-gradient(135deg,#DC2626,#EF4444)' : 'linear-gradient(135deg,#E11D48,#F43F5E)' },
             ] : [
               /* WELLNESS: Daily wellness metrics instead of cycle predictions */
               { e: '💧', l: 'Hydration', v: water + '/8', sub: water >= 6 ? 'on track!' : 'drink more', g: water >= 6 ? 'linear-gradient(135deg,#3B82F6,#60A5FA)' : 'linear-gradient(135deg,#94A3B8,#CBD5E1)' },
@@ -553,6 +553,213 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
+
+        {/* ─── Delayed Period Alert + Ayurvedic Guidance ─── */}
+        {hasRealData && goal !== 'pregnancy' && daysUntilPeriod <= 0 && (() => {
+          const daysLate = Math.abs(daysUntilPeriod);
+          const dosha = ayurvedaData?.dosha || localStorage.getItem('sb_dosha') || '';
+          const isSerious = daysLate >= 14;
+          const isMild = daysLate >= 1 && daysLate < 7;
+          const isModerate = daysLate >= 7 && daysLate < 14;
+
+          // Dosha-specific Ayurvedic remedies — verified from Charaka Samhita, Sushruta Samhita, Ashtanga Hridaya
+          const doshaRemedies: Record<string, { herbs: string[]; diet: string[]; lifestyle: string[]; color: string; emoji: string }> = {
+            Vata: {
+              herbs: [
+                'Shatavari (Asparagus racemosus) \u2014 Artavajanana, uterine tonic [Charaka Chi. 30]',
+                'Ashwagandha (Withania somnifera) \u2014 reduces cortisol, calms HPA axis [Chandrasekhar 2012]',
+                'Dashmool Kwath \u2014 10-root decoction, pacifies Apana Vata [Charaka]',
+                'Jatamansi (Nardostachys jatamansi) \u2014 calms nervous system, regulates Vata',
+              ],
+              diet: ['Warm, cooked meals with ghee \u2014 Snehana for Vata', 'Sesame seeds + jaggery water (morning & evening)', 'Warm milk with turmeric & nutmeg at bedtime', 'Avoid cold/raw foods, caffeine & carbonated drinks'],
+              lifestyle: ['Warm sesame oil Abhyanga daily [Ashtanga Hridaya Su. 2]', 'Sleep by 10 PM \u2014 consistent Dinacharya routine', 'Yoga: Baddha Konasana, Supta Virasana, Viparita Karani', 'Pranayama: Anulom Vilom, Bhramari (calming)'],
+              color: '#7C3AED', emoji: '\u{1F32C}\u{FE0F}',
+            },
+            Pitta: {
+              herbs: [
+                'Ashoka bark (Saraca asoca) \u2014 #1 classical uterine tonic [Bhavaprakasha]',
+                'Shatavari (Asparagus racemosus) \u2014 cooling phytoestrogen support',
+                'Amalaki (Emblica officinalis) \u2014 Pitta Rasayana, antioxidant',
+                'Guduchi (Tinospora cordifolia) \u2014 Rasayana, hormone balancer',
+              ],
+              diet: ['Cooling foods: cucumber, coconut water, pomegranate', 'Avoid spicy, fried & fermented foods during delay', 'Gulkand (rose petal preserve) after meals', 'Sweet fruits: grapes, melons, pears, ripe bananas'],
+              lifestyle: ['Moonlight walk in the evening (Chandrasnana)', 'Cooling pranayama: Sheetali, Chandrabhedana', 'Avoid intense exercise, excess sun & heated arguments', 'Sandalwood or rose essential oil for calming Pitta'],
+              color: '#D97706', emoji: '\u{1F525}',
+            },
+            Kapha: {
+              herbs: [
+                'Lodhra (Symplocos racemosa) \u2014 classical uterine astringent [Sushruta]',
+                'Triphala \u2014 detox, Agni activation, hormone regulation',
+                'Manjistha (Rubia cordifolia) \u2014 Rakta Shodhaka, purifies blood',
+                'Punarnava (Boerhavia diffusa) \u2014 reduces Kapha water retention',
+              ],
+              diet: ['Light, warm, spiced meals (ginger, black pepper, fenugreek)', 'Honey + warm water every morning (Kapha reducing)', 'Avoid heavy, oily, sweet & dairy-rich foods', 'Bitter greens: methi (fenugreek), karela, drumstick leaves'],
+              lifestyle: ['Vigorous morning exercise before 6 AM [Charaka Su. 7]', 'Dry brushing (Garshana) before warm shower', 'Wake before 6 AM \u2014 avoid daytime sleeping', 'Kapalbhati & Bhastrika pranayama daily'],
+              color: '#059669', emoji: '\u{1F33F}',
+            },
+          };
+          const remedy = doshaRemedies[dosha];
+
+          return (
+            <div className="bg-gradient-to-br from-red-50 to-rose-50 rounded-3xl shadow-lg overflow-hidden border border-rose-200">
+              <div className={'h-1.5 w-full ' + (isSerious ? 'bg-red-500' : isModerate ? 'bg-orange-400' : 'bg-rose-400')} />
+              <div className="p-5">
+                <div className="flex items-start gap-3 mb-3">
+                  <div className={'w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-sm ' + (isSerious ? 'bg-red-100' : 'bg-rose-100')}>
+                    {isSerious ? '\u{26A0}\u{FE0F}' : '\u{1F338}'}
+                  </div>
+                  <div className="flex-1">
+                    <p className={'text-sm font-extrabold ' + (isSerious ? 'text-red-700' : 'text-rose-700')}>
+                      {daysLate === 0 ? 'Period Due Today' : `Period is ${daysLate} Day${daysLate !== 1 ? 's' : ''} Late`}
+                    </p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">
+                      {isMild ? "A few days' delay is common. Here's what can help." : isModerate ? 'A week+ delay needs attention. Try these Ayurvedic remedies.' : 'Extended delay — please consult a doctor alongside these remedies.'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Possible Causes */}
+                <div className="bg-white rounded-2xl p-3 mb-3">
+                  <p className="text-[10px] font-bold text-gray-700 mb-2">Common Causes</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {['Stress & anxiety', 'Sleep disruption', 'Weight changes', 'Excessive exercise', 'Diet changes', ...(isModerate || isSerious ? ['PCOS/PCOD', 'Thyroid imbalance', 'Early pregnancy'] : [])].map(cause => (
+                      <span key={cause} className="text-[9px] font-semibold bg-rose-50 text-rose-600 px-2 py-1 rounded-full">{cause}</span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Dosha-specific Ayurvedic Remedies */}
+                {remedy ? (
+                  <div className="space-y-2.5 mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">{remedy.emoji}</span>
+                      <p className="text-xs font-extrabold" style={{ color: remedy.color }}>{dosha} Dosha — Ayurvedic Remedies</p>
+                    </div>
+                    {[
+                      { title: '\u{1F33F} Herbs & Supplements', items: remedy.herbs },
+                      { title: '\u{1F372} Diet Recommendations', items: remedy.diet },
+                      { title: '\u{1F9D8} Lifestyle Changes', items: remedy.lifestyle },
+                    ].map(section => (
+                      <div key={section.title} className="bg-white rounded-xl p-3">
+                        <p className="text-[10px] font-bold text-gray-700 mb-1.5">{section.title}</p>
+                        <div className="space-y-1">
+                          {section.items.map(item => (
+                            <div key={item} className="flex items-start gap-1.5">
+                              <span className="text-[9px] mt-0.5" style={{ color: remedy.color }}>{'\u2713'}</span>
+                              <span className="text-[10px] text-gray-600 leading-relaxed">{item}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  /* Generic remedies when dosha is unknown — verified from classical texts */
+                  <div className="space-y-2.5 mb-3">
+                    <p className="text-xs font-extrabold text-rose-700">{'\u{1F33F}'} Ayurvedic Remedies for Delayed Period</p>
+                    <p className="text-[9px] text-gray-400 italic">Based on Charaka Samhita, Sushruta Samhita & Ashtanga Hridaya</p>
+                    {[
+                      { title: '\u{1F33F} Herbs (Aushadhi)', items: ['Shatavari (Asparagus racemosus) \u2014 primary Artavajanana herb [Charaka Chi. 30]', 'Ashoka bark (Saraca asoca) \u2014 classical uterine tonic [Bhavaprakasha]', 'Ashwagandha (Withania somnifera) \u2014 reduces cortisol & stress-induced delay', 'Dashmool Kwath \u2014 10-root decoction for Apana Vata balance'] },
+                      { title: '\u{1F372} Diet (Ahara)', items: ['Warm ginger-jaggery water (morning & evening)', 'Sesame seeds (Tila) with honey \u2014 1 tsp daily', 'Warm turmeric milk (Haldi Doodh) before bed', 'Fennel seed water \u2014 gentle uterine tonic, safe for most'] },
+                      { title: '\u{1F9D8} Lifestyle (Vihara)', items: ['Warm oil Abhyanga (self-massage) [Ashtanga Hridaya Su. 2]', 'Yoga: Baddha Konasana, Malasana, Viparita Karani', 'Pranayama: Anulom Vilom, Bhramari (calms HPA axis)', 'Dinacharya: sleep by 10 PM, reduce screen time'] },
+                    ].map(section => (
+                      <div key={section.title} className="bg-white rounded-xl p-3">
+                        <p className="text-[10px] font-bold text-gray-700 mb-1.5">{section.title}</p>
+                        <div className="space-y-1">
+                          {section.items.map(item => (
+                            <div key={item} className="flex items-start gap-1.5">
+                              <span className="text-[9px] mt-0.5 text-rose-500">{'\u2713'}</span>
+                              <span className="text-[10px] text-gray-600 leading-relaxed">{item}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* CRITICAL: Pregnancy + Herb Safety Warning */}
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-3">
+                  <p className="text-[10px] font-bold text-red-700 mb-1">{'\u{26A0}\u{FE0F}'} Important Safety Note</p>
+                  <p className="text-[10px] text-red-600 leading-relaxed">If there is any possibility of pregnancy, take a pregnancy test BEFORE starting any herbal regimen. Herbs like Ashoka, Guggulu, and Aloe vera can stimulate uterine contractions. If you are on any prescription medication, consult your doctor before taking herbal supplements.</p>
+                </div>
+
+                {/* When to see a doctor — always show brief note */}
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3">
+                  <p className="text-[10px] font-bold text-amber-700 mb-1">{'\u{26A0}\u{FE0F}'} When to See a Doctor</p>
+                  <div className="space-y-1">
+                    {[
+                      'Take a pregnancy test if sexually active',
+                      ...(isModerate || isSerious ? [
+                        'Period delayed more than 2 weeks',
+                        'Severe pain, unusual discharge, or spotting',
+                        'History of PCOS, thyroid, or hormonal issues',
+                        'Sudden weight gain/loss with irregular cycles',
+                        'Previously regular cycles becoming irregular',
+                      ] : [
+                        'Delay persists beyond 7 days',
+                        'Unusual symptoms accompany the delay',
+                      ]),
+                    ].map(item => (
+                      <div key={item} className="flex items-start gap-1.5">
+                        <span className="text-[9px] text-amber-500 mt-0.5">{'\u2022'}</span>
+                        <span className="text-[10px] text-amber-700">{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Medical disclaimer */}
+                <p className="text-[8px] text-gray-400 text-center leading-relaxed mb-3">
+                  These Ayurvedic suggestions are for educational purposes only and do not replace professional medical advice. Consult a qualified practitioner before starting any herbal regimen. References: Charaka Samhita Chi. 30, Sushruta Samhita Sha. 2/29, Ashtanga Hridaya.
+                </p>
+
+                {/* Action buttons */}
+                <div className="flex gap-2">
+                  <button onClick={() => nav('/tracker')} className="flex-1 py-2.5 bg-rose-500 text-white rounded-xl text-[11px] font-bold active:scale-95 transition-transform">
+                    {'\u{1F4C5}'} Log Period
+                  </button>
+                  <button onClick={() => nav('/doctors')} className="flex-1 py-2.5 bg-white border-2 border-rose-200 text-rose-600 rounded-xl text-[11px] font-bold active:scale-95 transition-transform">
+                    {'\u{1F469}\u200D\u2695\u{FE0F}'} Consult Doctor
+                  </button>
+                  {!dosha && (
+                    <button onClick={() => nav('/dosha-assessment')} className="flex-1 py-2.5 bg-purple-50 border-2 border-purple-200 text-purple-600 rounded-xl text-[11px] font-bold active:scale-95 transition-transform">
+                      {'\u2728'} Know Dosha
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ─── Cycle Health Alerts (abnormality detection) ─── */}
+        {predictionData?.alerts?.length > 0 && predictionData.alerts.map((alert: any, i: number) => (
+          <div key={i} className={`rounded-2xl p-4 border ${
+            alert.severity === 'urgent' ? 'bg-red-50 border-red-200' :
+            alert.severity === 'warning' ? 'bg-amber-50 border-amber-200' :
+            'bg-blue-50 border-blue-200'
+          }`}>
+            <div className="flex items-start gap-2">
+              <span className="text-base mt-0.5">{alert.severity === 'urgent' ? '\u{26A0}\u{FE0F}' : alert.severity === 'warning' ? '\u{1F7E1}' : '\u{2139}\u{FE0F}'}</span>
+              <div className="flex-1">
+                <p className={`text-xs font-extrabold ${
+                  alert.severity === 'urgent' ? 'text-red-700' :
+                  alert.severity === 'warning' ? 'text-amber-700' : 'text-blue-700'
+                }`}>{alert.title}</p>
+                <p className="text-[10px] text-gray-600 mt-1 leading-relaxed">{alert.message}</p>
+                {alert.ayurvedic && (
+                  <p className="text-[10px] text-gray-500 mt-1.5 italic">{'\u{1F33F}'} {alert.ayurvedic}</p>
+                )}
+              </div>
+            </div>
+            {alert.severity === 'urgent' && (
+              <button onClick={() => nav('/doctors')} className="mt-2.5 w-full py-2 bg-red-500 text-white rounded-xl text-[10px] font-bold active:scale-95 transition-transform">
+                {'\u{1F469}\u200D\u2695\u{FE0F}'} Consult a Doctor
+              </button>
+            )}
+          </div>
+        ))}
 
         {/* ─── Doctor/Admin Quick Access — Role Switcher ─── */}
         {(user?.role === 'DOCTOR' || user?.role === 'ADMIN') && (

@@ -68,6 +68,16 @@ async function generateSmartNotifications(userId: string) {
       const exists = await prisma.notification.findFirst({ where: { userId, type: 'period_reminder', createdAt: { gte: new Date(now.getTime() - 86400000) } } });
       if (!exists) toCreate.push({ userId, title: 'Period Coming Soon 🩸', body: 'Your period is expected in 3 days. Stock up on essentials!', type: 'period_reminder' });
     }
+    // Period is 7+ days late — alert once
+    if (daysUntilPeriod <= -7) {
+      const exists = await prisma.notification.findFirst({ where: { userId, type: 'period_late', createdAt: { gte: new Date(now.getTime() - 7 * 86400000) } } });
+      if (!exists) toCreate.push({ userId, title: 'Period Delayed \u26A0\uFE0F', body: `Your period is ${Math.abs(daysUntilPeriod)} days late. Check your Tracker for Ayurvedic guidance, or consult a doctor if concerned.`, type: 'period_late' });
+    }
+    // Period is 1-3 days late — gentle nudge (once)
+    if (daysUntilPeriod >= -3 && daysUntilPeriod < 0) {
+      const exists = await prisma.notification.findFirst({ where: { userId, type: 'period_overdue', createdAt: { gte: new Date(now.getTime() - 3 * 86400000) } } });
+      if (!exists) toCreate.push({ userId, title: 'Period Update \u{1F338}', body: `Your period is ${Math.abs(daysUntilPeriod)} day${Math.abs(daysUntilPeriod) !== 1 ? 's' : ''} past expected. This is normal sometimes \u2014 check your Dashboard for tips.`, type: 'period_overdue' });
+    }
     // Ovulation today
     if (cycleDay === ovulationDay) {
       const exists = await prisma.notification.findFirst({ where: { userId, type: 'ovulation', createdAt: { gte: new Date(now.getTime() - 86400000) } } });
