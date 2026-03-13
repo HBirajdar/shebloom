@@ -30,18 +30,23 @@ r.post('/webhook', async (req: Request, res: Response) => {
       return;
     }
 
-    const body = JSON.stringify(req.body);
+    // Use raw body bytes for signature verification (raw middleware applied in app.ts)
+    const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body));
 
     const expectedSignature = crypto
       .createHmac('sha256', webhookSecret)
-      .update(body)
+      .update(rawBody)
       .digest('hex');
 
-    if (signature !== expectedSignature) {
+    // Timing-safe comparison to prevent timing attacks
+    const sigBuffer = Buffer.from(signature, 'hex');
+    const expectedBuffer = Buffer.from(expectedSignature, 'hex');
+    if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
       res.status(400).json({ error: 'Invalid webhook signature' }); return;
     }
 
-    const event = req.body;
+    // Parse body only after signature is verified
+    const event = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString()) : req.body;
     if (event.event === 'payment.captured') {
       const paymentId = event.payload?.payment?.entity?.id;
       const razorpayOrderId = event.payload?.payment?.entity?.order_id;
@@ -64,10 +69,10 @@ r.post('/webhook', async (req: Request, res: Response) => {
               await prisma.product.updateMany({
                 where: { id: item.productId, stock: { gte: item.quantity } },
                 data: { stock: { decrement: item.quantity } },
-              }).catch(() => {});
+              }).catch((e: any) => console.error('[Stock] Decrement failed for product', item.productId, ':', e.message));
             }
             if (order.couponCode) {
-              await recordCouponRedemption(order.couponCode, order.userId, order.couponDiscount || 0, order.id).catch(() => {});
+              await recordCouponRedemption(order.couponCode, order.userId, order.couponDiscount || 0, order.id).catch((e: any) => console.error('[Coupon] Redemption recording failed:', e.message));
             }
             // Audit log: webhook captured
             auditLog({
@@ -219,7 +224,7 @@ async function createSellerTransactions(orderId: string, orderItems: any[], deli
           totalSales: { increment: grossAmount },
           totalOrders: { increment: 1 },
         },
-      }).catch(() => {});
+      }).catch((e: any) => console.error('[SellerStats] Update failed for seller', sellerId, ':', e.message));
     }
   } catch (e: any) {
     console.error('[SellerTransaction] Failed:', e.message);
@@ -272,7 +277,7 @@ r.post('/create-order', async (q: AuthRequest, s: Response, n: NextFunction) => 
     const platformFee = Math.round((config.platformFeeFlat + (subtotal * config.platformFeePercent / 100)) * 100) / 100;
     const afterDiscount = subtotal - couponDiscount;
     const totalAmount = Math.max(0, afterDiscount + deliveryCharge + platformFee);
-    const orderNumber = `VC-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
+    const orderNumber = `VC-${Date.now()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 
     // Create Razorpay order
     const rzpOrder = await razorpay.orders.create({
@@ -369,10 +374,10 @@ r.post('/verify', async (q: AuthRequest, s: Response, n: NextFunction) => {
         await prisma.product.updateMany({
           where: { id: item.productId, stock: { gte: item.quantity } },
           data: { stock: { decrement: item.quantity } },
-        }).catch(() => {});
+        }).catch((e: any) => console.error('[Stock] Decrement failed for product', item.productId, ':', e.message));
       }
       if (order.couponCode) {
-        await recordCouponRedemption(order.couponCode, order.userId, order.couponDiscount || 0, order.id).catch(() => {});
+        await recordCouponRedemption(order.couponCode, order.userId, order.couponDiscount || 0, order.id).catch((e: any) => console.error('[Coupon] Redemption recording failed:', e.message));
       }
       // Audit log: order paid
       auditLog({
@@ -385,7 +390,11 @@ r.post('/verify', async (q: AuthRequest, s: Response, n: NextFunction) => {
       });
 
       // Create seller transactions for marketplace payouts
-      createSellerTransactions(order.id, order.items, order.deliveryAddress, 'razorpay').catch(() => {});
+      try {
+        await createSellerTransactions(order.id, order.items, order.deliveryAddress, 'razorpay');
+      } catch (e: any) {
+        console.error('[CRITICAL] Seller transaction creation failed for order', order.id, e.message);
+      }
     }
 
     // Send order confirmation email (best-effort)
@@ -450,7 +459,7 @@ r.post('/cod', async (q: AuthRequest, s: Response, n: NextFunction) => {
     const codCharge = config.codExtraCharge || 0;
     const afterDiscount = subtotal - couponDiscount;
     const totalAmount = Math.max(0, afterDiscount + deliveryCharge + platformFee + codCharge);
-    const orderNumber = `VC-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
+    const orderNumber = `VC-${Date.now()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 
     const order = await prisma.order.create({
       data: {
@@ -475,7 +484,7 @@ r.post('/cod', async (q: AuthRequest, s: Response, n: NextFunction) => {
 
     // Record coupon
     if (couponResult.couponCode) {
-      await recordCouponRedemption(couponResult.couponCode, uid, couponDiscount, order.id).catch(() => {});
+      await recordCouponRedemption(couponResult.couponCode, uid, couponDiscount, order.id).catch((e: any) => console.error('[Coupon] Redemption recording failed:', e.message));
     }
 
     // Reduce stock (safe guard: only decrement if sufficient stock remains)
@@ -483,7 +492,7 @@ r.post('/cod', async (q: AuthRequest, s: Response, n: NextFunction) => {
       await prisma.product.updateMany({
         where: { id: item.productId, stock: { gte: item.quantity } },
         data: { stock: { decrement: item.quantity } },
-      }).catch(() => {});
+      }).catch((e: any) => console.error('[Stock] Decrement failed for product', item.productId, ':', e.message));
     }
 
     // Audit log: COD order placed
@@ -496,7 +505,11 @@ r.post('/cod', async (q: AuthRequest, s: Response, n: NextFunction) => {
     });
 
     // Create seller transactions for marketplace payouts
-    createSellerTransactions(order.id, order.items, deliveryAddress, 'COD').catch(() => {});
+    try {
+      await createSellerTransactions(order.id, order.items, deliveryAddress, 'COD');
+    } catch (e: any) {
+      console.error('[CRITICAL] Seller transaction creation failed for order', order.id, e.message);
+    }
 
     // Send order confirmation email
     if (order.user.email) {
@@ -595,7 +608,6 @@ r.post('/appointment-order', async (q: AuthRequest, s: Response, n: NextFunction
       originalFee,
       couponCode: couponResult.couponCode || null,
       couponDiscount,
-      commissionRate,
       breakdown: {
         originalFee,
         couponDiscount,
@@ -640,7 +652,7 @@ r.post('/verify-appointment', async (q: AuthRequest, s: Response, n: NextFunctio
         const result = await applyCoupon(couponCode, uid, doctor?.consultationFee || 0, 'CONSULTATION', undefined, doctorId);
         couponDiscount = result.discount;
       }
-      await recordCouponRedemption(couponCode, uid, couponDiscount).catch(() => {});
+      await recordCouponRedemption(couponCode, uid, couponDiscount).catch((e: any) => console.error('[Coupon] Appointment redemption recording failed:', e.message));
     }
 
     // Audit log: appointment paid

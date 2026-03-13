@@ -22,11 +22,8 @@ router.post('/login', validate(loginSchema), async (req: Request, res: Response,
 router.post('/otp/send', validate(otpSendSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const result = await auth.sendOtp(req.body.phone);
-    // Only expose OTP in development (NEVER in production)
-    const debugInfo = process.env.NODE_ENV !== 'production' ? { debugOtp: result.debugOtp } : {};
     successResponse(res, {
       smsSent: result.smsSent,
-      ...(result.debugOtp ? debugInfo : {}),
     }, result.smsSent ? 'OTP sent via SMS' : 'OTP generated (SMS unavailable)');
   } catch (e) { next(e); }
 });

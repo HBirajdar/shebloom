@@ -47,6 +47,15 @@ import financeRoutes from './routes/finance.routes';
 import programRoutes from './routes/program.routes';
 import sellerRoutes from './routes/seller.routes';
 
+// ─── Startup security checks ─────────────────────────
+if (process.env.NODE_ENV === 'production') {
+  const jwtSecret = process.env.JWT_SECRET || '';
+  if (jwtSecret.length < 32 || jwtSecret.includes('change-this')) {
+    console.error('FATAL: JWT_SECRET is weak or default. Set a strong random secret in production.');
+    process.exit(1);
+  }
+}
+
 const app = express();
 
 // ─── Canonical domain (www → non-www) ───────────────
@@ -90,8 +99,7 @@ const corsOptions: cors.CorsOptions = {
     // Allow requests with no origin (same-origin, mobile apps, curl, Postman)
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    // Also allow the Railway deployment URL (same app, different domain)
-    if (origin?.endsWith('.up.railway.app')) return callback(null, true);
+    // Railway deployment URL should be set via CLIENT_URL env var
     // Log but don't crash — return false instead of Error so the response
     // still reaches the browser (otherwise browser gets opaque network error)
     console.warn(`CORS: origin ${origin} not in allowed list`);
@@ -107,6 +115,8 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 // ─── Body Parsing ───────────────────────────────────
+// Raw body for Razorpay webhook — must be before express.json()
+app.use('/api/v1/payments/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // ─── Static file serving for uploads ────────────────
@@ -141,7 +151,7 @@ const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 60, // increased from 20 — allows normal testing without hitting limit
   message: { error: 'Too many auth attempts. Please try after 15 minutes.' },
-  skip: (req) => process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test',
+  skip: () => process.env.NODE_ENV === 'test',
 });
 
 app.use('/api/', generalLimiter);
@@ -258,7 +268,7 @@ app.use((err: any, req: any, res: any, next: any) => {
   if (err.code === 'LIMIT_FILE_SIZE') {
     return res.status(400).json({ success: false, error: 'File too large. Max 5MB for images.' });
   }
-  return res.status(500).json({ success: false, error: err.message || 'Internal server error' });
+  return res.status(500).json({ success: false, error: process.env.NODE_ENV === 'production' ? 'Internal server error' : (err.message || 'Internal server error') });
 });
 
 export default app;

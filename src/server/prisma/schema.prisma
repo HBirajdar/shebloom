@@ -746,8 +746,8 @@ model Product {
   id             String    @id @default(cuid())
   name           String
   category       String
-  price          Int
-  discountPrice  Int?
+  price          Float
+  discountPrice  Float?
   description    String
   ingredients    String[]
   benefits       String[]
@@ -790,7 +790,7 @@ model Product {
   ayushApproved  Boolean    @default(false) // AYUSH ministry approved product
   // Seller / Vendor
   sellerId       String?                   // Foreign key to Seller (null = platform-owned)
-  seller         Seller?   @relation(fields: [sellerId], references: [id])
+  seller         Seller?   @relation(fields: [sellerId], references: [id], onDelete: SetNull)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -802,6 +802,9 @@ model Product {
   @@index([isPublished])
   @@index([rating])
   @@index([sellerId])
+  @@index([isFeatured])
+  @@index([inStock])
+  @@index([name])
   @@map("products")
 }
 
@@ -914,7 +917,7 @@ model Order {
   paymentMethod     String      @default("razorpay")
   paymentStatus     String      @default("PENDING")
   paymentId         String?
-  razorpayOrderId   String?
+  razorpayOrderId   String?  @unique
   razorpaySignature String?
   orderStatus       String      @default("PENDING")
   deliveryAddress   Json
@@ -926,6 +929,7 @@ model Order {
   @@index([userId])
   @@index([orderStatus])
   @@index([paymentStatus])
+  @@index([razorpayOrderId])
   @@map("orders")
 }
 
@@ -939,7 +943,7 @@ model OrderItem {
   totalPrice  Float
   sellerId    String? // Seller who owns this product (snapshot at order time)
   order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product     Product @relation(fields: [productId], references: [id])
+  product     Product @relation(fields: [productId], references: [id], onDelete: Restrict)
 
   @@index([orderId])
   @@index([sellerId])
@@ -1109,7 +1113,7 @@ model ProductPayout {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  seller          Seller?       @relation(fields: [sellerId], references: [id])
+  seller          Seller?       @relation(fields: [sellerId], references: [id], onDelete: SetNull)
 
   @@index([sellerId])
   @@index([status])
@@ -1410,7 +1414,7 @@ model SellerTransaction {
   id              String   @id @default(cuid())
   sellerId        String
   orderId         String
-  orderItemId     String
+  orderItemId     String   @unique
   productId       String
   productName     String
 

@@ -12,7 +12,7 @@ const BASE =
 
 export const api = axios.create({
   baseURL: BASE + '/api/v1',
-  timeout: 15000,
+  timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -285,6 +285,7 @@ export const doctorDashAPI = {
 };
 
 export const adminAPI = {
+  verifyPin: (pin: string) => api.post('/admin/verify-pin', { pin }),
   dashboard: () => api.get('/admin/dashboard'),
   stats: () => api.get('/admin/stats'),
   analytics: () => api.get('/admin/analytics'),

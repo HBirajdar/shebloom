@@ -53,6 +53,13 @@ r.put('/me', async (q: AuthRequest, s: Response, n: NextFunction) => {
       if (q.body[f] !== undefined) data[f] = q.body[f];
     }
 
+    // If any bank field changed, reset verification so admin must re-verify
+    const bankFields = ['bankAccountName', 'bankAccountNumber', 'bankIfsc', 'bankName', 'upiId'];
+    const bankChanged = bankFields.some(f => data[f] !== undefined);
+    if (bankChanged) {
+      data.bankVerified = false;
+    }
+
     const updated = await prisma.seller.update({ where: { id: seller.id }, data });
     successResponse(s, updated, 'Profile updated');
   } catch (e) { n(e); }
@@ -257,6 +264,20 @@ r.post('/admin/create', requireAdmin, async (q: AuthRequest, s: Response, n: Nex
       errorResponse(s, 'userId, businessName, contactEmail, and contactPhone are required', 400); return;
     }
 
+    // Validate commission/TDS bounds
+    if (commissionRate !== undefined) {
+      const cr = Number(commissionRate);
+      if (isNaN(cr) || cr < 0 || cr > 60) {
+        errorResponse(s, 'Commission rate must be between 0-60%', 400); return;
+      }
+    }
+    if (tdsRate !== undefined) {
+      const tr = Number(tdsRate);
+      if (isNaN(tr) || tr < 0 || tr > 30) {
+        errorResponse(s, 'TDS rate must be between 0-30%', 400); return;
+      }
+    }
+
     // Check if user exists
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) { errorResponse(s, 'User not found', 404); return; }
@@ -455,9 +476,19 @@ r.patch('/admin/:id/status', requireAdmin, async (q: AuthRequest, s: Response, n
 r.patch('/admin/:id/commission', requireAdmin, async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const { commissionRate, tdsRate } = q.body;
+
+    const commRate = Number(commissionRate);
+    const tds = Number(tdsRate);
+    if (commissionRate !== undefined && (isNaN(commRate) || commRate < 0 || commRate > 60)) {
+      errorResponse(s, 'Commission rate must be between 0-60%', 400); return;
+    }
+    if (tdsRate !== undefined && (isNaN(tds) || tds < 0 || tds > 30)) {
+      errorResponse(s, 'TDS rate must be between 0-30%', 400); return;
+    }
+
     const data: any = {};
-    if (commissionRate !== undefined) data.commissionRate = Number(commissionRate);
-    if (tdsRate !== undefined) data.tdsRate = Number(tdsRate);
+    if (commissionRate !== undefined) data.commissionRate = commRate;
+    if (tdsRate !== undefined) data.tdsRate = tds;
 
     const seller = await prisma.seller.update({ where: { id: q.params.id }, data });
     successResponse(s, seller, 'Commission updated');
@@ -511,25 +542,37 @@ r.post('/admin/:id/generate-payout', requireAdmin, async (q: AuthRequest, s: Res
     const seller = await prisma.seller.findUnique({ where: { id: sellerId } });
     if (!seller) { errorResponse(s, 'Seller not found', 404); return; }
 
-    // Find unsettled transactions
-    const unsettled = await prisma.sellerTransaction.findMany({
-      where: { sellerId, isSettled: false },
-    });
-
-    if (unsettled.length === 0) {
-      errorResponse(s, 'No unsettled transactions for this seller', 400); return;
-    }
-
-    const periodStart = unsettled.reduce((min, t) => t.orderDate < min ? t.orderDate : min, unsettled[0].orderDate);
-    const periodEnd = new Date();
-
-    const totalSales = unsettled.reduce((s, t) => s + t.grossAmount, 0);
-    const platformFee = unsettled.reduce((s, t) => s + t.commissionAmount, 0);
-    const tdsDeducted = unsettled.reduce((s, t) => s + t.tdsAmount, 0);
-    const netPayout = unsettled.reduce((s, t) => s + t.netAmount, 0);
-
-    // Create payout and mark transactions as settled atomically
+    // Atomic payout generation — prevents double-payout race condition
+    // All reads and writes happen inside a single $transaction
     const payout = await prisma.$transaction(async (tx) => {
+      // Step 1: Atomically mark UNSETTLED → SETTLED (guard against concurrent calls)
+      const markedCount = await tx.sellerTransaction.updateMany({
+        where: { sellerId, isSettled: false },
+        data: { isSettled: true, settledAt: new Date() },
+      });
+
+      if (markedCount.count === 0) {
+        return null; // No unsettled transactions
+      }
+
+      // Step 2: Read the transactions we just marked (isSettled=true but no payoutId yet)
+      const unsettled = await tx.sellerTransaction.findMany({
+        where: { sellerId, isSettled: true, payoutId: null },
+      });
+
+      if (unsettled.length === 0) {
+        return null;
+      }
+
+      const periodStart = unsettled.reduce((min, t) => t.orderDate < min ? t.orderDate : min, unsettled[0].orderDate);
+      const periodEnd = new Date();
+
+      const totalSales = unsettled.reduce((s, t) => s + t.grossAmount, 0);
+      const platformFee = unsettled.reduce((s, t) => s + t.commissionAmount, 0);
+      const tdsDeducted = unsettled.reduce((s, t) => s + t.tdsAmount, 0);
+      const netPayout = unsettled.reduce((s, t) => s + t.netAmount, 0);
+
+      // Step 3: Create the payout record
       const p = await tx.productPayout.create({
         data: {
           sellerId,
@@ -545,14 +588,20 @@ r.post('/admin/:id/generate-payout', requireAdmin, async (q: AuthRequest, s: Res
         },
       });
 
+      // Step 4: Link transactions to the payout
       await tx.sellerTransaction.updateMany({
         where: { id: { in: unsettled.map(t => t.id) } },
-        data: { isSettled: true, settledAt: new Date(), payoutId: p.id },
+        data: { payoutId: p.id },
       });
 
       return p;
     });
 
+    if (!payout) {
+      errorResponse(s, 'No unsettled transactions for this seller', 400); return;
+    }
+
+    const netPayout = payout.netPayout;
     successResponse(s, payout, `Payout of ₹${netPayout.toFixed(2)} generated for ${seller.businessName}`);
   } catch (e) { n(e); }
 });

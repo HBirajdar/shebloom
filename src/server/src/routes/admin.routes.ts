@@ -9,9 +9,33 @@ import path from 'path';
 import fs from 'fs';
 import { sendWelcomeEmail } from '../services/email.service';
 import doshaService from '../services/dosha.service';
+import bcrypt from 'bcryptjs';
 
 const r = Router();
 r.use(authenticate, requireAdmin);
+
+// ─── Admin PIN verification (server-side) ────────────
+r.post('/verify-pin', async (req: AuthRequest, res: Response) => {
+  try {
+    const { pin } = req.body;
+    if (!pin || typeof pin !== 'string') {
+      return errorResponse(res, 'PIN is required', 400);
+    }
+    const pinHash = process.env.ADMIN_PIN_HASH;
+    if (!pinHash) {
+      console.error('ADMIN_PIN_HASH environment variable is not set');
+      return errorResponse(res, 'Server configuration error', 500);
+    }
+    const isValid = await bcrypt.compare(pin, pinHash);
+    if (!isValid) {
+      return errorResponse(res, 'Invalid admin PIN', 401);
+    }
+    return successResponse(res, { verified: true }, 'Admin PIN verified');
+  } catch (err: any) {
+    console.error('Admin PIN verification error:', err.message);
+    return errorResponse(res, 'Verification failed', 500);
+  }
+});
 
 // ─── Multer upload config ────────────────────────────
 const uploadsDir = path.join(__dirname, '../../uploads');

@@ -8,10 +8,49 @@ import { successResponse, errorResponse } from '../utils/response.utils';
 const r = Router();
 r.use(authenticate);
 
+// Helper: get platform config for fee calculation
+async function getConfig() {
+  let c = await prisma.platformConfig.findUnique({ where: { id: 'default' } });
+  if (!c) c = await prisma.platformConfig.create({ data: { id: 'default' } });
+  return c;
+}
+
+// Helper: validate & calculate coupon discount (server-side only)
+async function calcCouponDiscount(code: string | undefined, userId: string, amount: number, doctorId?: string): Promise<{ discount: number; couponCode: string | null }> {
+  if (!code) return { discount: 0, couponCode: null };
+  const coupon = await prisma.coupon.findUnique({
+    where: { code: code.toUpperCase().trim() },
+    include: { redemptions: { where: { userId } } },
+  });
+  if (!coupon || !coupon.isActive) return { discount: 0, couponCode: null };
+  const now = new Date();
+  if (coupon.validFrom && now < coupon.validFrom) return { discount: 0, couponCode: null };
+  if (coupon.validUntil && now > coupon.validUntil) return { discount: 0, couponCode: null };
+  if (coupon.applicableTo !== 'ALL' && coupon.applicableTo !== 'CONSULTATION') return { discount: 0, couponCode: null };
+  if (amount > 0 && amount < coupon.minOrderAmount) return { discount: 0, couponCode: null };
+  if (coupon.maxUses && coupon.currentUses >= coupon.maxUses) return { discount: 0, couponCode: null };
+  if (coupon.redemptions.length >= coupon.maxUsesPerUser) return { discount: 0, couponCode: null };
+  if (coupon.firstOrderOnly) {
+    const hasOrders = await prisma.order.count({ where: { userId, paymentStatus: 'PAID' } });
+    const hasAppointments = await prisma.appointment.count({ where: { userId, status: { not: 'CANCELLED' } } });
+    if (hasOrders > 0 || hasAppointments > 0) return { discount: 0, couponCode: null };
+  }
+  if (doctorId && coupon.specificDoctorIds.length > 0 && !coupon.specificDoctorIds.includes(doctorId)) return { discount: 0, couponCode: null };
+
+  let discount = coupon.discountType === 'PERCENTAGE'
+    ? amount * (coupon.discountValue / 100)
+    : coupon.discountValue;
+  if (coupon.discountType === 'PERCENTAGE' && coupon.maxDiscountAmount && discount > coupon.maxDiscountAmount) {
+    discount = coupon.maxDiscountAmount;
+  }
+  discount = Math.min(discount, amount);
+  return { discount: Math.round(discount * 100) / 100, couponCode: coupon.code };
+}
+
 // POST / — create appointment with Jitsi video link
 r.post('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
-    const { doctorId, doctorName, scheduledAt, reason, notes, paymentId, couponCode, couponDiscount, platformFee, amountPaid, originalFee } = q.body;
+    const { doctorId, doctorName, scheduledAt, reason, notes, paymentId, couponCode } = q.body;
 
     // Try to find doctor in DB
     const doctor = doctorId
@@ -19,6 +58,24 @@ r.post('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
       : null;
 
     const resolvedDoctorName = doctor?.fullName || doctorName || 'Doctor';
+
+    // --- Server-side fee calculation (NEVER trust client amounts) ---
+    const serverOriginalFee = doctor ? (doctor.consultationFee || 0) : 0;
+
+    // Calculate coupon discount server-side
+    const couponResult = await calcCouponDiscount(couponCode, q.user!.id, serverOriginalFee, doctorId);
+    const serverCouponDiscount = couponResult.discount;
+
+    // Calculate platform fee from config
+    const config = await getConfig();
+    const serverPlatformFee = serverOriginalFee > 0
+      ? Math.round((config.platformFeeFlat + (serverOriginalFee * config.platformFeePercent / 100)) * 100) / 100
+      : 0;
+
+    // Calculate amount paid: originalFee - couponDiscount + platformFee
+    // Only trust this if there's a valid paymentId, otherwise use calculated value
+    const calculatedAmount = Math.max(0, serverOriginalFee - serverCouponDiscount + serverPlatformFee);
+    const serverAmountPaid = paymentId ? calculatedAmount : calculatedAmount;
 
     // Generate Jitsi room
     const jitsiRoomId = `VedaClue-${resolvedDoctorName.replace(/\s+/g, '-')}-${Date.now()}`;
@@ -30,11 +87,11 @@ r.post('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
         doctorId: doctor ? doctorId : null,
         doctorName: resolvedDoctorName,
         scheduledAt: new Date(scheduledAt),
-        amountPaid: amountPaid ?? (doctor ? doctor.consultationFee : 0),
-        originalFee: originalFee ?? (doctor ? doctor.consultationFee : 0),
-        couponCode: couponCode || null,
-        couponDiscount: couponDiscount || 0,
-        platformFee: platformFee || 0,
+        amountPaid: serverAmountPaid,
+        originalFee: serverOriginalFee,
+        couponCode: couponResult.couponCode || null,
+        couponDiscount: serverCouponDiscount,
+        platformFee: serverPlatformFee,
         paymentId: paymentId || null,
         notes: [reason, notes].filter(Boolean).join(' | ') || null,
         meetingLink: videoLink,

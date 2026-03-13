@@ -511,7 +511,7 @@ export default function ProgramsPage() {
                     {e.status === 'ACTIVE' && (
                       <div className="mt-2">
                         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-purple-500 rounded-full" style={{ width: `${e.completedCount > 0 ? Math.min(100, (e.completedCount / 10) * 100) : 0}%` }} />
+                          <div className="h-full bg-purple-500 rounded-full" style={{ width: `${e.completedCount > 0 ? Math.min(100, (e.completedCount / (prog.contentCount || prog.contents?.length || 1)) * 100) : 0}%` }} />
                         </div>
                         <p className="text-[9px] text-gray-400 mt-1">{done} activities completed</p>
                       </div>

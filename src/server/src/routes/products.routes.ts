@@ -396,7 +396,18 @@ r.post('/:id/reviews/helpful', async (q: AuthRequest, res: Response, next: NextF
   try {
     const { reviewId } = q.body;
     if (!reviewId) { errorResponse(res, 'Review ID required', 400); return; }
-    await prisma.productReview.update({ where: { id: reviewId }, data: { helpfulCount: { increment: 1 } } });
+
+    // Verify the review exists and belongs to this product
+    const review = await prisma.productReview.findUnique({ where: { id: reviewId } });
+    if (!review || review.productId !== q.params.id) {
+      errorResponse(res, 'Review not found', 404); return;
+    }
+
+    // Increment (TODO: add ReviewHelpfulVote model for per-user tracking in next migration)
+    await prisma.productReview.update({
+      where: { id: reviewId },
+      data: { helpfulCount: { increment: 1 } },
+    });
     successResponse(res, null, 'Marked as helpful');
   } catch (e) { next(e); }
 });
@@ -500,9 +511,9 @@ r.put('/:id', requireAdmin, async (req: AuthRequest, res: Response, next: NextFu
     if (req.body.price !== undefined) data.price = Number(req.body.price);
     if (req.body.discountPrice !== undefined) data.discountPrice = req.body.discountPrice ? Number(req.body.discountPrice) : null;
     if (req.body.stock !== undefined) data.stock = Number(req.body.stock);
-    if (req.body.inStock !== undefined) data.inStock = req.body.inStock;
-    if (req.body.isPublished !== undefined) data.isPublished = req.body.isPublished;
-    if (req.body.isFeatured !== undefined) data.isFeatured = req.body.isFeatured;
+    if (req.body.inStock !== undefined) data.inStock = req.body.inStock === true || req.body.inStock === 'true';
+    if (req.body.isPublished !== undefined) data.isPublished = req.body.isPublished === true || req.body.isPublished === 'true';
+    if (req.body.isFeatured !== undefined) data.isFeatured = req.body.isFeatured === true || req.body.isFeatured === 'true';
 
     const parseArr = (v: any) => Array.isArray(v) ? v : (v || '').split(',').map((s: string) => s.trim()).filter(Boolean);
     const arrFields = ['ingredients', 'benefits', 'tags', 'doshaTypes', 'bestFor', 'certifications'];
@@ -538,9 +549,14 @@ r.post('/:id/toggle-publish', requireAdmin, async (req: AuthRequest, res: Respon
   try {
     const product = await prisma.product.findUnique({ where: { id: req.params.id } });
     if (!product) { errorResponse(res, 'Product not found', 404); return; }
+    const nowPublishing = !product.isPublished;
     const updated = await prisma.product.update({
       where: { id: req.params.id },
-      data: { isPublished: !product.isPublished, publishedAt: !product.isPublished ? new Date() : null },
+      data: {
+        isPublished: nowPublishing,
+        publishedAt: nowPublishing ? new Date() : null,
+        ...(nowPublishing && req.user?.id ? { approvedBy: req.user.id, approvedAt: new Date() } : {}),
+      },
     });
     successResponse(res, updated);
   } catch (e) { next(e); }

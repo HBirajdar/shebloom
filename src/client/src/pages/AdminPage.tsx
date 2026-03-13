@@ -110,11 +110,7 @@ interface AdminDoctor {
   publishedAt?: string | null; createdAt?: string;
 }
 
-// ─── Admin PIN stored in localStorage ───────────────
-const ADMIN_PIN_KEY = 'sb_admin_pin';
-const DEFAULT_PIN = 'VedaClue@2024#Admin';
-function getStoredPin() { return localStorage.getItem(ADMIN_PIN_KEY) || DEFAULT_PIN; }
-function setStoredPin(pin: string) { localStorage.setItem(ADMIN_PIN_KEY, pin); }
+// ─── Admin PIN verified server-side ──────────────────
 
 const targetOpts: { k: TargetAudience; l: string }[] = [
   { k: 'all', l: '\u{1F310} All' }, { k: 'periods', l: '\u{1F33A} Periods' },
@@ -1625,18 +1621,24 @@ export default function AdminPage() {
 
   // ─── Auth ───────────────────────────────────────────
   const handleUnlock = async () => {
-    if (password !== getStoredPin()) {
-      setPassError('Incorrect password. Access denied.');
-      setPassword('');
-      return;
-    }
-    // Verify server connectivity + token validity before unlocking
+    if (!password) return;
     if (!ensureToken()) return;
     try {
-      await apiService.getDashboard();
+      const res = await adminAPI.verifyPin(password);
+      if (res.data?.success) {
+        setIsUnlocked(true);
+        sessionStorage.setItem('sb_admin_unlocked', '1');
+        setPassword('');
+        setPassError('');
+        toast.success('Welcome, Admin!');
+        await fetchDashboard();
+      } else {
+        setPassError('Incorrect password. Access denied.');
+        setPassword('');
+      }
     } catch (e: any) {
-      const msg = e.message || 'Connection failed';
-      if (msg.includes('Authentication') || msg.includes('Token') || msg.includes('Access denied')) {
+      const msg = e.message || 'Verification failed';
+      if (msg.includes('Authentication') || msg.includes('Token') || msg.includes('Access denied') || e.response?.status === 401) {
         toast.error('Your session expired. Please log in again.');
         sessionStorage.removeItem('sb_admin_unlocked');
         localStorage.removeItem('sb_token');
@@ -1644,15 +1646,9 @@ export default function AdminPage() {
         nav('/auth');
         return;
       }
-      // Non-auth errors — still unlock but warn
-      toast.error(msg);
+      setPassError(msg);
+      setPassword('');
     }
-    setIsUnlocked(true);
-    sessionStorage.setItem('sb_admin_unlocked', '1');
-    setPassword('');
-    setPassError('');
-    toast.success('Welcome, Admin!');
-    await fetchDashboard();
   };
 
   const handleLock = () => { setIsUnlocked(false); sessionStorage.removeItem('sb_admin_unlocked'); nav('/profile'); };
@@ -4353,19 +4349,8 @@ export default function AdminPage() {
 
             {/* Change Password */}
             <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
-              <h4 className="text-sm font-bold text-gray-700">{'\u{1F512}'} Change Password</h4>
-              <input type="password" value={oldPin} onChange={e => setOldPin(e.target.value)} placeholder="Current password"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:ring-2 focus:ring-rose-100 focus:outline-none transition-all" />
-              <input type="password" value={newPin} onChange={e => setNewPin(e.target.value)} placeholder="New password (min 8 characters)"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:ring-2 focus:ring-rose-100 focus:outline-none transition-all" />
-              {newPin && newPin.length < 8 && <p className="text-[10px] text-red-500 font-medium">Password must be at least 8 characters</p>}
-              <button onClick={() => {
-                if (oldPin === getStoredPin() && newPin.length >= 8) {
-                  setStoredPin(newPin);
-                  toast.success('Password changed!');
-                  setOldPin(''); setNewPin('');
-                } else { toast.error('Wrong current password or new one too short'); }
-              }} className="w-full py-3 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold text-sm active:scale-95 shadow-sm hover:shadow transition-all">Update Password</button>
+              <h4 className="text-sm font-bold text-gray-700">{'\u{1F512}'} Change Admin PIN</h4>
+              <p className="text-[10px] text-gray-400">The admin PIN is managed server-side via the ADMIN_PIN_HASH environment variable. To change it, generate a new bcrypt hash and update the environment variable on the server.</p>
             </div>
 
             {/* Email Whitelist */}

@@ -34,7 +34,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
         return;
       }
       user = dbUser;
-      await cacheSet(`user:${uid}:basic`, user, 300);
+      await cacheSet(`user:${uid}:basic`, user, 60);
     }
     if (!user.isActive) { res.status(403).json({ success: false, error: 'Account deactivated' }); return; }
     req.user = { id: user.id, role: user.role, email: user.email || undefined };
@@ -73,7 +73,7 @@ export const optionalAuth = async (req: AuthRequest, _res: Response, next: NextF
           });
           if (dbUser) {
             user = dbUser;
-            await cacheSet(`user:${uid}:basic`, user, 300);
+            await cacheSet(`user:${uid}:basic`, user, 60);
           }
         }
         if (user?.isActive) {

@@ -76,7 +76,7 @@ export class AuthService {
     return { user: safe, ...tokens };
   }
 
-  async sendOtp(phone: string): Promise<{ smsSent: boolean; debugOtp?: string }> {
+  async sendOtp(phone: string): Promise<{ smsSent: boolean }> {
     const normalized = normalizePhone(phone);
     const otp = crypto.randomInt(100000, 999999).toString();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
@@ -100,7 +100,7 @@ export class AuthService {
       }
     }
     logger.info(`[NO-SMS] OTP for +91${normalized}: ${otp}`);
-    return { smsSent: false, debugOtp: otp };
+    return { smsSent: false };
   }
 
   async verifyOtp(phone: string, otp: string) {
