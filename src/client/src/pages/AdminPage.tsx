@@ -1184,7 +1184,7 @@ function AuditLogTab() {
 
 // ─── Subscription Admin Tab ──────────────────────────────
 function SubscriptionAdminTab() {
-  const [subView, setSubView] = useState<'plans' | 'promotions' | 'subscribers' | 'analytics'>('plans');
+  const [subView, setSubView] = useState<'plans' | 'promotions' | 'subscribers' | 'analytics' | 'settings'>('plans');
   const [plans, setPlans] = useState<any[]>([]);
   const [promos, setPromos] = useState<any[]>([]);
   const [subscribers, setSubscribers] = useState<any[]>([]);
@@ -1197,6 +1197,8 @@ function SubscriptionAdminTab() {
   const [newData, setNewData] = useState<any>({});
   const [extendId, setExtendId] = useState('');
   const [extendDays, setExtendDays] = useState(30);
+  const [subConfig, setSubConfig] = useState<any>({});
+  const [configSaving, setConfigSaving] = useState(false);
 
   useEffect(() => { loadData(); }, [subView]);
 
@@ -1216,6 +1218,17 @@ function SubscriptionAdminTab() {
       } else if (subView === 'analytics') {
         const res = await subscriptionAPI.adminGetAnalytics();
         setAnalytics(res.data?.data || res.data);
+      } else if (subView === 'settings') {
+        const res = await financeAPI.getConfig();
+        const cfg = res.data?.data || res.data;
+        setSubConfig({
+          subscriptionEnabled: cfg?.subscriptionEnabled ?? true,
+          subscriptionPausedUntil: cfg?.subscriptionPausedUntil ? new Date(cfg.subscriptionPausedUntil).toISOString().slice(0, 16) : '',
+          subscriptionPauseMessage: cfg?.subscriptionPauseMessage || '',
+          subscriptionGraceDays: cfg?.subscriptionGraceDays ?? 3,
+          subscriptionTrialDays: cfg?.subscriptionTrialDays ?? 7,
+          subscriptionWelcomeBonus: cfg?.subscriptionWelcomeBonus ?? true,
+        });
       }
     } catch {}
     setLoading(false);
@@ -1358,6 +1371,7 @@ function SubscriptionAdminTab() {
           { id: 'promotions', icon: '\u{1F381}', label: 'Promos' },
           { id: 'subscribers', icon: '\u{1F465}', label: 'Subscribers' },
           { id: 'analytics', icon: '\u{1F4CA}', label: 'Analytics' },
+          { id: 'settings', icon: '\u2699\uFE0F', label: 'Settings' },
         ].map(t => (
           <button key={t.id} onClick={() => { setSubView(t.id as any); setEditId(''); setShowAdd(false); }}
             className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${subView === t.id ? 'bg-rose-500 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
@@ -1524,6 +1538,101 @@ function SubscriptionAdminTab() {
             ))}
           </div>
           <button onClick={() => subscriptionAPI.adminExpireCheck().then(() => { alert('Expiration check complete'); loadData(); })} className="w-full py-2 bg-gray-100 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-200">Run Expiration Check</button>
+        </div>
+      )}
+
+      {/* ─── SETTINGS ─────────────────────────── */}
+      {!loading && subView === 'settings' && (
+        <div className="space-y-4">
+          {/* Global Toggle */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-gray-800">{'\u{1F6AA}'} Subscriptions Enabled</p>
+                <p className="text-[10px] text-gray-400">Turn OFF to completely disable new subscriptions</p>
+              </div>
+              <button onClick={() => setSubConfig({ ...subConfig, subscriptionEnabled: !subConfig.subscriptionEnabled })}
+                className={'w-14 h-7 rounded-full transition-all relative shadow-inner ' + (subConfig.subscriptionEnabled ? 'bg-emerald-500' : 'bg-gray-300')}>
+                <div className={'w-6 h-6 rounded-full bg-white shadow-md absolute top-0.5 transition-transform ' + (subConfig.subscriptionEnabled ? 'translate-x-7' : 'translate-x-0.5')} />
+              </button>
+            </div>
+          </div>
+
+          {/* Pause Until */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm border space-y-3">
+            <p className="text-sm font-bold text-gray-800">{'\u23F8\uFE0F'} Pause Subscriptions Until</p>
+            <p className="text-[10px] text-gray-400">New subscriptions blocked until this date. Leave empty for no pause.</p>
+            <input type="datetime-local" value={subConfig.subscriptionPausedUntil || ''}
+              onChange={e => setSubConfig({ ...subConfig, subscriptionPausedUntil: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:ring-2 focus:ring-rose-100 focus:outline-none" />
+            {subConfig.subscriptionPausedUntil && (
+              <button onClick={() => setSubConfig({ ...subConfig, subscriptionPausedUntil: '' })}
+                className="text-xs text-red-500 font-semibold">Clear Pause Date</button>
+            )}
+          </div>
+
+          {/* Pause Message */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm border space-y-3">
+            <p className="text-sm font-bold text-gray-800">{'\u{1F4AC}'} Pause/Disabled Message</p>
+            <p className="text-[10px] text-gray-400">Custom message shown to users when subscriptions are OFF or paused</p>
+            <textarea value={subConfig.subscriptionPauseMessage || ''} rows={2}
+              onChange={e => setSubConfig({ ...subConfig, subscriptionPauseMessage: e.target.value })}
+              placeholder="e.g. We're upgrading our system. Subscriptions resume March 20!"
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm resize-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100 focus:outline-none" />
+          </div>
+
+          {/* Trial & Grace Period */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm border space-y-3">
+            <p className="text-sm font-bold text-gray-800">{'\u{1F4C5}'} Trial & Grace Period</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] text-gray-500 font-bold uppercase">Default Trial (days)</label>
+                <input type="number" min={0} max={90} value={subConfig.subscriptionTrialDays ?? 7}
+                  onChange={e => setSubConfig({ ...subConfig, subscriptionTrialDays: Number(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm mt-1 focus:border-rose-400 focus:ring-2 focus:ring-rose-100 focus:outline-none" />
+              </div>
+              <div>
+                <label className="text-[10px] text-gray-500 font-bold uppercase">Grace Period (days)</label>
+                <input type="number" min={0} max={30} value={subConfig.subscriptionGraceDays ?? 3}
+                  onChange={e => setSubConfig({ ...subConfig, subscriptionGraceDays: Number(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm mt-1 focus:border-rose-400 focus:ring-2 focus:ring-rose-100 focus:outline-none" />
+              </div>
+            </div>
+          </div>
+
+          {/* Welcome Bonus */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-gray-800">{'\u{1F381}'} Welcome Bonus</p>
+                <p className="text-[10px] text-gray-400">Auto-apply welcome discount for new users</p>
+              </div>
+              <button onClick={() => setSubConfig({ ...subConfig, subscriptionWelcomeBonus: !subConfig.subscriptionWelcomeBonus })}
+                className={'w-14 h-7 rounded-full transition-all relative shadow-inner ' + (subConfig.subscriptionWelcomeBonus ? 'bg-emerald-500' : 'bg-gray-300')}>
+                <div className={'w-6 h-6 rounded-full bg-white shadow-md absolute top-0.5 transition-transform ' + (subConfig.subscriptionWelcomeBonus ? 'translate-x-7' : 'translate-x-0.5')} />
+              </button>
+            </div>
+          </div>
+
+          {/* Save Button */}
+          <button onClick={async () => {
+            setConfigSaving(true);
+            try {
+              await financeAPI.updateConfig({
+                subscriptionEnabled: subConfig.subscriptionEnabled,
+                subscriptionPausedUntil: subConfig.subscriptionPausedUntil || null,
+                subscriptionPauseMessage: subConfig.subscriptionPauseMessage || null,
+                subscriptionGraceDays: subConfig.subscriptionGraceDays,
+                subscriptionTrialDays: subConfig.subscriptionTrialDays,
+                subscriptionWelcomeBonus: subConfig.subscriptionWelcomeBonus,
+              });
+              alert('Subscription settings saved!');
+            } catch (e: any) { alert(e.message || 'Failed to save'); }
+            setConfigSaving(false);
+          }} disabled={configSaving}
+            className="w-full py-3 bg-gradient-to-r from-rose-500 to-amber-500 text-white rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all disabled:opacity-50">
+            {configSaving ? 'Saving...' : 'Save Subscription Settings'}
+          </button>
         </div>
       )}
     </div>

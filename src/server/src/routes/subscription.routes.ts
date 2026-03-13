@@ -82,8 +82,18 @@ r.use(authenticate);
 r.get('/plans', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const goal = q.query.goal as string | undefined;
+    const config = await prisma.platformConfig.findUnique({ where: { id: 'default' } });
+    const paused = config && (!config.subscriptionEnabled ||
+      (config.subscriptionPausedUntil && new Date(config.subscriptionPausedUntil) > new Date()));
+
     const plans = await subscriptionService.getPublicPlans(goal);
-    successResponse(s, plans, 'Subscription plans');
+    successResponse(s, {
+      plans,
+      subscriptionEnabled: config?.subscriptionEnabled ?? true,
+      paused: !!paused,
+      pauseMessage: paused ? (config?.subscriptionPauseMessage || 'Subscriptions are currently unavailable.') : null,
+      pausedUntil: paused && config?.subscriptionPausedUntil ? config.subscriptionPausedUntil : null,
+    }, 'Subscription plans');
   } catch (e) { n(e); }
 });
 
@@ -98,6 +108,18 @@ r.get('/my', async (q: AuthRequest, s: Response, n: NextFunction) => {
 // POST /subscriptions/create — Create new subscription
 r.post('/create', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
+    // Check global subscription toggle & pause
+    const config = await prisma.platformConfig.findUnique({ where: { id: 'default' } });
+    if (config && !config.subscriptionEnabled) {
+      errorResponse(s, config.subscriptionPauseMessage || 'Subscriptions are currently disabled. Please try again later.', 403);
+      return;
+    }
+    if (config?.subscriptionPausedUntil && new Date(config.subscriptionPausedUntil) > new Date()) {
+      const until = new Date(config.subscriptionPausedUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      errorResponse(s, config.subscriptionPauseMessage || `Subscriptions are paused until ${until}. Please try again later.`, 403);
+      return;
+    }
+
     const { planId, couponCode, goal } = q.body;
     if (!planId) { errorResponse(s, 'planId is required', 400); return; }
 

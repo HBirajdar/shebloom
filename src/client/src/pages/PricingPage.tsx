@@ -51,6 +51,8 @@ export default function PricingPage() {
   const [couponError, setCouponError] = useState('');
   const [payLoading, setPayLoading] = useState('');
   const [showCompare, setShowCompare] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [pauseMessage, setPauseMessage] = useState('');
 
   useEffect(() => {
     loadPlans();
@@ -61,7 +63,14 @@ export default function PricingPage() {
     try {
       const res = await subscriptionAPI.getPlans(goal || undefined);
       const data = res.data?.data || res.data;
-      setPlans(Array.isArray(data) ? data.filter((p: Plan) => !p.isFree) : []);
+      // New response format: { plans, paused, pauseMessage, ... }
+      if (data?.plans) {
+        setPlans(Array.isArray(data.plans) ? data.plans.filter((p: Plan) => !p.isFree) : []);
+        setPaused(!!data.paused);
+        setPauseMessage(data.pauseMessage || '');
+      } else {
+        setPlans(Array.isArray(data) ? data.filter((p: Plan) => !p.isFree) : []);
+      }
     } catch { setPlans([]); }
     finally { setLoading(false); }
   };
@@ -193,6 +202,15 @@ export default function PricingPage() {
         </div>
       )}
 
+      {/* Paused/Disabled Banner */}
+      {paused && (
+        <div className="mx-4 mb-4 bg-amber-50 border border-amber-300 rounded-2xl p-4 text-center">
+          <p className="text-2xl mb-1">{'\u23F8\uFE0F'}</p>
+          <p className="text-sm font-bold text-amber-800">Subscriptions Paused</p>
+          <p className="text-xs text-amber-600 mt-1">{pauseMessage}</p>
+        </div>
+      )}
+
       {/* Plan Cards */}
       <div className="px-4 space-y-4">
         {plans.map((plan) => {
@@ -271,10 +289,11 @@ export default function PricingPage() {
                 ) : (
                   <button
                     onClick={() => handleSubscribe(plan)}
-                    disabled={!!payLoading}
+                    disabled={!!payLoading || paused}
                     className="w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all disabled:opacity-50"
                   >
-                    {payLoading === plan.id ? 'Processing...' :
+                    {paused ? 'Temporarily Unavailable' :
+                     payLoading === plan.id ? 'Processing...' :
                      plan.trialDays > 0 ? 'Start Free Trial' : 'Subscribe Now'}
                   </button>
                 )}

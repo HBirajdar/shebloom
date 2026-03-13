@@ -166,13 +166,21 @@ r.put('/config', requireAdmin, async (req: Request, res: Response, next: NextFun
       'cancellationWindowHours', 'cancellationPenalty',
       'codEnabled', 'codExtraCharge',
       'minOrderAmount', 'refundProcessingDays',
+      'subscriptionEnabled', 'subscriptionPausedUntil', 'subscriptionPauseMessage',
+      'subscriptionGraceDays', 'subscriptionTrialDays', 'subscriptionWelcomeBonus',
     ];
-    const booleanFields = ['codEnabled', 'includeGstInPrice'];
+    const booleanFields = ['codEnabled', 'includeGstInPrice', 'subscriptionEnabled', 'subscriptionWelcomeBonus'];
+    const stringFields = ['subscriptionPauseMessage'];
+    const dateFields = ['subscriptionPausedUntil'];
     const data: any = {};
     for (const f of allowed) {
       if (req.body[f] !== undefined) {
         if (booleanFields.includes(f)) {
           data[f] = req.body[f] === true || req.body[f] === 'true';
+        } else if (stringFields.includes(f)) {
+          data[f] = req.body[f] ? String(req.body[f]) : null;
+        } else if (dateFields.includes(f)) {
+          data[f] = req.body[f] ? new Date(req.body[f]) : null;
         } else {
           const v = typeof req.body[f] === 'string' ? parseFloat(req.body[f]) : req.body[f];
           // Bounds validation for commission rates

@@ -1023,6 +1023,9 @@ model PlatformConfig {
   // Refund
   refundProcessingDays    Int      @default(7)
   // Subscription settings
+  subscriptionEnabled       Boolean  @default(true)       // Global ON/OFF for subscriptions
+  subscriptionPausedUntil   DateTime?                     // Pause new subscriptions until this date
+  subscriptionPauseMessage  String?                       // Custom message shown during pause (e.g. "Maintenance until March 20")
   subscriptionGraceDays     Int      @default(3)
   subscriptionTrialDays     Int      @default(7)
   subscriptionWelcomeBonus  Boolean  @default(true)
