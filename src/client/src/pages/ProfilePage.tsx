@@ -53,6 +53,14 @@ const sections = [
     { i: '⭐', l: 'Rate VedaClue', action: 'rate' },
     { i: '🤝', l: 'Share App', action: 'share' },
   ]},
+  { title: 'Legal & Info', items: [
+    { i: '🌸', l: 'About VedaClue', action: 'about-us' },
+    { i: '🔒', l: 'Privacy Policy', action: 'privacy-policy' },
+    { i: '📜', l: 'Terms & Conditions', action: 'terms-conditions' },
+    { i: '📦', l: 'Shipping Policy', action: 'shipping-policy' },
+    { i: '💰', l: 'Refund & Cancellation', action: 'refund-policy' },
+    { i: '📧', l: 'Contact Us', action: 'contact' },
+  ]},
 ];
 
 // ─── Auth Provider helpers ───────────────────────────
@@ -287,8 +295,15 @@ export default function ProfilePage() {
   };
 
   const handleItem = (action: string) => {
-    const routes: Record<string, string> = { reports: '/reports', cycle: '/tracker', ayurveda: '/ayurveda', doctors: '/doctors', community: '/community', programs: '/programs', 'my-orders': '/my-orders' };
+    const routes: Record<string, string> = {
+      reports: '/reports', cycle: '/tracker', ayurveda: '/ayurveda', doctors: '/doctors',
+      community: '/community', programs: '/programs', 'my-orders': '/my-orders',
+      'about-us': '/about-us', 'privacy-policy': '/privacy-policy',
+      'terms-conditions': '/terms-conditions', 'shipping-policy': '/shipping-policy',
+      'refund-policy': '/refund-policy',
+    };
     if (action === 'edit') openEdit();
+    else if (action === 'contact') window.location.href = 'mailto:vedaclue@gmail.com';
     else if (routes[action]) nav(routes[action]);
     else if (action === 'share' && navigator.share) navigator.share({ title: 'VedaClue', text: 'Your women\'s wellness companion', url: window.location.origin });
     else toast('Coming soon!');

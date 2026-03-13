@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import { lazy, Suspense } from 'react';
+import CookieConsent from './components/CookieConsent';
 
 // Lazy loaded pages
 const AuthPage = lazy(() => import('./pages/Signin'));
@@ -35,6 +36,11 @@ const OrderSuccessPage = lazy(() => import('./pages/OrderSuccessPage'));
 const MyOrdersPage = lazy(() => import('./pages/MyOrdersPage'));
 const DoctorDashboard = lazy(() => import('./pages/DoctorDashboard'));
 const DoshaAssessmentPage = lazy(() => import('./pages/DoshaAssessmentPage'));
+const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'));
+const TermsPage = lazy(() => import('./pages/TermsPage'));
+const ShippingPolicyPage = lazy(() => import('./pages/ShippingPolicyPage'));
+const AboutPage = lazy(() => import('./pages/AboutPage'));
+const RefundPolicyPage = lazy(() => import('./pages/RefundPolicyPage'));
 
 // Loading spinner
 const LoadingScreen = () => (
@@ -109,10 +115,18 @@ export default function App() {
           <Route path="/cycle/history" element={<ProtectedRoute><CycleHistoryPage /></ProtectedRoute>} />
           <Route path="/mood/history" element={<ProtectedRoute><MoodHistoryPage /></ProtectedRoute>} />
 
+          {/* Public Legal Pages */}
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms-conditions" element={<TermsPage />} />
+          <Route path="/shipping-policy" element={<ShippingPolicyPage />} />
+          <Route path="/about-us" element={<AboutPage />} />
+          <Route path="/refund-policy" element={<RefundPolicyPage />} />
+
           {/* Debug / 404 */}
           <Route path="/debug" element={<DebugPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
+        <CookieConsent />
       </div>
     </Suspense>
   );

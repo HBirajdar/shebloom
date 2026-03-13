@@ -335,7 +335,12 @@ export default function AuthPage() {
         </div>
       </div>
 
-      <p className="text-center text-[10px] text-gray-400 mt-4 mb-2">By continuing, you agree to our Terms &amp; Privacy Policy</p>
+      <p className="text-center text-[10px] text-gray-400 mt-4 mb-2">
+        By continuing, you agree to our{' '}
+        <a href="/terms-conditions" className="text-rose-500 font-bold">Terms & Conditions</a>
+        {' '}and{' '}
+        <a href="/privacy-policy" className="text-rose-500 font-bold">Privacy Policy</a>
+      </p>
     </div>
   );
 }
