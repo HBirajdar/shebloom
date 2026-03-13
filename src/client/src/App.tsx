@@ -161,7 +161,7 @@ export default function App() {
           <Route path="/pcos" element={<PcosPage />} />
 
           {/* Debug / 404 */}
-          <Route path="/debug" element={<DebugPage />} />
+          <Route path="/debug" element={<AdminRoute><DebugPage /></AdminRoute>} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
         <CookieConsent />

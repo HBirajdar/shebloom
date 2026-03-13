@@ -14,8 +14,8 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET!,
 });
 
-const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET;
-if (!webhookSecret) console.warn('[WARN] RAZORPAY_WEBHOOK_SECRET not set — webhook signature verification will fail');
+const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+if (!webhookSecret) console.warn('[WARN] RAZORPAY_WEBHOOK_SECRET not set — subscription webhooks will be rejected');
 
 // ═══════════════════════════════════════════════════════
 // WEBHOOK (before authenticate — raw body)
@@ -132,9 +132,9 @@ r.post('/create', async (q: AuthRequest, s: Response, n: NextFunction) => {
     const { planId, couponCode, goal } = q.body;
     if (!planId) { errorResponse(s, 'planId is required', 400); return; }
 
-    // Cleanup stale pending subscriptions for this user (prevents table bloat)
+    // Cleanup only EXPIRED pending subscriptions (not all — user may have active checkout in another tab)
     await prisma.pendingSubscription.deleteMany({
-      where: { OR: [{ userId: q.user!.id }, { expiresAt: { lt: new Date() } }] },
+      where: { OR: [{ userId: q.user!.id, expiresAt: { lt: new Date() } }, { expiresAt: { lt: new Date() } }] },
     });
 
     const plan = await prisma.subscriptionPlan.findUnique({ where: { id: planId } });
@@ -190,8 +190,10 @@ r.post('/create', async (q: AuthRequest, s: Response, n: NextFunction) => {
       }
     }
 
-    const totalDiscount = promoDiscount + couponDiscount;
-    const pricePaid = Math.max(0, Math.round((price - totalDiscount) * 100) / 100);
+    // Apply discounts sequentially (coupon on promo-discounted price) to prevent stacking abuse
+    const afterPromo = Math.max(0, price - promoDiscount);
+    couponDiscount = Math.min(couponDiscount, afterPromo); // Cap coupon to remaining price
+    const pricePaid = Math.max(0, Math.round((afterPromo - couponDiscount) * 100) / 100);
 
     // Capture IP & UserAgent for audit trail
     const ipAddress = q.ip || q.headers['x-forwarded-for']?.toString();

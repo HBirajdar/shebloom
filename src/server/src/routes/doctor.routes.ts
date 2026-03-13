@@ -26,7 +26,7 @@ function mapDoctor(d: any) {
     hospitalName: d.hospitalName || null,
     isChief: d.isChief ?? false,
     isPromoted: d.isPromoted ?? false,
-    commissionRate: d.commissionRate ?? null,
+    // commissionRate intentionally omitted — internal/admin-only field
   };
 }
 

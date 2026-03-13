@@ -9,11 +9,49 @@ const escapeHtml = (s: string): string =>
   String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 // POST /api/v1/callbacks — user submits callback request (no auth required)
+// Rate-limited to prevent abuse as email/SMS relay
+const callbackRateMap = new Map<string, { count: number; resetAt: number }>();
+const CALLBACK_RATE_LIMIT = 5; // max 5 requests per 15 min per IP
+const CALLBACK_RATE_WINDOW = 15 * 60 * 1000;
+
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { userId, productId, userName, userPhone, userEmail, productName, ownerEmail, ownerPhone, message } = req.body;
+    // Rate limit by IP to prevent relay abuse
+    const clientIp = (req.ip || req.socket.remoteAddress || 'unknown');
+    const now = Date.now();
+    const entry = callbackRateMap.get(clientIp);
+    if (entry && now < entry.resetAt) {
+      if (entry.count >= CALLBACK_RATE_LIMIT) {
+        return errorResponse(res, 'Too many callback requests. Please try again later.', 429);
+      }
+      entry.count++;
+    } else {
+      callbackRateMap.set(clientIp, { count: 1, resetAt: now + CALLBACK_RATE_WINDOW });
+    }
+
+    const { userId, productId, userName, userPhone, userEmail, productName, message } = req.body;
     if (!userName || !userPhone || !productName) {
       return errorResponse(res, 'Name, phone and product name are required', 400);
+    }
+
+    // Validate phone format (basic check)
+    const phoneRegex = /^\+?[0-9]{7,15}$/;
+    if (!phoneRegex.test(userPhone.replace(/[\s-]/g, ''))) {
+      return errorResponse(res, 'Invalid phone number format', 400);
+    }
+
+    // SECURITY: Never accept ownerEmail/ownerPhone from the client — look up from product in DB
+    let ownerEmail: string | null = null;
+    let ownerPhone: string | null = null;
+    if (productId) {
+      const product = await prisma.product.findUnique({
+        where: { id: productId },
+        select: { ownerEmail: true, ownerPhone: true } as any,
+      });
+      if (product) {
+        ownerEmail = (product as any).ownerEmail || null;
+        ownerPhone = (product as any).ownerPhone || null;
+      }
     }
 
     const callback = await prisma.callbackRequest.create({

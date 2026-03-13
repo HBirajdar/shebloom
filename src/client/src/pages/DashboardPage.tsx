@@ -238,7 +238,8 @@ export default function DashboardPage() {
   useEffect(() => {
     userAPI.me().then(res => {
       const p = res.data.data || res.data;
-      if (p && user) useAuthStore.getState().setUser({ ...user, fullName: p.fullName || user.fullName, email: p.email || user.email, role: p.role || user.role, avatarUrl: p.avatarUrl || user.avatarUrl, phone: p.phone || user.phone });
+      const currentUser = useAuthStore.getState().user;
+      if (p && currentUser) useAuthStore.getState().setUser({ ...currentUser, fullName: p.fullName || currentUser.fullName, email: p.email || currentUser.email, role: p.role || currentUser.role, avatarUrl: p.avatarUrl || currentUser.avatarUrl, phone: p.phone || currentUser.phone });
     }).catch(() => {});
     cycleAPI.predict().then(r => {
       const d = r.data.data;
@@ -293,7 +294,8 @@ export default function DashboardPage() {
       }));
       setCarouselDoctors(mapped);
     }).catch(() => {}).finally(() => setDoctorsLoading(false));
-  }, [user]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const logMood = (key: string) => {
     setMood(key);

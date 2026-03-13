@@ -606,7 +606,7 @@ export default function ProfilePage() {
                           <button onClick={() => setEmailStep('idle')} className="ml-auto text-gray-400 underline">Change</button>
                         </div>
                         <div className="flex gap-2">
-                          <input type="number" value={emailOtp} onChange={e => setEmailOtp(e.target.value)}
+                          <input type="text" inputMode="numeric" pattern="[0-9]*" value={emailOtp} onChange={e => setEmailOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                             placeholder="Enter 6-digit code" maxLength={6}
                             className="flex-1 px-4 py-3 border-2 border-blue-300 rounded-xl text-sm focus:border-blue-500 focus:outline-none text-center tracking-widest font-bold" />
                           <button onClick={confirmEmailOtpFn} disabled={emailOtpLoading}
@@ -684,7 +684,7 @@ export default function ProfilePage() {
                           <button onClick={() => setMobileStep('idle')} className="ml-auto text-gray-400 underline">Change</button>
                         </div>
                         <div className="flex gap-2">
-                          <input type="number" value={otp} onChange={e => setOtp(e.target.value)}
+                          <input type="text" inputMode="numeric" pattern="[0-9]*" value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                             placeholder="Enter 6-digit OTP" maxLength={6}
                             className="flex-1 px-4 py-3 border-2 border-emerald-300 rounded-xl text-sm focus:border-emerald-500 focus:outline-none text-center tracking-widest font-bold" />
                           <button onClick={confirmMobileOtp} disabled={otpLoading}

@@ -64,6 +64,9 @@ if (process.env.NODE_ENV === 'production') {
 
 const app = express();
 
+// Trust first proxy (Railway/Vercel) — required for correct rate limiting by client IP
+app.set('trust proxy', 1);
+
 // ─── Canonical domain (www → non-www) ───────────────
 // Prevents localStorage isolation between www.vedaclue.com and vedaclue.com
 app.use((req, res, next) => {
@@ -166,14 +169,14 @@ app.use('/api/v1/auth/', authLimiter);
 
 // ─── Health Check ───────────────────────────────────
 app.get('/api/health', (_req, res) => {
+  const isProd = process.env.NODE_ENV === 'production';
   res.json({
     success: true,
     message: 'VedaClue API is running',
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV,
-    version: process.env.APP_VERSION || '1.0.0',
+    // Only expose internal details in non-production
+    ...(isProd ? {} : { uptime: process.uptime(), environment: process.env.NODE_ENV, version: process.env.APP_VERSION || '1.0.0' }),
   });
 });
 

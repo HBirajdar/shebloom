@@ -1,6 +1,19 @@
 import prisma from '../config/database';
 import { cacheGet, cacheSet, cacheDel } from '../config/redis';
 
+// Safe regex compiler — rejects patterns with nested quantifiers that cause catastrophic backtracking (ReDoS)
+function safeRegex(pattern: string): RegExp | null {
+  try {
+    // Reject nested quantifiers like (a+)+, (a*)*+, etc. which cause ReDoS
+    if (/(\+|\*|\{)\)?(\+|\*|\{|\?)/.test(pattern)) return null;
+    // Limit pattern length
+    if (pattern.length > 500) return null;
+    return new RegExp(pattern, 'i');
+  } catch {
+    return null;
+  }
+}
+
 // ─── HARDCODED FALLBACKS (used if DB is unavailable) ──────────
 // These are exact copies of what was previously hardcoded.
 // They serve as safety nets — if DB and cache both fail,
@@ -51,7 +64,7 @@ class ContentService {
     const cacheKey = 'content:chat_responses';
     try {
       const cached = await cacheGet(cacheKey);
-      if (cached) return (cached as any[]).map(r => ({ ...r, regex: new RegExp(r.regexPattern, 'i') }));
+      if (cached) return (cached as any[]).map(r => ({ ...r, regex: safeRegex(r.regexPattern) })).filter(r => r.regex);
 
       const dbRows = await prisma.aIChatResponse.findMany({
         where: { isActive: true },
@@ -66,7 +79,7 @@ class ContentService {
           category: r.category,
         }));
         await cacheSet(cacheKey, serialized, 3600); // 1 hour cache
-        return serialized.map(r => ({ ...r, regex: new RegExp(r.regexPattern, 'i') }));
+        return serialized.map(r => ({ ...r, regex: safeRegex(r.regexPattern) })).filter(r => r.regex);
       }
     } catch (e) {
       console.warn('[ContentService] DB/cache failed for chat responses, using fallback:', (e as any)?.message);

@@ -146,7 +146,7 @@ r.post('/:id/enroll', authenticate, async (q: AuthRequest, s: Response, n: NextF
 // ─── Authenticated: enroll in paid program (after Razorpay payment) ─
 r.post('/:id/enroll-paid', authenticate, async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
-    const { razorpayPaymentId, razorpayOrderId, amountPaid, couponCode, couponDiscount } = q.body;
+    const { razorpayPaymentId, razorpayOrderId, razorpaySignature, couponCode } = q.body;
     const program = await prisma.program.findUnique({ where: { id: q.params.id } });
     if (!program || !program.isPublished) { errorResponse(s, 'Program not found', 404); return; }
 
@@ -158,15 +158,31 @@ r.post('/:id/enroll-paid', authenticate, async (q: AuthRequest, s: Response, n: 
       errorResponse(s, 'Already enrolled', 400); return;
     }
 
+    // Server-side payment verification — NEVER trust client-supplied amounts
+    const serverPrice = program.discountPrice || program.price;
+    if (serverPrice > 0) {
+      if (!razorpayPaymentId || !razorpayOrderId) {
+        errorResponse(s, 'Payment is required for this program', 400); return;
+      }
+      // Verify Razorpay signature
+      const crypto = require('crypto');
+      const expectedSig = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
+        .update(razorpayOrderId + '|' + razorpayPaymentId)
+        .digest('hex');
+      if (expectedSig !== razorpaySignature) {
+        errorResponse(s, 'Payment verification failed', 400); return;
+      }
+    }
+
     const data: any = {
       userId: q.user!.id,
       programId: q.params.id,
       isPaid: true,
-      amountPaid: amountPaid || program.discountPrice || program.price,
+      amountPaid: serverPrice, // Use server-calculated price, not client input
       paymentId: razorpayPaymentId || null,
       razorpayOrderId: razorpayOrderId || null,
       couponCode: couponCode || null,
-      couponDiscount: couponDiscount || 0,
+      couponDiscount: 0,
       progress: { completed: [], currentWeek: 1 },
     };
 

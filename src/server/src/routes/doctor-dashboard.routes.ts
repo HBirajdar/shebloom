@@ -22,17 +22,11 @@ async function getDoctorProfile(userId: string) {
   let doctor = await prisma.doctor.findFirst({ where: { userId } });
   if (doctor) return doctor;
 
-  // Try to find unlinked doctor by matching user's name
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { fullName: true, email: true, role: true, avatarUrl: true } });
-  if (user?.fullName) {
-    doctor = await prisma.doctor.findFirst({ where: { fullName: user.fullName, userId: null } });
-    if (doctor) {
-      doctor = await prisma.doctor.update({ where: { id: doctor.id }, data: { userId } });
-      return doctor;
-    }
-  }
+  // NOTE: Name-based auto-linking removed — it was an account takeover vector.
+  // Admin must explicitly link doctor profiles via userId.
 
   // Auto-create a doctor profile for users with DOCTOR role who don't have one
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { fullName: true, email: true, role: true, avatarUrl: true } });
   if (user && user.role === 'DOCTOR') {
     doctor = await prisma.doctor.create({
       data: {
@@ -105,7 +99,7 @@ r.get('/appointments', async (q: AuthRequest, s: Response, n: NextFunction) => {
     const doctor = await getDoctorProfile(q.user!.id);
     if (!doctor) { errorResponse(s, 'Doctor profile not found', 404); return; }
 
-    // Auto-complete past appointments that are still PENDING/CONFIRMED
+    // Mark past unattended appointments as NO_SHOW (not COMPLETED — completion requires explicit action)
     const now = new Date();
     await prisma.appointment.updateMany({
       where: {
@@ -113,7 +107,7 @@ r.get('/appointments', async (q: AuthRequest, s: Response, n: NextFunction) => {
         status: { in: ['PENDING', 'CONFIRMED'] },
         scheduledAt: { lt: now },
       },
-      data: { status: 'COMPLETED' },
+      data: { status: 'NO_SHOW' },
     });
 
     const { status, date } = q.query as any;

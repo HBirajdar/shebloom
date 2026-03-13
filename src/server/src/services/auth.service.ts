@@ -42,8 +42,8 @@ const ADMIN_PHONES = ['9405424185'];
 
 export class AuthService {
   private generateTokens(userId: string, role: string) {
-    const accessToken = jwt.sign({ userId, role }, process.env.JWT_SECRET!, { expiresIn: process.env.JWT_EXPIRY || '15m' } as any);
-    const refreshToken = jwt.sign({ userId, role, type: 'refresh' }, process.env.JWT_REFRESH_SECRET!, { expiresIn: process.env.JWT_REFRESH_EXPIRY || '7d' } as any);
+    const accessToken = jwt.sign({ userId, role }, process.env.JWT_SECRET!, { algorithm: 'HS256', expiresIn: process.env.JWT_EXPIRY || '15m' } as jwt.SignOptions);
+    const refreshToken = jwt.sign({ userId, role, type: 'refresh' }, process.env.JWT_REFRESH_SECRET!, { algorithm: 'HS256', expiresIn: process.env.JWT_REFRESH_EXPIRY || '7d' } as jwt.SignOptions);
     return { accessToken, refreshToken };
   }
 
@@ -144,12 +144,15 @@ export class AuthService {
   }
 
   async refreshAccessToken(refreshToken: string) {
-    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!) as { userId: string; role: string };
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!, { algorithms: ['HS256'] }) as { userId: string; role: string };
     const stored = await prisma.refreshToken.findFirst({ where: { token: refreshToken, isRevoked: false, expiresAt: { gt: new Date() } } });
     if (!stored) throw new AppError('Invalid refresh token', 401);
     await prisma.refreshToken.update({ where: { id: stored.id }, data: { isRevoked: true } });
-    const tokens = this.generateTokens(decoded.userId, decoded.role);
-    await prisma.refreshToken.create({ data: { userId: decoded.userId, token: tokens.refreshToken, expiresAt: new Date(Date.now() + 7*24*60*60*1000) } });
+    // Re-check user's current role and active status from DB (not from stale JWT)
+    const user = await prisma.user.findUnique({ where: { id: decoded.userId }, select: { id: true, role: true, isActive: true } });
+    if (!user || !user.isActive) throw new AppError('Account not found or deactivated', 401);
+    const tokens = this.generateTokens(user.id, user.role);
+    await prisma.refreshToken.create({ data: { userId: user.id, token: tokens.refreshToken, expiresAt: new Date(Date.now() + 7*24*60*60*1000) } });
     return tokens;
   }
 
@@ -160,7 +163,7 @@ export class AuthService {
   async forgotPassword(email: string) {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return;
-    const token = jwt.sign({ userId: user.id, type: 'reset' }, process.env.JWT_SECRET!, { expiresIn: '1h' } as any);
+    const token = jwt.sign({ userId: user.id, type: 'reset' }, process.env.JWT_SECRET!, { algorithm: 'HS256', expiresIn: '1h' } as jwt.SignOptions);
     await cacheSet(`reset:${user.id}`, token, 3600);
     logger.info(`Password reset for: ${email}`);
   }
@@ -223,7 +226,7 @@ export class AuthService {
   }
 
   async resetPassword(token: string, newPassword: string) {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string; type: string };
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!, { algorithms: ['HS256'] }) as { userId: string; type: string };
     if (decoded.type !== 'reset') throw new AppError('Invalid reset token', 400);
     const stored = await cacheGet(`reset:${decoded.userId}`);
     if (stored !== token) throw new AppError('Token expired', 400);

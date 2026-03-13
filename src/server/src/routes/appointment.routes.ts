@@ -1,4 +1,5 @@
 import { Router, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import prisma from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { requireAdmin } from '../middleware/roles.middleware';
@@ -77,8 +78,28 @@ r.post('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
     const calculatedAmount = Math.max(0, serverOriginalFee - serverCouponDiscount + serverPlatformFee);
     const serverAmountPaid = paymentId ? calculatedAmount : calculatedAmount;
 
-    // Generate Jitsi room
-    const jitsiRoomId = `VedaClue-${resolvedDoctorName.replace(/\s+/g, '-')}-${Date.now()}`;
+    // Validate scheduledAt
+    if (!scheduledAt) return s.status(400).json({ success: false, error: 'scheduledAt is required' });
+    const scheduledDate = new Date(scheduledAt);
+    if (isNaN(scheduledDate.getTime())) return s.status(400).json({ success: false, error: 'Invalid date for scheduledAt' });
+    if (scheduledDate < new Date()) return s.status(400).json({ success: false, error: 'Cannot book appointments in the past' });
+
+    // Prevent double-booking: check if doctor already has an appointment within 30 min window
+    if (doctorId) {
+      const windowStart = new Date(scheduledDate.getTime() - 30 * 60000);
+      const windowEnd = new Date(scheduledDate.getTime() + 30 * 60000);
+      const conflict = await prisma.appointment.findFirst({
+        where: {
+          doctorId,
+          scheduledAt: { gte: windowStart, lte: windowEnd },
+          status: { notIn: ['CANCELLED', 'COMPLETED'] },
+        },
+      });
+      if (conflict) return s.status(409).json({ success: false, error: 'This time slot is already booked. Please choose another time.' });
+    }
+
+    // Generate Jitsi room (use crypto for unpredictable room ID)
+    const jitsiRoomId = `VedaClue-${resolvedDoctorName.replace(/\s+/g, '-')}-${crypto.randomBytes(8).toString('hex')}`;
     const videoLink = `https://meet.jit.si/${jitsiRoomId}`;
 
     const appt = await prisma.appointment.create({
@@ -147,7 +168,7 @@ r.post('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
 // GET / — list user's OWN appointments (auto-completes past ones)
 r.get('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
-    // Auto-complete past appointments that are still PENDING/CONFIRMED
+    // Mark past unattended appointments as NO_SHOW (completion requires explicit doctor action)
     const now = new Date();
     await prisma.appointment.updateMany({
       where: {
@@ -155,7 +176,7 @@ r.get('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
         status: { in: ['PENDING', 'CONFIRMED'] },
         scheduledAt: { lt: now },
       },
-      data: { status: 'COMPLETED' },
+      data: { status: 'NO_SHOW' },
     });
 
     const data = await prisma.appointment.findMany({

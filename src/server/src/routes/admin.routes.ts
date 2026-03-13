@@ -43,7 +43,7 @@ if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 const upload = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, uploadsDir),
-    filename: (_req, file, cb) => cb(null, Date.now() + '-' + file.originalname),
+    filename: (_req, file, cb) => cb(null, Date.now() + '-' + path.basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, '_')),
   }),
   fileFilter: (_req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
     const allowed = ['image/jpeg','image/jpg','image/png','image/gif','image/webp','video/mp4','video/mov','video/avi','video/quicktime'];
@@ -143,9 +143,9 @@ r.get('/stats', async (_req: Request, res: Response, next: NextFunction) => {
 r.get('/dashboard', async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const [products, articles, doctors] = await Promise.all([
-      prisma.product.findMany({ orderBy: { createdAt: 'desc' } }),
-      prisma.article.findMany({ orderBy: { createdAt: 'desc' } }),
-      prisma.doctor.findMany({ orderBy: { createdAt: 'desc' } }),
+      prisma.product.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
+      prisma.article.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
+      prisma.doctor.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
     ]);
     successResponse(res, {
       products: products.map(mapProduct),
@@ -303,7 +303,7 @@ r.patch('/appointments/:id', async (req: Request, res: Response, next: NextFunct
 // ─── Products CRUD (Prisma) ─────────────────────────
 r.get('/products', async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const products = await prisma.product.findMany({ orderBy: { createdAt: 'desc' } });
+    const products = await prisma.product.findMany({ orderBy: { createdAt: 'desc' }, take: 200 });
     successResponse(res, products.map(mapProduct));
   } catch (e) { next(e); }
 });
@@ -426,7 +426,7 @@ r.delete('/products/:id', async (req: Request, res: Response, next: NextFunction
 // ─── Articles CRUD (Prisma) ─────────────────────────
 r.get('/articles', async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const articles = await prisma.article.findMany({ orderBy: { createdAt: 'desc' } });
+    const articles = await prisma.article.findMany({ orderBy: { createdAt: 'desc' }, take: 200 });
     successResponse(res, articles.map(mapArticle));
   } catch (e) { next(e); }
 });
@@ -536,7 +536,7 @@ r.delete('/articles/:id', async (req: Request, res: Response, next: NextFunction
 // ─── Doctors CRUD (Prisma) ──────────────────────────
 r.get('/doctors', async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const doctors = await prisma.doctor.findMany({ orderBy: { createdAt: 'desc' } });
+    const doctors = await prisma.doctor.findMany({ orderBy: { createdAt: 'desc' }, take: 200 });
     successResponse(res, doctors.map(mapDoctor));
   } catch (e) { next(e); }
 });

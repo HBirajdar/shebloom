@@ -11,6 +11,11 @@ import { cacheIncr } from '../config/redis';
 
 const r = Router();
 
+// Strip HTML tags to prevent stored XSS in community content
+const stripHtml = (s: string): string => s.replace(/<[^>]*>/g, '').trim();
+const MAX_CONTENT_LENGTH = 10000;
+const MAX_REPORT_LENGTH = 2000;
+
 // ─── Helpers ──────────────────────────────────────────
 
 const requireModerator = (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -146,6 +151,9 @@ r.post('/posts', authenticate, async (q: AuthRequest, res: Response, n: NextFunc
 
     const { content, category, isAnonymous } = q.body;
     if (!content || !category) { errorResponse(res, 'Content and category are required'); return; }
+    const safeContent = stripHtml(content);
+    if (!safeContent) { errorResponse(res, 'Content is required'); return; }
+    if (safeContent.length > MAX_CONTENT_LENGTH) { errorResponse(res, `Content must be under ${MAX_CONTENT_LENGTH} characters`); return; }
 
     const validCategories = ['periods', 'pcod', 'fertility', 'pregnancy', 'menopause', 'mental_health', 'ayurveda', 'hair_skin', 'ask_doctor'];
     if (!validCategories.includes(category)) { errorResponse(res, 'Invalid category'); return; }
@@ -153,7 +161,7 @@ r.post('/posts', authenticate, async (q: AuthRequest, res: Response, n: NextFunc
     const post = await prisma.communityPost.create({
       data: {
         userId,
-        content,
+        content: safeContent,
         category,
         isAnonymous: !!isAnonymous,
       },
@@ -178,6 +186,9 @@ r.post('/posts/:id/replies', authenticate, async (q: AuthRequest, res: Response,
 
     const { content, isAnonymous } = q.body;
     if (!content) { errorResponse(res, 'Content is required'); return; }
+    const safeReply = stripHtml(content);
+    if (!safeReply) { errorResponse(res, 'Content is required'); return; }
+    if (safeReply.length > MAX_CONTENT_LENGTH) { errorResponse(res, `Content must be under ${MAX_CONTENT_LENGTH} characters`); return; }
 
     const isDoctor = q.user!.role === 'DOCTOR';
 
@@ -186,7 +197,7 @@ r.post('/posts/:id/replies', authenticate, async (q: AuthRequest, res: Response,
         data: {
           postId,
           userId,
-          content,
+          content: safeReply,
           isAnonymous: !!isAnonymous,
           isDoctor,
         },
@@ -276,9 +287,11 @@ r.post('/posts/:id/report', authenticate, async (q: AuthRequest, res: Response, 
 
     const { reason, details } = q.body;
     if (!reason) { errorResponse(res, 'Reason is required'); return; }
+    const safeReason = stripHtml(String(reason)).slice(0, MAX_REPORT_LENGTH);
+    const safeDetails = details ? stripHtml(String(details)).slice(0, MAX_REPORT_LENGTH) : undefined;
 
     await prisma.$transaction([
-      prisma.communityReport.create({ data: { userId, postId, reason, details } }),
+      prisma.communityReport.create({ data: { userId, postId, reason: safeReason, details: safeDetails } }),
       prisma.communityPost.update({ where: { id: postId }, data: { reportCount: { increment: 1 } } }),
     ]);
 
@@ -300,9 +313,11 @@ r.post('/replies/:id/report', authenticate, async (q: AuthRequest, res: Response
 
     const { reason, details } = q.body;
     if (!reason) { errorResponse(res, 'Reason is required'); return; }
+    const safeReason2 = stripHtml(String(reason)).slice(0, MAX_REPORT_LENGTH);
+    const safeDetails2 = details ? stripHtml(String(details)).slice(0, MAX_REPORT_LENGTH) : undefined;
 
     await prisma.$transaction([
-      prisma.communityReport.create({ data: { userId, replyId, reason, details } }),
+      prisma.communityReport.create({ data: { userId, replyId, reason: safeReason2, details: safeDetails2 } }),
       prisma.communityReply.update({ where: { id: replyId }, data: { reportCount: { increment: 1 } } }),
     ]);
 
@@ -367,10 +382,13 @@ r.patch('/posts/:id', authenticate, async (q: AuthRequest, res: Response, n: Nex
 
     const { content } = q.body;
     if (!content || !content.trim()) { errorResponse(res, 'Content is required'); return; }
+    const safeEdit = stripHtml(content);
+    if (!safeEdit) { errorResponse(res, 'Content is required'); return; }
+    if (safeEdit.length > MAX_CONTENT_LENGTH) { errorResponse(res, `Content must be under ${MAX_CONTENT_LENGTH} characters`); return; }
 
     const updated = await prisma.communityPost.update({
       where: { id: q.params.id },
-      data: { content: content.trim(), isEdited: true },
+      data: { content: safeEdit, isEdited: true },
       include: { user: { select: { fullName: true, avatarUrl: true, role: true } } },
     });
 
@@ -412,10 +430,13 @@ r.patch('/replies/:id', authenticate, async (q: AuthRequest, res: Response, n: N
 
     const { content } = q.body;
     if (!content || !content.trim()) { errorResponse(res, 'Content is required'); return; }
+    const safeReplyEdit = stripHtml(content);
+    if (!safeReplyEdit) { errorResponse(res, 'Content is required'); return; }
+    if (safeReplyEdit.length > MAX_CONTENT_LENGTH) { errorResponse(res, `Content must be under ${MAX_CONTENT_LENGTH} characters`); return; }
 
     const updated = await prisma.communityReply.update({
       where: { id: q.params.id },
-      data: { content: content.trim(), isEdited: true },
+      data: { content: safeReplyEdit, isEdited: true },
       include: { user: { select: { fullName: true, avatarUrl: true, role: true } } },
     });
 
@@ -546,11 +567,15 @@ r.post('/polls', authenticate, requireModerator, async (q: AuthRequest, res: Res
       errorResponse(res, 'Question and at least 2 options are required');
       return;
     }
+    const safeQuestion = stripHtml(String(question)).slice(0, 500);
+    if (!safeQuestion) { errorResponse(res, 'Question is required'); return; }
+    const safeOptions = options.slice(0, 10).map((o: any) => stripHtml(String(o)).slice(0, 200)).filter(Boolean);
+    if (safeOptions.length < 2) { errorResponse(res, 'At least 2 valid options are required'); return; }
 
     const poll = await prisma.communityPoll.create({
       data: {
-        question,
-        options,
+        question: safeQuestion,
+        options: safeOptions,
         category: category || 'general',
         createdBy: q.user!.id,
         expiresAt: expiresAt ? new Date(expiresAt) : null,

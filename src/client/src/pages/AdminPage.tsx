@@ -4412,6 +4412,7 @@ export default function AdminPage() {
   const nav = useNavigate();
   const user = useAuthStore(s => s.user);
   const isAuthenticated = useAuthStore(s => s.isAuthenticated);
+  const clearAuth = useAuthStore(s => s.clearAuth);
 
   // Auth state (PIN is additional security layer on top of JWT auth)
   const [isUnlocked, setIsUnlocked] = useState(() => sessionStorage.getItem('sb_admin_unlocked') === '1');
@@ -5073,8 +5074,7 @@ export default function AdminPage() {
       if (msg.includes('Authentication') || msg.includes('Token') || msg.includes('Access denied') || e.response?.status === 401) {
         toast.error('Your session expired. Please log in again.');
         sessionStorage.removeItem('sb_admin_unlocked');
-        localStorage.removeItem('sb_token');
-        localStorage.removeItem('sb_refresh');
+        clearAuth();
         nav('/auth');
         return;
       }

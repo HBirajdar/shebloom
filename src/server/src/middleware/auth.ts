@@ -20,7 +20,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     const isBlacklisted = await cacheGet(`blacklist:${token}`);
     if (isBlacklisted) { res.status(401).json({ success: false, error: 'Token revoked' }); return; }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string; id: string; role: string };
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!, { algorithms: ['HS256'] }) as { userId: string; id: string; role: string };
 
     const uid = decoded.userId || decoded.id;
     let user = await cacheGet<any>(`user:${uid}:basic`);
@@ -62,7 +62,7 @@ export const optionalAuth = async (req: AuthRequest, _res: Response, next: NextF
       const token = h.slice(7);
       const isBlacklisted = await cacheGet(`blacklist:${token}`);
       if (!isBlacklisted) {
-        const d = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string; id: string; role: string };
+        const d = jwt.verify(token, process.env.JWT_SECRET!, { algorithms: ['HS256'] }) as { userId: string; id: string; role: string };
         const uid = d.userId || d.id;
         // Check if user is active (use cache like authenticate)
         let user = await cacheGet<any>(`user:${uid}:basic`);

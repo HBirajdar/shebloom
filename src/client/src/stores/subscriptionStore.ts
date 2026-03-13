@@ -81,6 +81,6 @@ export const useSubscriptionStore = create<SubscriptionState>()(
         return get().isPremium;
       },
     }),
-    { name: 'vedaclue-subscription', partialize: (s) => ({ subscription: s.subscription, isPremium: s.isPremium, lastFetched: s.lastFetched }) }
+    { name: 'vedaclue-subscription', partialize: (s) => ({ subscription: s.subscription, isPremium: s.isPremium }) }
   )
 );

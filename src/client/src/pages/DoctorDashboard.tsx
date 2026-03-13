@@ -29,7 +29,7 @@ function DoctorCommunityTab() {
   const [page, setPage] = useState(1);
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
   const [postDetail, setPostDetail] = useState<any>(null);
-  const [replyText, setReplyText] = useState('');
+  const [replyTexts, setReplyTexts] = useState<Record<string, string>>({});
   const [filterCat, setFilterCat] = useState('');
   const PAGE_SIZE = 15;
 
@@ -80,11 +80,12 @@ function DoctorCommunityTab() {
   };
 
   const handleReply = async (postId: string) => {
-    if (!replyText.trim()) return;
+    const text = replyTexts[postId] || '';
+    if (!text.trim()) return;
     try {
-      await communityAPI.reply(postId, { content: replyText.trim(), isAnonymous: false });
+      await communityAPI.reply(postId, { content: text.trim(), isAnonymous: false });
       toast.success('Reply posted as Doctor!');
-      setReplyText('');
+      setReplyTexts(prev => ({ ...prev, [postId]: '' }));
       fetchDetail(postId);
     } catch (e: any) { toast.error(e?.response?.data?.error || 'Failed to reply'); }
   };
@@ -205,7 +206,7 @@ function DoctorCommunityTab() {
                 <div className="bg-indigo-50 rounded-xl p-3 border border-indigo-100">
                   <p className="text-[9px] font-bold text-indigo-600 mb-1.5">{'\u{1F469}\u200D\u2695\uFE0F'} Reply as {user?.fullName || 'Doctor'}</p>
                   <div className="flex gap-2">
-                    <input value={replyText} onChange={e => setReplyText(e.target.value)}
+                    <input value={replyTexts[post.id] || ''} onChange={e => setReplyTexts(prev => ({ ...prev, [post.id]: e.target.value }))}
                       placeholder="Write your expert reply..."
                       onKeyDown={e => { if (e.key === 'Enter') handleReply(post.id); }}
                       className="flex-1 px-3 py-2 rounded-xl border border-indigo-200 text-xs focus:border-indigo-400 focus:outline-none bg-white" />

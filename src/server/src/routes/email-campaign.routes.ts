@@ -364,37 +364,47 @@ r.post('/:id/send', authenticate, requireAdmin, async (req: AuthRequest, res: Re
     const campaign = await prisma.emailCampaign.findUnique({ where: { id } });
     if (!campaign) return errorResponse(res, 'Campaign not found', 404);
 
-    // Prevent sending completed or already-sending campaigns
-    if (campaign.status === 'completed') {
-      return errorResponse(res, 'This campaign has already been completed', 400);
-    }
-
-    // Mark as sending to prevent double-send race condition
-    await prisma.emailCampaign.update({
-      where: { id },
+    // Atomic conditional update to prevent double-send race condition
+    // Only transition if status is NOT already 'sending' or 'completed'
+    const guard = await prisma.emailCampaign.updateMany({
+      where: { id, status: { notIn: ['completed', 'sending'] as any[] } },
       data: { status: 'sending' as any },
     });
+    if (guard.count === 0) {
+      return errorResponse(res, 'Campaign is already sending or completed', 400);
+    }
 
     const users = await getUsersBySegment(campaign.segment);
     if (users.length === 0) {
+      // Restore status since we didn't actually send
+      await prisma.emailCampaign.update({ where: { id }, data: { status: campaign.status } });
       return successResponse(res, { message: 'No users found for this segment', sentCount: 0 });
     }
 
     let sentCount = 0;
-    for (const user of users) {
-      if (!user.email) continue;
-      const sent = await sendCampaignEmail(user.email, campaign.subject, campaign.body);
-      if (sent) sentCount++;
-    }
+    try {
+      for (const user of users) {
+        if (!user.email) continue;
+        const sent = await sendCampaignEmail(user.email, campaign.subject, campaign.body);
+        if (sent) sentCount++;
+      }
 
-    await prisma.emailCampaign.update({
-      where: { id },
-      data: {
-        sentCount: { increment: sentCount },
-        lastSentAt: new Date(),
-        status: campaign.trigger === 'manual' ? 'completed' : campaign.status,
-      },
-    });
+      await prisma.emailCampaign.update({
+        where: { id },
+        data: {
+          sentCount: { increment: sentCount },
+          lastSentAt: new Date(),
+          status: campaign.trigger === 'manual' ? 'completed' : 'active',
+        },
+      });
+    } catch (sendErr) {
+      // Restore status on failure so campaign can be retried
+      await prisma.emailCampaign.update({
+        where: { id },
+        data: { status: campaign.status },
+      }).catch(() => {});
+      throw sendErr;
+    }
 
     return successResponse(res, {
       message: `Campaign sent to ${sentCount} of ${users.length} users`,

@@ -145,7 +145,14 @@ class SubscriptionService {
     }
 
     const now = new Date();
-    const hasTrial = plan.trialDays > 0 && opts.pricePaid > 0;
+    // Prevent trial abuse: only grant trial if user has never had one before
+    let hasTrial = plan.trialDays > 0 && opts.pricePaid > 0;
+    if (hasTrial) {
+      const prevTrials = await prisma.subscriptionEvent.count({
+        where: { userId, eventType: 'TRIAL_STARTED' },
+      });
+      if (prevTrials > 0) hasTrial = false;
+    }
 
     let trialStartDate: Date | null = null;
     let trialEndDate: Date | null = null;

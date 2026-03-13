@@ -27,7 +27,7 @@ r.get('/', async (q: Request, res: Response, n: NextFunction) => {
     if (q.query.featured === 'true') w.isFeatured = true;
     const articles = await prisma.article.findMany({
       where: w,
-      take: Number(q.query.limit) || 20,
+      take: Math.min(Number(q.query.limit) || 20, 50),
       skip: Number(q.query.offset) || 0,
       orderBy: { publishedAt: 'desc' },
       select: {
@@ -46,7 +46,7 @@ r.get('/', async (q: Request, res: Response, n: NextFunction) => {
 // ─── GET /articles/all — auth required, all articles ──
 r.get('/all', authenticate, async (_req: AuthRequest, res: Response, n: NextFunction) => {
   try {
-    const articles = await prisma.article.findMany({ orderBy: { createdAt: 'desc' } });
+    const articles = await prisma.article.findMany({ orderBy: { createdAt: 'desc' }, take: 200 });
     successResponse(res, articles);
   } catch (e) { n(e); }
 });
@@ -154,6 +154,8 @@ r.get('/:id/comments', async (q: Request, res: Response, n: NextFunction) => {
     const comments = await prisma.articleComment.findMany({
       where: { articleId: q.params.id },
       orderBy: { createdAt: 'desc' },
+      take: Math.min(Number(q.query.limit) || 50, 100),
+      skip: Number(q.query.offset) || 0,
       include: { user: { select: { id: true, fullName: true, role: true, avatarUrl: true } } },
     });
     successResponse(res, comments);
@@ -168,9 +170,11 @@ r.post('/:id/comments', authenticate, async (q: AuthRequest, res: Response, n: N
     }
     const { content } = q.body;
     if (!content?.trim()) { errorResponse(res, 'Comment content is required', 400); return; }
+    const safeComment = content.replace(/<[^>]*>/g, '').trim().slice(0, 5000);
+    if (!safeComment) { errorResponse(res, 'Comment content is required', 400); return; }
 
     const comment = await prisma.articleComment.create({
-      data: { userId: q.user!.id, articleId: q.params.id, content: content.trim() },
+      data: { userId: q.user!.id, articleId: q.params.id, content: safeComment },
       include: { user: { select: { id: true, fullName: true, role: true, avatarUrl: true } } },
     });
     successResponse(res, comment, 'Comment added', 201);

@@ -154,7 +154,7 @@ export default function CheckoutPage() {
               state: {
                 orderId: orderData.orderId,
                 orderNumber: orderData.orderNumber,
-                totalAmount,
+                totalAmount: orderData.amount / 100, // Use order data, not stale closure
                 deliveryAddress: address,
               },
             });

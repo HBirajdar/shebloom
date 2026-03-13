@@ -154,7 +154,7 @@ export default function HelpCenterPage() {
             ].map(link => (
               <button key={link.path} onClick={() => nav(link.path)}
                 className="w-full flex items-center gap-3 py-2.5 text-left active:bg-gray-50 transition-colors rounded-xl">
-                <span className="text-sm" dangerouslySetInnerHTML={{ __html: link.icon }} />
+                <span className="text-sm">{link.icon}</span>
                 <span className="flex-1 text-xs font-semibold text-gray-600">{link.label}</span>
                 <span className="text-gray-300 text-sm">&#8250;</span>
               </button>

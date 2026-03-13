@@ -53,7 +53,13 @@ router.post('/forgot-password', async (req: Request, res: Response, next: NextFu
 });
 
 router.post('/reset-password', async (req: Request, res: Response, next: NextFunction) => {
-  try { await auth.resetPassword(req.body.token, req.body.password); successResponse(res, null, 'Password reset'); } catch (e) { next(e); }
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) { res.status(400).json({ success: false, error: 'Token and password are required' }); return; }
+    if (typeof password !== 'string' || password.length < 8) { res.status(400).json({ success: false, error: 'Password must be at least 8 characters' }); return; }
+    await auth.resetPassword(token, password);
+    successResponse(res, null, 'Password reset');
+  } catch (e) { next(e); }
 });
 
 export default router;

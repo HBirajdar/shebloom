@@ -13,14 +13,19 @@ const cloudinaryReady = !!(
 const uploadsDir = path.resolve(__dirname, '../../uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
+// Sanitize filename to prevent path traversal
+function safeName(original: string): string {
+  return path.basename(original).replace(/[^a-zA-Z0-9._-]/g, '_');
+}
+
 const localImageStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadsDir),
-  filename: (_req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '_')),
+  filename: (_req, file, cb) => cb(null, Date.now() + '-' + safeName(file.originalname)),
 });
 
 const localVideoStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadsDir),
-  filename: (_req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '_')),
+  filename: (_req, file, cb) => cb(null, Date.now() + '-' + safeName(file.originalname)),
 });
 
 // ─── Build storage based on availability ───────────

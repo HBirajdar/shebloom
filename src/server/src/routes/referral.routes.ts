@@ -213,7 +213,7 @@ r.post('/apply', authenticate, async (req: AuthRequest, res: Response) => {
 
     const upperCode = code.trim().toUpperCase();
 
-    // Use a transaction to prevent race conditions (double-apply)
+    // Use a serializable transaction to prevent race conditions (double-apply)
     const result = await prisma.$transaction(async (tx) => {
       // Check if user has already been referred (inside transaction)
       const alreadyReferred = await tx.referral.findFirst({
@@ -251,7 +251,7 @@ r.post('/apply', authenticate, async (req: AuthRequest, res: Response) => {
       });
 
       return { success: true, referralId: updated.id, status: updated.status };
-    });
+    }, { isolationLevel: 'Serializable' });
 
     if ('error' in result) {
       return errorResponse(res, result.error as string, 400);

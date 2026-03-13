@@ -264,6 +264,10 @@ r.post('/create-order', async (q: AuthRequest, s: Response, n: NextFunction) => 
     let subtotal = 0;
 
     for (const item of items) {
+      // Validate quantity
+      if (!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 10) {
+        errorResponse(s, `Invalid quantity for product ${item.productId}. Must be 1-10.`, 400); return;
+      }
       const product = products.find((p: any) => p.id === item.productId);
       if (!product) { errorResponse(s, `Product not found: ${item.productId}`, 400); return; }
       if (!(product as any).inStock || (product as any).stock < item.quantity) {
@@ -348,15 +352,19 @@ r.post('/verify', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const { orderId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = q.body;
 
-    // Verify signature
+    // Verify signature (timing-safe to prevent timing attacks)
     const expectedSignature = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
       .update(razorpayOrderId + '|' + razorpayPaymentId)
       .digest('hex');
 
-    if (expectedSignature !== razorpaySignature) {
-      errorResponse(s, 'Payment verification failed', 400); return;
-    }
+    try {
+      const sigBuf = Buffer.from(razorpaySignature || '', 'hex');
+      const expBuf = Buffer.from(expectedSignature, 'hex');
+      if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+        errorResponse(s, 'Payment verification failed', 400); return;
+      }
+    } catch { errorResponse(s, 'Payment verification failed', 400); return; }
 
     // Fetch order with user — verify it belongs to the requesting user
     const order = await prisma.order.findFirst({
@@ -462,6 +470,10 @@ r.post('/cod', async (q: AuthRequest, s: Response, n: NextFunction) => {
     let subtotal = 0;
 
     for (const item of items) {
+      // Validate quantity
+      if (!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 10) {
+        errorResponse(s, `Invalid quantity for product ${item.productId}. Must be 1-10.`, 400); return;
+      }
       const product = products.find((p: any) => p.id === item.productId);
       if (!product) { errorResponse(s, `Product not found: ${item.productId}`, 400); return; }
       if (!(product as any).inStock || (product as any).stock < item.quantity) {
@@ -665,15 +677,19 @@ r.post('/verify-appointment', async (q: AuthRequest, s: Response, n: NextFunctio
     const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = q.body;
     const uid = q.user!.id;
 
-    // Verify signature
+    // Verify signature (timing-safe to prevent timing attacks)
     const expectedSignature = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
       .update(razorpayOrderId + '|' + razorpayPaymentId)
       .digest('hex');
 
-    if (expectedSignature !== razorpaySignature) {
-      errorResponse(s, 'Payment verification failed', 400); return;
-    }
+    try {
+      const sigBuf = Buffer.from(razorpaySignature || '', 'hex');
+      const expBuf = Buffer.from(expectedSignature, 'hex');
+      if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+        errorResponse(s, 'Payment verification failed', 400); return;
+      }
+    } catch { errorResponse(s, 'Payment verification failed', 400); return; }
 
     // Retrieve the Razorpay order to get coupon info from notes
     let rzpOrder: any = null;

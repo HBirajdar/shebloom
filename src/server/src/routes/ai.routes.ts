@@ -137,6 +137,10 @@ r.post('/chat', async (q: AuthRequest, s: Response, n: NextFunction) => {
       errorResponse(s, 'message is required', 400);
       return;
     }
+    if (message.length > 2000) {
+      errorResponse(s, 'Message must be under 2000 characters', 400);
+      return;
+    }
 
     const { cycleDay = 1, phase = 'FOLLICULAR', goal = 'wellness' } = context || {};
 

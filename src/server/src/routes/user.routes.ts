@@ -63,7 +63,9 @@ router.post('/me/email/send-otp', async (req: AuthRequest, res: Response) => {
       console.error('[Email OTP] Send failed:', e.message);
     }
 
-    console.log(`[OTP] Email verification for user ${req.user!.id}: email=${email} otp=${otp}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[OTP] Email verification for user ${req.user!.id}: email=${email} otp=${otp}`);
+    }
 
     successResponse(res, {}, 'Verification code sent to email');
   } catch (err: any) { errorResponse(res, err.message, 500); }
@@ -127,7 +129,9 @@ router.post('/me/mobile/send-otp', async (req: AuthRequest, res: Response) => {
     await prisma.otpStore.create({ data: { phone, otp, expiresAt } });
 
     // In production, send via SMS. For now log it.
-    console.log(`[OTP] Mobile verification for user ${req.user!.id}: phone=${phone} otp=${otp}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[OTP] Mobile verification for user ${req.user!.id}: phone=${phone} otp=${otp}`);
+    }
 
     // TODO: Send SMS via Twilio/AWS SNS
 

@@ -25,6 +25,8 @@ api.interceptors.request.use((c) => {
 // Global refresh lock — prevents multiple concurrent 401s from triggering parallel refreshes
 let refreshPromise: Promise<string | null> | null = null;
 
+let isRedirecting = false;
+
 async function refreshToken(): Promise<string | null> {
   const rt = localStorage.getItem('sb_refresh');
   if (!rt) return null;
@@ -35,10 +37,17 @@ async function refreshToken(): Promise<string | null> {
     localStorage.setItem('sb_refresh', resp.data.data.refreshToken);
     return newToken;
   } catch {
+    // Clear all auth data on refresh failure
     localStorage.removeItem('sb_token');
     localStorage.removeItem('sb_refresh');
-    // Defer redirect so pending requests resolve with proper error instead of being aborted
-    setTimeout(() => { window.location.href = '/auth'; }, 100);
+    localStorage.removeItem('vedaclue-auth');
+    localStorage.removeItem('vedaclue-subscription');
+    localStorage.removeItem('vedaclue-cycle');
+    // Redirect once (prevent multiple concurrent redirects)
+    if (!isRedirecting) {
+      isRedirecting = true;
+      setTimeout(() => { window.location.href = '/auth'; }, 100);
+    }
     return null;
   }
 }
