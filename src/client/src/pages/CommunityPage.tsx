@@ -81,6 +81,10 @@ export default function CommunityPage() {
   const [reportTarget, setReportTarget] = useState<{ type: 'post' | 'reply'; id: string } | null>(null);
   const [reportReason, setReportReason] = useState('');
 
+  // Edit modal
+  const [editTarget, setEditTarget] = useState<{ type: 'post' | 'reply'; id: string; content: string } | null>(null);
+  const [editContent, setEditContent] = useState('');
+
   // ─── Fetch posts ───
   const fetchPosts = useCallback(async () => {
     try {
@@ -231,6 +235,55 @@ export default function CommunityPage() {
   const deleteReply = async (id: string) => {
     try {
       await communityAPI.deleteReply(id);
+      toast.success('Reply deleted');
+      if (expandedPost) fetchPostDetail(expandedPost);
+    } catch (err: any) { toast.error(err.response?.data?.error || 'Failed'); }
+  };
+
+  // ─── Owner edit/delete (within 30 min) ───
+  const EDIT_WINDOW_MS = 30 * 60 * 1000;
+  const canEdit = (item: any) => {
+    if (!user) return false;
+    if (item.userId !== user.id) return false;
+    return (Date.now() - new Date(item.createdAt).getTime()) < EDIT_WINDOW_MS;
+  };
+  const minsLeft = (item: any) => {
+    const elapsed = Date.now() - new Date(item.createdAt).getTime();
+    return Math.max(0, Math.ceil((EDIT_WINDOW_MS - elapsed) / 60000));
+  };
+
+  const startEdit = (type: 'post' | 'reply', id: string, content: string) => {
+    setEditTarget({ type, id, content });
+    setEditContent(content);
+  };
+  const submitEdit = async () => {
+    if (!editTarget || !editContent.trim()) return;
+    try {
+      if (editTarget.type === 'post') {
+        await communityAPI.editPost(editTarget.id, { content: editContent.trim() });
+        fetchPosts();
+      } else {
+        await communityAPI.editReply(editTarget.id, { content: editContent.trim() });
+        if (expandedPost) fetchPostDetail(expandedPost);
+      }
+      toast.success('Updated!');
+      setEditTarget(null); setEditContent('');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to update');
+    }
+  };
+  const deleteOwnPost = async (id: string) => {
+    if (!confirm('Delete your post?')) return;
+    try {
+      await communityAPI.deleteOwnPost(id);
+      toast.success('Post deleted');
+      fetchPosts();
+    } catch (err: any) { toast.error(err.response?.data?.error || 'Failed'); }
+  };
+  const deleteOwnReply = async (id: string) => {
+    if (!confirm('Delete your reply?')) return;
+    try {
+      await communityAPI.deleteOwnReply(id);
       toast.success('Reply deleted');
       if (expandedPost) fetchPostDetail(expandedPost);
     } catch (err: any) { toast.error(err.response?.data?.error || 'Failed'); }
@@ -475,6 +528,18 @@ export default function CommunityPage() {
                   <button onClick={() => setReportTarget({ type: 'post', id: post.id })} className="text-[10px] text-gray-400 active:scale-95 transition-transform">
                     🚩
                   </button>
+                  {/* Owner edit/delete (within 30 min) */}
+                  {canEdit(post) && (
+                    <>
+                      <button onClick={() => startEdit('post', post.id, post.content)} className="text-[9px] text-blue-500 font-bold active:scale-95">
+                        ✏️ Edit
+                      </button>
+                      <button onClick={() => deleteOwnPost(post.id)} className="text-[9px] text-red-400 font-bold active:scale-95">
+                        🗑️ Delete
+                      </button>
+                      <span className="text-[8px] text-gray-300">{minsLeft(post)}m left</span>
+                    </>
+                  )}
                   {/* Moderation buttons */}
                   {isModerator && (
                     <button onClick={() => hidePost(post.id)} className="text-[9px] text-orange-500 font-bold active:scale-95 ml-auto">
@@ -504,8 +569,16 @@ export default function CommunityPage() {
                           <span className="text-[9px] text-gray-400">{timeAgo(reply.createdAt)}</span>
                         </div>
                         <p className="text-xs text-gray-700 leading-relaxed">{reply.content}</p>
-                        <div className="flex items-center gap-2 mt-1.5">
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                           <button onClick={() => setReportTarget({ type: 'reply', id: reply.id })} className="text-[9px] text-gray-400 active:scale-95">🚩</button>
+                          {/* Owner edit/delete reply (within 30 min) */}
+                          {canEdit(reply) && (
+                            <>
+                              <button onClick={() => startEdit('reply', reply.id, reply.content)} className="text-[8px] text-blue-500 font-bold active:scale-95">✏️ Edit</button>
+                              <button onClick={() => deleteOwnReply(reply.id)} className="text-[8px] text-red-400 font-bold active:scale-95">🗑️</button>
+                              <span className="text-[7px] text-gray-300">{minsLeft(reply)}m</span>
+                            </>
+                          )}
                           {isModerator && (
                             <button onClick={() => hideReply(reply.id)} className="text-[8px] text-orange-500 font-bold active:scale-95">Hide</button>
                           )}
@@ -604,6 +677,26 @@ export default function CommunityPage() {
               <button onClick={submitReport} disabled={!reportReason}
                 className="flex-1 py-2.5 rounded-xl bg-rose-500 text-white text-xs font-bold disabled:opacity-40">
                 Submit Report
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Edit Modal ─── */}
+      {editTarget && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end justify-center" onClick={() => setEditTarget(null)}>
+          <div className="bg-white w-full max-w-[430px] rounded-t-3xl p-6" onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4" />
+            <h3 className="text-sm font-extrabold text-gray-900 mb-1">Edit {editTarget.type} ✏️</h3>
+            <p className="text-[9px] text-gray-400 mb-3">You can edit within 30 minutes of posting</p>
+            <textarea value={editContent} onChange={e => setEditContent(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 focus:outline-none resize-none" rows={4} autoFocus />
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setEditTarget(null)} className="flex-1 py-3 rounded-2xl bg-gray-100 text-gray-600 font-bold text-sm">Cancel</button>
+              <button onClick={submitEdit} disabled={!editContent.trim() || editContent.trim() === editTarget.content}
+                className="flex-1 py-3 rounded-2xl bg-blue-500 text-white font-bold text-sm disabled:opacity-40 active:scale-95">
+                Save Changes
               </button>
             </div>
           </div>

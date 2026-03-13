@@ -344,6 +344,99 @@ r.post('/polls/:id/vote', authenticate, async (q: AuthRequest, res: Response, n:
 });
 
 // ═══════════════════════════════════════════════════════
+// OWNER EDIT / DELETE (within 30 min)
+// ═══════════════════════════════════════════════════════
+
+const EDIT_WINDOW_MS = 30 * 60 * 1000; // 30 minutes
+
+// ─── PATCH /posts/:id — edit own post ────────────────
+r.patch('/posts/:id', authenticate, async (q: AuthRequest, res: Response, n: NextFunction) => {
+  try {
+    const userId = q.user!.id;
+    const post = await prisma.communityPost.findUnique({ where: { id: q.params.id } });
+    if (!post) { errorResponse(res, 'Post not found', 404); return; }
+    if (post.userId !== userId) { errorResponse(res, 'You can only edit your own posts', 403); return; }
+
+    const elapsed = Date.now() - new Date(post.createdAt).getTime();
+    if (elapsed > EDIT_WINDOW_MS) { errorResponse(res, 'Edit window expired (30 minutes)', 403); return; }
+
+    const { content } = q.body;
+    if (!content || !content.trim()) { errorResponse(res, 'Content is required'); return; }
+
+    const updated = await prisma.communityPost.update({
+      where: { id: q.params.id },
+      data: { content: content.trim() },
+      include: { user: { select: { fullName: true, avatarUrl: true, role: true } } },
+    });
+
+    successResponse(res, sanitizeAuthor(updated, q.user!.role), 'Post updated');
+  } catch (e) { n(e); }
+});
+
+// ─── DELETE /posts/:id/own — delete own post ─────────
+r.delete('/posts/:id/own', authenticate, async (q: AuthRequest, res: Response, n: NextFunction) => {
+  try {
+    const userId = q.user!.id;
+    const post = await prisma.communityPost.findUnique({ where: { id: q.params.id } });
+    if (!post) { errorResponse(res, 'Post not found', 404); return; }
+    if (post.userId !== userId) { errorResponse(res, 'You can only delete your own posts', 403); return; }
+
+    const elapsed = Date.now() - new Date(post.createdAt).getTime();
+    if (elapsed > EDIT_WINDOW_MS) { errorResponse(res, 'Delete window expired (30 minutes)', 403); return; }
+
+    await prisma.communityPost.delete({ where: { id: q.params.id } });
+    successResponse(res, null, 'Post deleted');
+  } catch (e) { n(e); }
+});
+
+// ─── PATCH /replies/:id — edit own reply ─────────────
+r.patch('/replies/:id', authenticate, async (q: AuthRequest, res: Response, n: NextFunction) => {
+  try {
+    const userId = q.user!.id;
+    const reply = await prisma.communityReply.findUnique({ where: { id: q.params.id } });
+    if (!reply) { errorResponse(res, 'Reply not found', 404); return; }
+    if (reply.userId !== userId) { errorResponse(res, 'You can only edit your own replies', 403); return; }
+
+    const elapsed = Date.now() - new Date(reply.createdAt).getTime();
+    if (elapsed > EDIT_WINDOW_MS) { errorResponse(res, 'Edit window expired (30 minutes)', 403); return; }
+
+    const { content } = q.body;
+    if (!content || !content.trim()) { errorResponse(res, 'Content is required'); return; }
+
+    const updated = await prisma.communityReply.update({
+      where: { id: q.params.id },
+      data: { content: content.trim() },
+      include: { user: { select: { fullName: true, avatarUrl: true, role: true } } },
+    });
+
+    successResponse(res, sanitizeAuthor(updated, q.user!.role), 'Reply updated');
+  } catch (e) { n(e); }
+});
+
+// ─── DELETE /replies/:id/own — delete own reply ──────
+r.delete('/replies/:id/own', authenticate, async (q: AuthRequest, res: Response, n: NextFunction) => {
+  try {
+    const userId = q.user!.id;
+    const reply = await prisma.communityReply.findUnique({ where: { id: q.params.id } });
+    if (!reply) { errorResponse(res, 'Reply not found', 404); return; }
+    if (reply.userId !== userId) { errorResponse(res, 'You can only delete your own replies', 403); return; }
+
+    const elapsed = Date.now() - new Date(reply.createdAt).getTime();
+    if (elapsed > EDIT_WINDOW_MS) { errorResponse(res, 'Delete window expired (30 minutes)', 403); return; }
+
+    await prisma.$transaction([
+      prisma.communityReply.delete({ where: { id: q.params.id } }),
+      prisma.communityPost.update({
+        where: { id: reply.postId },
+        data: { replyCount: { decrement: 1 } },
+      }),
+    ]);
+
+    successResponse(res, null, 'Reply deleted');
+  } catch (e) { n(e); }
+});
+
+// ═══════════════════════════════════════════════════════
 // ADMIN / DOCTOR MODERATION
 // ═══════════════════════════════════════════════════════
 

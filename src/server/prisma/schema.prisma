@@ -1502,6 +1502,7 @@ model CommunityReply {
   likeCount   Int      @default(0)
   reportCount Int      @default(0)
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   post    CommunityPost    @relation(fields: [postId], references: [id], onDelete: Cascade)
   user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)

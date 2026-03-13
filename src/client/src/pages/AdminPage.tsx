@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { adminAPI, doshaAPI, financeAPI } from '../services/api';
+import { adminAPI, doshaAPI, financeAPI, communityAPI } from '../services/api';
 import ImageUpload from '../components/ImageUpload';
 
 // Adapter: normalises axios { data: { success, data: X } } → { success, data: X }
@@ -177,7 +177,7 @@ const FormCheckbox = ({ label, checked, onChange }: { label: string; checked: bo
 );
 type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'NO_SHOW' | 'CANCELLED';
 
-type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness' | 'programs' | 'add_program' | 'edit_program' | 'program_content' | 'sellers' | 'seller_detail' | 'seller_payouts' | 'add_seller';
+type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness' | 'programs' | 'add_program' | 'edit_program' | 'program_content' | 'sellers' | 'seller_detail' | 'seller_payouts' | 'add_seller' | 'community';
 
 // ─── Finance Admin Tab ──────────────────────────────────
 // Platform config, coupons, revenue analytics — like Practo/Zomato/Amazon admin
@@ -597,6 +597,368 @@ function FinanceTab() {
 
 // ─── Audit Log Tab ──────────────────────────────────────
 // Immutable payment ledger — revenue summary, filterable events, CSV export
+// ─── Community Moderation Tab ─────────────────────────
+function CommunityTab() {
+  const [subTab, setSubTab] = useState<'posts' | 'reports' | 'polls'>('posts');
+  const [posts, setPosts] = useState<any[]>([]);
+  const [reports, setReports] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [totalPosts, setTotalPosts] = useState(0);
+  const [totalReports, setTotalReports] = useState(0);
+  const [postPage, setPostPage] = useState(1);
+  const [reportPage, setReportPage] = useState(1);
+  const [expandedPost, setExpandedPost] = useState<string | null>(null);
+  const [postDetail, setPostDetail] = useState<any>(null);
+
+  // Poll creation
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState(['', '']);
+  const [pollCategory, setPollCategory] = useState('general');
+  const [creatingPoll, setCreatingPoll] = useState(false);
+
+  const PAGE_SIZE = 15;
+
+  const fetchPosts = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await communityAPI.listPosts({ limit: PAGE_SIZE, offset: (postPage - 1) * PAGE_SIZE });
+      const d = res.data?.data;
+      setPosts(d?.posts || []);
+      setTotalPosts(d?.total || 0);
+    } catch { /* silent */ } finally { setLoading(false); }
+  }, [postPage]);
+
+  const fetchReports = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await communityAPI.getReports({ limit: PAGE_SIZE, offset: (reportPage - 1) * PAGE_SIZE });
+      const d = res.data?.data;
+      setReports(d?.reports || []);
+      setTotalReports(d?.total || 0);
+    } catch { /* silent */ } finally { setLoading(false); }
+  }, [reportPage]);
+
+  useEffect(() => { if (subTab === 'posts') fetchPosts(); }, [subTab, fetchPosts]);
+  useEffect(() => { if (subTab === 'reports') fetchReports(); }, [subTab, fetchReports]);
+
+  const fetchDetail = async (id: string) => {
+    try {
+      const res = await communityAPI.getPost(id);
+      setPostDetail(res.data?.data || null);
+    } catch { /* silent */ }
+  };
+
+  const handleExpand = (id: string) => {
+    if (expandedPost === id) { setExpandedPost(null); setPostDetail(null); return; }
+    setExpandedPost(id);
+    fetchDetail(id);
+  };
+
+  // Moderation actions
+  const handleHidePost = async (id: string, currentlyHidden: boolean) => {
+    try {
+      await communityAPI.hidePost(id, { hidden: !currentlyHidden });
+      fetchPosts();
+      if (expandedPost === id) fetchDetail(id);
+    } catch { /* silent */ }
+  };
+  const handleDeletePost = async (id: string) => {
+    if (!confirm('Permanently delete this post and all its replies?')) return;
+    try { await communityAPI.deletePost(id); fetchPosts(); setExpandedPost(null); } catch { /* silent */ }
+  };
+  const handlePinPost = async (id: string) => {
+    try { await communityAPI.pinPost(id); fetchPosts(); } catch { /* silent */ }
+  };
+  const handleHideReply = async (id: string, currentlyHidden: boolean) => {
+    try {
+      await communityAPI.hideReply(id, { hidden: !currentlyHidden });
+      if (expandedPost) fetchDetail(expandedPost);
+    } catch { /* silent */ }
+  };
+  const handleDeleteReply = async (id: string) => {
+    if (!confirm('Permanently delete this reply?')) return;
+    try { await communityAPI.deleteReply(id); if (expandedPost) fetchDetail(expandedPost); } catch { /* silent */ }
+  };
+  const handleReportAction = async (reportId: string, status: string) => {
+    try { await communityAPI.updateReport(reportId, { status }); fetchReports(); } catch { /* silent */ }
+  };
+
+  // Poll creation
+  const handleCreatePoll = async () => {
+    const validOptions = pollOptions.filter(o => o.trim());
+    if (!pollQuestion.trim() || validOptions.length < 2) return;
+    try {
+      setCreatingPoll(true);
+      await communityAPI.createPoll({
+        question: pollQuestion.trim(),
+        options: validOptions.map((label, i) => ({ id: `opt_${i}`, label: label.trim() })),
+        category: pollCategory,
+      });
+      setPollQuestion(''); setPollOptions(['', '']); setPollCategory('general');
+      alert('Poll created successfully!');
+    } catch { alert('Failed to create poll'); } finally { setCreatingPoll(false); }
+  };
+
+  const timeAgo = (d: string) => {
+    const diff = Date.now() - new Date(d).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  };
+
+  const totalPostPages = Math.ceil(totalPosts / PAGE_SIZE);
+  const totalReportPages = Math.ceil(totalReports / PAGE_SIZE);
+
+  return (
+    <>
+      <h3 className="text-base font-extrabold text-gray-900">{'\u{1F4AC}'} Community Moderation</h3>
+
+      {/* Sub-tabs */}
+      <div className="flex gap-2 mb-4">
+        {(['posts', 'reports', 'polls'] as const).map(t => (
+          <button key={t} onClick={() => setSubTab(t)}
+            className={'px-4 py-2 rounded-xl text-xs font-bold transition-all ' + (subTab === t ? 'bg-rose-500 text-white shadow-sm' : 'bg-gray-100 text-gray-500')}>
+            {t === 'posts' ? '📝 All Posts' : t === 'reports' ? '🚩 Reports' : '🗳️ Create Poll'}
+          </button>
+        ))}
+      </div>
+
+      {/* ──── POSTS TAB ──── */}
+      {subTab === 'posts' && (
+        <div className="space-y-3">
+          <p className="text-[10px] text-gray-400 font-bold">{totalPosts} total posts</p>
+          {loading ? (
+            <div className="text-center py-10"><div className="w-6 h-6 border-2 border-rose-400 border-t-transparent rounded-full animate-spin mx-auto" /></div>
+          ) : posts.length === 0 ? (
+            <p className="text-center text-sm text-gray-400 py-10">No posts yet</p>
+          ) : posts.map(post => (
+            <div key={post.id} className={'bg-white rounded-2xl shadow-sm overflow-hidden ' + (post.isHidden ? 'opacity-60 border border-red-200' : '') + (post.isPinned ? ' ring-1 ring-amber-300' : '')}>
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    {post.isPinned && <span className="text-[8px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">{'\u{1F4CC}'} Pinned</span>}
+                    {post.isHidden && <span className="text-[8px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold">{'\u{1F6AB}'} Hidden</span>}
+                    <span className="text-[8px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-bold">{post.category}</span>
+                    {post.isAnonymous && <span className="text-[8px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full font-bold">{'\u{1F3AD}'} Anon</span>}
+                  </div>
+                  <span className="text-[9px] text-gray-400">{timeAgo(post.createdAt)}</span>
+                </div>
+
+                {/* Author — admin sees real name even for anonymous */}
+                <p className="text-[10px] font-bold text-gray-500 mb-1">
+                  {post.user?.fullName || 'Unknown'} {post.user?.role === 'DOCTOR' ? '(Doctor)' : ''}
+                </p>
+                <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">{post.content}</p>
+
+                {/* Stats + Actions */}
+                <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-100 flex-wrap">
+                  <span className="text-[10px] text-gray-400">{'\u2764\uFE0F'} {post.likeCount || 0}</span>
+                  <button onClick={() => handleExpand(post.id)} className="text-[10px] text-blue-500 font-bold active:scale-95">
+                    {'\u{1F4AC}'} {post.replyCount || 0} replies {expandedPost === post.id ? '▲' : '▼'}
+                  </button>
+                  {post.reportCount > 0 && <span className="text-[10px] text-red-500 font-bold">{'\u{1F6A9}'} {post.reportCount} reports</span>}
+
+                  <div className="ml-auto flex gap-2">
+                    <button onClick={() => handlePinPost(post.id)} className={'text-[9px] font-bold px-2 py-1 rounded-lg active:scale-95 ' + (post.isPinned ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500')}>
+                      {post.isPinned ? 'Unpin' : 'Pin'}
+                    </button>
+                    <button onClick={() => handleHidePost(post.id, post.isHidden)} className={'text-[9px] font-bold px-2 py-1 rounded-lg active:scale-95 ' + (post.isHidden ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700')}>
+                      {post.isHidden ? 'Unhide' : 'Hide'}
+                    </button>
+                    <button onClick={() => handleDeletePost(post.id)} className="text-[9px] font-bold px-2 py-1 rounded-lg bg-red-100 text-red-600 active:scale-95">
+                      Delete
+                    </button>
+                  </div>
+                </div>
+
+                {/* Expanded replies */}
+                {expandedPost === post.id && postDetail && (
+                  <div className="mt-3 space-y-2 border-t border-gray-100 pt-3">
+                    {(postDetail.replies || []).length === 0 ? (
+                      <p className="text-[10px] text-gray-400 text-center py-3">No replies yet</p>
+                    ) : (postDetail.replies || []).map((reply: any) => (
+                      <div key={reply.id} className={'rounded-xl p-3 ' + (reply.isHidden ? 'bg-red-50 border border-red-200 opacity-60' : reply.isDoctor ? 'bg-emerald-50 border border-emerald-100' : 'bg-gray-50')}>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className={'text-[10px] font-bold ' + (reply.isDoctor ? 'text-emerald-700' : 'text-gray-600')}>
+                              {reply.user?.fullName || 'Anonymous'}
+                            </span>
+                            {reply.isDoctor && <span className="text-[7px] font-bold bg-emerald-200 text-emerald-800 px-1 py-0.5 rounded">{'\u2713'} Doctor</span>}
+                            {reply.isHidden && <span className="text-[7px] font-bold bg-red-200 text-red-800 px-1 py-0.5 rounded">Hidden</span>}
+                            <span className="text-[9px] text-gray-400">{timeAgo(reply.createdAt)}</span>
+                          </div>
+                          <div className="flex gap-1.5">
+                            <button onClick={() => handleHideReply(reply.id, reply.isHidden)} className={'text-[8px] font-bold px-1.5 py-0.5 rounded active:scale-95 ' + (reply.isHidden ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700')}>
+                              {reply.isHidden ? 'Unhide' : 'Hide'}
+                            </button>
+                            <button onClick={() => handleDeleteReply(reply.id)} className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-red-100 text-red-600 active:scale-95">
+                              Del
+                            </button>
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-700 leading-relaxed">{reply.content}</p>
+                        {reply.reportCount > 0 && <span className="text-[9px] text-red-500 font-bold mt-1 inline-block">{'\u{1F6A9}'} {reply.reportCount} reports</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {/* Pagination */}
+          {totalPostPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-4">
+              <button onClick={() => setPostPage(p => Math.max(1, p - 1))} disabled={postPage === 1}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 text-gray-500 disabled:opacity-30">{'\u2190'} Prev</button>
+              <span className="text-xs text-gray-500 font-bold">{postPage} / {totalPostPages}</span>
+              <button onClick={() => setPostPage(p => Math.min(totalPostPages, p + 1))} disabled={postPage === totalPostPages}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 text-gray-500 disabled:opacity-30">Next {'\u2192'}</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ──── REPORTS TAB ──── */}
+      {subTab === 'reports' && (
+        <div className="space-y-3">
+          <p className="text-[10px] text-gray-400 font-bold">{totalReports} total reports</p>
+          {loading ? (
+            <div className="text-center py-10"><div className="w-6 h-6 border-2 border-rose-400 border-t-transparent rounded-full animate-spin mx-auto" /></div>
+          ) : reports.length === 0 ? (
+            <div className="text-center py-10">
+              <span className="text-3xl">{'\u2705'}</span>
+              <p className="text-sm text-gray-400 mt-2 font-bold">No reports to review</p>
+            </div>
+          ) : reports.map(report => (
+            <div key={report.id} className="bg-white rounded-2xl shadow-sm p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className={'text-[8px] font-bold px-1.5 py-0.5 rounded-full ' +
+                    (report.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                     report.status === 'ACTION_TAKEN' ? 'bg-red-100 text-red-700' :
+                     report.status === 'DISMISSED' ? 'bg-gray-100 text-gray-500' :
+                     'bg-blue-100 text-blue-700')}>
+                    {report.status}
+                  </span>
+                  <span className="text-[9px] text-gray-400">{timeAgo(report.createdAt)}</span>
+                </div>
+              </div>
+
+              <p className="text-[10px] font-bold text-gray-500 mb-1">
+                Reported by: {report.user?.fullName || 'Unknown'}
+              </p>
+              <p className="text-xs font-bold text-red-600 mb-1">{'\u{1F6A9}'} Reason: {report.reason}</p>
+              {report.details && <p className="text-[10px] text-gray-500 mb-2">Details: {report.details}</p>}
+
+              {/* Reported content preview */}
+              <div className="bg-gray-50 rounded-xl p-3 mb-3">
+                <p className="text-[9px] text-gray-400 font-bold mb-1">
+                  {report.post ? 'Reported Post' : 'Reported Reply'}
+                </p>
+                <p className="text-xs text-gray-700 line-clamp-3">
+                  {report.post?.content || report.reply?.content || 'Content unavailable'}
+                </p>
+              </div>
+
+              {/* Actions */}
+              {report.status === 'PENDING' && (
+                <div className="flex gap-2">
+                  <button onClick={() => handleReportAction(report.id, 'REVIEWED')}
+                    className="flex-1 py-2 rounded-xl bg-blue-100 text-blue-700 text-[10px] font-bold active:scale-95">
+                    Mark Reviewed
+                  </button>
+                  <button onClick={() => handleReportAction(report.id, 'ACTION_TAKEN')}
+                    className="flex-1 py-2 rounded-xl bg-red-100 text-red-700 text-[10px] font-bold active:scale-95">
+                    Action Taken
+                  </button>
+                  <button onClick={() => handleReportAction(report.id, 'DISMISSED')}
+                    className="flex-1 py-2 rounded-xl bg-gray-100 text-gray-500 text-[10px] font-bold active:scale-95">
+                    Dismiss
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* Pagination */}
+          {totalReportPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-4">
+              <button onClick={() => setReportPage(p => Math.max(1, p - 1))} disabled={reportPage === 1}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 text-gray-500 disabled:opacity-30">{'\u2190'} Prev</button>
+              <span className="text-xs text-gray-500 font-bold">{reportPage} / {totalReportPages}</span>
+              <button onClick={() => setReportPage(p => Math.min(totalReportPages, p + 1))} disabled={reportPage === totalReportPages}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 text-gray-500 disabled:opacity-30">Next {'\u2192'}</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ──── CREATE POLL TAB ──── */}
+      {subTab === 'polls' && (
+        <div className="bg-white rounded-2xl shadow-sm p-5 space-y-4">
+          <h4 className="text-sm font-bold text-gray-700">{'\u{1F5F3}\uFE0F'} Create New Poll</h4>
+          <p className="text-[10px] text-gray-400">Polls appear on the Community page for all users to vote.</p>
+
+          <div>
+            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Question</label>
+            <input value={pollQuestion} onChange={e => setPollQuestion(e.target.value)}
+              placeholder="e.g. How was your energy this week?"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none" />
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Category</label>
+            <select value={pollCategory} onChange={e => setPollCategory(e.target.value)}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none">
+              <option value="general">General</option>
+              <option value="periods">Periods</option>
+              <option value="pcod">PCOD/PCOS</option>
+              <option value="fertility">Fertility</option>
+              <option value="pregnancy">Pregnancy</option>
+              <option value="mental_health">Mental Health</option>
+              <option value="ayurveda">Ayurveda</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Options (min 2)</label>
+            {pollOptions.map((opt, i) => (
+              <div key={i} className="flex gap-2 mb-2">
+                <input value={opt} onChange={e => {
+                  const next = [...pollOptions];
+                  next[i] = e.target.value;
+                  setPollOptions(next);
+                }}
+                  placeholder={`Option ${i + 1}`}
+                  className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none" />
+                {pollOptions.length > 2 && (
+                  <button onClick={() => setPollOptions(pollOptions.filter((_, j) => j !== i))}
+                    className="text-red-400 text-sm font-bold px-2">{'\u2715'}</button>
+                )}
+              </div>
+            ))}
+            {pollOptions.length < 6 && (
+              <button onClick={() => setPollOptions([...pollOptions, ''])}
+                className="text-[10px] text-rose-500 font-bold active:scale-95">
+                + Add Option
+              </button>
+            )}
+          </div>
+
+          <button onClick={handleCreatePoll} disabled={creatingPoll || !pollQuestion.trim() || pollOptions.filter(o => o.trim()).length < 2}
+            className="w-full py-3 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold text-sm disabled:opacity-40 active:scale-95 shadow-sm">
+            {creatingPoll ? 'Creating...' : 'Create Poll'}
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
 function AuditLogTab() {
   const [summary, setSummary] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
@@ -2040,6 +2402,7 @@ export default function AdminPage() {
     { id: 'finance', icon: '🏦', label: 'Finance' },
     { id: 'audit_log', icon: '\u{1F4CB}', label: 'Audit Log' },
     { id: 'sellers', icon: '🏪', label: 'Sellers' },
+    { id: 'community', icon: '💬', label: 'Community' },
   ];
 
   const roleBadge = (role: string) => {
@@ -4341,6 +4704,9 @@ export default function AdminPage() {
 
           {/* ════════ AUDIT LOG ════════ */}
           {tab === 'audit_log' && (<AuditLogTab />)}
+
+          {/* ════════ COMMUNITY MODERATION ════════ */}
+          {tab === 'community' && (<CommunityTab />)}
 
           {/* ════════ SETTINGS ════════ */}
           {tab === 'settings' && (<>

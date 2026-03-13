@@ -447,8 +447,12 @@ export const communityAPI = {
   listPosts: (params?: any) => api.get('/community/posts', { params }),
   getPost: (id: string) => api.get(`/community/posts/${id}`),
   createPost: (d: any) => api.post('/community/posts', d),
+  editPost: (id: string, d: any) => api.patch(`/community/posts/${id}`, d),
+  deleteOwnPost: (id: string) => api.delete(`/community/posts/${id}/own`),
   // Replies
   reply: (postId: string, d: any) => api.post(`/community/posts/${postId}/replies`, d),
+  editReply: (id: string, d: any) => api.patch(`/community/replies/${id}`, d),
+  deleteOwnReply: (id: string) => api.delete(`/community/replies/${id}/own`),
   // Likes
   likePost: (id: string) => api.post(`/community/posts/${id}/like`),
   likeReply: (id: string) => api.post(`/community/replies/${id}/like`),

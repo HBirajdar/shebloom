@@ -2,10 +2,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { doctorDashAPI, prescriptionAPI, doshaAPI } from '../services/api';
+import { doctorDashAPI, prescriptionAPI, doshaAPI, communityAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
-type Tab = 'overview' | 'appointments' | 'availability' | 'prescriptions' | 'articles' | 'profile' | 'reviews' | 'ayurveda' | 'earnings';
+type Tab = 'overview' | 'appointments' | 'availability' | 'prescriptions' | 'articles' | 'profile' | 'reviews' | 'ayurveda' | 'earnings' | 'community';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -19,6 +19,221 @@ const STATUS_COLORS: Record<string, string> = {
   CANCELLED:   'bg-red-100 text-red-600',
   NO_SHOW:     'bg-gray-100 text-gray-600',
 };
+
+// ─── Doctor Community Moderation Tab ──────────────────
+function DoctorCommunityTab() {
+  const user = useAuthStore(s => s.user);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [expandedPost, setExpandedPost] = useState<string | null>(null);
+  const [postDetail, setPostDetail] = useState<any>(null);
+  const [replyText, setReplyText] = useState('');
+  const [filterCat, setFilterCat] = useState('');
+  const PAGE_SIZE = 15;
+
+  const CATS = ['', 'periods', 'pcod', 'fertility', 'pregnancy', 'menopause', 'mental_health', 'ayurveda', 'hair_skin', 'ask_doctor'];
+
+  const fetchPosts = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params: any = { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE };
+      if (filterCat) params.category = filterCat;
+      const res = await communityAPI.listPosts(params);
+      const d = res.data?.data;
+      setPosts(d?.posts || []);
+      setTotal(d?.total || 0);
+    } catch { /* silent */ } finally { setLoading(false); }
+  }, [page, filterCat]);
+
+  useEffect(() => { fetchPosts(); }, [fetchPosts]);
+
+  const fetchDetail = async (id: string) => {
+    try {
+      const res = await communityAPI.getPost(id);
+      setPostDetail(res.data?.data || null);
+    } catch { /* silent */ }
+  };
+
+  const handleExpand = (id: string) => {
+    if (expandedPost === id) { setExpandedPost(null); setPostDetail(null); return; }
+    setExpandedPost(id);
+    fetchDetail(id);
+  };
+
+  const handleHidePost = async (id: string, hidden: boolean) => {
+    try {
+      await communityAPI.hidePost(id, { hidden: !hidden });
+      toast.success(hidden ? 'Post unhidden' : 'Post hidden');
+      fetchPosts();
+      if (expandedPost === id) fetchDetail(id);
+    } catch (e: any) { toast.error(e?.response?.data?.error || 'Failed'); }
+  };
+
+  const handleHideReply = async (id: string, hidden: boolean) => {
+    try {
+      await communityAPI.hideReply(id, { hidden: !hidden });
+      toast.success(hidden ? 'Reply unhidden' : 'Reply hidden');
+      if (expandedPost) fetchDetail(expandedPost);
+    } catch (e: any) { toast.error(e?.response?.data?.error || 'Failed'); }
+  };
+
+  const handleReply = async (postId: string) => {
+    if (!replyText.trim()) return;
+    try {
+      await communityAPI.reply(postId, { content: replyText.trim(), isAnonymous: false });
+      toast.success('Reply posted as Doctor!');
+      setReplyText('');
+      fetchDetail(postId);
+    } catch (e: any) { toast.error(e?.response?.data?.error || 'Failed to reply'); }
+  };
+
+  const handlePinPost = async (id: string) => {
+    try {
+      const res = await communityAPI.pinPost(id);
+      toast.success(res.data?.message || 'Pin toggled');
+      fetchPosts();
+    } catch (e: any) { toast.error(e?.response?.data?.error || 'Failed'); }
+  };
+
+  const timeAgo = (d: string) => {
+    const diff = Date.now() - new Date(d).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  };
+
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  return (
+    <div className="px-5 py-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-base font-extrabold text-gray-900">{'\u{1F4AC}'} Community Moderation</h3>
+        <button onClick={fetchPosts} className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full active:scale-95">{'\u{1F504}'} Refresh</button>
+      </div>
+
+      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-4 border border-indigo-100">
+        <p className="text-[10px] text-indigo-700 leading-relaxed">
+          <strong>As a Doctor you can:</strong> Reply to posts, Hide/Unhide inappropriate content, and Pin important discussions. Only Admin can permanently delete posts.
+        </p>
+      </div>
+
+      {/* Category filter */}
+      <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+        {CATS.map(c => (
+          <button key={c || 'all'} onClick={() => { setFilterCat(c); setPage(1); }}
+            className={'px-2.5 py-1.5 rounded-lg text-[9px] font-bold whitespace-nowrap flex-shrink-0 ' + (filterCat === c ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-500')}>
+            {c || 'All'}
+          </button>
+        ))}
+      </div>
+
+      <p className="text-[10px] text-gray-400 font-bold">{total} posts</p>
+
+      {loading ? (
+        <div className="flex justify-center py-12"><div className="animate-spin w-8 h-8 border-4 border-indigo-400 border-t-transparent rounded-full" /></div>
+      ) : posts.length === 0 ? (
+        <p className="text-center text-sm text-gray-400 py-10">No posts found</p>
+      ) : posts.map(post => (
+        <div key={post.id} className={'bg-white rounded-2xl shadow-sm overflow-hidden ' + (post.isHidden ? 'opacity-50 border border-red-200' : '') + (post.isPinned ? ' ring-1 ring-amber-300' : '')}>
+          <div className="p-4">
+            {/* Badges row */}
+            <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+              {post.isPinned && <span className="text-[8px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">{'\u{1F4CC}'} Pinned</span>}
+              {post.isHidden && <span className="text-[8px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold">{'\u{1F6AB}'} Hidden</span>}
+              <span className="text-[8px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-bold">{post.category}</span>
+              {post.reportCount > 0 && <span className="text-[8px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold">{'\u{1F6A9}'} {post.reportCount} reports</span>}
+              <span className="text-[9px] text-gray-400 ml-auto">{timeAgo(post.createdAt)}</span>
+            </div>
+
+            {/* Author */}
+            <p className="text-[10px] font-bold text-gray-500 mb-1">
+              {post.user?.fullName || 'Anonymous'}
+              {post.isAnonymous && <span className="text-purple-500 ml-1">(posted anonymously)</span>}
+            </p>
+
+            <p className="text-sm text-gray-700 leading-relaxed">{post.content}</p>
+
+            {/* Actions */}
+            <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-100 flex-wrap">
+              <span className="text-[10px] text-gray-400">{'\u2764\uFE0F'} {post.likeCount || 0}</span>
+              <button onClick={() => handleExpand(post.id)} className="text-[10px] text-indigo-500 font-bold active:scale-95">
+                {'\u{1F4AC}'} {post.replyCount || 0} replies {expandedPost === post.id ? '▲' : '▼'}
+              </button>
+
+              <div className="ml-auto flex gap-2">
+                <button onClick={() => handlePinPost(post.id)} className={'text-[9px] font-bold px-2 py-1 rounded-lg active:scale-95 ' + (post.isPinned ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500')}>
+                  {post.isPinned ? 'Unpin' : 'Pin'}
+                </button>
+                <button onClick={() => handleHidePost(post.id, post.isHidden)} className={'text-[9px] font-bold px-2 py-1 rounded-lg active:scale-95 ' + (post.isHidden ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700')}>
+                  {post.isHidden ? 'Unhide' : 'Hide'}
+                </button>
+              </div>
+            </div>
+
+            {/* Expanded replies + reply input */}
+            {expandedPost === post.id && postDetail && (
+              <div className="mt-3 space-y-2.5 border-t border-gray-100 pt-3">
+                {(postDetail.replies || []).length === 0 ? (
+                  <p className="text-[10px] text-gray-400 text-center py-3">No replies yet — be the first to respond!</p>
+                ) : (postDetail.replies || []).map((reply: any) => (
+                  <div key={reply.id} className={'rounded-xl p-3 ' + (reply.isHidden ? 'bg-red-50 border border-red-200 opacity-50' : reply.isDoctor ? 'bg-emerald-50 border border-emerald-100' : 'bg-gray-50')}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className={'text-[10px] font-bold ' + (reply.isDoctor ? 'text-emerald-700' : 'text-gray-600')}>
+                          {reply.user?.fullName || 'Anonymous'}
+                        </span>
+                        {reply.isDoctor && <span className="text-[7px] font-bold bg-emerald-200 text-emerald-800 px-1 py-0.5 rounded">{'\u2713'} Doctor</span>}
+                        {reply.isHidden && <span className="text-[7px] font-bold bg-red-200 text-red-700 px-1 py-0.5 rounded">Hidden</span>}
+                        <span className="text-[9px] text-gray-400">{timeAgo(reply.createdAt)}</span>
+                      </div>
+                      <button onClick={() => handleHideReply(reply.id, reply.isHidden)}
+                        className={'text-[8px] font-bold px-1.5 py-0.5 rounded active:scale-95 ' + (reply.isHidden ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700')}>
+                        {reply.isHidden ? 'Unhide' : 'Hide'}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-700 leading-relaxed">{reply.content}</p>
+                    {reply.reportCount > 0 && <span className="text-[9px] text-red-500 font-bold mt-1 inline-block">{'\u{1F6A9}'} {reply.reportCount} reports</span>}
+                  </div>
+                ))}
+
+                {/* Doctor reply input */}
+                <div className="bg-indigo-50 rounded-xl p-3 border border-indigo-100">
+                  <p className="text-[9px] font-bold text-indigo-600 mb-1.5">{'\u{1F469}\u200D\u2695\uFE0F'} Reply as {user?.fullName || 'Doctor'}</p>
+                  <div className="flex gap-2">
+                    <input value={replyText} onChange={e => setReplyText(e.target.value)}
+                      placeholder="Write your expert reply..."
+                      onKeyDown={e => { if (e.key === 'Enter') handleReply(post.id); }}
+                      className="flex-1 px-3 py-2 rounded-xl border border-indigo-200 text-xs focus:border-indigo-400 focus:outline-none bg-white" />
+                    <button onClick={() => handleReply(post.id)}
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs font-bold active:scale-95 shadow-sm">
+                      Reply
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 pt-4">
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 text-gray-500 disabled:opacity-30">{'\u2190'} Prev</button>
+          <span className="text-xs text-gray-500 font-bold">{page} / {totalPages}</span>
+          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 text-gray-500 disabled:opacity-30">Next {'\u2192'}</button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Doctor Ayurveda Sub-Tab ──────────────────────────
 function DoctorAyurvedaTab() {
@@ -495,6 +710,7 @@ export default function DoctorDashboard() {
     { id: 'reviews', label: 'Reviews', emoji: '⭐' },
     { id: 'ayurveda', label: 'Dosha', emoji: '☯️' },
     { id: 'earnings', label: 'Earnings', emoji: '💰' },
+    { id: 'community', label: 'Community', emoji: '💬' },
   ];
 
   return (
@@ -1430,6 +1646,9 @@ export default function DoctorDashboard() {
         )}
 
       </div>
+
+      {/* ═══ COMMUNITY MODERATION ═══ */}
+      {tab === 'community' && (<DoctorCommunityTab />)}
 
       {/* ═══ Write Prescription Modal ═══ */}
       {rxModal.open && (
