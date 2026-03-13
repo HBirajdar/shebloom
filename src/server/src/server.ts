@@ -8,6 +8,7 @@ import { logger } from './config/logger';
 import prisma, { connectDatabase } from './config/database';
 import { connectRedis } from './config/redis';
 import { execSync } from 'child_process';
+import cron from 'node-cron';
 
 const PORT = process.env.PORT || process.env.APP_PORT || 8000;
 
@@ -113,6 +114,25 @@ async function bootstrap() {
   } catch (redisErr: any) {
     logger.warn('Redis unavailable (caching disabled): ' + redisErr.message);
   }
+
+  // 4. Cron: auto-complete past appointments every 15 minutes
+  cron.schedule('*/15 * * * *', async () => {
+    try {
+      const result = await prisma.appointment.updateMany({
+        where: {
+          status: { in: ['PENDING', 'CONFIRMED'] },
+          scheduledAt: { lt: new Date() },
+        },
+        data: { status: 'COMPLETED' },
+      });
+      if (result.count > 0) {
+        logger.info(`Cron: auto-completed ${result.count} past appointment(s)`);
+      }
+    } catch (err: any) {
+      logger.warn('Cron auto-complete failed: ' + (err.message || '').slice(0, 200));
+    }
+  });
+  logger.info('Cron: appointment auto-complete scheduled (every 15 min)');
 }
 
 process.on('SIGTERM', () => { logger.info('SIGTERM received'); process.exit(0); });
