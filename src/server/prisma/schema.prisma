@@ -137,6 +137,7 @@ model User {
   communityLikes     CommunityLike[]
   communityReports   CommunityReport[]
   subscriptions      UserSubscription[]
+  events             UserEvent[]
 
   @@index([role])
   @@map("users")
@@ -1189,6 +1190,37 @@ model PendingSubscription {
   @@index([razorpayOrderId])
   @@index([razorpaySubId])
   @@map("pending_subscriptions")
+}
+
+// ─── USER EVENTS (Behavioral Analytics) ─────────────
+// Lightweight event tracking for user behavior analytics.
+// Powers: lead board, conversion funnels, engagement metrics,
+// abandoned checkout recovery, and admin user profiles.
+
+model UserEvent {
+  id         String   @id @default(cuid())
+  userId     String?  // Null for anonymous/pre-login events
+  sessionId  String?  // Groups events in a single visit
+  event      String   // e.g. page_view, paywall_viewed, checkout_started, feature_used
+  category   String?  // page, subscription, checkout, feature, engagement
+  label      String?  // Specific detail: page name, plan ID, feature key
+  value      Float?   // Numeric value: price, duration_ms, scroll_depth
+  metadata   Json?    // Extra context: { planId, couponCode, step, reason }
+  ipAddress  String?
+  userAgent  String?
+  referrer   String?  // Where user came from
+  createdAt  DateTime @default(now())
+
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([event])
+  @@index([category])
+  @@index([createdAt])
+  @@index([sessionId])
+  @@index([userId, event])       // Fast lookup: "all paywall_viewed by user X"
+  @@index([event, createdAt])    // Fast lookup: "all checkout_started in last 7 days"
+  @@map("user_events")
 }
 
 // ─── PRODUCT PAYOUTS (seller/vendor settlement) ──────

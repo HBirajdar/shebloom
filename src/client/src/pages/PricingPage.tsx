@@ -4,6 +4,7 @@ import { subscriptionAPI, financeAPI } from '../services/api';
 import { useSubscriptionStore } from '../stores/subscriptionStore';
 import { useCycleStore } from '../stores/cycleStore';
 import { useAuthStore } from '../stores/authStore';
+import { trackEvent } from '../hooks/useTrackEvent';
 
 declare global { interface Window { Razorpay: any } }
 
@@ -57,6 +58,7 @@ export default function PricingPage() {
   useEffect(() => {
     loadPlans();
     fetchSubscription();
+    trackEvent('subscription_page_viewed', { category: 'subscription', label: goal || 'none' });
   }, [goal]);
 
   const loadPlans = async () => {
@@ -81,13 +83,15 @@ export default function PricingPage() {
     try {
       const res = await financeAPI.validateCoupon({ code: couponCode.trim(), applicableTo: 'SUBSCRIPTION' });
       const d = res.data?.data || res.data;
-      if (d?.valid) setCouponResult(d);
-      else setCouponError(d?.error || 'Invalid coupon');
-    } catch (e: any) { setCouponError(e.message || 'Invalid coupon'); }
+      if (d?.valid) { setCouponResult(d); trackEvent('coupon_applied', { category: 'subscription', label: couponCode.trim() }); }
+      else { setCouponError(d?.error || 'Invalid coupon'); trackEvent('coupon_failed', { category: 'subscription', label: couponCode.trim() }); }
+    } catch (e: any) { setCouponError(e.message || 'Invalid coupon'); trackEvent('coupon_failed', { category: 'subscription', label: couponCode.trim() }); }
   };
 
   const handleSubscribe = async (plan: Plan) => {
     setPayLoading(plan.id);
+    trackEvent('plan_selected', { category: 'subscription', label: plan.slug, value: plan.finalPrice, metadata: { planId: plan.id, interval: plan.interval } });
+    trackEvent('checkout_started', { category: 'subscription', label: plan.slug, value: plan.finalPrice });
     try {
       const res = await subscriptionAPI.create({
         planId: plan.id,
@@ -120,7 +124,7 @@ export default function PricingPage() {
         image: '/logo.png',
         theme: { color: '#f43f5e' },
         prefill: { email: user?.email || '' },
-        modal: { ondismiss: () => setPayLoading('') },
+        modal: { ondismiss: () => { trackEvent('checkout_abandoned', { category: 'subscription', label: plan.slug, value: plan.finalPrice }); setPayLoading(''); } },
       };
 
       if (data.paymentType === 'one_time') {
@@ -135,6 +139,7 @@ export default function PricingPage() {
               razorpaySignature: response.razorpay_signature,
               paymentType: 'one_time',
             });
+            trackEvent('checkout_completed', { category: 'subscription', label: plan.slug, value: plan.finalPrice, metadata: { paymentType: 'one_time' } });
             useSubscriptionStore.getState().clearSubscription();
             await fetchSubscription();
             nav('/dashboard');
@@ -151,6 +156,7 @@ export default function PricingPage() {
               razorpaySignature: response.razorpay_signature,
               paymentType: 'subscription',
             });
+            trackEvent('checkout_completed', { category: 'subscription', label: plan.slug, value: plan.finalPrice, metadata: { paymentType: 'subscription' } });
             useSubscriptionStore.getState().clearSubscription();
             await fetchSubscription();
             nav('/dashboard');

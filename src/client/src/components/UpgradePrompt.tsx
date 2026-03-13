@@ -1,4 +1,6 @@
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { trackEvent } from '../hooks/useTrackEvent';
 
 interface Props {
   feature?: string;
@@ -8,6 +10,12 @@ interface Props {
 
 export default function UpgradePrompt({ feature, title, description }: Props) {
   const nav = useNavigate();
+
+  // Track that user hit a locked feature
+  useEffect(() => {
+    trackEvent('feature_locked', { category: 'subscription', label: feature || 'unknown' });
+    trackEvent('upgrade_prompt_shown', { category: 'subscription', label: feature || 'unknown' });
+  }, [feature]);
 
   const featureLabels: Record<string, string> = {
     'cycle:bbt': 'BBT Tracking',
@@ -37,7 +45,7 @@ export default function UpgradePrompt({ feature, title, description }: Props) {
         {description || `Upgrade to VedaClue Premium for full access to ${label.toLowerCase()} and more.`}
       </p>
       <button
-        onClick={() => nav('/pricing')}
+        onClick={() => { trackEvent('upgrade_prompt_clicked', { category: 'subscription', label: feature }); nav('/pricing'); }}
         className="bg-gradient-to-r from-rose-500 to-amber-500 text-white px-6 py-2.5 rounded-full font-semibold text-sm shadow-lg hover:shadow-xl transition-all hover:scale-105"
       >
         View Plans

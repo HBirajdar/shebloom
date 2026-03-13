@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { adminAPI, doshaAPI, financeAPI, communityAPI, contentAPI, subscriptionAPI } from '../services/api';
+import { adminAPI, doshaAPI, financeAPI, communityAPI, contentAPI, subscriptionAPI, analyticsAPI } from '../services/api';
 import ImageUpload from '../components/ImageUpload';
 
 // Adapter: normalises axios { data: { success, data: X } } → { success, data: X }
@@ -177,7 +177,7 @@ const FormCheckbox = ({ label, checked, onChange }: { label: string; checked: bo
 );
 type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'NO_SHOW' | 'CANCELLED';
 
-type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness' | 'programs' | 'add_program' | 'edit_program' | 'program_content' | 'sellers' | 'seller_detail' | 'seller_payouts' | 'add_seller' | 'community' | 'content' | 'subscriptions';
+type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness' | 'programs' | 'add_program' | 'edit_program' | 'program_content' | 'sellers' | 'seller_detail' | 'seller_payouts' | 'add_seller' | 'community' | 'content' | 'subscriptions' | 'leads' | 'insights' | 'user_detail';
 
 // ─── Finance Admin Tab ──────────────────────────────────
 // Platform config, coupons, revenue analytics — like Practo/Zomato/Amazon admin
@@ -597,6 +597,527 @@ function FinanceTab() {
 
 // ─── Audit Log Tab ──────────────────────────────────────
 // Immutable payment ledger — revenue summary, filterable events, CSV export
+// ─── Leads Board Tab ─────────────────────────────────
+function LeadsTab({ onViewUser }: { onViewUser: (id: string) => void }) {
+  const [leads, setLeads] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [type, setType] = useState('all');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+
+  const fetchLeads = async (t = type, p = page) => {
+    setLoading(true);
+    try {
+      const res = await analyticsAPI.adminLeads({ type: t, page: p, limit: 30 });
+      const d = res.data?.data || res.data;
+      setLeads(d.leads || []);
+      setTotal(d.total || 0);
+    } catch { setLeads([]); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchLeads(); }, [type, page]);
+
+  const leadColor = (t: string) => t === 'hot' ? 'bg-red-100 text-red-700' : t === 'warm' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700';
+
+  return (<>
+    <h3 className="text-base font-extrabold text-gray-900">{'\u{1F3AF}'} Leads Board</h3>
+    <p className="text-[10px] text-gray-500 -mt-2">Users who showed purchase interest but didn't convert (last 30 days)</p>
+
+    <div className="flex gap-1.5 flex-wrap">
+      {[{ k: 'all', l: 'All Leads' }, { k: 'paywall', l: 'Saw Paywall' }, { k: 'checkout_abandoned', l: 'Abandoned Checkout' }, { k: 'feature_locked', l: 'Hit Feature Lock' }].map(f => (
+        <button key={f.k} onClick={() => { setType(f.k); setPage(1); }}
+          className={'px-3 py-1.5 rounded-full text-[10px] font-bold transition-all ' + (type === f.k ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200')}>
+          {f.l}
+        </button>
+      ))}
+    </div>
+
+    <div className="bg-white rounded-2xl p-4 shadow-sm">
+      <div className="flex justify-between items-center mb-3">
+        <span className="text-sm font-bold text-gray-700">{total} leads found</span>
+        <button onClick={() => fetchLeads()} className="text-[10px] font-bold text-rose-600">Refresh</button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-3 border-rose-400 border-t-transparent rounded-full" /></div>
+      ) : leads.length === 0 ? (
+        <p className="text-center text-gray-400 text-sm py-8">No leads yet — tracking data will appear as users interact with pricing & premium features</p>
+      ) : (
+        <div className="space-y-3">
+          {leads.map((lead: any) => (
+            <div key={lead.userId} className="border border-gray-100 rounded-xl p-3 hover:shadow-sm transition-all">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                  {lead.user?.fullName?.charAt(0) || '?'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-bold text-gray-800 truncate">{lead.user?.fullName || 'Unknown'}</p>
+                    <span className={'text-[7px] font-bold px-1.5 py-0.5 rounded-full ' + leadColor(lead.leadType)}>{lead.leadType?.toUpperCase()}</span>
+                  </div>
+                  <p className="text-[10px] text-gray-500 truncate">{lead.user?.email || lead.user?.phone || ''}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="text-lg font-extrabold text-gray-900">{lead.leadScore}</div>
+                  <div className="text-[8px] text-gray-400">score</div>
+                </div>
+              </div>
+
+              <div className="flex gap-1.5 mt-2 flex-wrap">
+                {Object.entries(lead.eventBreakdown || {}).map(([evt, cnt]: any) => (
+                  <span key={evt} className="text-[8px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{evt.replace(/_/g, ' ')}: {cnt}</span>
+                ))}
+              </div>
+
+              <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-50">
+                <span className="text-[9px] text-gray-400">Last activity: {lead.lastEventAt ? new Date(lead.lastEventAt).toLocaleDateString() : 'N/A'}</span>
+                <div className="flex gap-1.5">
+                  {lead.user?.phone && (
+                    <a href={'tel:' + lead.user.phone} className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg hover:bg-emerald-100">Call</a>
+                  )}
+                  {lead.user?.email && (
+                    <a href={'mailto:' + lead.user.email} className="text-[9px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg hover:bg-blue-100">Email</a>
+                  )}
+                  <button onClick={() => onViewUser(lead.userId)} className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg hover:bg-indigo-100">Profile</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {total > 30 && (
+        <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-100">
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
+            className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-gray-50 disabled:opacity-30">Prev</button>
+          <span className="text-[10px] text-gray-500 font-bold">Page {page}</span>
+          <button onClick={() => setPage(p => p + 1)} disabled={leads.length < 30}
+            className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-gray-50 disabled:opacity-30">Next</button>
+        </div>
+      )}
+    </div>
+  </>);
+}
+
+// ─── Insights Tab (Business Analytics Dashboard) ─────
+function InsightsTab() {
+  const [metrics, setMetrics] = useState<any>(null);
+  const [funnel, setFunnel] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [funnelDays, setFunnelDays] = useState(30);
+
+  const fetchAll = async () => {
+    setLoading(true);
+    try {
+      const [metricsRes, funnelRes] = await Promise.all([
+        analyticsAPI.adminMetrics(),
+        analyticsAPI.adminFunnel(funnelDays),
+      ]);
+      setMetrics(metricsRes.data?.data || metricsRes.data);
+      setFunnel(funnelRes.data?.data || funnelRes.data);
+    } catch (err) { console.error('Insights fetch error:', err); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchAll(); }, [funnelDays]);
+
+  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin w-8 h-8 border-4 border-rose-400 border-t-transparent rounded-full" /></div>;
+
+  const rev = metrics?.revenue || {};
+  const subs = metrics?.subscriptions || {};
+  const eng = metrics?.engagement || {};
+  const ret = metrics?.retention || {};
+  const conv = metrics?.conversion || {};
+  const funnelSteps = funnel?.funnel || [];
+  const topFeatures = metrics?.topFeatures || [];
+  const topLocked = funnel?.topLockedFeatures || [];
+
+  return (<>
+    <h3 className="text-base font-extrabold text-gray-900">{'\u{1F4CA}'} Business Insights</h3>
+
+    {/* Revenue Cards */}
+    <div className="grid grid-cols-2 gap-3">
+      {[
+        { l: 'MRR', v: '\u20B9' + (rev.mrr || 0).toLocaleString(), c: 'border-l-emerald-500', sub: 'Monthly Recurring' },
+        { l: 'ARR', v: '\u20B9' + (rev.arr || 0).toLocaleString(), c: 'border-l-blue-500', sub: 'Annual Recurring' },
+        { l: 'This Month', v: '\u20B9' + (rev.revenueThisMonth || 0).toLocaleString(), c: 'border-l-purple-500', sub: rev.revenueGrowth > 0 ? '+' + rev.revenueGrowth + '% vs last' : rev.revenueGrowth + '% vs last' },
+        { l: 'Total Revenue', v: '\u20B9' + (rev.totalRevenue || 0).toLocaleString(), c: 'border-l-amber-500', sub: 'All time' },
+      ].map(s => (
+        <div key={s.l} className={"bg-white rounded-2xl p-4 shadow-sm border-l-4 " + s.c}>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">{s.l}</p>
+          <p className="text-xl font-extrabold text-gray-900 mt-1">{s.v}</p>
+          <p className="text-[9px] text-gray-400">{s.sub}</p>
+        </div>
+      ))}
+    </div>
+
+    {/* Subscription Breakdown */}
+    <div className="bg-white rounded-2xl p-5 shadow-sm">
+      <h4 className="text-sm font-bold text-gray-800 mb-3">Subscription Overview</h4>
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="bg-blue-50 rounded-xl p-3">
+          <p className="text-lg font-extrabold text-blue-700">{subs.monthly || 0}</p>
+          <p className="text-[9px] font-bold text-blue-500">Monthly</p>
+        </div>
+        <div className="bg-purple-50 rounded-xl p-3">
+          <p className="text-lg font-extrabold text-purple-700">{subs.yearly || 0}</p>
+          <p className="text-[9px] font-bold text-purple-500">Yearly</p>
+        </div>
+        <div className="bg-amber-50 rounded-xl p-3">
+          <p className="text-lg font-extrabold text-amber-700">{subs.lifetime || 0}</p>
+          <p className="text-[9px] font-bold text-amber-500">Lifetime</p>
+        </div>
+      </div>
+      <div className="flex justify-between mt-3 pt-3 border-t border-gray-100">
+        <div>
+          <p className="text-[10px] text-gray-500">Churn Rate</p>
+          <p className="text-sm font-extrabold text-gray-900">{subs.churnRate || 0}%</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-gray-500">Cancelled This Month</p>
+          <p className="text-sm font-extrabold text-gray-900">{subs.cancelledThisMonth || 0}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-gray-500">Total Active</p>
+          <p className="text-sm font-extrabold text-gray-900">{subs.total || 0}</p>
+        </div>
+      </div>
+    </div>
+
+    {/* Engagement */}
+    <div className="bg-white rounded-2xl p-5 shadow-sm">
+      <h4 className="text-sm font-bold text-gray-800 mb-3">Engagement</h4>
+      <div className="grid grid-cols-4 gap-2 text-center">
+        {[
+          { l: 'DAU', v: eng.dau || 0, c: 'bg-emerald-50 text-emerald-700' },
+          { l: 'WAU', v: eng.wau || 0, c: 'bg-blue-50 text-blue-700' },
+          { l: 'MAU', v: eng.mau || 0, c: 'bg-purple-50 text-purple-700' },
+          { l: 'Sticky', v: (eng.stickiness || 0) + '%', c: 'bg-rose-50 text-rose-700' },
+        ].map(m => (
+          <div key={m.l} className={'rounded-xl p-2.5 ' + m.c}>
+            <p className="text-base font-extrabold">{m.v}</p>
+            <p className="text-[8px] font-bold">{m.l}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* DAU Trend */}
+      {eng.dauTrend?.length > 0 && (
+        <div className="mt-4">
+          <p className="text-[10px] font-bold text-gray-500 mb-2">Daily Active Users (14 days)</p>
+          <div className="flex items-end gap-1 h-16">
+            {eng.dauTrend.map((d: any, i: number) => {
+              const max = Math.max(...eng.dauTrend.map((x: any) => x.count), 1);
+              const h = Math.max(4, (d.count / max) * 60);
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+                  <span className="text-[7px] text-gray-400">{d.count}</span>
+                  <div className="w-full bg-rose-400 rounded-t" style={{ height: h + 'px' }} title={d.date + ': ' + d.count} />
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex justify-between mt-1">
+            <span className="text-[7px] text-gray-400">{eng.dauTrend[0]?.date?.slice(5)}</span>
+            <span className="text-[7px] text-gray-400">{eng.dauTrend[eng.dauTrend.length - 1]?.date?.slice(5)}</span>
+          </div>
+        </div>
+      )}
+    </div>
+
+    {/* Retention */}
+    <div className="bg-white rounded-2xl p-5 shadow-sm">
+      <h4 className="text-sm font-bold text-gray-800 mb-3">Retention (cohort: {ret.cohortSize || 0} users)</h4>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-emerald-50 rounded-xl p-3 text-center">
+          <p className="text-2xl font-extrabold text-emerald-700">{ret.day1 || 0}%</p>
+          <p className="text-[9px] font-bold text-emerald-500">Day 1 Retention</p>
+        </div>
+        <div className="bg-blue-50 rounded-xl p-3 text-center">
+          <p className="text-2xl font-extrabold text-blue-700">{ret.day7 || 0}%</p>
+          <p className="text-[9px] font-bold text-blue-500">Day 7 Retention</p>
+        </div>
+      </div>
+    </div>
+
+    {/* Conversion Funnel */}
+    <div className="bg-white rounded-2xl p-5 shadow-sm">
+      <div className="flex justify-between items-center mb-3">
+        <h4 className="text-sm font-bold text-gray-800">Subscription Funnel</h4>
+        <select value={funnelDays} onChange={e => setFunnelDays(Number(e.target.value))}
+          className="text-[10px] font-bold bg-gray-50 border border-gray-200 rounded-lg px-2 py-1">
+          <option value={7}>7 days</option>
+          <option value={14}>14 days</option>
+          <option value={30}>30 days</option>
+          <option value={90}>90 days</option>
+        </select>
+      </div>
+      {funnelSteps.map((step: any, i: number) => (
+        <div key={i} className="mb-2">
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-[10px] font-bold text-gray-700">{step.step}</span>
+            <span className="text-[10px] text-gray-500">{step.count} ({step.rate}%)</span>
+          </div>
+          <div className="w-full bg-gray-100 rounded-full h-2">
+            <div className="bg-gradient-to-r from-rose-400 to-pink-500 h-2 rounded-full transition-all" style={{ width: step.rate + '%' }} />
+          </div>
+          {step.stepConversion != null && i > 0 && (
+            <p className="text-[8px] text-gray-400 mt-0.5">Step conversion: {step.stepConversion}%</p>
+          )}
+        </div>
+      ))}
+
+      {/* Trial Conversion */}
+      <div className="mt-4 pt-3 border-t border-gray-100">
+        <div className="flex justify-between">
+          <span className="text-[10px] font-bold text-gray-600">Trials Started</span>
+          <span className="text-sm font-extrabold text-gray-900">{conv.trialsStarted || 0}</span>
+        </div>
+        <div className="flex justify-between mt-1">
+          <span className="text-[10px] font-bold text-gray-600">Trials Converted</span>
+          <span className="text-sm font-extrabold text-emerald-600">{conv.trialsConverted || 0} ({conv.trialConversionRate || 0}%)</span>
+        </div>
+      </div>
+    </div>
+
+    {/* Top Features & Locked Features */}
+    <div className="grid grid-cols-2 gap-3">
+      <div className="bg-white rounded-2xl p-4 shadow-sm">
+        <h4 className="text-[10px] font-bold text-gray-500 mb-2 uppercase">Top Features Used</h4>
+        {topFeatures.length > 0 ? topFeatures.slice(0, 5).map((f: any, i: number) => (
+          <div key={i} className="flex justify-between py-1 border-b border-gray-50 last:border-0">
+            <span className="text-[10px] text-gray-700 truncate flex-1">{f.feature}</span>
+            <span className="text-[10px] font-bold text-gray-900 ml-2">{f.count}</span>
+          </div>
+        )) : <p className="text-[9px] text-gray-400">No data yet</p>}
+      </div>
+      <div className="bg-white rounded-2xl p-4 shadow-sm">
+        <h4 className="text-[10px] font-bold text-gray-500 mb-2 uppercase">Top Locked Features</h4>
+        {topLocked.length > 0 ? topLocked.slice(0, 5).map((f: any, i: number) => (
+          <div key={i} className="flex justify-between py-1 border-b border-gray-50 last:border-0">
+            <span className="text-[10px] text-gray-700 truncate flex-1">{f.feature}</span>
+            <span className="text-[10px] font-bold text-red-600 ml-2">{f.count}</span>
+          </div>
+        )) : <p className="text-[9px] text-gray-400">No data yet</p>}
+      </div>
+    </div>
+
+    {/* Signup Trend */}
+    {eng.signupTrend?.length > 0 && (
+      <div className="bg-white rounded-2xl p-5 shadow-sm">
+        <p className="text-[10px] font-bold text-gray-500 mb-2">New Signups (14 days)</p>
+        <div className="flex items-end gap-1 h-16">
+          {eng.signupTrend.map((d: any, i: number) => {
+            const max = Math.max(...eng.signupTrend.map((x: any) => x.count), 1);
+            const h = Math.max(4, (d.count / max) * 60);
+            return (
+              <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+                <span className="text-[7px] text-gray-400">{d.count}</span>
+                <div className="w-full bg-blue-400 rounded-t" style={{ height: h + 'px' }} title={d.date + ': ' + d.count} />
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex justify-between mt-1">
+          <span className="text-[7px] text-gray-400">{eng.signupTrend[0]?.date?.slice(5)}</span>
+          <span className="text-[7px] text-gray-400">{eng.signupTrend[eng.signupTrend.length - 1]?.date?.slice(5)}</span>
+        </div>
+      </div>
+    )}
+  </>);
+}
+
+// ─── User Detail Tab ─────────────────────────────────
+function UserDetailTab({ userId, onBack }: { userId: string; onBack: () => void }) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await analyticsAPI.adminUserDetail(userId);
+        setData(res.data?.data || res.data);
+      } catch { setData(null); }
+      finally { setLoading(false); }
+    })();
+  }, [userId]);
+
+  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin w-8 h-8 border-4 border-rose-400 border-t-transparent rounded-full" /></div>;
+  if (!data) return <p className="text-center text-gray-400 py-8">User not found</p>;
+
+  const u = data.user;
+  const ac = data.activityCounts || {};
+  const subs = data.subscriptions || [];
+  const orders = data.recentOrders || [];
+  const events = data.recentEvents || [];
+
+  return (<>
+    <button onClick={onBack} className="text-sm text-rose-600 font-bold mb-2">&larr; Back to Users</button>
+
+    {/* User Header */}
+    <div className="bg-gradient-to-r from-rose-500 to-pink-500 rounded-2xl p-5 text-white shadow-md">
+      <div className="flex items-center gap-4">
+        <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold">
+          {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full rounded-full object-cover" /> : u.fullName?.charAt(0)}
+        </div>
+        <div className="flex-1">
+          <p className="text-lg font-extrabold">{u.fullName}</p>
+          <p className="text-[10px] text-white/70">{u.email || ''} {u.phone ? '\u2022 ' + u.phone : ''}</p>
+          <p className="text-[9px] text-white/50">Joined: {new Date(u.createdAt).toLocaleDateString()} | Last login: {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString() : 'Never'}</p>
+        </div>
+      </div>
+      <div className="flex gap-2 mt-3">
+        <span className={'text-[8px] font-bold px-2 py-0.5 rounded-full ' + (u.isActive ? 'bg-white/20 text-white' : 'bg-red-400 text-white')}>{u.isActive ? 'Active' : 'Banned'}</span>
+        <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-white/20 text-white">{u.role}</span>
+        <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-white/20 text-white">{u.authProvider}</span>
+      </div>
+    </div>
+
+    {/* Engagement Score & Spending */}
+    <div className="grid grid-cols-3 gap-3">
+      <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
+        <p className="text-2xl font-extrabold text-rose-600">{data.engagementScore}</p>
+        <p className="text-[8px] font-bold text-gray-500">Engagement</p>
+      </div>
+      <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
+        <p className="text-2xl font-extrabold text-emerald-600">{'\u20B9'}{(data.totalSpent || 0).toLocaleString()}</p>
+        <p className="text-[8px] font-bold text-gray-500">Total Spent</p>
+      </div>
+      <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
+        <p className="text-2xl font-extrabold text-blue-600">{data.totalOrders || 0}</p>
+        <p className="text-[8px] font-bold text-gray-500">Orders</p>
+      </div>
+    </div>
+
+    {/* Activity Counts */}
+    <div className="bg-white rounded-2xl p-5 shadow-sm">
+      <h4 className="text-sm font-bold text-gray-800 mb-3">Activity Summary</h4>
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { l: 'Mood Logs', v: ac.moodLogs || 0 },
+          { l: 'Symptoms', v: ac.symptomLogs || 0 },
+          { l: 'BBT Logs', v: ac.bbtLogs || 0 },
+          { l: 'Water Logs', v: ac.waterLogs || 0 },
+          { l: 'Bookmarks', v: ac.articleBookmarks || 0 },
+          { l: 'Likes', v: ac.articleLikes || 0 },
+          { l: 'Posts', v: ac.communityPosts || 0 },
+          { l: 'Replies', v: ac.communityReplies || 0 },
+          { l: 'Reviews', v: ac.productReviews || 0 },
+          { l: 'Programs', v: ac.programEnrollments || 0 },
+          { l: 'Appointments', v: ac.appointments || 0 },
+          { l: 'Orders', v: ac.orders || 0 },
+        ].map(a => (
+          <div key={a.l} className="bg-gray-50 rounded-lg p-2 text-center">
+            <p className="text-sm font-extrabold text-gray-900">{a.v}</p>
+            <p className="text-[8px] text-gray-500">{a.l}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {/* Profile / Health Data */}
+    {data.profile && (
+      <div className="bg-white rounded-2xl p-5 shadow-sm">
+        <h4 className="text-sm font-bold text-gray-800 mb-3">Profile Details</h4>
+        <div className="space-y-1.5">
+          {[
+            { l: 'Goal', v: data.profile.primaryGoal },
+            { l: 'Cycle Length', v: data.profile.cycleLength + ' days' },
+            { l: 'Period Length', v: data.profile.periodLength + ' days' },
+            { l: 'Dosha', v: data.profile.dosha || data.profile.doshaType || 'Not assessed' },
+            { l: 'Blood Group', v: data.profile.bloodGroup || 'N/A' },
+            { l: 'Is Pregnant', v: data.profile.isPregnant ? 'Yes (week ' + data.profile.pregnancyWeek + ')' : 'No' },
+          ].filter(x => x.v).map(x => (
+            <div key={x.l} className="flex justify-between text-[10px]">
+              <span className="text-gray-500">{x.l}</span>
+              <span className="font-bold text-gray-800">{x.v}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {/* Subscriptions */}
+    {subs.length > 0 && (
+      <div className="bg-white rounded-2xl p-5 shadow-sm">
+        <h4 className="text-sm font-bold text-gray-800 mb-3">Subscription History</h4>
+        {subs.map((s: any) => (
+          <div key={s.id} className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
+            <div>
+              <p className="text-[11px] font-bold text-gray-700">{s.plan?.name || 'Unknown Plan'}</p>
+              <p className="text-[9px] text-gray-400">{s.plan?.interval} | {'\u20B9'}{s.pricePaid}</p>
+            </div>
+            <span className={'text-[8px] font-bold px-2 py-0.5 rounded-full ' + (s.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : s.status === 'TRIAL' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600')}>{s.status}</span>
+          </div>
+        ))}
+      </div>
+    )}
+
+    {/* Recent Orders */}
+    {orders.length > 0 && (
+      <div className="bg-white rounded-2xl p-5 shadow-sm">
+        <h4 className="text-sm font-bold text-gray-800 mb-3">Recent Orders</h4>
+        {orders.map((o: any) => (
+          <div key={o.id} className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
+            <div>
+              <p className="text-[11px] font-bold text-gray-700">{o.orderNumber}</p>
+              <p className="text-[9px] text-gray-400">{new Date(o.createdAt).toLocaleDateString()}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[11px] font-bold text-gray-900">{'\u20B9'}{o.totalAmount}</p>
+              <span className="text-[8px] text-gray-500">{o.status}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+
+    {/* Recent Activity Timeline */}
+    {events.length > 0 && (
+      <div className="bg-white rounded-2xl p-5 shadow-sm">
+        <h4 className="text-sm font-bold text-gray-800 mb-3">Activity Timeline</h4>
+        <div className="space-y-2">
+          {events.slice(0, 20).map((e: any, i: number) => (
+            <div key={i} className="flex items-start gap-3">
+              <div className="w-2 h-2 rounded-full bg-rose-400 mt-1.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold text-gray-700">{e.event.replace(/_/g, ' ')}</p>
+                {e.label && <p className="text-[9px] text-gray-500">{e.label}</p>}
+                <p className="text-[8px] text-gray-400">{new Date(e.createdAt).toLocaleString()}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {/* Contact Actions */}
+    <div className="bg-white rounded-2xl p-5 shadow-sm">
+      <h4 className="text-sm font-bold text-gray-800 mb-3">Contact User</h4>
+      <div className="flex gap-2">
+        {u.phone && (
+          <a href={'tel:' + u.phone} className="flex-1 py-2.5 rounded-xl text-center text-sm font-bold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-all">
+            Call
+          </a>
+        )}
+        {u.email && (
+          <a href={'mailto:' + u.email} className="flex-1 py-2.5 rounded-xl text-center text-sm font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all">
+            Email
+          </a>
+        )}
+        {u.phone && (
+          <a href={'https://wa.me/' + u.phone.replace(/\+/g, '')} target="_blank" rel="noreferrer"
+            className="flex-1 py-2.5 rounded-xl text-center text-sm font-bold bg-green-100 text-green-700 hover:bg-green-200 transition-all">
+            WhatsApp
+          </a>
+        )}
+      </div>
+    </div>
+  </>);
+}
+
 // ─── Community Moderation Tab ─────────────────────────
 function CommunityTab() {
   const [subTab, setSubTab] = useState<'posts' | 'reports' | 'polls'>('posts');
@@ -2235,6 +2756,7 @@ export default function AdminPage() {
 
   // Tab + UI
   const [tab, setTab] = useState<TabId>('overview');
+  const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [confirmDel, setConfirmDel] = useState<{ id: string; type: string } | null>(null);
 
   // Edit states
@@ -3257,6 +3779,8 @@ export default function AdminPage() {
     { id: 'wellness', icon: '🧘', label: 'Wellness' },
     { id: 'programs', icon: '🎓', label: 'Programs' },
     { id: 'subscriptions', icon: '\u{1F48E}', label: 'Subs' },
+    { id: 'leads', icon: '\u{1F3AF}', label: 'Leads' },
+    { id: 'insights', icon: '\u{1F4CA}', label: 'Insights' },
     { id: 'finance', icon: '🏦', label: 'Finance' },
     { id: 'audit_log', icon: '\u{1F4CB}', label: 'Audit Log' },
     { id: 'sellers', icon: '🏪', label: 'Sellers' },
@@ -3404,6 +3928,8 @@ export default function AdminPage() {
                 { l: 'Add Doctor', t: 'add_doctor' as TabId, e: '\u{1F469}\u200D\u2695\uFE0F', c: 'bg-purple-50 text-purple-700' },
                 { l: 'Manage Users', t: 'users' as TabId, e: '\u{1F465}', c: 'bg-cyan-50 text-cyan-700' },
                 { l: 'Subscriptions', t: 'subscriptions' as TabId, e: '\u{1F48E}', c: 'bg-amber-50 text-amber-700' },
+                { l: 'Leads Board', t: 'leads' as TabId, e: '\u{1F3AF}', c: 'bg-orange-50 text-orange-700' },
+                { l: 'Business Insights', t: 'insights' as TabId, e: '\u{1F4CA}', c: 'bg-indigo-50 text-indigo-700' },
                 { l: 'View Analytics', t: 'analytics' as TabId, e: '\u{1F4C8}', c: 'bg-rose-50 text-rose-700' },
               ].map(a => (
                 <button key={a.l} onClick={() => setTab(a.t)} className="w-full flex items-center gap-3.5 p-3.5 rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.98] transition-all">
@@ -3476,6 +4002,12 @@ export default function AdminPage() {
                         className={'px-3 py-2 rounded-xl text-[10px] font-bold active:scale-95 transition-all ' + (u.isActive ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100')}
                       >
                         {u.isActive ? 'Ban' : 'Activate'}
+                      </button>
+                      <button
+                        onClick={() => { setSelectedUserId(u.id); setTab('user_detail'); }}
+                        className="px-3 py-2 rounded-xl text-[10px] font-bold active:scale-95 transition-all bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
+                      >
+                        View
                       </button>
                     </div>
                   </div>
@@ -5573,6 +6105,15 @@ export default function AdminPage() {
 
           {/* ════════ COMMUNITY MODERATION ════════ */}
           {tab === 'community' && (<CommunityTab />)}
+
+          {/* ════════ LEADS BOARD ════════ */}
+          {tab === 'leads' && (<LeadsTab onViewUser={(id: string) => { setSelectedUserId(id); setTab('user_detail'); }} />)}
+
+          {/* ════════ BUSINESS INSIGHTS ════════ */}
+          {tab === 'insights' && (<InsightsTab />)}
+
+          {/* ════════ USER DETAIL ════════ */}
+          {tab === 'user_detail' && selectedUserId && (<UserDetailTab userId={selectedUserId} onBack={() => setTab('users')} />)}
 
           {/* ════════ SETTINGS ════════ */}
           {tab === 'settings' && (<>

@@ -506,6 +506,22 @@ export const communityAPI = {
   updateReport: (id: string, d: any) => api.patch(`/community/reports/${id}`, d),
 };
 
+// ─── ANALYTICS API ──────────────────────────────────
+export const analyticsAPI = {
+  // User-facing: fire-and-forget event tracking
+  track: (d: { event: string; category?: string; label?: string; value?: number; metadata?: any; sessionId?: string; referrer?: string }) =>
+    api.post('/analytics/track', d).catch(() => {}), // Never fail user experience
+  trackBatch: (events: any[]) =>
+    api.post('/analytics/track/batch', { events }).catch(() => {}),
+  // Admin
+  adminUserDetail: (id: string) => api.get(`/analytics/admin/users/${id}`),
+  adminLeads: (params?: { type?: string; page?: number; limit?: number }) => api.get('/analytics/admin/leads', { params }),
+  adminFunnel: (days?: number) => api.get('/analytics/admin/funnel', { params: { days } }),
+  adminMetrics: () => api.get('/analytics/admin/metrics'),
+  adminEvents: (params?: { event?: string; userId?: string; category?: string; days?: number; page?: number }) => api.get('/analytics/admin/events', { params }),
+  adminEventsSummary: (days?: number) => api.get('/analytics/admin/events/summary', { params: { days } }),
+};
+
 // ─── SUBSCRIPTION API ──────────────────────────────
 export const subscriptionAPI = {
   // User

@@ -49,6 +49,7 @@ import sellerRoutes from './routes/seller.routes';
 import communityRoutes from './routes/community.routes';
 import contentRoutes from './routes/content.routes';
 import subscriptionRoutes from './routes/subscription.routes';
+import analyticsRoutes from './routes/analytics.routes';
 
 // ─── Startup security checks ─────────────────────────
 if (process.env.NODE_ENV === 'production') {
@@ -247,6 +248,7 @@ app.use('/api/v1/sellers', sellerRoutes);
 app.use('/api/v1/community', communityRoutes);
 app.use('/api/v1/content', contentRoutes);
 app.use('/api/v1/subscriptions', subscriptionRoutes);
+app.use('/api/v1/analytics', analyticsRoutes);
 if (process.env.NODE_ENV !== 'production') {
   app.use('/api/v1/debug', debugRoutes);
 }

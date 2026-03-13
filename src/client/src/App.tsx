@@ -1,7 +1,8 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import CookieConsent from './components/CookieConsent';
+import { trackEvent } from './hooks/useTrackEvent';
 
 // Lazy loaded pages
 const AuthPage = lazy(() => import('./pages/Signin'));
@@ -44,6 +45,18 @@ const RefundPolicyPage = lazy(() => import('./pages/RefundPolicyPage'));
 const HelpCenterPage = lazy(() => import('./pages/HelpCenterPage'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
 
+// Global page view tracker
+function PageTracker() {
+  const location = useLocation();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  useEffect(() => {
+    if (isAuthenticated) {
+      trackEvent('page_view', { category: 'page', label: location.pathname });
+    }
+  }, [location.pathname, isAuthenticated]);
+  return null;
+}
+
 // Loading spinner
 const LoadingScreen = () => (
   <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-rose-50 to-pink-50">
@@ -80,6 +93,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <Suspense fallback={<LoadingScreen />}>
+      <PageTracker />
       <div className="max-w-[430px] mx-auto min-h-screen bg-white relative overflow-hidden shadow-2xl">
         <Routes>
           {/* Public Routes */}
