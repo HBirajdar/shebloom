@@ -1,7 +1,8 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import CookieConsent from './components/CookieConsent';
+const NpsPopup = lazy(() => import('./components/NpsPopup'));
 import { trackEvent } from './hooks/useTrackEvent';
 
 // Lazy loaded pages
@@ -44,6 +45,10 @@ const AboutPage = lazy(() => import('./pages/AboutPage'));
 const RefundPolicyPage = lazy(() => import('./pages/RefundPolicyPage'));
 const HelpCenterPage = lazy(() => import('./pages/HelpCenterPage'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
+const ReferralPage = lazy(() => import('./pages/ReferralPage'));
+const FeaturesPage = lazy(() => import('./pages/FeaturesPage'));
+const BlogLandingPage = lazy(() => import('./pages/BlogLandingPage'));
+const PcosPage = lazy(() => import('./pages/PcosPage'));
 
 // Global page view tracker
 function PageTracker() {
@@ -133,6 +138,7 @@ export default function App() {
           <Route path="/order-success" element={<ProtectedRoute><OrderSuccessPage /></ProtectedRoute>} />
           <Route path="/my-orders" element={<ProtectedRoute><MyOrdersPage /></ProtectedRoute>} />
           <Route path="/pricing" element={<ProtectedRoute><PricingPage /></ProtectedRoute>} />
+          <Route path="/referrals" element={<ProtectedRoute><ReferralPage /></ProtectedRoute>} />
           <Route path="/doctor-dashboard" element={<DoctorRoute><DoctorDashboard /></DoctorRoute>} />
           <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
           <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
@@ -150,12 +156,16 @@ export default function App() {
           <Route path="/about-us" element={<AboutPage />} />
           <Route path="/refund-policy" element={<RefundPolicyPage />} />
           <Route path="/help" element={<HelpCenterPage />} />
+          <Route path="/features" element={<FeaturesPage />} />
+          <Route path="/blog" element={<BlogLandingPage />} />
+          <Route path="/pcos" element={<PcosPage />} />
 
           {/* Debug / 404 */}
           <Route path="/debug" element={<DebugPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
         <CookieConsent />
+        <NpsPopup />
       </div>
     </Suspense>
   );

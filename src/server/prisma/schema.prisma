@@ -139,6 +139,9 @@ model User {
   subscriptions      UserSubscription[]
   events             UserEvent[]
   npsSurveys         NpsSurvey[]
+  referralsSent      Referral[]       @relation("referrer")
+  referralsReceived  Referral[]       @relation("referred")
+  badges             UserBadge[]
 
   @@index([role])
   @@map("users")
@@ -1257,6 +1260,65 @@ model PushCampaign {
   @@index([status])
   @@index([createdAt])
   @@map("push_campaigns")
+}
+
+// ─── REFERRALS ──────────────────────────────────────
+model Referral {
+  id             String   @id @default(cuid())
+  referrerId     String
+  referredId     String?  // Null until the invited user signs up
+  referralCode   String   @unique
+  referredEmail  String?  // Email/phone of invited person
+  referredPhone  String?
+  status         String   @default("pending") // pending, signed_up, converted, rewarded
+  rewardType     String?  // free_month, discount, etc.
+  rewardApplied  Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  convertedAt    DateTime?
+
+  referrer User  @relation("referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  referred User? @relation("referred", fields: [referredId], references: [id], onDelete: SetNull)
+
+  @@index([referrerId])
+  @@index([referralCode])
+  @@index([referredId])
+  @@map("referrals")
+}
+
+// ─── USER BADGES / GAMIFICATION ─────────────────────
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  badge     String   // badge key e.g. "streak_7", "first_purchase", "referral_1"
+  earnedAt  DateTime @default(now())
+  metadata  Json?    // extra context e.g. { streakDays: 14 }
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badge])
+  @@index([userId])
+  @@index([badge])
+  @@map("user_badges")
+}
+
+// ─── EMAIL CAMPAIGNS / AUTOMATION ───────────────────
+model EmailCampaign {
+  id           String   @id @default(cuid())
+  name         String
+  subject      String
+  body         String   // HTML template
+  trigger      String   // welcome, trial_expiring, inactive_7d, abandoned_checkout, manual
+  segment      String   @default("all") // all, premium, free, inactive, new
+  sentCount    Int      @default(0)
+  openCount    Int      @default(0)
+  clickCount   Int      @default(0)
+  status       String   @default("draft") // draft, active, paused, completed
+  lastSentAt   DateTime?
+  createdAt    DateTime @default(now())
+
+  @@index([trigger])
+  @@index([status])
+  @@map("email_campaigns")
 }
 
 // ─── PRODUCT PAYOUTS (seller/vendor settlement) ──────

@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { adminAPI, doshaAPI, financeAPI, communityAPI, contentAPI, subscriptionAPI, analyticsAPI } from '../services/api';
+import { adminAPI, doshaAPI, financeAPI, communityAPI, contentAPI, subscriptionAPI, analyticsAPI, referralAPI, emailCampaignAPI } from '../services/api';
 import ImageUpload from '../components/ImageUpload';
 
 // Adapter: normalises axios { data: { success, data: X } } → { success, data: X }
@@ -177,7 +177,7 @@ const FormCheckbox = ({ label, checked, onChange }: { label: string; checked: bo
 );
 type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'NO_SHOW' | 'CANCELLED';
 
-type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness' | 'programs' | 'add_program' | 'edit_program' | 'program_content' | 'sellers' | 'seller_detail' | 'seller_payouts' | 'add_seller' | 'community' | 'content' | 'subscriptions' | 'leads' | 'insights' | 'user_detail' | 'live_feed' | 'churn_risk' | 'segments' | 'alerts' | 'forecast' | 'cohorts' | 'exports' | 'journeys' | 'geo' | 'referrals' | 'streaks' | 'campaigns' | 'nps' | 'ltv' | 'ab_tests';
+type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness' | 'programs' | 'add_program' | 'edit_program' | 'program_content' | 'sellers' | 'seller_detail' | 'seller_payouts' | 'add_seller' | 'community' | 'content' | 'subscriptions' | 'leads' | 'insights' | 'user_detail' | 'live_feed' | 'churn_risk' | 'segments' | 'alerts' | 'forecast' | 'cohorts' | 'exports' | 'journeys' | 'geo' | 'referrals' | 'streaks' | 'campaigns' | 'nps' | 'ltv' | 'ab_tests' | 'email_campaigns' | 'badges' | 'anomalies' | 'health_score' | 'content_perf';
 
 // ─── Finance Admin Tab ──────────────────────────────────
 // Platform config, coupons, revenue analytics — like Practo/Zomato/Amazon admin
@@ -4128,6 +4128,286 @@ function AyurvedaAdminTab() {
   </>);
 }
 
+// ─── Email Campaigns Admin Tab ──────────────────────────
+function EmailCampaignsTab() {
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<any>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ name: '', subject: '', body: '', trigger: 'manual', segment: 'all' });
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [cRes, sRes] = await Promise.all([emailCampaignAPI.list(), emailCampaignAPI.stats()]);
+      setCampaigns(cRes.data?.data?.campaigns || cRes.data?.data || []);
+      setStats(sRes.data?.data || null);
+    } catch { }
+    setLoading(false);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const handleCreate = async () => {
+    setSaving(true);
+    try { await emailCampaignAPI.create(form); setForm({ name: '', subject: '', body: '', trigger: 'manual', segment: 'all' }); setShowAdd(false); load(); toast.success('Campaign created'); } catch { toast.error('Failed'); }
+    setSaving(false);
+  };
+  const handleToggle = async (id: string) => { try { await emailCampaignAPI.toggle(id); load(); } catch { toast.error('Failed'); } };
+  const handleSend = async (id: string) => { try { await emailCampaignAPI.send(id); load(); toast.success('Sent!'); } catch { toast.error('Failed'); } };
+  const handleDelete = async (id: string) => { if (!confirm('Delete?')) return; try { await emailCampaignAPI.delete(id); load(); } catch { toast.error('Failed'); } };
+  const handleTrigger = async (trigger: string) => { try { await emailCampaignAPI.trigger(trigger); toast.success(`Triggered: ${trigger}`); } catch (e: any) { toast.error(e?.response?.data?.error || 'Failed'); } };
+
+  const TRIGGERS = ['welcome', 'trial_expiring', 'inactive_7d', 'abandoned_checkout', 'manual'];
+  const SEGMENTS = ['all', 'active', 'inactive', 'subscribers', 'free', 'trial'];
+
+  if (loading) return <div className="text-center py-10 text-gray-400">Loading...</div>;
+  return (<div className="space-y-4">
+    <div className="flex items-center justify-between">
+      <h3 className="text-base font-extrabold text-gray-900">{'\u{1F4E7}'} Email Campaigns</h3>
+      <button onClick={() => setShowAdd(!showAdd)} className="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 text-white text-[11px] font-bold">{showAdd ? 'Cancel' : '+ New Campaign'}</button>
+    </div>
+
+    {stats && (
+      <div className="grid grid-cols-3 gap-3">
+        {[{ l: 'Total Sent', v: stats.totalSent || 0 }, { l: 'Open Rate', v: `${stats.openRate || 0}%` }, { l: 'Click Rate', v: `${stats.clickRate || 0}%` }].map(s => (
+          <div key={s.l} className="bg-white rounded-2xl p-4 shadow-sm text-center">
+            <p className="text-lg font-extrabold text-gray-900">{s.v}</p>
+            <p className="text-[9px] text-gray-500 font-bold">{s.l}</p>
+          </div>
+        ))}
+      </div>
+    )}
+
+    {/* Automation Triggers */}
+    <div className="bg-white rounded-2xl p-4 shadow-sm">
+      <h4 className="text-sm font-bold text-gray-700 mb-3">{'\u26A1'} Quick Triggers</h4>
+      <div className="flex flex-wrap gap-2">
+        {TRIGGERS.filter(t => t !== 'manual').map(t => (
+          <button key={t} onClick={() => handleTrigger(t)} className="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 text-[10px] font-bold border border-amber-200 active:scale-95">{t.replace(/_/g, ' ')}</button>
+        ))}
+      </div>
+    </div>
+
+    {showAdd && (
+      <div className="bg-white rounded-2xl p-5 shadow-sm space-y-3">
+        <FormField label="Campaign Name" value={form.name} onChange={v => setForm({...form, name: v})} placeholder="Welcome Series" />
+        <FormField label="Subject Line" value={form.subject} onChange={v => setForm({...form, subject: v})} placeholder="Welcome to VedaClue!" />
+        <FormField label="Email Body (HTML)" value={form.body} onChange={v => setForm({...form, body: v})} placeholder="<h1>Welcome!</h1><p>..." multiline />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-[10px] font-bold text-gray-500 uppercase">Trigger</label>
+            <select value={form.trigger} onChange={e => setForm({...form, trigger: e.target.value})} className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm">
+              {TRIGGERS.map(t => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] font-bold text-gray-500 uppercase">Segment</label>
+            <select value={form.segment} onChange={e => setForm({...form, segment: e.target.value})} className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm">
+              {SEGMENTS.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+        </div>
+        <button onClick={handleCreate} disabled={saving || !form.name || !form.subject} className="w-full py-3 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 text-white text-sm font-bold disabled:opacity-50">{saving ? 'Creating...' : 'Create Campaign'}</button>
+      </div>
+    )}
+
+    {campaigns.map((c: any) => (
+      <div key={c.id} className="bg-white rounded-2xl p-4 shadow-sm">
+        <div className="flex items-center justify-between mb-2">
+          <h4 className="text-sm font-bold text-gray-900">{c.name}</h4>
+          <span className={'text-[8px] font-bold px-2 py-0.5 rounded-full ' + (c.status === 'active' ? 'bg-emerald-100 text-emerald-700' : c.status === 'paused' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600')}>{c.status}</span>
+        </div>
+        <p className="text-[10px] text-gray-500 mb-1">{'\u{1F4E8}'} {c.subject}</p>
+        <p className="text-[9px] text-gray-400">Trigger: {c.trigger} | Segment: {c.segment} | Sent: {c.sentCount} | Opens: {c.openCount} | Clicks: {c.clickCount}</p>
+        <div className="flex gap-2 mt-3">
+          <button onClick={() => handleToggle(c.id)} className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 text-[10px] font-bold">{c.status === 'active' ? 'Pause' : 'Activate'}</button>
+          <button onClick={() => handleSend(c.id)} className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 text-[10px] font-bold">Send Now</button>
+          <button onClick={() => handleDelete(c.id)} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-[10px] font-bold">Delete</button>
+        </div>
+      </div>
+    ))}
+    {campaigns.length === 0 && <p className="text-center text-gray-400 text-sm py-8">No email campaigns yet</p>}
+  </div>);
+}
+
+// ─── Badges Admin Tab ──────────────────────────────────
+function BadgesTab() {
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await referralAPI.adminBadgeLeaderboard();
+        setLeaderboard(res.data?.data?.leaderboard || []);
+      } catch { }
+      setLoading(false);
+    })();
+  }, []);
+
+  const BADGE_INFO: Record<string, { emoji: string; name: string }> = {
+    first_cycle: { emoji: '\u{1F338}', name: 'First Cycle' },
+    streak_7: { emoji: '\u{1F525}', name: '7-Day Streak' },
+    streak_30: { emoji: '\u{1F4AA}', name: '30-Day Streak' },
+    community_contributor: { emoji: '\u{1F4AC}', name: 'Community Star' },
+    wellness_warrior: { emoji: '\u{1F9D8}', name: 'Wellness Warrior' },
+    dosha_explorer: { emoji: '\u{1F52E}', name: 'Dosha Explorer' },
+    social_butterfly: { emoji: '\u{1F98B}', name: 'Social Butterfly' },
+    early_adopter: { emoji: '\u2B50', name: 'Early Adopter' },
+    mood_tracker: { emoji: '\u{1F60A}', name: 'Mood Tracker' },
+    hydration_hero: { emoji: '\u{1F4A7}', name: 'Hydration Hero' },
+  };
+
+  if (loading) return <div className="text-center py-10 text-gray-400">Loading...</div>;
+  return (<div className="space-y-4">
+    <h3 className="text-base font-extrabold text-gray-900">{'\u{1F3C5}'} Badge Leaderboard</h3>
+    {leaderboard.map((u: any, i: number) => (
+      <div key={u.userId} className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3">
+        <div className={'w-8 h-8 rounded-full flex items-center justify-center text-sm font-extrabold ' + (i === 0 ? 'bg-yellow-100 text-yellow-700' : i === 1 ? 'bg-gray-100 text-gray-600' : i === 2 ? 'bg-orange-100 text-orange-600' : 'bg-gray-50 text-gray-500')}>
+          {i + 1}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-gray-900 truncate">{u.name || u.email}</p>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {(u.badges || []).map((b: string) => (
+              <span key={b} className="text-xs" title={BADGE_INFO[b]?.name || b}>{BADGE_INFO[b]?.emoji || '\u{1F3C5}'}</span>
+            ))}
+          </div>
+        </div>
+        <span className="text-sm font-extrabold text-rose-600">{u.count} badges</span>
+      </div>
+    ))}
+    {leaderboard.length === 0 && <p className="text-center text-gray-400 text-sm py-8">No badges earned yet</p>}
+  </div>);
+}
+
+// ─── Anomaly Detection Tab ──────────────────────────────
+function AnomaliesTab() {
+  const [anomalies, setAnomalies] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await analyticsAPI.adminAnomalies();
+        setAnomalies(res.data?.data?.anomalies || []);
+      } catch { }
+      setLoading(false);
+    })();
+  }, []);
+
+  const severityColor = (s: string) => s === 'high' ? 'bg-red-100 text-red-700' : s === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700';
+
+  if (loading) return <div className="text-center py-10 text-gray-400">Scanning for anomalies...</div>;
+  return (<div className="space-y-4">
+    <h3 className="text-base font-extrabold text-gray-900">{'\u26A1'} Anomaly Detection</h3>
+    {anomalies.length === 0 ? (
+      <div className="bg-emerald-50 rounded-2xl p-6 text-center border border-emerald-200">
+        <span className="text-4xl block mb-2">{'\u2705'}</span>
+        <p className="text-sm font-bold text-emerald-700">All Clear!</p>
+        <p className="text-[10px] text-emerald-600 mt-1">No anomalies detected in the last 7 days</p>
+      </div>
+    ) : anomalies.map((a: any, i: number) => (
+      <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border-l-4" style={{ borderLeftColor: a.severity === 'high' ? '#ef4444' : a.severity === 'medium' ? '#f59e0b' : '#3b82f6' }}>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-sm font-bold text-gray-900">{a.type === 'spike' ? '\u{1F4C8}' : a.type === 'drop' ? '\u{1F4C9}' : '\u{1F6A8}'} {a.type.replace(/_/g, ' ').toUpperCase()}</span>
+          <span className={'text-[8px] font-bold px-2 py-0.5 rounded-full ' + severityColor(a.severity)}>{a.severity}</span>
+        </div>
+        <p className="text-[10px] text-gray-600">{a.metric} on {new Date(a.date).toLocaleDateString()}</p>
+        <p className="text-[10px] text-gray-500">Value: <strong>{a.value}</strong> (expected: ~{Math.round(a.expected)})</p>
+      </div>
+    ))}
+  </div>);
+}
+
+// ─── Health Score Tab ──────────────────────────────────
+function HealthScoreTab() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await analyticsAPI.adminHealthScore();
+        setData(res.data?.data || null);
+      } catch { }
+      setLoading(false);
+    })();
+  }, []);
+
+  if (loading) return <div className="text-center py-10 text-gray-400">Calculating health score...</div>;
+  if (!data) return <div className="text-center py-10 text-gray-400">Failed to load</div>;
+
+  const scoreColor = data.score >= 70 ? 'from-emerald-500 to-teal-500' : data.score >= 40 ? 'from-amber-500 to-orange-500' : 'from-red-500 to-rose-500';
+  const breakdown = data.breakdown || {};
+
+  return (<div className="space-y-4">
+    <h3 className="text-base font-extrabold text-gray-900">{'\u{1F49A}'} Platform Health Score</h3>
+    <div className={'bg-gradient-to-br ' + scoreColor + ' rounded-2xl p-6 text-white text-center'}>
+      <p className="text-6xl font-extrabold">{data.score}</p>
+      <p className="text-sm text-white/80 mt-1">/100</p>
+      <p className="text-xs text-white/70 mt-2 font-bold capitalize">{data.trend || 'stable'} trend</p>
+    </div>
+    <div className="space-y-2">
+      {[
+        { key: 'engagement', label: 'Engagement', max: 30, icon: '\u{1F4CA}' },
+        { key: 'growth', label: 'Growth', max: 20, icon: '\u{1F4C8}' },
+        { key: 'retention', label: 'Retention', max: 20, icon: '\u{1F501}' },
+        { key: 'revenue', label: 'Revenue', max: 15, icon: '\u{1F4B0}' },
+        { key: 'nps', label: 'NPS', max: 15, icon: '\u2B50' },
+      ].map(m => (
+        <div key={m.key} className="bg-white rounded-xl p-3 shadow-sm">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[11px] font-bold text-gray-700">{m.icon} {m.label}</span>
+            <span className="text-[11px] font-extrabold text-gray-900">{breakdown[m.key] || 0}/{m.max}</span>
+          </div>
+          <div className="w-full bg-gray-100 rounded-full h-2">
+            <div className="h-2 rounded-full bg-gradient-to-r from-rose-400 to-pink-500 transition-all" style={{ width: `${((breakdown[m.key] || 0) / m.max) * 100}%` }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>);
+}
+
+// ─── Content Performance Tab ──────────────────────────────
+function ContentPerfTab() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await analyticsAPI.adminContentPerformance();
+        setData(res.data?.data || null);
+      } catch { }
+      setLoading(false);
+    })();
+  }, []);
+
+  if (loading) return <div className="text-center py-10 text-gray-400">Loading...</div>;
+  if (!data) return <div className="text-center py-10 text-gray-400">No data</div>;
+
+  return (<div className="space-y-4">
+    <h3 className="text-base font-extrabold text-gray-900">{'\u{1F4C4}'} Content Performance</h3>
+    {[{ title: '\u{1F4DD} Top Articles', items: data.articles || [] }, { title: '\u{1F6CD}\uFE0F Top Products', items: data.products || [] }, { title: '\u{1F9D8} Top Wellness', items: data.wellness || [] }].map(section => (
+      <div key={section.title} className="bg-white rounded-2xl p-4 shadow-sm">
+        <h4 className="text-sm font-bold text-gray-700 mb-3">{section.title}</h4>
+        {section.items.length === 0 ? <p className="text-[10px] text-gray-400">No data yet</p> : section.items.slice(0, 10).map((item: any, i: number) => (
+          <div key={i} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <span className="text-[10px] font-bold text-gray-400 w-5">{i + 1}.</span>
+              <span className="text-[11px] text-gray-700 truncate">{item.title || item.label || item.name || 'Unknown'}</span>
+            </div>
+            <span className="text-[11px] font-extrabold text-rose-600 ml-2">{item.count || item.views || 0}</span>
+          </div>
+        ))}
+      </div>
+    ))}
+  </div>);
+}
+
 export default function AdminPage() {
   const nav = useNavigate();
   const user = useAuthStore(s => s.user);
@@ -5192,6 +5472,11 @@ export default function AdminPage() {
     { id: 'nps', icon: '\u{2B50}', label: 'NPS' },
     { id: 'ltv', icon: '\u{1F4B5}', label: 'LTV' },
     { id: 'ab_tests', icon: '\u{1F9EA}', label: 'A/B Tests' },
+    { id: 'email_campaigns', icon: '\u{1F4E7}', label: 'Emails' },
+    { id: 'badges', icon: '\u{1F3C5}', label: 'Badges' },
+    { id: 'anomalies', icon: '\u{26A1}', label: 'Anomalies' },
+    { id: 'health_score', icon: '\u{1F49A}', label: 'Health' },
+    { id: 'content_perf', icon: '\u{1F4C4}', label: 'Content' },
     { id: 'orders', icon: '\u{1F6D2}', label: 'Orders' },
     { id: 'subscriptions', icon: '\u{1F48E}', label: 'Subs' },
     { id: 'products', icon: '\u{1F4E6}', label: 'Products' },
@@ -7591,6 +7876,21 @@ export default function AdminPage() {
 
           {/* ════════ A/B TESTS ════════ */}
           {tab === 'ab_tests' && (<AbTestsTab />)}
+
+          {/* ════════ EMAIL CAMPAIGNS ════════ */}
+          {tab === 'email_campaigns' && (<EmailCampaignsTab />)}
+
+          {/* ════════ BADGES ════════ */}
+          {tab === 'badges' && (<BadgesTab />)}
+
+          {/* ════════ ANOMALIES ════════ */}
+          {tab === 'anomalies' && (<AnomaliesTab />)}
+
+          {/* ════════ HEALTH SCORE ════════ */}
+          {tab === 'health_score' && (<HealthScoreTab />)}
+
+          {/* ════════ CONTENT PERFORMANCE ════════ */}
+          {tab === 'content_perf' && (<ContentPerfTab />)}
 
           {/* ════════ SETTINGS ════════ */}
           {tab === 'settings' && (<>

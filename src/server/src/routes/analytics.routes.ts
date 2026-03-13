@@ -2057,4 +2057,469 @@ r.get('/admin/ab-tests', authenticate, requireAdmin, async (req: AuthRequest, re
   }
 });
 
+// ═══════════════════════════════════════════════════════
+// ADMIN: Tier 3 — Anomaly Detection
+// ═══════════════════════════════════════════════════════
+
+r.get('/admin/anomalies', authenticate, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);
+    const errorEvents = ['checkout_abandoned', 'coupon_failed', 'feature_locked'];
+
+    // Aggregate daily counts at DB level (not loading all rows into memory)
+    const dailyGroups = await prisma.userEvent.groupBy({
+      by: ['event'],
+      where: { createdAt: { gte: thirtyDaysAgo } },
+      _count: true,
+    });
+
+    // We need per-day counts, so use raw query for efficiency
+    const dailyRaw: Array<{ day: string; cnt: number }> = await prisma.$queryRaw`
+      SELECT DATE("createdAt") as day, COUNT(*)::int as cnt
+      FROM "UserEvent"
+      WHERE "createdAt" >= ${thirtyDaysAgo}
+      GROUP BY DATE("createdAt")
+      ORDER BY day`;
+
+    const dailyErrorRaw: Array<{ day: string; cnt: number }> = await prisma.$queryRaw`
+      SELECT DATE("createdAt") as day, COUNT(*)::int as cnt
+      FROM "UserEvent"
+      WHERE "createdAt" >= ${thirtyDaysAgo} AND "event" IN ('checkout_abandoned', 'coupon_failed', 'feature_locked')
+      GROUP BY DATE("createdAt")
+      ORDER BY day`;
+
+    const dailyCounts: Record<string, number> = {};
+    for (const r of dailyRaw) dailyCounts[String(r.day).slice(0, 10)] = Number(r.cnt);
+    const dailyErrorCounts: Record<string, number> = {};
+    for (const r of dailyErrorRaw) dailyErrorCounts[String(r.day).slice(0, 10)] = Number(r.cnt);
+
+    const allDays = Object.keys(dailyCounts).sort();
+
+    // Use first 23 days as baseline (exclude detection window)
+    const baselineDays = allDays.filter(d => new Date(d) < sevenDaysAgo);
+    const baselineTotal = baselineDays.reduce((s, d) => s + (dailyCounts[d] || 0), 0);
+    const avgDaily = baselineDays.length > 0 ? baselineTotal / baselineDays.length : 0;
+
+    const baselineErrorTotal = baselineDays.reduce((s, d) => s + (dailyErrorCounts[d] || 0), 0);
+    const avgDailyErrors = baselineDays.length > 0 ? baselineErrorTotal / baselineDays.length : 0;
+
+    // Generate all 7 days in detection window (including zero-event days)
+    const anomalies: Array<{
+      type: 'spike' | 'drop' | 'error_spike';
+      metric: string;
+      date: string;
+      value: number;
+      expected: number;
+      severity: 'low' | 'medium' | 'high';
+    }> = [];
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now.getTime() - i * 86400000);
+      const day = d.toISOString().slice(0, 10);
+      const count = dailyCounts[day] || 0;
+
+      // Spike detection: >2x baseline average
+      if (avgDaily > 0 && count > 2 * avgDaily) {
+        const ratio = count / avgDaily;
+        anomalies.push({
+          type: 'spike', metric: 'total_events', date: day,
+          value: count, expected: Math.round(avgDaily),
+          severity: ratio > 4 ? 'high' : ratio > 3 ? 'medium' : 'low',
+        });
+      }
+
+      // Drop detection: <0.5x baseline average
+      if (avgDaily > 0 && count < 0.5 * avgDaily) {
+        const ratio = count / avgDaily;
+        anomalies.push({
+          type: 'drop', metric: 'total_events', date: day,
+          value: count, expected: Math.round(avgDaily),
+          severity: ratio < 0.1 ? 'high' : ratio < 0.25 ? 'medium' : 'low',
+        });
+      }
+
+      // Error spike: error events >50% above baseline average
+      const errCount = dailyErrorCounts[day] || 0;
+      if (avgDailyErrors > 0 && errCount > 1.5 * avgDailyErrors) {
+        const ratio = errCount / avgDailyErrors;
+        anomalies.push({
+          type: 'error_spike', metric: 'error_events', date: day,
+          value: errCount, expected: Math.round(avgDailyErrors),
+          severity: ratio > 3 ? 'high' : ratio > 2 ? 'medium' : 'low',
+        });
+      }
+    }
+
+    return successResponse(res, { anomalies });
+  } catch (err: any) {
+    console.error('[Analytics] Anomaly detection error:', err.message);
+    return errorResponse(res, 'Failed to detect anomalies', 500);
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// ADMIN: Tier 3 — Health Score
+// ═══════════════════════════════════════════════════════
+
+r.get('/admin/health-score', authenticate, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);
+    const fourteenDaysAgo = new Date(now.getTime() - 14 * 86400000);
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+
+    // --- Engagement rate (DAU/MAU) using DB aggregation ---
+    const mauRaw: Array<{ uid: string }> = await prisma.$queryRaw`
+      SELECT DISTINCT "userId" as uid FROM "UserEvent"
+      WHERE "createdAt" >= ${thirtyDaysAgo} AND "userId" IS NOT NULL`;
+    const mau = mauRaw.length;
+
+    const dauRaw: Array<{ day: string; cnt: number }> = await prisma.$queryRaw`
+      SELECT DATE("createdAt") as day, COUNT(DISTINCT "userId")::int as cnt
+      FROM "UserEvent"
+      WHERE "createdAt" >= ${sevenDaysAgo} AND "userId" IS NOT NULL
+      GROUP BY DATE("createdAt")`;
+    const dauValues = dauRaw.map(r => Number(r.cnt));
+    const avgDau = dauValues.length > 0 ? dauValues.reduce((a, b) => a + b, 0) / dauValues.length : 0;
+    const engagementRatio = mau > 0 ? (avgDau / mau) * 100 : 0;
+    let engagementScore = 0;
+    if (engagementRatio > 20) engagementScore = 30;
+    else if (engagementRatio > 10) engagementScore = 20;
+    else if (engagementRatio > 5) engagementScore = 10;
+
+    // --- Growth rate ---
+    const [newUsersThisWeek, newUsersLastWeek] = await Promise.all([
+      prisma.user.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+      prisma.user.count({ where: { createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
+    ]);
+    let growthScore = 10;
+    if (newUsersLastWeek > 0) {
+      const growthRatio = newUsersThisWeek / newUsersLastWeek;
+      if (growthRatio > 1.1) growthScore = 20;
+      else if (growthRatio >= 0.9) growthScore = 10;
+      else growthScore = 5;
+    } else if (newUsersThisWeek > 0) {
+      growthScore = 20;
+    }
+
+    // --- Retention rate (DB-level distinct user sets) ---
+    const activeThisWeekRaw: Array<{ uid: string }> = await prisma.$queryRaw`SELECT DISTINCT "userId" as uid FROM "UserEvent" WHERE "createdAt" >= ${sevenDaysAgo} AND "userId" IS NOT NULL`;
+    const activeLastWeekRaw: Array<{ uid: string }> = await prisma.$queryRaw`SELECT DISTINCT "userId" as uid FROM "UserEvent" WHERE "createdAt" >= ${fourteenDaysAgo} AND "createdAt" < ${sevenDaysAgo} AND "userId" IS NOT NULL`;
+    const activeLastWeekSet = new Set(activeLastWeekRaw.map(r => r.uid));
+    let retained = 0;
+    for (const r of activeThisWeekRaw) {
+      if (activeLastWeekSet.has(r.uid)) retained++;
+    }
+    const retentionRatio = activeLastWeekSet.size > 0 ? retained / activeLastWeekSet.size : 0;
+    const retentionScore = Math.min(Math.round(retentionRatio * 20), 20);
+
+    // --- Revenue health ---
+    const [revenueThisMonth, revenueLastMonth] = await Promise.all([
+      prisma.order.aggregate({ where: { createdAt: { gte: thisMonthStart }, paymentStatus: 'PAID' }, _sum: { totalAmount: true } }),
+      prisma.order.aggregate({ where: { createdAt: { gte: lastMonthStart, lte: lastMonthEnd }, paymentStatus: 'PAID' }, _sum: { totalAmount: true } }),
+    ]);
+    const revThis = revenueThisMonth._sum.totalAmount || 0;
+    const revLast = revenueLastMonth._sum.totalAmount || 0;
+    let revenueScore = 0;
+    if (revLast > 0) {
+      const revRatio = revThis / revLast;
+      if (revRatio > 1.1) revenueScore = 15;
+      else if (revRatio >= 0.9) revenueScore = 10;
+      else revenueScore = 5;
+    } else if (revThis > 0) {
+      revenueScore = 15;
+    }
+
+    // --- NPS score (aggregate instead of loading all rows) ---
+    const npsAgg = await prisma.userEvent.aggregate({
+      where: { event: 'nps_submitted', createdAt: { gte: thirtyDaysAgo } },
+      _avg: { value: true },
+      _count: true,
+    });
+    let npsScore = 5;
+    if (npsAgg._count > 0 && npsAgg._avg.value != null) {
+      if (npsAgg._avg.value > 50) npsScore = 15;
+      else if (npsAgg._avg.value > 0) npsScore = 10;
+      else npsScore = 5;
+    }
+
+    const totalScore = engagementScore + growthScore + retentionScore + revenueScore + npsScore;
+
+    // Trend: compare this week's avg DAU vs last week's avg DAU
+    const lastWeekDauRaw: Array<{ day: string; cnt: number }> = await prisma.$queryRaw`
+      SELECT DATE("createdAt") as day, COUNT(DISTINCT "userId")::int as cnt
+      FROM "UserEvent"
+      WHERE "createdAt" >= ${fourteenDaysAgo} AND "createdAt" < ${sevenDaysAgo} AND "userId" IS NOT NULL
+      GROUP BY DATE("createdAt")`;
+    const lastWeekDauValues = lastWeekDauRaw.map(r => Number(r.cnt));
+    const avgDauLastWeek = lastWeekDauValues.length > 0 ? lastWeekDauValues.reduce((a, b) => a + b, 0) / lastWeekDauValues.length : 0;
+    let trend: 'improving' | 'stable' | 'declining' = 'stable';
+    if (avgDauLastWeek > 0) {
+      const trendRatio = avgDau / avgDauLastWeek;
+      if (trendRatio > 1.1) trend = 'improving';
+      else if (trendRatio < 0.9) trend = 'declining';
+    }
+
+    return successResponse(res, {
+      score: totalScore,
+      breakdown: {
+        engagement: engagementScore,
+        growth: growthScore,
+        retention: retentionScore,
+        revenue: revenueScore,
+        nps: npsScore,
+      },
+      trend,
+    });
+  } catch (err: any) {
+    console.error('[Analytics] Health score error:', err.message);
+    return errorResponse(res, 'Failed to compute health score', 500);
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// ADMIN: Tier 3 — Session Timelines
+// ═══════════════════════════════════════════════════════
+
+r.get('/admin/sessions/:userId', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { userId } = req.params;
+
+    // Validate userId format (CUID)
+    if (!userId || !/^c[a-z0-9]{24,}$/i.test(userId)) {
+      return errorResponse(res, 'Invalid userId format', 400);
+    }
+
+    // Limit to last 90 days to prevent unbounded queries
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000);
+    const events = await prisma.userEvent.findMany({
+      where: { userId, sessionId: { not: null }, createdAt: { gte: ninetyDaysAgo } },
+      select: { sessionId: true, event: true, label: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+      take: 5000, // safety limit
+    });
+
+    if (events.length === 0) {
+      return successResponse(res, { sessions: [] });
+    }
+
+    // Group by sessionId
+    const sessionMap = new Map<string, Array<{ event: string; label: string | null; timestamp: Date }>>();
+    for (const e of events) {
+      const sid = e.sessionId!;
+      if (!sessionMap.has(sid)) sessionMap.set(sid, []);
+      sessionMap.get(sid)!.push({ event: e.event, label: e.label, timestamp: e.createdAt });
+    }
+
+    // Build session objects
+    const sessions = [...sessionMap.entries()].map(([sessionId, evts]) => {
+      // Sort events within session by time ascending
+      evts.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+      const startedAt = evts[0].timestamp;
+      const endedAt = evts[evts.length - 1].timestamp;
+      const duration = Math.round((endedAt.getTime() - startedAt.getTime()) / 1000); // seconds
+      return {
+        sessionId,
+        startedAt,
+        endedAt,
+        duration,
+        events: evts.map(e => ({ event: e.event, label: e.label, timestamp: e.timestamp })),
+      };
+    });
+
+    // Sort sessions by most recent first, limit to 20
+    sessions.sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
+    const limited = sessions.slice(0, 20);
+
+    return successResponse(res, { sessions: limited });
+  } catch (err: any) {
+    console.error('[Analytics] Session timelines error:', err.message);
+    return errorResponse(res, 'Failed to fetch session timelines', 500);
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// ADMIN: Tier 3 — Predictive Churn
+// ═══════════════════════════════════════════════════════
+
+r.get('/admin/predictive-churn', authenticate, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const now = new Date();
+    const ninetyDaysAgo = new Date(now.getTime() - 90 * 86400000);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
+    const sixtyDaysAgo = new Date(now.getTime() - 60 * 86400000);
+
+    // DB-level aggregation: per-user stats in a single query
+    const userStats: Array<{
+      userId: string;
+      total_events: number;
+      last_active: Date;
+      last30_events: number;
+      prior30_events: number;
+      active_days_30: number;
+    }> = await prisma.$queryRaw`
+      SELECT
+        "userId",
+        COUNT(*)::int as total_events,
+        MAX("createdAt") as last_active,
+        COUNT(*) FILTER (WHERE "createdAt" >= ${thirtyDaysAgo})::int as last30_events,
+        COUNT(*) FILTER (WHERE "createdAt" >= ${sixtyDaysAgo} AND "createdAt" < ${thirtyDaysAgo})::int as prior30_events,
+        COUNT(DISTINCT DATE("createdAt")) FILTER (WHERE "createdAt" >= ${thirtyDaysAgo})::int as active_days_30
+      FROM "UserEvent"
+      WHERE "createdAt" >= ${ninetyDaysAgo} AND "userId" IS NOT NULL
+      GROUP BY "userId"`;
+
+    if (userStats.length === 0) {
+      return successResponse(res, { healthy: 0, atRisk: 0, churning: 0, topChurning: [] });
+    }
+
+    const activeUserIds = userStats.map(s => s.userId);
+
+    // Get user details and subscription status in parallel
+    const [users, subscriptions] = await Promise.all([
+      prisma.user.findMany({
+        where: { id: { in: activeUserIds } },
+        select: { id: true, fullName: true, email: true },
+      }),
+      prisma.userSubscription.findMany({
+        where: { userId: { in: activeUserIds } },
+        select: { userId: true, status: true },
+        orderBy: { currentPeriodEnd: 'desc' },
+      }),
+    ]);
+    const userMap = new Map(users.map(u => [u.id, u]));
+    const subMap = new Map<string, string>();
+    for (const s of subscriptions) {
+      if (!subMap.has(s.userId)) subMap.set(s.userId, s.status);
+    }
+
+    // Compute churn score for each user
+    const scoredUsers: Array<{
+      userId: string;
+      name: string;
+      email: string | null;
+      score: number;
+      lastActive: Date;
+      signals: string[];
+    }> = [];
+
+    for (const stat of userStats) {
+      const user = userMap.get(stat.userId);
+      if (!user) continue;
+
+      const lastActive = new Date(stat.last_active);
+      const daysSinceLastLogin = Math.floor((now.getTime() - lastActive.getTime()) / 86400000);
+      const signals: string[] = [];
+      let score = 0;
+
+      // Signal 1: Days since last login (0-30 points)
+      if (daysSinceLastLogin > 60) { score += 30; signals.push('inactive_60d+'); }
+      else if (daysSinceLastLogin > 30) { score += 20; signals.push('inactive_30d+'); }
+      else if (daysSinceLastLogin > 14) { score += 10; signals.push('inactive_14d+'); }
+      else if (daysSinceLastLogin > 7) { score += 5; signals.push('low_recent_activity'); }
+
+      // Signal 2: Activity trend (0-25 points)
+      const last30 = Number(stat.last30_events);
+      const prior30 = Number(stat.prior30_events);
+      if (prior30 > 0) {
+        const trendRatio = last30 / prior30;
+        if (trendRatio < 0.25) { score += 25; signals.push('activity_declining_sharply'); }
+        else if (trendRatio < 0.5) { score += 15; signals.push('activity_declining'); }
+        else if (trendRatio < 0.75) { score += 8; signals.push('activity_slightly_declining'); }
+      } else if (last30 === 0) {
+        score += 25; signals.push('no_recent_activity');
+      }
+
+      // Signal 3: Subscription status (0-20 points)
+      const subStatus = subMap.get(stat.userId);
+      if (!subStatus) { score += 10; signals.push('no_subscription'); }
+      else if (subStatus === 'CANCELLED' || subStatus === 'EXPIRED') { score += 20; signals.push('subscription_cancelled'); }
+      else if (subStatus === 'PAST_DUE') { score += 15; signals.push('payment_past_due'); }
+
+      // Signal 4: Low engagement in 90-day window (0-15 points)
+      const totalEvents = Number(stat.total_events);
+      if (totalEvents < 5) { score += 15; signals.push('very_low_engagement'); }
+      else if (totalEvents < 20) { score += 8; signals.push('low_engagement'); }
+
+      // Signal 5: Consistency — distinct active days in last 30 (0-10 points)
+      const activeDays30 = Number(stat.active_days_30);
+      if (activeDays30 <= 1) { score += 10; signals.push('inconsistent_usage'); }
+      else if (activeDays30 <= 3) { score += 5; signals.push('sporadic_usage'); }
+
+      score = Math.min(score, 100);
+
+      scoredUsers.push({ userId: stat.userId, name: user.fullName, email: user.email, score, lastActive, signals });
+    }
+
+    // Categorize
+    let healthy = 0, atRisk = 0, churning = 0;
+    for (const u of scoredUsers) {
+      if (u.score <= 30) healthy++;
+      else if (u.score <= 60) atRisk++;
+      else churning++;
+    }
+
+    // Top 20 most likely to churn
+    const topChurning = scoredUsers
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 20);
+
+    return successResponse(res, { healthy, atRisk, churning, topChurning });
+  } catch (err: any) {
+    console.error('[Analytics] Predictive churn error:', err.message);
+    return errorResponse(res, 'Failed to compute churn predictions', 500);
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// ADMIN: Tier 3 — Content Performance
+// ═══════════════════════════════════════════════════════
+
+r.get('/admin/content-performance', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { days = '30' } = req.query as any;
+    const parsedDays = Math.min(Math.max(parseInt(days) || 30, 1), 365);
+    const since = new Date(Date.now() - parsedDays * 86400000);
+
+    // Use DB-level groupBy for all three queries in parallel
+    const [articleGroups, productGroups, wellnessGroups] = await Promise.all([
+      prisma.userEvent.groupBy({
+        by: ['label'],
+        where: { event: 'page_view', label: { contains: '/articles/' }, createdAt: { gte: since } },
+        _count: true,
+        orderBy: { _count: { label: 'desc' } },
+        take: 20,
+      }),
+      prisma.userEvent.groupBy({
+        by: ['label'],
+        where: { event: 'product_viewed', createdAt: { gte: since } },
+        _count: true,
+        orderBy: { _count: { label: 'desc' } },
+        take: 20,
+      }),
+      prisma.userEvent.groupBy({
+        by: ['label'],
+        where: { event: 'feature_used', createdAt: { gte: since } },
+        _count: true,
+        orderBy: { _count: { label: 'desc' } },
+        take: 20,
+      }),
+    ]);
+
+    const articles = articleGroups.map(g => ({ path: g.label || 'unknown', count: g._count }));
+    const products = productGroups.map(g => ({ title: g.label || 'unknown', count: g._count }));
+    const wellness = wellnessGroups.map(g => ({ title: g.label || 'unknown', count: g._count }));
+
+    return successResponse(res, { articles, products, wellness, period: `${parsedDays} days` });
+  } catch (err: any) {
+    console.error('[Analytics] Content performance error:', err.message);
+    return errorResponse(res, 'Failed to fetch content performance', 500);
+  }
+});
+
 export default r;

@@ -50,6 +50,8 @@ import communityRoutes from './routes/community.routes';
 import contentRoutes from './routes/content.routes';
 import subscriptionRoutes from './routes/subscription.routes';
 import analyticsRoutes from './routes/analytics.routes';
+import referralRoutes from './routes/referral.routes';
+import emailCampaignRoutes from './routes/email-campaign.routes';
 
 // ─── Startup security checks ─────────────────────────
 if (process.env.NODE_ENV === 'production') {
@@ -249,6 +251,8 @@ app.use('/api/v1/community', communityRoutes);
 app.use('/api/v1/content', contentRoutes);
 app.use('/api/v1/subscriptions', subscriptionRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
+app.use('/api/v1/referrals', referralRoutes);
+app.use('/api/v1/email-campaigns', emailCampaignRoutes);
 if (process.env.NODE_ENV !== 'production') {
   app.use('/api/v1/debug', debugRoutes);
 }

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { authAPI } from '../services/api';
+import { authAPI, api } from '../services/api';
 
 export default function AuthPage() {
   const nav = useNavigate();
@@ -51,6 +51,14 @@ export default function AuthPage() {
       const r = await promise;
       const d = r.data.data;
       setAuth(d.user, d.accessToken, d.refreshToken);
+      // Apply referral code if saved from onboarding
+      const pendingReferral = localStorage.getItem('sb_referral_code');
+      if (pendingReferral) {
+        try {
+          await api.post('/referrals/apply', { code: pendingReferral });
+        } catch { /* ignore — code may be invalid or already used */ }
+        localStorage.removeItem('sb_referral_code');
+      }
       // Role-based redirect
       const role = d.user?.role;
       if (role === 'ADMIN') {

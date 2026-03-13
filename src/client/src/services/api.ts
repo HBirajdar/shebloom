@@ -541,6 +541,12 @@ export const analyticsAPI = {
   adminDeleteCampaign: (id: string) => api.delete(`/analytics/admin/campaigns/${id}`),
   adminLtv: () => api.get('/analytics/admin/ltv'),
   adminAbTests: (days?: number) => api.get('/analytics/admin/ab-tests', { params: { days } }),
+  // Tier 3
+  adminAnomalies: () => api.get('/analytics/admin/anomalies'),
+  adminHealthScore: () => api.get('/analytics/admin/health-score'),
+  adminSessions: (userId: string) => api.get(`/analytics/admin/sessions/${userId}`),
+  adminPredictiveChurn: () => api.get('/analytics/admin/predictive-churn'),
+  adminContentPerformance: (days?: number) => api.get('/analytics/admin/content-performance', { params: days ? { days } : undefined }),
 };
 
 // ─── SUBSCRIPTION API ──────────────────────────────
@@ -572,4 +578,34 @@ export const subscriptionAPI = {
   adminGetAnalytics: () => api.get('/subscriptions/admin/analytics'),
   adminGetEvents: (params?: any) => api.get('/subscriptions/admin/events', { params }),
   adminExpireCheck: () => api.post('/subscriptions/admin/expire-check'),
+};
+
+// ─── REFERRAL & GAMIFICATION API ─────────────────
+export const referralAPI = {
+  // User: Referrals
+  getMyCode: () => api.get('/referrals/my-code'),
+  getMyReferrals: () => api.get('/referrals/my-referrals'),
+  sendInvite: (d: { email?: string; phone?: string }) => api.post('/referrals/invite', d),
+  applyCode: (code: string) => api.post('/referrals/apply', { code }),
+  // User: Badges
+  getMyBadges: () => api.get('/referrals/badges/my'),
+  getAllBadges: () => api.get('/referrals/badges/all'),
+  checkBadges: () => api.post('/referrals/badges/check'),
+  // Admin
+  adminReferralsList: (params?: any) => api.get('/referrals/admin/all', { params }),
+  adminReferralStats: () => api.get('/referrals/admin/stats'),
+  adminBadgeLeaderboard: () => api.get('/referrals/admin/badges'),
+};
+
+// ─── EMAIL CAMPAIGN API ──────────────────────────
+export const emailCampaignAPI = {
+  list: () => api.get('/email-campaigns'),
+  create: (d: any) => api.post('/email-campaigns', d),
+  update: (id: string, d: any) => api.put(`/email-campaigns/${id}`, d),
+  delete: (id: string) => api.delete(`/email-campaigns/${id}`),
+  toggle: (id: string) => api.post(`/email-campaigns/${id}/toggle`),
+  sendTest: (id: string) => api.post(`/email-campaigns/${id}/send-test`),
+  send: (id: string) => api.post(`/email-campaigns/${id}/send`),
+  stats: () => api.get('/email-campaigns/stats'),
+  trigger: (trigger: string) => api.post(`/email-campaigns/trigger/${trigger}`),
 };
