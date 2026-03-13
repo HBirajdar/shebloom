@@ -520,6 +520,14 @@ export const analyticsAPI = {
   adminMetrics: () => api.get('/analytics/admin/metrics'),
   adminEvents: (params?: { event?: string; userId?: string; category?: string; days?: number; page?: number }) => api.get('/analytics/admin/events', { params }),
   adminEventsSummary: (days?: number) => api.get('/analytics/admin/events/summary', { params: { days } }),
+  // New Tier-1 features
+  adminLiveFeed: (after?: string) => api.get('/analytics/admin/live-feed', { params: { limit: 40, after } }),
+  adminChurnRisk: (params?: { page?: number; limit?: number; risk?: string }) => api.get('/analytics/admin/churn-risk', { params }),
+  adminSegments: (params?: Record<string, any>) => api.get('/analytics/admin/segments', { params }),
+  adminAlerts: () => api.get('/analytics/admin/alerts'),
+  adminExport: (type: string, days?: number) => api.get(`/analytics/admin/export/${type}`, { params: { days }, responseType: 'blob' }),
+  adminForecast: () => api.get('/analytics/admin/forecast'),
+  adminCohorts: (months?: number) => api.get('/analytics/admin/cohorts', { params: { months } }),
 };
 
 // ─── SUBSCRIPTION API ──────────────────────────────

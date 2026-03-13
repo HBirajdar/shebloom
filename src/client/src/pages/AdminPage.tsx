@@ -177,7 +177,7 @@ const FormCheckbox = ({ label, checked, onChange }: { label: string; checked: bo
 );
 type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'NO_SHOW' | 'CANCELLED';
 
-type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness' | 'programs' | 'add_program' | 'edit_program' | 'program_content' | 'sellers' | 'seller_detail' | 'seller_payouts' | 'add_seller' | 'community' | 'content' | 'subscriptions' | 'leads' | 'insights' | 'user_detail';
+type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness' | 'programs' | 'add_program' | 'edit_program' | 'program_content' | 'sellers' | 'seller_detail' | 'seller_payouts' | 'add_seller' | 'community' | 'content' | 'subscriptions' | 'leads' | 'insights' | 'user_detail' | 'live_feed' | 'churn_risk' | 'segments' | 'alerts' | 'forecast' | 'cohorts' | 'exports';
 
 // ─── Finance Admin Tab ──────────────────────────────────
 // Platform config, coupons, revenue analytics — like Practo/Zomato/Amazon admin
@@ -1113,6 +1113,681 @@ function UserDetailTab({ userId, onBack }: { userId: string; onBack: () => void 
             WhatsApp
           </a>
         )}
+      </div>
+    </div>
+  </>);
+}
+
+// ─── Live Activity Feed Tab ─────────────────────────────
+function LiveFeedTab({ onViewUser }: { onViewUser: (id: string) => void }) {
+  const [events, setEvents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const cursorRef = useRef<string | null>(null);
+
+  const fetchFeed = async (append = false) => {
+    try {
+      const res = await analyticsAPI.adminLiveFeed(append ? cursorRef.current || undefined : undefined);
+      const d = res.data?.data || res.data;
+      const newEvents = d.events || [];
+      if (append && newEvents.length > 0) {
+        setEvents(prev => {
+          const ids = new Set(prev.map((e: any) => e.id));
+          const fresh = newEvents.filter((e: any) => !ids.has(e.id));
+          return [...fresh, ...prev].slice(0, 100);
+        });
+      } else if (!append) {
+        setEvents(newEvents);
+      }
+      if (d.cursor) cursorRef.current = d.cursor;
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchFeed(); }, []);
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const iv = setInterval(() => fetchFeed(true), 5000);
+    return () => clearInterval(iv);
+  }, [autoRefresh]);
+
+  const eventIcon: Record<string, string> = {
+    page_view: '\u{1F440}', checkout_started: '\u{1F6D2}', checkout_completed: '\u2705',
+    checkout_abandoned: '\u274C', plan_selected: '\u{1F48E}', subscription_page_viewed: '\u{1F4B3}',
+    feature_locked: '\u{1F512}', upgrade_prompt_shown: '\u{1F514}', upgrade_prompt_clicked: '\u{1F449}',
+    product_viewed: '\u{1F4E6}', product_added_to_cart: '\u{1F6D2}', article_viewed: '\u{1F4DD}',
+    coupon_applied: '\u{1F3AB}', coupon_failed: '\u{1F6AB}', trial_started: '\u{1F389}',
+    appointment_started: '\u{1F4C5}', appointment_abandoned: '\u{1F6AB}',
+    search_performed: '\u{1F50D}', feature_used: '\u2699\uFE0F', cart_viewed: '\u{1F6D2}',
+  };
+  const eventColor: Record<string, string> = {
+    checkout_completed: 'border-emerald-200 bg-emerald-50', checkout_abandoned: 'border-red-200 bg-red-50',
+    checkout_started: 'border-orange-200 bg-orange-50', feature_locked: 'border-amber-200 bg-amber-50',
+    plan_selected: 'border-purple-200 bg-purple-50', trial_started: 'border-blue-200 bg-blue-50',
+  };
+
+  const timeAgo = (d: string) => {
+    const s = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
+    if (s < 60) return `${s}s ago`;
+    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+    return `${Math.floor(s / 86400)}d ago`;
+  };
+
+  return (<>
+    <div className="flex items-center justify-between">
+      <h3 className="text-base font-extrabold text-gray-900">{'\u{1F4E1}'} Live Activity Feed</h3>
+      <div className="flex items-center gap-2">
+        <button onClick={() => setAutoRefresh(!autoRefresh)}
+          className={'px-3 py-1.5 rounded-full text-[10px] font-bold transition-all ' + (autoRefresh ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500')}>
+          {autoRefresh ? '\u{1F7E2} Live' : '\u23F8 Paused'}
+        </button>
+        <button onClick={() => { setLoading(true); cursorRef.current = null; fetchFeed(); }}
+          className="px-3 py-1.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-500 hover:bg-gray-200">{'\u{1F504}'} Refresh</button>
+      </div>
+    </div>
+
+    {loading && events.length === 0 ? (
+      <div className="flex justify-center py-12"><div className="animate-spin w-6 h-6 border-3 border-rose-400 border-t-transparent rounded-full" /></div>
+    ) : events.length === 0 ? (
+      <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
+        <p className="text-4xl mb-2">{'\u{1F4E1}'}</p>
+        <p className="text-sm text-gray-500">No events yet. Activity will appear here as users interact with the app.</p>
+      </div>
+    ) : (
+      <div className="space-y-1.5">
+        {events.map((e: any) => (
+          <div key={e.id} className={'border rounded-xl p-3 transition-all hover:shadow-sm ' + (eventColor[e.event] || 'border-gray-100 bg-white')}>
+            <div className="flex items-center gap-2.5">
+              <span className="text-lg flex-shrink-0">{eventIcon[e.event] || '\u{1F4CC}'}</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  {e.user ? (
+                    <button onClick={() => onViewUser(e.userId)} className="text-xs font-bold text-gray-800 hover:text-rose-600 truncate">{e.user.fullName || e.user.email || 'User'}</button>
+                  ) : (
+                    <span className="text-xs font-bold text-gray-400">Anonymous</span>
+                  )}
+                  <span className="text-[9px] text-gray-400">{'\u2022'}</span>
+                  <span className="text-[10px] font-semibold text-gray-600">{e.event.replace(/_/g, ' ')}</span>
+                </div>
+                {e.label && <p className="text-[9px] text-gray-400 truncate">{e.label}</p>}
+              </div>
+              <span className="text-[9px] text-gray-400 flex-shrink-0">{timeAgo(e.createdAt)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </>);
+}
+
+// ─── Churn Risk Tab ─────────────────────────────────────
+function ChurnRiskTab({ onViewUser }: { onViewUser: (id: string) => void }) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [risk, setRisk] = useState('all');
+  const [page, setPage] = useState(1);
+
+  const fetch = async (r = risk, p = page) => {
+    setLoading(true);
+    try {
+      const res = await analyticsAPI.adminChurnRisk({ risk: r === 'all' ? undefined : r, page: p, limit: 20 });
+      setData(res.data?.data || res.data);
+    } catch { setData(null); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetch(); }, [risk, page]);
+
+  const riskColor = (l: string) => l === 'high' ? 'bg-red-100 text-red-700' : l === 'medium' ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700';
+  const riskBarColor = (l: string) => l === 'high' ? 'bg-red-500' : l === 'medium' ? 'bg-orange-400' : 'bg-emerald-400';
+
+  return (<>
+    <h3 className="text-base font-extrabold text-gray-900">{'\u{1F6A8}'} Churn Risk Monitor</h3>
+    <p className="text-[10px] text-gray-500 -mt-2">AI-scored risk for active/trial subscribers based on login, activity trends, trial status, and renewal settings</p>
+
+    {data?.summary && (
+      <div className="grid grid-cols-3 gap-2">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
+          <div className="text-xl font-extrabold text-red-700">{data.summary.high}</div>
+          <div className="text-[9px] font-bold text-red-500">HIGH RISK</div>
+        </div>
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-center">
+          <div className="text-xl font-extrabold text-orange-700">{data.summary.medium}</div>
+          <div className="text-[9px] font-bold text-orange-500">MEDIUM</div>
+        </div>
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
+          <div className="text-xl font-extrabold text-emerald-700">{data.summary.low}</div>
+          <div className="text-[9px] font-bold text-emerald-500">LOW RISK</div>
+        </div>
+      </div>
+    )}
+
+    <div className="flex gap-1.5 flex-wrap">
+      {[{ k: 'all', l: 'All' }, { k: 'high', l: 'High Risk' }, { k: 'medium', l: 'Medium' }, { k: 'low', l: 'Low' }].map(f => (
+        <button key={f.k} onClick={() => { setRisk(f.k); setPage(1); }}
+          className={'px-3 py-1.5 rounded-full text-[10px] font-bold transition-all ' + (risk === f.k ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200')}>
+          {f.l}
+        </button>
+      ))}
+    </div>
+
+    <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+      {loading ? (
+        <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-3 border-rose-400 border-t-transparent rounded-full" /></div>
+      ) : !data?.users?.length ? (
+        <p className="text-center text-sm text-gray-400 py-8">No subscribers found</p>
+      ) : data.users.map((u: any) => (
+        <div key={u.userId} className="border border-gray-100 rounded-xl p-3 hover:shadow-sm transition-all">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+              {u.user?.fullName?.charAt(0) || '?'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm font-bold text-gray-800 truncate">{u.user?.fullName || 'Unknown'}</p>
+                <span className={'text-[7px] font-bold px-1.5 py-0.5 rounded-full ' + riskColor(u.riskLevel)}>{u.riskLevel.toUpperCase()}</span>
+              </div>
+              <p className="text-[10px] text-gray-500 truncate">{u.plan?.name} • {u.subscriptionStatus}</p>
+            </div>
+            <div className="text-right flex-shrink-0">
+              <div className="text-lg font-extrabold text-gray-900">{u.riskScore}</div>
+              <div className="text-[8px] text-gray-400">risk</div>
+            </div>
+          </div>
+          <div className="mt-2">
+            <div className="w-full bg-gray-100 rounded-full h-1.5">
+              <div className={'h-1.5 rounded-full transition-all ' + riskBarColor(u.riskLevel)} style={{ width: `${u.riskScore}%` }} />
+            </div>
+          </div>
+          <div className="flex gap-1 mt-2 flex-wrap">
+            {u.reasons.map((r: string, i: number) => (
+              <span key={i} className="text-[8px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{r}</span>
+            ))}
+          </div>
+          <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-50">
+            <span className="text-[9px] text-gray-400">Events: {u.recentEvents} (prev: {u.prevEvents})</span>
+            <div className="flex gap-1.5">
+              {u.user?.phone && <a href={'tel:' + u.user.phone} className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">Call</a>}
+              {u.user?.email && <a href={'mailto:' + u.user.email} className="text-[9px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">Email</a>}
+              <button onClick={() => onViewUser(u.userId)} className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">Profile</button>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {(data?.total || 0) > 20 && (
+        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
+            className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-gray-50 disabled:opacity-30">Prev</button>
+          <span className="text-[10px] text-gray-500 font-bold">Page {page}</span>
+          <button onClick={() => setPage(p => p + 1)} disabled={(data?.users?.length || 0) < 20}
+            className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-gray-50 disabled:opacity-30">Next</button>
+        </div>
+      )}
+    </div>
+  </>);
+}
+
+// ─── Segments Tab ─────────────────────────────────────
+function SegmentsTab({ onViewUser }: { onViewUser: (id: string) => void }) {
+  const [users, setUsers] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState<Record<string, string>>({ status: '' });
+
+  const presets = [
+    { label: 'Active (7d)', filters: { status: 'active' } },
+    { label: 'Inactive (14d+)', filters: { status: 'inactive' } },
+    { label: 'New Users (7d)', filters: { status: 'new' } },
+    { label: 'Premium', filters: { status: 'premium' } },
+    { label: 'Free Users', filters: { status: 'free' } },
+    { label: 'No Login 30d', filters: { lastLoginDays: '30' } },
+    { label: 'Periods Goal', filters: { goal: 'periods' } },
+    { label: 'Fertility Goal', filters: { goal: 'fertility' } },
+    { label: 'Pregnancy Goal', filters: { goal: 'pregnancy' } },
+  ];
+
+  const fetchSegment = async (f = filters, p = page) => {
+    setLoading(true);
+    try {
+      const params: Record<string, any> = { page: p, limit: 30 };
+      Object.entries(f).forEach(([k, v]) => { if (v) params[k] = v; });
+      const res = await analyticsAPI.adminSegments(params);
+      const d = res.data?.data || res.data;
+      setUsers(d.users || []);
+      setTotal(d.total || 0);
+    } catch { setUsers([]); }
+    finally { setLoading(false); }
+  };
+
+  const handlePreset = (p: Record<string, string>) => {
+    setFilters(p);
+    setPage(1);
+    fetchSegment(p, 1);
+  };
+
+  const handleExport = async () => {
+    try {
+      const res = await analyticsAPI.adminExport('users');
+      const blob = new Blob([res.data], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'vedaclue-users.csv'; a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Users exported!');
+    } catch { toast.error('Export failed'); }
+  };
+
+  return (<>
+    <div className="flex items-center justify-between">
+      <h3 className="text-base font-extrabold text-gray-900">{'\u{1F9E9}'} User Segments</h3>
+      <button onClick={handleExport} className="px-3 py-1.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 hover:bg-emerald-200">{'\u{1F4E5}'} Export CSV</button>
+    </div>
+    <p className="text-[10px] text-gray-500 -mt-2">Segment users by status, goal, activity — then export or contact</p>
+
+    <div className="flex gap-1.5 flex-wrap">
+      {presets.map(p => (
+        <button key={p.label} onClick={() => handlePreset(p.filters)}
+          className={'px-3 py-1.5 rounded-full text-[10px] font-bold transition-all ' +
+            (JSON.stringify(filters) === JSON.stringify(p.filters) ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200')}>
+          {p.label}
+        </button>
+      ))}
+    </div>
+
+    {!loading && users.length === 0 && total === 0 && (
+      <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
+        <p className="text-4xl mb-2">{'\u{1F9E9}'}</p>
+        <p className="text-sm text-gray-500">Select a segment preset above to load users</p>
+      </div>
+    )}
+
+    {loading ? (
+      <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-3 border-rose-400 border-t-transparent rounded-full" /></div>
+    ) : users.length > 0 && (
+      <div className="bg-white rounded-2xl p-4 shadow-sm">
+        <div className="flex justify-between items-center mb-3">
+          <span className="text-sm font-bold text-gray-700">{total} users found</span>
+        </div>
+        <div className="space-y-2">
+          {users.map((u: any) => (
+            <div key={u.id} className="border border-gray-100 rounded-xl p-3 flex items-center gap-3 hover:shadow-sm transition-all">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0">
+                {u.fullName?.charAt(0) || '?'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-gray-800 truncate">{u.fullName || 'Unknown'}</p>
+                <p className="text-[9px] text-gray-400 truncate">{u.email || u.phone || ''} {u.goal ? `• ${u.goal}` : ''}</p>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                {u.subscription && <span className="text-[7px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">{u.subscription.plan?.name || 'Premium'}</span>}
+                <span className="text-[8px] text-gray-400">{u.eventCount} events</span>
+                <button onClick={() => onViewUser(u.id)} className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg hover:bg-indigo-100">View</button>
+              </div>
+            </div>
+          ))}
+        </div>
+        {total > 30 && (
+          <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-100">
+            <button onClick={() => { setPage(p => Math.max(1, p - 1)); fetchSegment(filters, Math.max(1, page - 1)); }} disabled={page <= 1}
+              className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-gray-50 disabled:opacity-30">Prev</button>
+            <span className="text-[10px] text-gray-500 font-bold">Page {page} of {Math.ceil(total / 30)}</span>
+            <button onClick={() => { setPage(p => p + 1); fetchSegment(filters, page + 1); }} disabled={users.length < 30}
+              className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-gray-50 disabled:opacity-30">Next</button>
+          </div>
+        )}
+      </div>
+    )}
+  </>);
+}
+
+// ─── Smart Alerts Tab ─────────────────────────────────────
+function AlertsTab() {
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [generatedAt, setGeneratedAt] = useState('');
+
+  const fetch = async () => {
+    setLoading(true);
+    try {
+      const res = await analyticsAPI.adminAlerts();
+      const d = res.data?.data || res.data;
+      setAlerts(d.alerts || []);
+      setGeneratedAt(d.generatedAt || '');
+    } catch { setAlerts([]); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetch(); }, []);
+
+  const sevStyle: Record<string, { bg: string; icon: string; border: string }> = {
+    critical: { bg: 'bg-red-50', icon: '\u{1F6A8}', border: 'border-red-200' },
+    warning: { bg: 'bg-amber-50', icon: '\u26A0\uFE0F', border: 'border-amber-200' },
+    success: { bg: 'bg-emerald-50', icon: '\u2705', border: 'border-emerald-200' },
+    info: { bg: 'bg-blue-50', icon: '\u{1F4A1}', border: 'border-blue-200' },
+  };
+
+  return (<>
+    <div className="flex items-center justify-between">
+      <h3 className="text-base font-extrabold text-gray-900">{'\u{1F514}'} Smart Alerts</h3>
+      <button onClick={fetch} className="px-3 py-1.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-500 hover:bg-gray-200">{'\u{1F504}'} Refresh</button>
+    </div>
+    {generatedAt && <p className="text-[9px] text-gray-400 -mt-2">Generated {new Date(generatedAt).toLocaleTimeString()}</p>}
+
+    {loading ? (
+      <div className="flex justify-center py-12"><div className="animate-spin w-6 h-6 border-3 border-rose-400 border-t-transparent rounded-full" /></div>
+    ) : alerts.length === 0 ? (
+      <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
+        <p className="text-4xl mb-2">{'\u2705'}</p>
+        <p className="text-sm font-bold text-gray-700">All Clear!</p>
+        <p className="text-[10px] text-gray-400 mt-1">No alerts right now. Everything looks healthy.</p>
+      </div>
+    ) : (
+      <div className="space-y-2">
+        {alerts.map((a: any, i: number) => {
+          const s = sevStyle[a.severity] || sevStyle.info;
+          return (
+            <div key={i} className={`border ${s.border} ${s.bg} rounded-xl p-4 transition-all`}>
+              <div className="flex items-start gap-3">
+                <span className="text-xl flex-shrink-0">{s.icon}</span>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-gray-800">{a.title}</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">{a.detail}</p>
+                </div>
+                {a.value != null && (
+                  <span className="text-lg font-extrabold text-gray-700 flex-shrink-0">{typeof a.value === 'number' && a.value > 999 ? `${(a.value / 1000).toFixed(1)}k` : a.value}</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    )}
+  </>);
+}
+
+// ─── Export Reports Tab (integrated into Insights) ──────
+// Export functionality is handled via buttons on individual tabs.
+// We add a dedicated exports panel for convenience:
+function ExportTab() {
+  const [exporting, setExporting] = useState('');
+
+  const handleExport = async (type: string, label: string) => {
+    setExporting(type);
+    try {
+      const res = await analyticsAPI.adminExport(type, 90);
+      const blob = new Blob([res.data], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `vedaclue-${type}-${new Date().toISOString().split('T')[0]}.csv`; a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`${label} exported!`);
+    } catch { toast.error('Export failed'); }
+    finally { setExporting(''); }
+  };
+
+  const exports = [
+    { type: 'users', label: 'All Users', icon: '\u{1F465}', desc: 'Full user list with goals, activity counts, login dates', color: 'from-blue-500 to-indigo-500' },
+    { type: 'leads', label: 'Leads', icon: '\u{1F3AF}', desc: 'Users who showed purchase interest (last 90 days)', color: 'from-orange-500 to-red-500' },
+    { type: 'events', label: 'Event Log', icon: '\u{1F4CA}', desc: 'Raw analytics events with user details (last 90 days)', color: 'from-purple-500 to-pink-500' },
+    { type: 'revenue', label: 'Revenue', icon: '\u{1F4B0}', desc: 'All subscription payments with plan details', color: 'from-emerald-500 to-teal-500' },
+  ];
+
+  return (<>
+    <h3 className="text-base font-extrabold text-gray-900">{'\u{1F4E5}'} Export Reports</h3>
+    <p className="text-[10px] text-gray-500 -mt-2">Download data as CSV files for offline analysis</p>
+
+    <div className="space-y-3">
+      {exports.map(e => (
+        <div key={e.type} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all">
+          <div className="flex items-center gap-3">
+            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${e.color} flex items-center justify-center text-xl text-white flex-shrink-0`}>
+              {e.icon}
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-gray-800">{e.label}</p>
+              <p className="text-[10px] text-gray-400">{e.desc}</p>
+            </div>
+            <button
+              onClick={() => handleExport(e.type, e.label)}
+              disabled={exporting === e.type}
+              className="px-4 py-2.5 rounded-xl text-[10px] font-bold bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm hover:shadow-md disabled:opacity-50 transition-all">
+              {exporting === e.type ? 'Exporting...' : 'Download'}
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  </>);
+}
+
+// ─── Revenue Forecast Tab ─────────────────────────────────
+function ForecastTab() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    analyticsAPI.adminForecast().then(res => {
+      setData(res.data?.data || res.data);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin w-8 h-8 border-4 border-rose-400 border-t-transparent rounded-full" /></div>;
+  if (!data) return <p className="text-center text-gray-400 py-8">Failed to load forecast data</p>;
+
+  const maxRev = Math.max(...(data.historical || []).map((m: any) => m.revenue), ...(data.forecast || []).map((m: any) => m.upper || m.predicted), 1);
+  const growthIcon = data.growth?.direction === 'growing' ? '\u{1F4C8}' : data.growth?.direction === 'declining' ? '\u{1F4C9}' : '\u27A1\uFE0F';
+  const growthColor = data.growth?.direction === 'growing' ? 'text-emerald-600' : data.growth?.direction === 'declining' ? 'text-red-600' : 'text-gray-600';
+
+  return (<>
+    <h3 className="text-base font-extrabold text-gray-900">{'\u{1F52E}'} Revenue Forecast</h3>
+
+    <div className="grid grid-cols-2 gap-3">
+      <div className="bg-gradient-to-br from-rose-500 to-pink-500 rounded-2xl p-4 text-white">
+        <div className="text-[9px] font-bold text-white/60">CURRENT MRR</div>
+        <div className="text-2xl font-extrabold">{'\u20B9'}{data.currentMRR?.toLocaleString('en-IN')}</div>
+      </div>
+      <div className="bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl p-4 text-white">
+        <div className="text-[9px] font-bold text-white/60">PROJECTED MRR</div>
+        <div className="text-2xl font-extrabold">{'\u20B9'}{data.projectedMRR?.toLocaleString('en-IN')}</div>
+      </div>
+    </div>
+
+    <div className="bg-white rounded-2xl p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-sm font-bold text-gray-700">Revenue Trend</span>
+        <span className={'text-sm font-bold ' + growthColor}>{growthIcon} {data.growth?.direction} ({'\u20B9'}{Math.abs(data.growth?.slope || 0)}/mo)</span>
+      </div>
+      <div className="space-y-1.5">
+        {(data.historical || []).map((m: any) => (
+          <div key={m.month} className="flex items-center gap-2">
+            <span className="text-[9px] text-gray-500 w-14 flex-shrink-0">{m.month}</span>
+            <div className="flex-1 bg-gray-100 rounded-full h-4 overflow-hidden">
+              <div className="bg-gradient-to-r from-rose-400 to-pink-500 h-full rounded-full transition-all flex items-center justify-end pr-1"
+                style={{ width: `${Math.max(2, m.revenue / maxRev * 100)}%` }}>
+                {m.revenue > 0 && <span className="text-[7px] text-white font-bold">{'\u20B9'}{m.revenue.toLocaleString('en-IN')}</span>}
+              </div>
+            </div>
+            <span className="text-[8px] text-gray-400 w-6 text-right flex-shrink-0">{m.subs}s</span>
+          </div>
+        ))}
+        {(data.forecast || []).map((m: any) => (
+          <div key={m.month} className="flex items-center gap-2">
+            <span className="text-[9px] text-indigo-500 font-bold w-14 flex-shrink-0">{m.month}</span>
+            <div className="flex-1 bg-gray-100 rounded-full h-4 overflow-hidden relative">
+              <div className="bg-indigo-100 h-full rounded-full absolute" style={{ width: `${Math.max(2, m.upper / maxRev * 100)}%` }} />
+              <div className="bg-gradient-to-r from-indigo-400 to-purple-500 h-full rounded-full relative flex items-center justify-end pr-1"
+                style={{ width: `${Math.max(2, m.predicted / maxRev * 100)}%` }}>
+                {m.predicted > 0 && <span className="text-[7px] text-white font-bold">{'\u20B9'}{m.predicted.toLocaleString('en-IN')}</span>}
+              </div>
+            </div>
+            <span className="text-[8px] text-indigo-400 w-6 text-right flex-shrink-0">{'\u{1F52E}'}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-3 mt-3 pt-2 border-t border-gray-100">
+        <div className="flex items-center gap-1"><div className="w-3 h-2 rounded bg-gradient-to-r from-rose-400 to-pink-500" /><span className="text-[8px] text-gray-500">Actual</span></div>
+        <div className="flex items-center gap-1"><div className="w-3 h-2 rounded bg-gradient-to-r from-indigo-400 to-purple-500" /><span className="text-[8px] text-gray-500">Forecast</span></div>
+        <div className="flex items-center gap-1"><div className="w-3 h-2 rounded bg-indigo-100" /><span className="text-[8px] text-gray-500">Range</span></div>
+      </div>
+    </div>
+
+    {/* Churn Trend */}
+    <div className="bg-white rounded-2xl p-4 shadow-sm">
+      <h4 className="text-sm font-bold text-gray-700 mb-3">Churn Rate Trend</h4>
+      <div className="flex items-end gap-1 h-20">
+        {(data.churnTrend || []).map((c: any) => (
+          <div key={c.month} className="flex-1 flex flex-col items-center gap-0.5">
+            <span className="text-[7px] font-bold text-gray-600">{c.rate}%</span>
+            <div className="w-full bg-red-100 rounded-t" style={{ height: `${Math.max(4, c.rate * 2)}px` }}>
+              <div className="w-full h-full bg-gradient-to-t from-red-500 to-red-300 rounded-t" />
+            </div>
+            <span className="text-[7px] text-gray-400">{c.month.slice(5)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {/* Trial Projection */}
+    {data.trialProjection && (
+      <div className="bg-white rounded-2xl p-4 shadow-sm">
+        <h4 className="text-sm font-bold text-gray-700 mb-2">Trial Conversion Projection</h4>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="text-center">
+            <div className="text-xl font-extrabold text-gray-800">{data.trialProjection.activeTrials}</div>
+            <div className="text-[8px] text-gray-400">Active Trials</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xl font-extrabold text-emerald-600">{data.trialProjection.expectedConversions}</div>
+            <div className="text-[8px] text-gray-400">Expected Conversions</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xl font-extrabold text-indigo-600">{data.trialProjection.historicalConvRate}%</div>
+            <div className="text-[8px] text-gray-400">Hist. Conv Rate</div>
+          </div>
+        </div>
+      </div>
+    )}
+  </>);
+}
+
+// ─── Cohort Comparison Tab ─────────────────────────────────
+function CohortsTab() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [months, setMonths] = useState(4);
+
+  const fetch = async (m = months) => {
+    setLoading(true);
+    try {
+      const res = await analyticsAPI.adminCohorts(m);
+      setData(res.data?.data || res.data);
+    } catch { setData(null); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetch(); }, [months]);
+
+  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin w-8 h-8 border-4 border-rose-400 border-t-transparent rounded-full" /></div>;
+  if (!data?.cohorts) return <p className="text-center text-gray-400 py-8">No cohort data</p>;
+
+  const maxSize = Math.max(...data.cohorts.map((c: any) => c.size), 1);
+  const retColor = (pct: number) => pct >= 50 ? 'bg-emerald-500 text-white' : pct >= 30 ? 'bg-emerald-300 text-white' : pct >= 15 ? 'bg-amber-300 text-gray-800' : pct > 0 ? 'bg-red-200 text-gray-700' : 'bg-gray-100 text-gray-400';
+
+  return (<>
+    <div className="flex items-center justify-between">
+      <h3 className="text-base font-extrabold text-gray-900">{'\u{1F4C6}'} Cohort Comparison</h3>
+      <div className="flex gap-1">
+        {[3, 4, 6].map(m => (
+          <button key={m} onClick={() => setMonths(m)}
+            className={'px-2.5 py-1 rounded-full text-[10px] font-bold ' + (months === m ? 'bg-rose-500 text-white' : 'bg-gray-100 text-gray-500')}>
+            {m}mo
+          </button>
+        ))}
+      </div>
+    </div>
+    <p className="text-[10px] text-gray-500 -mt-2">Compare signup cohorts — retention, conversion, revenue, engagement</p>
+
+    {/* Cohort Cards */}
+    <div className="space-y-3">
+      {data.cohorts.map((c: any) => (
+        <div key={c.monthKey} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <span className="text-sm font-extrabold text-gray-800">{c.month}</span>
+              <span className="text-[10px] text-gray-400 ml-2">{c.size} users</span>
+            </div>
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">{c.conversionRate}% converted</span>
+          </div>
+
+          {/* Size bar */}
+          <div className="w-full bg-gray-100 rounded-full h-2 mb-3">
+            <div className="bg-gradient-to-r from-rose-400 to-pink-500 h-full rounded-full" style={{ width: `${c.size / maxSize * 100}%` }} />
+          </div>
+
+          {/* Retention heatmap */}
+          <div className="flex gap-1.5 mb-2">
+            {['week1', 'week2', 'week3', 'week4'].map((w, i) => {
+              const pct = c.retention?.[w] ?? 0;
+              return (
+                <div key={w} className={`flex-1 rounded-lg py-1.5 text-center ${retColor(pct)}`}>
+                  <div className="text-[10px] font-bold">{pct > 0 ? `${pct}%` : '-'}</div>
+                  <div className="text-[7px] opacity-70">W{i + 1}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Metrics row */}
+          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-100">
+            <div className="text-center">
+              <div className="text-xs font-bold text-gray-700">{c.avgEvents}</div>
+              <div className="text-[7px] text-gray-400">Avg Events</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xs font-bold text-gray-700">{c.conversions}</div>
+              <div className="text-[7px] text-gray-400">Subscribers</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xs font-bold text-gray-700">{'\u20B9'}{(c.revenue || 0).toLocaleString('en-IN')}</div>
+              <div className="text-[7px] text-gray-400">Revenue</div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {/* Retention Comparison Table */}
+    <div className="bg-white rounded-2xl p-4 shadow-sm">
+      <h4 className="text-sm font-bold text-gray-700 mb-3">Retention Heatmap</h4>
+      <div className="overflow-x-auto">
+        <table className="w-full text-[10px]">
+          <thead>
+            <tr className="text-gray-400 font-bold">
+              <td className="pb-2">Cohort</td>
+              <td className="pb-2 text-center">Size</td>
+              <td className="pb-2 text-center">W1</td>
+              <td className="pb-2 text-center">W2</td>
+              <td className="pb-2 text-center">W3</td>
+              <td className="pb-2 text-center">W4</td>
+            </tr>
+          </thead>
+          <tbody>
+            {data.cohorts.map((c: any) => (
+              <tr key={c.monthKey} className="border-t border-gray-50">
+                <td className="py-1.5 font-bold text-gray-700">{c.month}</td>
+                <td className="py-1.5 text-center text-gray-600">{c.size}</td>
+                {['week1', 'week2', 'week3', 'week4'].map(w => (
+                  <td key={w} className="py-1.5 text-center">
+                    <span className={`inline-block w-8 py-0.5 rounded text-[9px] font-bold ${retColor(c.retention?.[w] ?? 0)}`}>
+                      {c.retention?.[w] != null ? `${c.retention[w]}%` : '-'}
+                    </span>
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   </>);
@@ -3765,6 +4440,13 @@ export default function AdminPage() {
     { id: 'users', icon: '\u{1F465}', label: 'Users' },
     { id: 'leads', icon: '\u{1F3AF}', label: 'Leads' },
     { id: 'insights', icon: '\u{1F4CA}', label: 'Insights' },
+    { id: 'live_feed', icon: '\u{1F4E1}', label: 'Live' },
+    { id: 'churn_risk', icon: '\u{1F6A8}', label: 'Churn' },
+    { id: 'segments', icon: '\u{1F9E9}', label: 'Segments' },
+    { id: 'alerts', icon: '\u{1F514}', label: 'Alerts' },
+    { id: 'forecast', icon: '\u{1F52E}', label: 'Forecast' },
+    { id: 'cohorts', icon: '\u{1F4C6}', label: 'Cohorts' },
+    { id: 'exports', icon: '\u{1F4E5}', label: 'Export' },
     { id: 'orders', icon: '\u{1F6D2}', label: 'Orders' },
     { id: 'subscriptions', icon: '\u{1F48E}', label: 'Subs' },
     { id: 'products', icon: '\u{1F4E6}', label: 'Products' },
@@ -3930,6 +4612,11 @@ export default function AdminPage() {
                 { l: 'Subscriptions', t: 'subscriptions' as TabId, e: '\u{1F48E}', c: 'bg-amber-50 text-amber-700' },
                 { l: 'Leads Board', t: 'leads' as TabId, e: '\u{1F3AF}', c: 'bg-orange-50 text-orange-700' },
                 { l: 'Business Insights', t: 'insights' as TabId, e: '\u{1F4CA}', c: 'bg-indigo-50 text-indigo-700' },
+                { l: 'Live Feed', t: 'live_feed' as TabId, e: '\u{1F4E1}', c: 'bg-teal-50 text-teal-700' },
+                { l: 'Churn Monitor', t: 'churn_risk' as TabId, e: '\u{1F6A8}', c: 'bg-red-50 text-red-700' },
+                { l: 'Smart Alerts', t: 'alerts' as TabId, e: '\u{1F514}', c: 'bg-yellow-50 text-yellow-700' },
+                { l: 'Revenue Forecast', t: 'forecast' as TabId, e: '\u{1F52E}', c: 'bg-violet-50 text-violet-700' },
+                { l: 'Export Reports', t: 'exports' as TabId, e: '\u{1F4E5}', c: 'bg-emerald-50 text-emerald-700' },
                 { l: 'View Analytics', t: 'analytics' as TabId, e: '\u{1F4C8}', c: 'bg-rose-50 text-rose-700' },
               ].map(a => (
                 <button key={a.l} onClick={() => setTab(a.t)} className="w-full flex items-center gap-3.5 p-3.5 rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.98] transition-all">
@@ -6114,6 +6801,27 @@ export default function AdminPage() {
 
           {/* ════════ USER DETAIL ════════ */}
           {tab === 'user_detail' && selectedUserId && (<UserDetailTab userId={selectedUserId} onBack={() => setTab('users')} />)}
+
+          {/* ════════ LIVE ACTIVITY FEED ════════ */}
+          {tab === 'live_feed' && (<LiveFeedTab onViewUser={(id: string) => { setSelectedUserId(id); setTab('user_detail'); }} />)}
+
+          {/* ════════ CHURN RISK ════════ */}
+          {tab === 'churn_risk' && (<ChurnRiskTab onViewUser={(id: string) => { setSelectedUserId(id); setTab('user_detail'); }} />)}
+
+          {/* ════════ USER SEGMENTS ════════ */}
+          {tab === 'segments' && (<SegmentsTab onViewUser={(id: string) => { setSelectedUserId(id); setTab('user_detail'); }} />)}
+
+          {/* ════════ SMART ALERTS ════════ */}
+          {tab === 'alerts' && (<AlertsTab />)}
+
+          {/* ════════ REVENUE FORECAST ════════ */}
+          {tab === 'forecast' && (<ForecastTab />)}
+
+          {/* ════════ COHORT COMPARISON ════════ */}
+          {tab === 'cohorts' && (<CohortsTab />)}
+
+          {/* ════════ EXPORT REPORTS ════════ */}
+          {tab === 'exports' && (<ExportTab />)}
 
           {/* ════════ SETTINGS ════════ */}
           {tab === 'settings' && (<>
