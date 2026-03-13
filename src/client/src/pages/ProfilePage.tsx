@@ -474,7 +474,7 @@ export default function ProfilePage() {
           )}
           <button onClick={() => setShowLogout(true)} className="w-full py-4 bg-white border-2 border-rose-200 text-rose-600 rounded-2xl font-bold text-sm active:scale-95 transition-transform">Sign Out</button>
           <div className="text-center py-4">
-            <button onClick={() => { const n = secretTaps + 1; setSecretTaps(n); if (n >= 5) { setShowAdminHint(true); setSecretTaps(0); }}} className="text-[10px] text-gray-300 select-none">VedaClue v2.1</button>
+            <button onClick={() => { const n = secretTaps + 1; setSecretTaps(n); if (n >= 5 && user?.role === 'ADMIN') { setShowAdminHint(true); setSecretTaps(0); } else if (n >= 5) { setSecretTaps(0); }}} className="text-[10px] text-gray-300 select-none">VedaClue v2.1</button>
           </div>
         </>)}
 

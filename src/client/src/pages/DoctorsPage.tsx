@@ -40,7 +40,7 @@ export default function DoctorsPage() {
             isPublished: d.isPublished !== false,
             isChief: d.isChief || false,
             isPromoted: d.isPromoted || false,
-            feeFreeForPoor: false,
+            feeFreeForPoor: d.feeFreeForPoor || false,
             tags: d.tags || [],
             languages: d.languages || [],
             avatarUrl: d.avatarUrl || d.photoUrl || null,

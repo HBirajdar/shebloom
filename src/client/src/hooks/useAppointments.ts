@@ -34,7 +34,8 @@ export function useAppointments() {
         let status = 'upcoming';
         if (['CANCELLED'].includes(b.status)) status = 'cancelled';
         else if (['COMPLETED'].includes(b.status)) status = 'completed';
-        else if (['REJECTED','NO_SHOW'].includes(b.status)) status = 'rejected';
+        else if (['REJECTED'].includes(b.status)) status = 'rejected';
+        else if (['NO_SHOW'].includes(b.status)) status = 'missed';
         else if (isPast) status = 'completed'; // past PENDING/CONFIRMED → completed
         return {
           id: b.id, doctorId: b.doctorId, doctorName: b.doctor?.fullName || b.doctorName || 'Doctor',
@@ -75,14 +76,20 @@ export function useAppointments() {
       await fetchBookings();
       const apptData = result.data?.data || result.data;
       return { ...apptData, videoLink: apptData.videoLink || apptData.meetingLink || '' };
-    } catch {
-      // API failed (doctor not in DB) — save to localStorage
+    } catch (err: any) {
+      // If payment was involved, never silently fallback to localStorage
+      if (data.paymentId) {
+        const msg = err?.response?.data?.error || err?.response?.data?.message || 'Booking failed after payment. Please contact support.';
+        toast.error(msg);
+        throw err;
+      }
+      // API failed (network offline, doctor not in DB) — save to localStorage as fallback
       const booking = { id: 'local_' + Date.now(), ...data, status: 'upcoming', source: 'local' };
       const local = getLocal();
       local.unshift(booking);
       setLocal(local);
       setBookings(prev => [booking, ...prev]);
-      toast.success('Appointment saved!');
+      toast.success('Appointment saved locally (will sync when online)');
       return booking;
     }
   };

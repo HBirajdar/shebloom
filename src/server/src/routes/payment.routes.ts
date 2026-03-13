@@ -373,6 +373,11 @@ r.post('/verify', async (q: AuthRequest, s: Response, n: NextFunction) => {
     });
     if (!order) { errorResponse(s, 'Order not found', 404); return; }
 
+    // Verify the Razorpay order ID matches the DB order to prevent cross-order attacks
+    if (order.razorpayOrderId && order.razorpayOrderId !== razorpayOrderId) {
+      errorResponse(s, 'Order ID mismatch', 400); return;
+    }
+
     // Prevent re-verification of already paid/cancelled orders
     if (order.paymentStatus !== 'PENDING') {
       successResponse(s, { success: true, orderId, orderNumber: order.orderNumber, alreadyProcessed: true }); return;

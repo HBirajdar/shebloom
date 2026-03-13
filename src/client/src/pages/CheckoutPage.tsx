@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../hooks/useCart';
 import { paymentAPI, financeAPI } from '../services/api';
@@ -20,6 +20,7 @@ export default function CheckoutPage() {
   const [address, setAddress] = useState(EMPTY_ADDR);
   const [payMethod, setPayMethod] = useState<'razorpay' | 'cod'>('razorpay');
   const [payLoading, setPayLoading] = useState(false);
+  const submittingRef = useRef(false);
 
   // Platform config (dynamic fees)
   const [config, setConfig] = useState<any>(null);
@@ -92,11 +93,11 @@ export default function CheckoutPage() {
 
   const validateAddress = () => {
     if (!address.fullName.trim()) { toast.error('Enter full name'); return false; }
-    if (!address.phone.trim() || address.phone.trim().length < 10) { toast.error('Enter valid phone number'); return false; }
+    if (!address.phone.trim() || !/^[6-9]\d{9}$/.test(address.phone.trim().replace(/[\s-]/g, ''))) { toast.error('Enter valid 10-digit phone number'); return false; }
     if (!address.addressLine1.trim()) { toast.error('Enter address line 1'); return false; }
     if (!address.city.trim()) { toast.error('Enter city'); return false; }
     if (!address.state.trim()) { toast.error('Enter state'); return false; }
-    if (!address.pincode.trim() || address.pincode.trim().length < 6) { toast.error('Enter valid pincode'); return false; }
+    if (!address.pincode.trim() || !/^\d{6}$/.test(address.pincode.trim())) { toast.error('Enter valid 6-digit pincode'); return false; }
     return true;
   };
 
@@ -181,7 +182,9 @@ export default function CheckoutPage() {
   };
 
   const handleCOD = async () => {
+    if (submittingRef.current) return; // Synchronous double-click guard
     if (config && !config.codEnabled) { toast.error('Cash on Delivery is not available'); return; }
+    submittingRef.current = true;
     setPayLoading(true);
     try {
       const res = await paymentAPI.codOrder({
@@ -196,13 +199,15 @@ export default function CheckoutPage() {
         state: {
           orderId: data.orderId,
           orderNumber: data.orderNumber,
-          totalAmount,
+          totalAmount: data.breakdown?.total || totalAmount, // Use server total, not client
           deliveryAddress: address,
         },
       });
     } catch (e: any) {
       toast.error(e?.response?.data?.error || e?.response?.data?.message || 'Failed to place order');
       setPayLoading(false);
+    } finally {
+      submittingRef.current = false;
     }
   };
 

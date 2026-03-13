@@ -67,7 +67,7 @@ r.post('/add', async (q: AuthRequest, s: Response, n: NextFunction) => {
     const existing = cart.find(i => i.productId === productId);
 
     if (existing) {
-      existing.qty = Math.min(existing.qty + (qty || 1), 10);
+      existing.qty = Math.min(existing.qty + Math.max(1, Number(qty) || 1), 10);
       existing.price = verifiedPrice; // Always use DB price
     } else {
       cart.push({
@@ -76,7 +76,7 @@ r.post('/add', async (q: AuthRequest, s: Response, n: NextFunction) => {
         name: product.name,
         price: verifiedPrice,
         image: product.imageUrl || '',
-        qty: Math.min(qty || 1, 10),
+        qty: Math.max(1, Math.min(Number(qty) || 1, 10)),
         addedAt: new Date().toISOString(),
       });
     }

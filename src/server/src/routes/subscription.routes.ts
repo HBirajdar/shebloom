@@ -179,13 +179,15 @@ r.post('/create', async (q: AuthRequest, s: Response, n: NextFunction) => {
         }
 
         if (notExpired && withinUserLimit && withinGlobalLimit && meetsMinOrder && firstOrderOk) {
+          // Calculate coupon on post-promo price to prevent double-stacking abuse
+          const afterPromoPrice = Math.max(0, price - promoDiscount);
           let cd = coupon.discountType === 'PERCENTAGE'
-            ? price * (coupon.discountValue / 100)
+            ? afterPromoPrice * (coupon.discountValue / 100)
             : coupon.discountValue;
           if (coupon.discountType === 'PERCENTAGE' && coupon.maxDiscountAmount && cd > coupon.maxDiscountAmount) {
             cd = coupon.maxDiscountAmount;
           }
-          couponDiscount = Math.min(cd, price);
+          couponDiscount = Math.min(cd, afterPromoPrice);
         }
       }
     }

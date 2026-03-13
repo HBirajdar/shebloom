@@ -110,6 +110,18 @@ export class AuthService {
 
   async verifyOtp(phone: string, otp: string) {
     const normalized = normalizePhone(phone);
+
+    // Rate-limit OTP verification attempts to prevent brute-force (max 5 per phone per 15 min)
+    const verifyKey = `otp_verify:${normalized}`;
+    const verifyAttempts = await cacheIncr(verifyKey, 900);
+    if (verifyAttempts > 5) {
+      // Invalidate the OTP to force requesting a new one
+      await cacheDel(`otp:${normalized}`);
+      otpDel(`otp:${normalized}`);
+      await prisma.otpStore.deleteMany({ where: { phone: normalized } }).catch(() => {});
+      throw new AppError('Too many verification attempts. Please request a new OTP.', 429);
+    }
+
     // Try Redis → in-memory → DB (in that priority order)
     let stored = await cacheGet<string>(`otp:${normalized}`);
     if (!stored) stored = otpGet(`otp:${normalized}`);

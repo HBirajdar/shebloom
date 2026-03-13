@@ -42,6 +42,20 @@ export const useAuthStore = create<AuthState>()(
         localStorage.removeItem('vedaclue-ayurveda');
         localStorage.removeItem('sb_referral_code');
         localStorage.removeItem('sb_notif_prefs');
+        // Clear additional user-specific data
+        localStorage.removeItem('sb_dosha');
+        localStorage.removeItem('sb_streak');
+        localStorage.removeItem('sb_water');
+        localStorage.removeItem('sb_sleep');
+        localStorage.removeItem('sb_bookmarks');
+        localStorage.removeItem('sb_routine_done');
+        localStorage.removeItem('sb_challenges');
+        localStorage.removeItem('sb_joined_challenges');
+        localStorage.removeItem('sb_delivery_address');
+        localStorage.removeItem('sb_order_history');
+        localStorage.removeItem('sb_callbacks');
+        localStorage.removeItem('sb_bookings');
+        localStorage.removeItem('sb_cart');
         set({ user: null, isAuthenticated: false });
       },
       setLoading: (isLoading) => set({ isLoading }),

@@ -46,7 +46,9 @@ async function refreshToken(): Promise<string | null> {
     // Redirect once (prevent multiple concurrent redirects)
     if (!isRedirecting) {
       isRedirecting = true;
-      setTimeout(() => { window.location.href = '/auth'; }, 100);
+      // Clear zustand auth state before redirect
+      try { const { useAuthStore } = require('../stores/authStore'); useAuthStore.getState().clearAuth(); } catch {}
+      setTimeout(() => { isRedirecting = false; window.location.href = '/auth'; }, 100);
     }
     return null;
   }

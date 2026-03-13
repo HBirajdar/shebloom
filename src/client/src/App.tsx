@@ -2,6 +2,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import CookieConsent from './components/CookieConsent';
+import ErrorBoundary from './components/ErrorBoundary';
 const NpsPopup = lazy(() => import('./components/NpsPopup'));
 import { trackEvent } from './hooks/useTrackEvent';
 
@@ -110,6 +111,7 @@ export default function App() {
   return (
     <Suspense fallback={<LoadingScreen />}>
       <PageTracker />
+      <ErrorBoundary>
       <div className="max-w-[430px] mx-auto min-h-screen bg-white relative overflow-hidden shadow-2xl">
         <Routes>
           {/* Public Routes */}
@@ -167,6 +169,7 @@ export default function App() {
         <CookieConsent />
         <NpsPopup />
       </div>
+      </ErrorBoundary>
     </Suspense>
   );
 }

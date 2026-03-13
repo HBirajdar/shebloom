@@ -158,7 +158,15 @@ export default function WellnessPage() {
   const [water, setWater] = useState(0);
   const [sleepHours, setSleepHours] = useState(0);
   const [routineDone, setRoutineDone] = useState<Set<string>>(() => {
-    try { return new Set(JSON.parse(localStorage.getItem('sb_routine_done') || '[]')); } catch { return new Set(); }
+    try {
+      const saved = JSON.parse(localStorage.getItem('sb_routine_done') || '{}');
+      // Reset daily: if saved date differs from today, start fresh
+      const today = new Date().toISOString().slice(0, 10);
+      if (saved.date === today && Array.isArray(saved.items)) return new Set(saved.items);
+      // Clear stale routine data
+      localStorage.setItem('sb_routine_done', JSON.stringify({ date: today, items: [] }));
+      return new Set();
+    } catch { return new Set(); }
   });
   const [streak, setStreak] = useState(() => Number(localStorage.getItem('sb_streak') || '0'));
   const [challengeProgress, setChallengeProgress] = useState<Record<string, number>>(() => {
@@ -204,7 +212,8 @@ export default function WellnessPage() {
     const next = new Set(routineDone);
     if (next.has(key)) next.delete(key); else { next.add(key); toast.success('✅ Done!'); }
     setRoutineDone(next);
-    localStorage.setItem('sb_routine_done', JSON.stringify([...next]));
+    const today = new Date().toISOString().slice(0, 10);
+    localStorage.setItem('sb_routine_done', JSON.stringify({ date: today, items: [...next] }));
     if (next.size === 5 && !routineDone.has(key)) {
       const s = streak + 1; setStreak(s); localStorage.setItem('sb_streak', String(s));
       toast.success(`🔥 ${s}-day streak!`);

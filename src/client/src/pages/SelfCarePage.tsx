@@ -39,15 +39,22 @@ export default function SelfCarePage() {
   const [energyScore, setEnergyScore] = useState(0);
   const [stressScore, setStressScore] = useState(0);
   const [checkedCare, setCheckedCare] = useState<number[]>([]);
-  const [sosContacts, setSosContacts] = useState<{ name: string; phone: string }[]>([]);
+  const [sosContacts, setSosContacts] = useState<{ name: string; phone: string }[]>(() => {
+    try { return JSON.parse(localStorage.getItem('vedaclue_sos_contacts') || '[]'); } catch { return []; }
+  });
   const [sosName, setSosName] = useState('');
   const [sosPhone, setSosPhone] = useState('');
   const timerRef = useRef<any>(null);
 
   const pw = phaseWellness[phase] || phaseWellness.menstrual;
 
-  // Breathing exercise
+  // Breathing exercise — store all timer IDs for proper cleanup
+  const breathTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
   const startBreathing = () => {
+    // Clear any existing timers first
+    breathTimers.current.forEach(clearTimeout);
+    breathTimers.current = [];
     setBreathCount(0);
     setBreathState('inhale');
     let count = 0;
@@ -56,20 +63,30 @@ export default function SelfCarePage() {
       if (count > 12) { setBreathState('idle'); setBreathCount(0); return; }
       setBreathCount(count);
       setBreathState('inhale'); setBreathTimer(4);
-      setTimeout(() => { setBreathState('hold'); setBreathTimer(4); }, 4000);
-      setTimeout(() => { setBreathState('exhale'); setBreathTimer(4); }, 8000);
-      setTimeout(cycle, 12000);
+      breathTimers.current.push(setTimeout(() => { setBreathState('hold'); setBreathTimer(4); }, 4000));
+      breathTimers.current.push(setTimeout(() => { setBreathState('exhale'); setBreathTimer(4); }, 8000));
+      breathTimers.current.push(setTimeout(cycle, 12000));
     };
     cycle();
   };
 
-  const stopBreathing = () => { setBreathState('idle'); setBreathCount(0); clearTimeout(timerRef.current); };
+  const stopBreathing = () => {
+    breathTimers.current.forEach(clearTimeout);
+    breathTimers.current = [];
+    setBreathState('idle');
+    setBreathCount(0);
+  };
+
+  // Cleanup timers on unmount
+  useEffect(() => () => { breathTimers.current.forEach(clearTimeout); }, []);
 
   const toggleCare = (i: number) => setCheckedCare(c => c.includes(i) ? c.filter(x => x !== i) : [...c, i]);
 
   const addSosContact = () => {
     if (!sosName || !sosPhone) return;
-    setSosContacts([...sosContacts, { name: sosName, phone: sosPhone }]);
+    const updated = [...sosContacts, { name: sosName, phone: sosPhone }];
+    setSosContacts(updated);
+    localStorage.setItem('vedaclue_sos_contacts', JSON.stringify(updated));
     setSosName(''); setSosPhone('');
   };
 

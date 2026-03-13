@@ -33,30 +33,6 @@ r.get('/', async (q: Request, s: Response, n: NextFunction) => {
   } catch (e) { n(e); }
 });
 
-// ─── Public: get program details with content outline ─
-r.get('/:id', async (q: Request, s: Response, n: NextFunction) => {
-  try {
-    const program = await prisma.program.findUnique({
-      where: { id: q.params.id },
-      include: {
-        contents: {
-          orderBy: [{ weekNumber: 'asc' }, { sortOrder: 'asc' }],
-          select: {
-            id: true, weekNumber: true, dayNumber: true, sortOrder: true,
-            title: true, description: true, contentType: true,
-            duration: true, isFree: true, imageUrl: true,
-          },
-        },
-        _count: { select: { enrollments: true } },
-      },
-    });
-    if (!program || (!program.isPublished && program.status !== 'PUBLISHED')) {
-      errorResponse(s, 'Program not found', 404); return;
-    }
-    successResponse(s, { ...program, enrolledCount: program._count.enrollments, _count: undefined });
-  } catch (e) { n(e); }
-});
-
 // ─── Authenticated: get my enrollments ──────────────
 r.get('/me/enrolled', authenticate, async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
@@ -93,6 +69,64 @@ r.get('/me/enrolled/:programId', authenticate, async (q: AuthRequest, s: Respons
     });
     if (!enrollment) { errorResponse(s, 'Not enrolled in this program', 404); return; }
     successResponse(s, enrollment);
+  } catch (e) { n(e); }
+});
+
+// ─── Authenticated: mark content as completed ───────
+r.post('/me/progress', authenticate, async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const { programId, contentId } = q.body;
+    if (!programId || !contentId) { errorResponse(s, 'programId and contentId required', 400); return; }
+
+    const enrollment = await prisma.programEnrollment.findUnique({
+      where: { userId_programId: { userId: q.user!.id, programId } },
+    });
+    if (!enrollment || enrollment.status !== 'ACTIVE') {
+      errorResponse(s, 'Not enrolled or program paused', 400); return;
+    }
+
+    const progress = (enrollment.progress as any) || { completed: [], currentWeek: 1 };
+    const completed: string[] = progress.completed || [];
+    if (!completed.includes(contentId)) completed.push(contentId);
+
+    // Get total content count to check if program is done
+    const totalContents = await prisma.programContent.count({ where: { programId } });
+
+    const updated = await prisma.programEnrollment.update({
+      where: { id: enrollment.id },
+      data: {
+        progress: { ...progress, completed },
+        completedCount: completed.length,
+        lastAccessedAt: new Date(),
+        ...(completed.length >= totalContents ? { status: 'COMPLETED', completedAt: new Date() } : {}),
+      },
+    });
+
+    successResponse(s, updated, completed.length >= totalContents ? 'Program completed! 🎉' : 'Progress saved');
+  } catch (e) { n(e); }
+});
+
+// ─── Public: get program details with content outline ─
+r.get('/:id', async (q: Request, s: Response, n: NextFunction) => {
+  try {
+    const program = await prisma.program.findUnique({
+      where: { id: q.params.id },
+      include: {
+        contents: {
+          orderBy: [{ weekNumber: 'asc' }, { sortOrder: 'asc' }],
+          select: {
+            id: true, weekNumber: true, dayNumber: true, sortOrder: true,
+            title: true, description: true, contentType: true,
+            duration: true, isFree: true, imageUrl: true,
+          },
+        },
+        _count: { select: { enrollments: true } },
+      },
+    });
+    if (!program || (!program.isPublished && program.status !== 'PUBLISHED')) {
+      errorResponse(s, 'Program not found', 404); return;
+    }
+    successResponse(s, { ...program, enrolledCount: program._count.enrollments, _count: undefined });
   } catch (e) { n(e); }
 });
 
@@ -166,7 +200,9 @@ r.post('/:id/enroll-paid', authenticate, async (q: AuthRequest, s: Response, n: 
       }
       // Verify Razorpay signature
       const crypto = require('crypto');
-      const expectedSig = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
+      const keySecret = process.env.RAZORPAY_KEY_SECRET;
+      if (!keySecret) { errorResponse(s, 'Payment configuration error', 500); return; }
+      const expectedSig = crypto.createHmac('sha256', keySecret)
         .update(razorpayOrderId + '|' + razorpayPaymentId)
         .digest('hex');
       if (expectedSig !== razorpaySignature) {
@@ -202,40 +238,6 @@ r.post('/:id/enroll-paid', authenticate, async (q: AuthRequest, s: Response, n: 
     }).catch(() => {});
 
     successResponse(s, enrollment, 'Enrolled successfully!');
-  } catch (e) { n(e); }
-});
-
-// ─── Authenticated: mark content as completed ───────
-r.post('/me/progress', authenticate, async (q: AuthRequest, s: Response, n: NextFunction) => {
-  try {
-    const { programId, contentId } = q.body;
-    if (!programId || !contentId) { errorResponse(s, 'programId and contentId required', 400); return; }
-
-    const enrollment = await prisma.programEnrollment.findUnique({
-      where: { userId_programId: { userId: q.user!.id, programId } },
-    });
-    if (!enrollment || enrollment.status !== 'ACTIVE') {
-      errorResponse(s, 'Not enrolled or program paused', 400); return;
-    }
-
-    const progress = (enrollment.progress as any) || { completed: [], currentWeek: 1 };
-    const completed: string[] = progress.completed || [];
-    if (!completed.includes(contentId)) completed.push(contentId);
-
-    // Get total content count to check if program is done
-    const totalContents = await prisma.programContent.count({ where: { programId } });
-
-    const updated = await prisma.programEnrollment.update({
-      where: { id: enrollment.id },
-      data: {
-        progress: { ...progress, completed },
-        completedCount: completed.length,
-        lastAccessedAt: new Date(),
-        ...(completed.length >= totalContents ? { status: 'COMPLETED', completedAt: new Date() } : {}),
-      },
-    });
-
-    successResponse(s, updated, completed.length >= totalContents ? 'Program completed! 🎉' : 'Progress saved');
   } catch (e) { n(e); }
 });
 

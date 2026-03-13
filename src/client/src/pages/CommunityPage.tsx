@@ -68,6 +68,7 @@ export default function CommunityPage() {
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [searchQ, setSearchQ] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [viewedStories, setViewedStories] = useState<Set<string>>(new Set());
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [likedQA, setLikedQA] = useState<Set<string>>(new Set());
@@ -85,13 +86,19 @@ export default function CommunityPage() {
   const [editTarget, setEditTarget] = useState<{ type: 'post' | 'reply'; id: string; content: string } | null>(null);
   const [editContent, setEditContent] = useState('');
 
+  // Debounce search to avoid firing API on every keystroke
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQ), 400);
+    return () => clearTimeout(t);
+  }, [searchQ]);
+
   // ─── Fetch posts ───
   const fetchPosts = useCallback(async () => {
     try {
       setLoading(true);
       const params: any = {};
       if (cat !== 'all') params.category = cat;
-      if (searchQ) params.search = searchQ;
+      if (debouncedSearch) params.search = debouncedSearch;
       const res = await communityAPI.listPosts(params);
       setPosts(res.data?.data?.posts || []);
     } catch {
@@ -99,7 +106,7 @@ export default function CommunityPage() {
     } finally {
       setLoading(false);
     }
-  }, [cat, searchQ]);
+  }, [cat, debouncedSearch]);
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
@@ -528,6 +535,7 @@ export default function CommunityPage() {
                       setExpandedPost(null);
                     } else {
                       setExpandedPost(post.id);
+                      setReplyText(''); // Clear reply text when switching posts
                       fetchPostDetail(post.id);
                     }
                   }} className="flex items-center gap-1 text-[10px] text-gray-500 active:scale-95 transition-transform">

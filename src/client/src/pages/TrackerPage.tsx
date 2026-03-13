@@ -94,7 +94,7 @@ export default function TrackerPage() {
         setPrediction(predRes?.data?.data || null)
         setCycles(listRes?.data?.data || [])
       } catch (e) {
-        // silent fail
+        toast.error('Failed to load cycle data. Pull down to retry.');
       }
       setLoading(false)
     }
@@ -157,8 +157,12 @@ export default function TrackerPage() {
   const calendarMarkers = useMemo(() => {
     const markers: Record<string, string[]> = {}
 
+    // Use local date to avoid UTC timezone shift (e.g., IST 1AM → previous day in UTC)
+    const toLocalKey = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
     const markDay = (date: Date, type: string) => {
-      const key = date.toISOString().slice(0, 10)
+      const key = toLocalKey(date)
       if (!markers[key]) markers[key] = []
       if (!markers[key].includes(type)) markers[key].push(type)
     }
