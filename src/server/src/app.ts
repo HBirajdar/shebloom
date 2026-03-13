@@ -48,6 +48,7 @@ import programRoutes from './routes/program.routes';
 import sellerRoutes from './routes/seller.routes';
 import communityRoutes from './routes/community.routes';
 import contentRoutes from './routes/content.routes';
+import subscriptionRoutes from './routes/subscription.routes';
 
 // ─── Startup security checks ─────────────────────────
 if (process.env.NODE_ENV === 'production') {
@@ -119,6 +120,7 @@ app.options('*', cors(corsOptions));
 // ─── Body Parsing ───────────────────────────────────
 // Raw body for Razorpay webhook — must be before express.json()
 app.use('/api/v1/payments/webhook', express.raw({ type: 'application/json' }));
+app.use('/api/v1/subscriptions/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // ─── Static file serving for uploads ────────────────
@@ -244,6 +246,7 @@ app.use('/api/v1/programs', programRoutes);
 app.use('/api/v1/sellers', sellerRoutes);
 app.use('/api/v1/community', communityRoutes);
 app.use('/api/v1/content', contentRoutes);
+app.use('/api/v1/subscriptions', subscriptionRoutes);
 if (process.env.NODE_ENV !== 'production') {
   app.use('/api/v1/debug', debugRoutes);
 }

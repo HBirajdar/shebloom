@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { adminAPI, doshaAPI, financeAPI, communityAPI, contentAPI } from '../services/api';
+import { adminAPI, doshaAPI, financeAPI, communityAPI, contentAPI, subscriptionAPI } from '../services/api';
 import ImageUpload from '../components/ImageUpload';
 
 // Adapter: normalises axios { data: { success, data: X } } → { success, data: X }
@@ -177,7 +177,7 @@ const FormCheckbox = ({ label, checked, onChange }: { label: string; checked: bo
 );
 type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'NO_SHOW' | 'CANCELLED';
 
-type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness' | 'programs' | 'add_program' | 'edit_program' | 'program_content' | 'sellers' | 'seller_detail' | 'seller_payouts' | 'add_seller' | 'community' | 'content';
+type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness' | 'programs' | 'add_program' | 'edit_program' | 'program_content' | 'sellers' | 'seller_detail' | 'seller_payouts' | 'add_seller' | 'community' | 'content' | 'subscriptions';
 
 // ─── Finance Admin Tab ──────────────────────────────────
 // Platform config, coupons, revenue analytics — like Practo/Zomato/Amazon admin
@@ -1178,6 +1178,354 @@ function AuditLogTab() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── Subscription Admin Tab ──────────────────────────────
+function SubscriptionAdminTab() {
+  const [subView, setSubView] = useState<'plans' | 'promotions' | 'subscribers' | 'analytics'>('plans');
+  const [plans, setPlans] = useState<any[]>([]);
+  const [promos, setPromos] = useState<any[]>([]);
+  const [subscribers, setSubscribers] = useState<any[]>([]);
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [editId, setEditId] = useState('');
+  const [editData, setEditData] = useState<any>({});
+  const [saving, setSaving] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
+  const [newData, setNewData] = useState<any>({});
+  const [extendId, setExtendId] = useState('');
+  const [extendDays, setExtendDays] = useState(30);
+
+  useEffect(() => { loadData(); }, [subView]);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      if (subView === 'plans') {
+        const res = await subscriptionAPI.adminGetPlans();
+        setPlans((res.data?.data || res.data) || []);
+      } else if (subView === 'promotions') {
+        const res = await subscriptionAPI.adminGetPromotions();
+        setPromos((res.data?.data || res.data) || []);
+      } else if (subView === 'subscribers') {
+        const res = await subscriptionAPI.adminGetSubscribers({ limit: 50 });
+        const d = res.data?.data || res.data;
+        setSubscribers(d?.items || d || []);
+      } else if (subView === 'analytics') {
+        const res = await subscriptionAPI.adminGetAnalytics();
+        setAnalytics(res.data?.data || res.data);
+      }
+    } catch {}
+    setLoading(false);
+  };
+
+  const savePlan = async () => {
+    setSaving(true);
+    try {
+      if (editId) {
+        await subscriptionAPI.adminUpdatePlan(editId, editData);
+      } else {
+        await subscriptionAPI.adminCreatePlan(newData);
+      }
+      setEditId(''); setShowAdd(false); setNewData({}); setEditData({});
+      loadData();
+    } catch (e: any) { alert(e.message || 'Save failed'); }
+    setSaving(false);
+  };
+
+  const savePromo = async () => {
+    setSaving(true);
+    try {
+      if (editId) {
+        await subscriptionAPI.adminUpdatePromotion(editId, editData);
+      } else {
+        await subscriptionAPI.adminCreatePromotion(newData);
+      }
+      setEditId(''); setShowAdd(false); setNewData({}); setEditData({});
+      loadData();
+    } catch (e: any) { alert(e.message || 'Save failed'); }
+    setSaving(false);
+  };
+
+  const toggleFree = async (id: string) => {
+    try { await subscriptionAPI.adminToggleFree(id); loadData(); } catch {}
+  };
+
+  const syncRazorpay = async (id: string) => {
+    try {
+      await subscriptionAPI.adminSyncRazorpay(id);
+      alert('Synced with Razorpay!');
+      loadData();
+    } catch (e: any) { alert(e.message || 'Sync failed'); }
+  };
+
+  const deletePlan = async (id: string) => {
+    if (!confirm('Deactivate this plan?')) return;
+    try { await subscriptionAPI.adminDeletePlan(id); loadData(); } catch {}
+  };
+
+  const deletePromo = async (id: string) => {
+    if (!confirm('Delete this promotion?')) return;
+    try { await subscriptionAPI.adminDeletePromotion(id); loadData(); } catch {}
+  };
+
+  const handleExtend = async (id: string) => {
+    try { await subscriptionAPI.adminExtend(id, { days: extendDays }); setExtendId(''); loadData(); } catch (e: any) { alert(e.message); }
+  };
+
+  const handleAdminCancel = async (id: string) => {
+    const reason = prompt('Reason for cancellation:');
+    if (!reason) return;
+    try { await subscriptionAPI.adminCancel(id, { reason }); loadData(); } catch (e: any) { alert(e.message); }
+  };
+
+  const PlanForm = ({ data, onChange }: { data: any; onChange: (d: any) => void }) => (
+    <div className="space-y-3 text-sm">
+      <div className="grid grid-cols-2 gap-3">
+        <div><label className="text-xs text-gray-500 font-semibold">Name *</label><input className="w-full border rounded-lg px-3 py-2" value={data.name || ''} onChange={e => onChange({ ...data, name: e.target.value })} /></div>
+        <div><label className="text-xs text-gray-500 font-semibold">Slug *</label><input className="w-full border rounded-lg px-3 py-2" value={data.slug || ''} onChange={e => onChange({ ...data, slug: e.target.value })} /></div>
+      </div>
+      <div><label className="text-xs text-gray-500 font-semibold">Description</label><textarea className="w-full border rounded-lg px-3 py-2" rows={2} value={data.description || ''} onChange={e => onChange({ ...data, description: e.target.value })} /></div>
+      <div className="grid grid-cols-3 gap-3">
+        <div><label className="text-xs text-gray-500 font-semibold">Interval *</label>
+          <select className="w-full border rounded-lg px-3 py-2" value={data.interval || 'MONTHLY'} onChange={e => onChange({ ...data, interval: e.target.value })}>
+            <option value="MONTHLY">Monthly</option><option value="YEARLY">Yearly</option><option value="LIFETIME">Lifetime</option>
+          </select></div>
+        <div><label className="text-xs text-gray-500 font-semibold">Base Price ({'\u20B9'})</label><input type="number" className="w-full border rounded-lg px-3 py-2" value={data.basePrice ?? ''} onChange={e => onChange({ ...data, basePrice: e.target.value })} /></div>
+        <div><label className="text-xs text-gray-500 font-semibold">Emoji</label><input className="w-full border rounded-lg px-3 py-2" value={data.emoji || ''} onChange={e => onChange({ ...data, emoji: e.target.value })} /></div>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <div><label className="text-xs text-gray-500 font-semibold">Trial Days</label><input type="number" className="w-full border rounded-lg px-3 py-2" value={data.trialDays ?? 0} onChange={e => onChange({ ...data, trialDays: e.target.value })} /></div>
+        <div><label className="text-xs text-gray-500 font-semibold">Grace Days</label><input type="number" className="w-full border rounded-lg px-3 py-2" value={data.gracePeriodDays ?? 3} onChange={e => onChange({ ...data, gracePeriodDays: e.target.value })} /></div>
+        <div><label className="text-xs text-gray-500 font-semibold">Sort Order</label><input type="number" className="w-full border rounded-lg px-3 py-2" value={data.sortOrder ?? 0} onChange={e => onChange({ ...data, sortOrder: e.target.value })} /></div>
+      </div>
+      <div><label className="text-xs text-gray-500 font-semibold">Goal Pricing (JSON)</label><textarea className="w-full border rounded-lg px-3 py-2 font-mono text-xs" rows={2} placeholder='{"track_periods": 99, "fertility": 199}' value={typeof data.goalPricing === 'string' ? data.goalPricing : JSON.stringify(data.goalPricing || '')} onChange={e => onChange({ ...data, goalPricing: e.target.value })} /></div>
+      <div><label className="text-xs text-gray-500 font-semibold">Highlights (JSON array)</label><textarea className="w-full border rounded-lg px-3 py-2 font-mono text-xs" rows={2} placeholder='["Feature 1", "Feature 2"]' value={typeof data.highlights === 'string' ? data.highlights : JSON.stringify(data.highlights || [])} onChange={e => onChange({ ...data, highlights: e.target.value })} /></div>
+      <div className="grid grid-cols-2 gap-3">
+        <div><label className="text-xs text-gray-500 font-semibold">Badge</label><input className="w-full border rounded-lg px-3 py-2" placeholder="POPULAR / BEST VALUE" value={data.badge || ''} onChange={e => onChange({ ...data, badge: e.target.value })} /></div>
+        <div className="flex items-center gap-4 pt-5">
+          <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={data.isActive !== false} onChange={e => onChange({ ...data, isActive: e.target.checked })} /> Active</label>
+          <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={data.isFree || false} onChange={e => onChange({ ...data, isFree: e.target.checked })} /> Free</label>
+          <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={data.isPublished !== false} onChange={e => onChange({ ...data, isPublished: e.target.checked })} /> Published</label>
+        </div>
+      </div>
+    </div>
+  );
+
+  const PromoForm = ({ data, onChange }: { data: any; onChange: (d: any) => void }) => (
+    <div className="space-y-3 text-sm">
+      <div className="grid grid-cols-2 gap-3">
+        <div><label className="text-xs text-gray-500 font-semibold">Name *</label><input className="w-full border rounded-lg px-3 py-2" value={data.name || ''} onChange={e => onChange({ ...data, name: e.target.value })} /></div>
+        <div><label className="text-xs text-gray-500 font-semibold">Type</label>
+          <select className="w-full border rounded-lg px-3 py-2" value={data.type || 'FLASH_SALE'} onChange={e => onChange({ ...data, type: e.target.value })}>
+            <option value="WELCOME_BONUS">Welcome Bonus</option><option value="FLASH_SALE">Flash Sale</option><option value="SEASONAL">Seasonal</option><option value="REFERRAL">Referral</option>
+          </select></div>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <div><label className="text-xs text-gray-500 font-semibold">Discount Type</label>
+          <select className="w-full border rounded-lg px-3 py-2" value={data.discountType || 'PERCENTAGE'} onChange={e => onChange({ ...data, discountType: e.target.value })}>
+            <option value="PERCENTAGE">Percentage</option><option value="FLAT">Flat ({'\u20B9'})</option>
+          </select></div>
+        <div><label className="text-xs text-gray-500 font-semibold">Discount Value</label><input type="number" className="w-full border rounded-lg px-3 py-2" value={data.discountValue ?? ''} onChange={e => onChange({ ...data, discountValue: e.target.value })} /></div>
+        <div><label className="text-xs text-gray-500 font-semibold">Max Discount ({'\u20B9'})</label><input type="number" className="w-full border rounded-lg px-3 py-2" value={data.maxDiscountAmount ?? ''} onChange={e => onChange({ ...data, maxDiscountAmount: e.target.value })} /></div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div><label className="text-xs text-gray-500 font-semibold">Start Date</label><input type="datetime-local" className="w-full border rounded-lg px-3 py-2" value={data.startDate ? new Date(data.startDate).toISOString().slice(0, 16) : ''} onChange={e => onChange({ ...data, startDate: e.target.value })} /></div>
+        <div><label className="text-xs text-gray-500 font-semibold">End Date</label><input type="datetime-local" className="w-full border rounded-lg px-3 py-2" value={data.endDate ? new Date(data.endDate).toISOString().slice(0, 16) : ''} onChange={e => onChange({ ...data, endDate: e.target.value })} /></div>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <div><label className="text-xs text-gray-500 font-semibold">Max Redemptions</label><input type="number" className="w-full border rounded-lg px-3 py-2" value={data.maxRedemptions ?? ''} onChange={e => onChange({ ...data, maxRedemptions: e.target.value })} /></div>
+        <div><label className="text-xs text-gray-500 font-semibold">Max Per User</label><input type="number" className="w-full border rounded-lg px-3 py-2" value={data.maxPerUser ?? 1} onChange={e => onChange({ ...data, maxPerUser: e.target.value })} /></div>
+        <div><label className="text-xs text-gray-500 font-semibold">New User Window (days)</label><input type="number" className="w-full border rounded-lg px-3 py-2" value={data.newUserWindowDays ?? 30} onChange={e => onChange({ ...data, newUserWindowDays: e.target.value })} /></div>
+      </div>
+      <div className="flex items-center gap-4">
+        <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={data.isActive !== false} onChange={e => onChange({ ...data, isActive: e.target.checked })} /> Active</label>
+        <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={data.isWelcomeBonus || false} onChange={e => onChange({ ...data, isWelcomeBonus: e.target.checked })} /> Welcome Bonus</label>
+      </div>
+    </div>
+  );
+
+  return (
+    <div>
+      <h3 className="text-base font-extrabold text-gray-900 mb-3">{'\u{1F48E}'} Subscription Management</h3>
+
+      {/* Sub-navigation */}
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+        {[
+          { id: 'plans', icon: '\u{1F4CB}', label: 'Plans' },
+          { id: 'promotions', icon: '\u{1F381}', label: 'Promos' },
+          { id: 'subscribers', icon: '\u{1F465}', label: 'Subscribers' },
+          { id: 'analytics', icon: '\u{1F4CA}', label: 'Analytics' },
+        ].map(t => (
+          <button key={t.id} onClick={() => { setSubView(t.id as any); setEditId(''); setShowAdd(false); }}
+            className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${subView === t.id ? 'bg-rose-500 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+            {t.icon} {t.label}
+          </button>
+        ))}
+      </div>
+
+      {loading && <div className="text-center py-8 text-gray-400">Loading...</div>}
+
+      {/* ─── PLANS ─────────────────────────── */}
+      {!loading && subView === 'plans' && (<>
+        <button onClick={() => { setShowAdd(true); setEditId(''); setNewData({ interval: 'MONTHLY', basePrice: 149, trialDays: 7, gracePeriodDays: 3, emoji: '\u2728', isActive: true, isPublished: true, highlights: [] }); }}
+          className="w-full border-2 border-dashed border-gray-300 rounded-xl py-3 text-sm text-gray-500 font-semibold hover:border-rose-400 hover:text-rose-500 mb-4">+ Add Plan</button>
+
+        {showAdd && (
+          <div className="bg-white rounded-2xl p-4 shadow-sm border mb-4">
+            <h4 className="font-bold text-sm mb-3">New Plan</h4>
+            <PlanForm data={newData} onChange={setNewData} />
+            <div className="flex gap-2 mt-3">
+              <button onClick={savePlan} disabled={saving} className="px-4 py-1.5 bg-rose-500 text-white rounded-lg text-xs font-bold disabled:opacity-50">{saving ? 'Saving...' : 'Create'}</button>
+              <button onClick={() => setShowAdd(false)} className="px-4 py-1.5 bg-gray-200 rounded-lg text-xs font-bold">Cancel</button>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-3">
+          {plans.map((p: any) => (
+            <div key={p.id} className={`bg-white rounded-2xl p-4 shadow-sm border ${!p.isActive ? 'opacity-50' : ''}`}>
+              {editId === p.id ? (<>
+                <PlanForm data={editData} onChange={setEditData} />
+                <div className="flex gap-2 mt-3">
+                  <button onClick={savePlan} disabled={saving} className="px-4 py-1.5 bg-rose-500 text-white rounded-lg text-xs font-bold disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
+                  <button onClick={() => setEditId('')} className="px-4 py-1.5 bg-gray-200 rounded-lg text-xs font-bold">Cancel</button>
+                </div>
+              </>) : (<>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{p.emoji}</span>
+                    <div>
+                      <span className="font-bold text-sm">{p.name}</span>
+                      {p.badge && <span className="ml-2 text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">{p.badge}</span>}
+                      {p.isFree && <span className="ml-1 text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">FREE</span>}
+                      <p className="text-xs text-gray-500">{p.interval} &middot; {'\u20B9'}{p.basePrice} &middot; {p._count?.subscriptions || 0} subscribers</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={() => toggleFree(p.id)} title="Toggle Free" className="p-1.5 rounded-lg hover:bg-gray-100 text-xs">{p.isFree ? '\u{1F4B0}' : '\u{1F193}'}</button>
+                    {p.interval !== 'LIFETIME' && <button onClick={() => syncRazorpay(p.id)} title="Sync Razorpay" className="p-1.5 rounded-lg hover:bg-gray-100 text-xs">{'\u{1F504}'}</button>}
+                    <button onClick={() => { setEditId(p.id); setEditData({ ...p }); }} title="Edit" className="p-1.5 rounded-lg hover:bg-gray-100 text-xs">{'\u270F\uFE0F'}</button>
+                    <button onClick={() => deletePlan(p.id)} title="Deactivate" className="p-1.5 rounded-lg hover:bg-red-50 text-xs text-red-500">{'\u{1F5D1}'}</button>
+                  </div>
+                </div>
+                {p.razorpayPlanId && <p className="text-[10px] text-gray-400 mt-1">Razorpay: {p.razorpayPlanId}</p>}
+              </>)}
+            </div>
+          ))}
+        </div>
+      </>)}
+
+      {/* ─── PROMOTIONS ────────────────────── */}
+      {!loading && subView === 'promotions' && (<>
+        <button onClick={() => { setShowAdd(true); setEditId(''); setNewData({ type: 'FLASH_SALE', discountType: 'PERCENTAGE', discountValue: 20, isActive: true, maxPerUser: 1 }); }}
+          className="w-full border-2 border-dashed border-gray-300 rounded-xl py-3 text-sm text-gray-500 font-semibold hover:border-rose-400 hover:text-rose-500 mb-4">+ Add Promotion</button>
+
+        {showAdd && (
+          <div className="bg-white rounded-2xl p-4 shadow-sm border mb-4">
+            <h4 className="font-bold text-sm mb-3">New Promotion</h4>
+            <PromoForm data={newData} onChange={setNewData} />
+            <div className="flex gap-2 mt-3">
+              <button onClick={savePromo} disabled={saving} className="px-4 py-1.5 bg-rose-500 text-white rounded-lg text-xs font-bold disabled:opacity-50">{saving ? 'Saving...' : 'Create'}</button>
+              <button onClick={() => setShowAdd(false)} className="px-4 py-1.5 bg-gray-200 rounded-lg text-xs font-bold">Cancel</button>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-3">
+          {promos.map((p: any) => (
+            <div key={p.id} className={`bg-white rounded-2xl p-4 shadow-sm border ${!p.isActive ? 'opacity-50' : ''}`}>
+              {editId === p.id ? (<>
+                <PromoForm data={editData} onChange={setEditData} />
+                <div className="flex gap-2 mt-3">
+                  <button onClick={savePromo} disabled={saving} className="px-4 py-1.5 bg-rose-500 text-white rounded-lg text-xs font-bold disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
+                  <button onClick={() => setEditId('')} className="px-4 py-1.5 bg-gray-200 rounded-lg text-xs font-bold">Cancel</button>
+                </div>
+              </>) : (<>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-sm">{p.name}</span>
+                    <span className="ml-2 text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-bold">{p.type}</span>
+                    {p.isWelcomeBonus && <span className="ml-1 text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">WELCOME</span>}
+                    <p className="text-xs text-gray-500">{p.discountType === 'PERCENTAGE' ? `${p.discountValue}%` : `\u20B9${p.discountValue}`} off &middot; {p.currentRedemptions || 0} used{p.maxRedemptions ? ` / ${p.maxRedemptions}` : ''}</p>
+                    {p.endDate && <p className="text-[10px] text-gray-400">Until {new Date(p.endDate).toLocaleDateString()}</p>}
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={() => { setEditId(p.id); setEditData({ ...p }); }} className="p-1.5 rounded-lg hover:bg-gray-100 text-xs">{'\u270F\uFE0F'}</button>
+                    <button onClick={() => deletePromo(p.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-xs text-red-500">{'\u{1F5D1}'}</button>
+                  </div>
+                </div>
+              </>)}
+            </div>
+          ))}
+          {promos.length === 0 && <p className="text-center text-gray-400 text-sm py-4">No promotions yet</p>}
+        </div>
+      </>)}
+
+      {/* ─── SUBSCRIBERS ───────────────────── */}
+      {!loading && subView === 'subscribers' && (
+        <div className="space-y-3">
+          {subscribers.map((s: any) => (
+            <div key={s.id} className="bg-white rounded-2xl p-4 shadow-sm border">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-sm">{s.user?.fullName || 'Unknown'}</span>
+                  <span className={`ml-2 text-[9px] px-1.5 py-0.5 rounded-full font-bold ${
+                    s.status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
+                    s.status === 'TRIAL' ? 'bg-blue-100 text-blue-700' :
+                    s.status === 'CANCELLED' ? 'bg-yellow-100 text-yellow-700' :
+                    s.status === 'PAST_DUE' ? 'bg-red-100 text-red-700' :
+                    'bg-gray-100 text-gray-700'
+                  }`}>{s.status}</span>
+                  <p className="text-xs text-gray-500">{s.user?.email} &middot; {s.plan?.name} &middot; {'\u20B9'}{s.pricePaid}</p>
+                  <p className="text-[10px] text-gray-400">Ends {new Date(s.currentPeriodEnd).toLocaleDateString()}</p>
+                </div>
+                <div className="flex gap-1">
+                  {extendId === s.id ? (
+                    <div className="flex items-center gap-1">
+                      <input type="number" value={extendDays} onChange={e => setExtendDays(Number(e.target.value))} className="w-16 border rounded px-2 py-1 text-xs" />
+                      <button onClick={() => handleExtend(s.id)} className="px-2 py-1 bg-green-500 text-white rounded text-xs font-bold">+{extendDays}d</button>
+                      <button onClick={() => setExtendId('')} className="px-2 py-1 bg-gray-200 rounded text-xs">X</button>
+                    </div>
+                  ) : (<>
+                    <button onClick={() => setExtendId(s.id)} title="Extend" className="p-1.5 rounded-lg hover:bg-gray-100 text-xs">{'\u{23F0}'}</button>
+                    {s.status !== 'EXPIRED' && s.status !== 'CANCELLED' && (
+                      <button onClick={() => handleAdminCancel(s.id)} title="Cancel" className="p-1.5 rounded-lg hover:bg-red-50 text-xs text-red-500">{'\u2716'}</button>
+                    )}
+                  </>)}
+                </div>
+              </div>
+            </div>
+          ))}
+          {subscribers.length === 0 && <p className="text-center text-gray-400 text-sm py-4">No subscribers yet</p>}
+        </div>
+      )}
+
+      {/* ─── ANALYTICS ─────────────────────── */}
+      {!loading && subView === 'analytics' && analytics && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: 'Active Subs', value: analytics.activeSubs, color: 'green' },
+              { label: 'Trial Users', value: analytics.trialSubs, color: 'blue' },
+              { label: 'MRR', value: `\u20B9${analytics.mrr}`, color: 'purple' },
+              { label: 'ARR', value: `\u20B9${analytics.arr}`, color: 'amber' },
+              { label: 'Churn Rate', value: `${analytics.churnRate}%`, color: 'red' },
+              { label: 'New This Month', value: analytics.newSubsThisMonth, color: 'rose' },
+              { label: 'Total Revenue', value: `\u20B9${analytics.totalRevenue}`, color: 'emerald' },
+              { label: 'Cancelled (30d)', value: analytics.cancelledRecent, color: 'orange' },
+            ].map((stat, i) => (
+              <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border text-center">
+                <p className="text-2xl font-black text-gray-900">{stat.value}</p>
+                <p className="text-[10px] text-gray-500 font-semibold uppercase">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => subscriptionAPI.adminExpireCheck().then(() => { alert('Expiration check complete'); loadData(); })} className="w-full py-2 bg-gray-100 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-200">Run Expiration Check</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -2804,6 +3152,7 @@ export default function AdminPage() {
     { id: 'sellers', icon: '🏪', label: 'Sellers' },
     { id: 'community', icon: '💬', label: 'Community' },
     { id: 'content', icon: '\u{1F4DA}', label: 'Content' },
+    { id: 'subscriptions', icon: '\u{1F48E}', label: 'Subs' },
   ];
 
   const roleBadge = (role: string) => {
@@ -3673,6 +4022,9 @@ export default function AdminPage() {
 
           {/* ════════ CONTENT MANAGEMENT ════════ */}
           {tab === 'content' && (<ContentManagementTab />)}
+
+          {/* ════════ SUBSCRIPTION MANAGEMENT ════════ */}
+          {tab === 'subscriptions' && (<SubscriptionAdminTab />)}
 
           {/* ════════ ADD PRODUCT ════════ */}
           {tab === 'add_product' && (<>

@@ -42,6 +42,7 @@ const ShippingPolicyPage = lazy(() => import('./pages/ShippingPolicyPage'));
 const AboutPage = lazy(() => import('./pages/AboutPage'));
 const RefundPolicyPage = lazy(() => import('./pages/RefundPolicyPage'));
 const HelpCenterPage = lazy(() => import('./pages/HelpCenterPage'));
+const PricingPage = lazy(() => import('./pages/PricingPage'));
 
 // Loading spinner
 const LoadingScreen = () => (
@@ -106,6 +107,7 @@ export default function App() {
           <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
           <Route path="/order-success" element={<ProtectedRoute><OrderSuccessPage /></ProtectedRoute>} />
           <Route path="/my-orders" element={<ProtectedRoute><MyOrdersPage /></ProtectedRoute>} />
+          <Route path="/pricing" element={<ProtectedRoute><PricingPage /></ProtectedRoute>} />
           <Route path="/doctor-dashboard" element={<DoctorRoute><DoctorDashboard /></DoctorRoute>} />
           <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
           <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />

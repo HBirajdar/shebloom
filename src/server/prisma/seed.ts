@@ -1020,6 +1020,101 @@ async function main() {
   }
   console.log('✅ Ayurvedic remedies seeded')
 
+  // ─── SUBSCRIPTION PLANS ────────────────────────────
+  const planCount = await prisma.subscriptionPlan.count()
+  if (planCount === 0) {
+    console.log('Inserting subscription plans...')
+    await prisma.subscriptionPlan.createMany({
+      data: [
+        {
+          name: 'Free',
+          slug: 'free',
+          description: 'Basic cycle tracking and wellness features',
+          interval: 'MONTHLY',
+          basePrice: 0,
+          trialDays: 0,
+          gracePeriodDays: 0,
+          emoji: '🌱',
+          highlights: ['Basic cycle tracking (3 months)', 'Dosha quiz', 'Community access', 'Articles', 'Product browsing'],
+          sortOrder: 0,
+          isActive: true,
+          isFree: true,
+          isPublished: true,
+        },
+        {
+          name: 'Premium Monthly',
+          slug: 'premium-monthly',
+          description: 'Full access to all premium features, billed monthly',
+          interval: 'MONTHLY',
+          basePrice: 149,
+          goalPricing: { track_periods: 99, fertility: 199, pregnancy: 149, wellness: 99 },
+          trialDays: 7,
+          gracePeriodDays: 3,
+          emoji: '✨',
+          highlights: ['12-month predictions', 'BBT & fertility tracking', 'Ayurvedic insights', 'Premium programs', 'Priority doctor booking', 'Ad-free', 'Data export'],
+          badge: 'POPULAR',
+          sortOrder: 1,
+          isActive: true,
+          isFree: false,
+          isPublished: true,
+        },
+        {
+          name: 'Premium Yearly',
+          slug: 'premium-yearly',
+          description: 'Full access to all premium features, billed yearly. Save 44%!',
+          interval: 'YEARLY',
+          basePrice: 999,
+          goalPricing: { track_periods: 699, fertility: 1299, pregnancy: 999, wellness: 699 },
+          trialDays: 7,
+          gracePeriodDays: 7,
+          emoji: '💎',
+          highlights: ['Everything in Monthly', 'Save 44% vs monthly', 'Extended grace period'],
+          badge: 'BEST VALUE',
+          sortOrder: 2,
+          isActive: true,
+          isFree: false,
+          isPublished: true,
+        },
+        {
+          name: 'Lifetime',
+          slug: 'lifetime',
+          description: 'One-time payment for lifetime access to all premium features',
+          interval: 'LIFETIME',
+          basePrice: 2999,
+          goalPricing: { track_periods: 1999, fertility: 3999, pregnancy: 2999, wellness: 1999 },
+          trialDays: 0,
+          gracePeriodDays: 0,
+          emoji: '👑',
+          highlights: ['Everything in Premium', 'One-time payment', 'Lifetime access', 'All future features included'],
+          sortOrder: 3,
+          isActive: true,
+          isFree: false,
+          isPublished: true,
+        },
+      ],
+    })
+    console.log('4 subscription plans seeded')
+  }
+
+  // ─── DEFAULT WELCOME BONUS ────────────────────────
+  const promoCount = await prisma.subscriptionPromotion.count()
+  if (promoCount === 0) {
+    console.log('Inserting welcome bonus promotion...')
+    await prisma.subscriptionPromotion.create({
+      data: {
+        name: 'Welcome to VedaClue!',
+        type: 'WELCOME_BONUS',
+        discountType: 'PERCENTAGE',
+        discountValue: 100,
+        isWelcomeBonus: true,
+        newUserWindowDays: 30,
+        isActive: true,
+        maxPerUser: 1,
+      },
+    })
+    console.log('Welcome bonus promotion seeded')
+  }
+
   console.log('🌿 Seed complete!')
 }
 

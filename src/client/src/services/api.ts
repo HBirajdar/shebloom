@@ -505,3 +505,34 @@ export const communityAPI = {
   getReports: (params?: any) => api.get('/community/reports', { params }),
   updateReport: (id: string, d: any) => api.patch(`/community/reports/${id}`, d),
 };
+
+// ─── SUBSCRIPTION API ──────────────────────────────
+export const subscriptionAPI = {
+  // User
+  getPlans: (goal?: string) => api.get('/subscriptions/plans', { params: { goal } }),
+  getMySubscription: () => api.get('/subscriptions/my'),
+  create: (d: { planId: string; couponCode?: string; goal?: string }) => api.post('/subscriptions/create', d),
+  verify: (d: any) => api.post('/subscriptions/verify', d),
+  cancel: (reason?: string) => api.post('/subscriptions/cancel', { reason }),
+  getInvoices: () => api.get('/subscriptions/invoices'),
+  // Admin: Plans
+  adminGetPlans: () => api.get('/subscriptions/admin/plans'),
+  adminCreatePlan: (d: any) => api.post('/subscriptions/admin/plans', d),
+  adminUpdatePlan: (id: string, d: any) => api.put(`/subscriptions/admin/plans/${id}`, d),
+  adminDeletePlan: (id: string) => api.delete(`/subscriptions/admin/plans/${id}`),
+  adminToggleFree: (id: string) => api.post(`/subscriptions/admin/plans/${id}/toggle-free`),
+  adminSyncRazorpay: (id: string) => api.post(`/subscriptions/admin/plans/${id}/sync-razorpay`),
+  // Admin: Promotions
+  adminGetPromotions: () => api.get('/subscriptions/admin/promotions'),
+  adminCreatePromotion: (d: any) => api.post('/subscriptions/admin/promotions', d),
+  adminUpdatePromotion: (id: string, d: any) => api.put(`/subscriptions/admin/promotions/${id}`, d),
+  adminDeletePromotion: (id: string) => api.delete(`/subscriptions/admin/promotions/${id}`),
+  // Admin: Subscribers
+  adminGetSubscribers: (params?: any) => api.get('/subscriptions/admin/subscribers', { params }),
+  adminExtend: (id: string, d: { days: number }) => api.post(`/subscriptions/admin/subscribers/${id}/extend`, d),
+  adminCancel: (id: string, d: { reason: string }) => api.post(`/subscriptions/admin/subscribers/${id}/cancel`, d),
+  // Admin: Analytics & Events
+  adminGetAnalytics: () => api.get('/subscriptions/admin/analytics'),
+  adminGetEvents: (params?: any) => api.get('/subscriptions/admin/events', { params }),
+  adminExpireCheck: () => api.post('/subscriptions/admin/expire-check'),
+};

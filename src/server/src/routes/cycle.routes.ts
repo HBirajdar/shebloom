@@ -4,6 +4,7 @@
 
 import { Router, Response, NextFunction } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { requireSubscription } from '../middleware/subscription.middleware';
 import { CycleService } from '../services/cycle.service';
 import { successResponse, errorResponse } from '../utils/response.utils';
 
@@ -11,7 +12,7 @@ const r = Router();
 const svc = new CycleService();
 r.use(authenticate);
 
-// ─── Core cycle endpoints ────────────────────────────
+// ─── Core cycle endpoints (FREE) ─────────────────────
 r.get('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try { successResponse(s, await svc.getCycles(q.user!.id)); } catch (e) { n(e); }
 });
@@ -28,8 +29,8 @@ r.post('/symptoms', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try { successResponse(s, await svc.logSymptoms(q.user!.id, q.body), 'Symptoms logged', 201); } catch (e) { n(e); }
 });
 
-// ─── BBT (Basal Body Temperature) ────────────────────
-r.post('/bbt', async (q: AuthRequest, s: Response, n: NextFunction) => {
+// ─── BBT (Basal Body Temperature) [PREMIUM] ─────────
+r.post('/bbt', requireSubscription('cycle:bbt'), async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const { temperature, time, method, logDate, notes } = q.body;
     if (!temperature || !logDate) { errorResponse(s, 'Temperature and logDate are required', 400); return; }
@@ -38,15 +39,15 @@ r.post('/bbt', async (q: AuthRequest, s: Response, n: NextFunction) => {
   } catch (e) { n(e); }
 });
 
-r.get('/bbt', async (q: AuthRequest, s: Response, n: NextFunction) => {
+r.get('/bbt', requireSubscription('cycle:bbt'), async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const days = parseInt(q.query.days as string) || 90;
     successResponse(s, await svc.getBBTHistory(q.user!.id, days));
   } catch (e) { n(e); }
 });
 
-// ─── Cervical Mucus ──────────────────────────────────
-r.post('/cervical-mucus', async (q: AuthRequest, s: Response, n: NextFunction) => {
+// ─── Cervical Mucus [PREMIUM] ────────────────────────
+r.post('/cervical-mucus', requireSubscription('cycle:cervical-mucus'), async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const { type, amount, logDate, notes } = q.body;
     if (!type || !logDate) { errorResponse(s, 'Type and logDate are required', 400); return; }
@@ -54,35 +55,35 @@ r.post('/cervical-mucus', async (q: AuthRequest, s: Response, n: NextFunction) =
   } catch (e) { n(e); }
 });
 
-r.get('/cervical-mucus', async (q: AuthRequest, s: Response, n: NextFunction) => {
+r.get('/cervical-mucus', requireSubscription('cycle:cervical-mucus'), async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const days = parseInt(q.query.days as string) || 90;
     successResponse(s, await svc.getCervicalMucusHistory(q.user!.id, days));
   } catch (e) { n(e); }
 });
 
-// ─── Daily Fertility Log (composite) ─────────────────
-r.post('/fertility-daily', async (q: AuthRequest, s: Response, n: NextFunction) => {
+// ─── Daily Fertility Log [PREMIUM] ───────────────────
+r.post('/fertility-daily', requireSubscription('cycle:fertility-daily'), async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     if (!q.body.logDate) { errorResponse(s, 'logDate is required', 400); return; }
     successResponse(s, await svc.logFertilityDaily(q.user!.id, q.body), 'Fertility data logged', 201);
   } catch (e) { n(e); }
 });
 
-r.get('/fertility-daily', async (q: AuthRequest, s: Response, n: NextFunction) => {
+r.get('/fertility-daily', requireSubscription('cycle:fertility-daily'), async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const days = parseInt(q.query.days as string) || 90;
     successResponse(s, await svc.getFertilityDailyHistory(q.user!.id, days));
   } catch (e) { n(e); }
 });
 
-// ─── Fertility Insights (comprehensive analysis) ─────
-r.get('/fertility-insights', async (q: AuthRequest, s: Response, n: NextFunction) => {
+// ─── Fertility Insights [PREMIUM] ────────────────────
+r.get('/fertility-insights', requireSubscription('cycle:fertility-insights'), async (q: AuthRequest, s: Response, n: NextFunction) => {
   try { successResponse(s, await svc.getFertilityInsights(q.user!.id)); } catch (e) { n(e); }
 });
 
-// ─── Ayurvedic + Modern Science Insights ─────────────
-r.get('/ayurvedic-insights', async (q: AuthRequest, s: Response, n: NextFunction) => {
+// ─── Ayurvedic + Modern Science Insights [PREMIUM] ───
+r.get('/ayurvedic-insights', requireSubscription('cycle:ayurvedic-insights'), async (q: AuthRequest, s: Response, n: NextFunction) => {
   try { successResponse(s, await svc.getAyurvedicInsights(q.user!.id)); } catch (e) { n(e); }
 });
 

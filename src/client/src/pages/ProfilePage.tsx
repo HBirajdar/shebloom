@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useCycleStore } from '../stores/cycleStore';
 import { userAPI, doshaAPI } from '../services/api';
 import { api } from '../services/api';
+import { useSubscriptionStore } from '../stores/subscriptionStore';
 import BottomNav from '../components/BottomNav';
 import toast from 'react-hot-toast';
 
@@ -80,6 +81,10 @@ export default function ProfilePage() {
   const setUser = useAuthStore(s => s.setUser);
   const clear = useAuthStore(s => s.clearAuth);
   const { cycleDay, phase, cycleLength, periodLength, hasRealData } = useCycleStore();
+
+  const { subscription, isPremium, fetchSubscription } = useSubscriptionStore();
+
+  useEffect(() => { fetchSubscription(); }, []);
 
   const [showEdit, setShowEdit] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
@@ -373,6 +378,28 @@ export default function ProfilePage() {
       <div className="px-5 pt-4 space-y-4">
 
         {activeTab === 'overview' && (<>
+          {/* Subscription Status Card */}
+          <div className={`rounded-2xl p-4 shadow-sm mb-3 ${isPremium ? 'bg-gradient-to-r from-amber-50 to-rose-50 border border-amber-200' : 'bg-gray-50 border border-gray-200'}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-extrabold uppercase tracking-wider text-gray-500">Subscription</p>
+                <p className="text-sm font-extrabold text-gray-900">
+                  {isPremium ? `${subscription?.plan?.emoji || '\u{1F48E}'} ${subscription?.plan?.name || 'Premium'}` : '\u{1F331} Free Plan'}
+                </p>
+                {isPremium && subscription && (
+                  <p className="text-[10px] text-gray-500">
+                    {subscription.status === 'TRIAL' ? `Trial \u2022 ends ${new Date(subscription.trialEndDate!).toLocaleDateString()}` :
+                     subscription.status === 'CANCELLED' ? `Cancelled \u2022 until ${new Date(subscription.currentPeriodEnd).toLocaleDateString()}` :
+                     `Active \u2022 renews ${new Date(subscription.currentPeriodEnd).toLocaleDateString()}`}
+                  </p>
+                )}
+              </div>
+              <button onClick={() => nav('/pricing')} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${isPremium ? 'bg-white text-gray-700 border' : 'bg-gradient-to-r from-rose-500 to-amber-500 text-white'}`}>
+                {isPremium ? 'Manage' : 'Upgrade'}
+              </button>
+            </div>
+          </div>
+
           {doshaInfo ? (
             <div className="rounded-2xl p-4 shadow-sm" style={{ backgroundColor: doshaInfo.bg }}>
               <div className="flex items-center gap-3 mb-2">

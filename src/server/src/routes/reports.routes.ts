@@ -6,12 +6,13 @@
 import { Router, Response, NextFunction } from 'express';
 import prisma from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { requireSubscription } from '../middleware/subscription.middleware';
 import { successResponse } from '../utils/response.utils';
 
 const r = Router();
 r.use(authenticate);
 
-r.get('/summary', async (q: AuthRequest, s: Response, n: NextFunction) => {
+r.get('/summary', requireSubscription('reports:full'), async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const uid = q.user!.id;
 

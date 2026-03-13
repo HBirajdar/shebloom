@@ -3,6 +3,9 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCycleStore } from '../stores/cycleStore'
 import { cycleAPI } from '../services/api'
+import { useSubscriptionStore } from '../stores/subscriptionStore'
+import UpgradePrompt from '../components/UpgradePrompt'
+import PremiumBadge from '../components/PremiumBadge'
 import toast from 'react-hot-toast'
 import BottomNav from '../components/BottomNav'
 
@@ -34,6 +37,9 @@ export default function TrackerPage() {
   const cycleStore = useCycleStore()
   const goal = useCycleStore(s => s.goal)
   const showFertility = goal === 'fertility'
+  const { isPremium, hasFeature, fetchSubscription } = useSubscriptionStore()
+
+  useEffect(() => { fetchSubscription() }, [])
 
   const [selectedMonth, setSelectedMonth] = useState(new Date())
   const [cycles, setCycles] = useState([])
@@ -1532,10 +1538,13 @@ export default function TrackerPage() {
               </div>
             </div>
 
-            {/* BBT Chart */}
+            {/* BBT Chart [PREMIUM] */}
+            {!isPremium ? (
+              <UpgradePrompt feature="cycle:bbt" title="BBT Temperature Tracking" description="Track your basal body temperature to pinpoint ovulation with precision." />
+            ) : (
             <div className="bg-white rounded-3xl p-4 shadow-lg">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-bold text-gray-700">🌡️ BBT Chart</span>
+                <span className="text-sm font-bold text-gray-700">🌡️ BBT Chart <PremiumBadge /></span>
                 <span className="text-[10px] text-gray-400">{bbtHistory.length} readings</span>
               </div>
               {bbtHistory.length > 0 ? (
@@ -1575,11 +1584,15 @@ export default function TrackerPage() {
                 </div>
               )}
             </div>
+            )}
 
-            {/* Cervical Mucus Pattern */}
+            {/* Cervical Mucus Pattern [PREMIUM] */}
+            {!isPremium ? (
+              <UpgradePrompt feature="cycle:cervical-mucus" title="Cervical Mucus Tracking" description="Track cervical mucus patterns to identify your most fertile days." />
+            ) : (
             <div className="bg-white rounded-3xl p-4 shadow-lg">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-bold text-gray-700">💧 Cervical Mucus</span>
+                <span className="text-sm font-bold text-gray-700">💧 Cervical Mucus <PremiumBadge /></span>
                 <span className="text-[10px] text-gray-400">{cmHistory.length} logs</span>
               </div>
               {cmHistory.length > 0 ? (
@@ -1616,6 +1629,7 @@ export default function TrackerPage() {
                 ))}
               </div>
             </div>
+            )}
 
             {/* Prediction Windows */}
             {prediction?.periodWindow && (

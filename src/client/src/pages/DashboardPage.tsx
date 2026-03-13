@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useCycleStore } from '../stores/cycleStore';
 import type { UserGoal } from '../stores/cycleStore';
 import { cycleAPI, moodAPI, userAPI, wellnessAPI, notificationAPI, doctorAPI, articleAPI, weatherAPI } from '../services/api';
+import { useSubscriptionStore } from '../stores/subscriptionStore';
 import BottomNav from '../components/BottomNav';
 import DoctorCarousel from '../components/DoctorCarousel';
 import type { Doctor as CarouselDoctor } from '../components/DoctorCarousel';
@@ -166,6 +167,8 @@ export default function DashboardPage() {
   const set = useCycleStore(s => s.setCycleData);
   const setGoal = useCycleStore(s => s.setGoal);
 
+  const { isPremium, fetchSubscription } = useSubscriptionStore();
+
   const [mood, setMood] = useState('');
   const [water, setWater] = useState(0);
   const [sleepHours, setSleepHours] = useState(0);
@@ -229,6 +232,8 @@ export default function DashboardPage() {
     const t = setInterval(() => setTipIdx(i => (i + 1) % tips.length), 4000);
     return () => clearInterval(t);
   }, [phase, tips.length, goal]);
+
+  useEffect(() => { fetchSubscription(); }, []);
 
   useEffect(() => {
     userAPI.me().then(res => {
@@ -374,6 +379,18 @@ export default function DashboardPage() {
       </div>
 
       <div className="px-5 pt-4 space-y-4">
+
+        {/* ─── Premium Upgrade Banner ─── */}
+        {!isPremium && (
+          <button onClick={() => nav('/pricing')} className="w-full bg-gradient-to-r from-rose-500 to-amber-500 rounded-2xl p-3 flex items-center gap-3 shadow-md active:scale-[0.98] transition-transform">
+            <span className="text-2xl">{'\u{1F48E}'}</span>
+            <div className="flex-1 text-left">
+              <p className="text-xs font-bold text-white">Unlock Premium</p>
+              <p className="text-[10px] text-white/80">BBT tracking, fertility insights, reports & more</p>
+            </div>
+            <span className="text-white text-xs font-bold">{'\u2192'}</span>
+          </button>
+        )}
 
         {/* ─── Quick Log Strip ─── */}
         <div className="bg-white rounded-3xl p-3 shadow-lg">

@@ -136,6 +136,7 @@ model User {
   communityReplies   CommunityReply[]
   communityLikes     CommunityLike[]
   communityReports   CommunityReport[]
+  subscriptions      UserSubscription[]
 
   @@index([role])
   @@map("users")
@@ -1021,6 +1022,10 @@ model PlatformConfig {
   minOrderAmount          Float    @default(0)
   // Refund
   refundProcessingDays    Int      @default(7)
+  // Subscription settings
+  subscriptionGraceDays     Int      @default(3)
+  subscriptionTrialDays     Int      @default(7)
+  subscriptionWelcomeBonus  Boolean  @default(true)
   updatedAt               DateTime @updatedAt
 
   @@map("platform_config")
@@ -1089,6 +1094,50 @@ enum CouponScope {
   ALL
   CONSULTATION
   PRODUCTS
+  SUBSCRIPTION
+}
+
+// ─── SUBSCRIPTION ENUMS ──────────────────────────────
+
+enum SubscriptionInterval {
+  MONTHLY
+  YEARLY
+  LIFETIME
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+  PAUSED
+}
+
+enum SubscriptionEventType {
+  CREATED
+  TRIAL_STARTED
+  TRIAL_ENDED
+  ACTIVATED
+  RENEWED
+  PAYMENT_FAILED
+  GRACE_STARTED
+  CANCELLED
+  EXPIRED
+  UPGRADED
+  DOWNGRADED
+  REFUNDED
+  ADMIN_EXTENDED
+  ADMIN_CANCELLED
+  PROMO_APPLIED
+  COUPON_APPLIED
+}
+
+enum PromotionType {
+  WELCOME_BONUS
+  FLASH_SALE
+  SEASONAL
+  REFERRAL
 }
 
 // ─── PRODUCT PAYOUTS (seller/vendor settlement) ──────
@@ -1640,4 +1689,146 @@ model AIChatResponse {
 
   @@index([isActive, priority])
   @@map("ai_chat_responses")
+}
+
+// ═══════════════════════════════════════════════════════
+// SUBSCRIPTION & PAID SERVICES
+// ═══════════════════════════════════════════════════════
+
+model SubscriptionPlan {
+  id                String               @id @default(cuid())
+  name              String               // "Premium Monthly", "Premium Yearly", "Lifetime"
+  slug              String               @unique
+  description       String?              @db.Text
+  // Pricing
+  interval          SubscriptionInterval
+  basePrice         Float                // Full price in INR
+  currency          String               @default("INR")
+  goalPricing       Json?                // Per-goal price overrides: {"fertility": 199, "periods": 99}
+  // Trial & Grace
+  trialDays         Int                  @default(0)
+  gracePeriodDays   Int                  @default(3)
+  // Razorpay
+  razorpayPlanId    String?              // Razorpay plan ID (null for free/lifetime)
+  // Display
+  emoji             String               @default("✨")
+  highlights        String[]             @default([])
+  badge             String?              // "POPULAR", "BEST VALUE"
+  sortOrder         Int                  @default(0)
+  // Status
+  isActive          Boolean              @default(true)
+  isFree            Boolean              @default(false)
+  isPublished       Boolean              @default(true)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  subscriptions     UserSubscription[]
+  promotions        SubscriptionPromotion[]
+
+  @@index([isActive, isPublished])
+  @@index([interval])
+  @@map("subscription_plans")
+}
+
+model UserSubscription {
+  id                     String             @id @default(cuid())
+  userId                 String
+  planId                 String
+  status                 SubscriptionStatus @default(TRIAL)
+  // Dates
+  trialStartDate         DateTime?
+  trialEndDate           DateTime?
+  currentPeriodStart     DateTime
+  currentPeriodEnd       DateTime           // LIFETIME: 2099-12-31
+  cancelledAt            DateTime?
+  cancelReason           String?
+  // Razorpay
+  razorpaySubscriptionId String?            @unique
+  razorpayCustomerId     String?
+  // Pricing snapshot (immutable at purchase time)
+  pricePaid              Float
+  originalPrice          Float
+  couponCode             String?
+  couponDiscount         Float              @default(0)
+  promotionId            String?
+  promotionDiscount      Float              @default(0)
+  goal                   String?            // Goal at time of purchase
+  // Grace
+  graceStartDate         DateTime?
+  graceEndDate           DateTime?
+  paymentRetryCount      Int                @default(0)
+  // Lifecycle
+  isAutoRenew            Boolean            @default(true)
+  renewalCount           Int                @default(0)
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  user                   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan                   SubscriptionPlan   @relation(fields: [planId], references: [id])
+  events                 SubscriptionEvent[]
+
+  @@index([userId, status])
+  @@index([status])
+  @@index([razorpaySubscriptionId])
+  @@index([currentPeriodEnd])
+  @@map("user_subscriptions")
+}
+
+model SubscriptionEvent {
+  id                String                @id @default(cuid())
+  subscriptionId    String
+  userId            String
+  eventType         SubscriptionEventType
+  // Financial
+  amount            Float                 @default(0)
+  currency          String                @default("INR")
+  razorpayPaymentId String?
+  // Context
+  previousStatus    String?
+  newStatus         String?
+  metadata          Json?
+  ipAddress         String?
+  userAgent         String?
+  performedBy       String?               // Admin userId if admin action
+  createdAt         DateTime              @default(now())
+
+  subscription      UserSubscription      @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@index([userId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("subscription_events")
+}
+
+model SubscriptionPromotion {
+  id                 String         @id @default(cuid())
+  name               String
+  type               PromotionType  @default(FLASH_SALE)
+  // Discount
+  discountType       DiscountType   @default(PERCENTAGE)
+  discountValue      Float          // 100 = 100% off (free)
+  maxDiscountAmount  Float?
+  // Targeting
+  planId             String?        // null = applies to all plans
+  goals              String[]       @default([])  // Empty = all goals
+  // Welcome bonus
+  isWelcomeBonus     Boolean        @default(false)
+  newUserWindowDays  Int            @default(30)
+  // Validity
+  startDate          DateTime       @default(now())
+  endDate            DateTime?
+  isActive           Boolean        @default(true)
+  // Limits
+  maxRedemptions     Int?
+  currentRedemptions Int            @default(0)
+  maxPerUser         Int            @default(1)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  plan               SubscriptionPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+
+  @@index([isActive, type])
+  @@index([startDate, endDate])
+  @@map("subscription_promotions")
 }
