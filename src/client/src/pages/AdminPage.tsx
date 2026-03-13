@@ -4325,19 +4325,22 @@ function AnomaliesTab() {
 function HealthScoreTab() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     (async () => {
       try {
         const res = await analyticsAPI.adminHealthScore();
         setData(res.data?.data || null);
-      } catch { }
+      } catch (err: any) {
+        setError(err?.response?.data?.error || err?.message || 'Failed to load');
+      }
       setLoading(false);
     })();
   }, []);
 
   if (loading) return <div className="text-center py-10 text-gray-400">Calculating health score...</div>;
-  if (!data) return <div className="text-center py-10 text-gray-400">Failed to load</div>;
+  if (!data) return <div className="text-center py-10 text-gray-400">{error || 'No health data available'}</div>;
 
   const scoreColor = data.score >= 70 ? 'from-emerald-500 to-teal-500' : data.score >= 40 ? 'from-amber-500 to-orange-500' : 'from-red-500 to-rose-500';
   const breakdown = data.breakdown || {};

@@ -2078,14 +2078,14 @@ r.get('/admin/anomalies', authenticate, requireAdmin, async (_req: AuthRequest, 
     // We need per-day counts, so use raw query for efficiency
     const dailyRaw: Array<{ day: string; cnt: number }> = await prisma.$queryRaw`
       SELECT DATE("createdAt") as day, COUNT(*)::int as cnt
-      FROM "UserEvent"
+      FROM "user_events"
       WHERE "createdAt" >= ${thirtyDaysAgo}
       GROUP BY DATE("createdAt")
       ORDER BY day`;
 
     const dailyErrorRaw: Array<{ day: string; cnt: number }> = await prisma.$queryRaw`
       SELECT DATE("createdAt") as day, COUNT(*)::int as cnt
-      FROM "UserEvent"
+      FROM "user_events"
       WHERE "createdAt" >= ${thirtyDaysAgo} AND "event" IN ('checkout_abandoned', 'coupon_failed', 'feature_locked')
       GROUP BY DATE("createdAt")
       ORDER BY day`;
@@ -2175,13 +2175,13 @@ r.get('/admin/health-score', authenticate, requireAdmin, async (_req: AuthReques
 
     // --- Engagement rate (DAU/MAU) using DB aggregation ---
     const mauRaw: Array<{ uid: string }> = await prisma.$queryRaw`
-      SELECT DISTINCT "userId" as uid FROM "UserEvent"
+      SELECT DISTINCT "userId" as uid FROM "user_events"
       WHERE "createdAt" >= ${thirtyDaysAgo} AND "userId" IS NOT NULL`;
     const mau = mauRaw.length;
 
     const dauRaw: Array<{ day: string; cnt: number }> = await prisma.$queryRaw`
       SELECT DATE("createdAt") as day, COUNT(DISTINCT "userId")::int as cnt
-      FROM "UserEvent"
+      FROM "user_events"
       WHERE "createdAt" >= ${sevenDaysAgo} AND "userId" IS NOT NULL
       GROUP BY DATE("createdAt")`;
     const dauValues = dauRaw.map(r => Number(r.cnt));
@@ -2208,8 +2208,8 @@ r.get('/admin/health-score', authenticate, requireAdmin, async (_req: AuthReques
     }
 
     // --- Retention rate (DB-level distinct user sets) ---
-    const activeThisWeekRaw: Array<{ uid: string }> = await prisma.$queryRaw`SELECT DISTINCT "userId" as uid FROM "UserEvent" WHERE "createdAt" >= ${sevenDaysAgo} AND "userId" IS NOT NULL`;
-    const activeLastWeekRaw: Array<{ uid: string }> = await prisma.$queryRaw`SELECT DISTINCT "userId" as uid FROM "UserEvent" WHERE "createdAt" >= ${fourteenDaysAgo} AND "createdAt" < ${sevenDaysAgo} AND "userId" IS NOT NULL`;
+    const activeThisWeekRaw: Array<{ uid: string }> = await prisma.$queryRaw`SELECT DISTINCT "userId" as uid FROM "user_events" WHERE "createdAt" >= ${sevenDaysAgo} AND "userId" IS NOT NULL`;
+    const activeLastWeekRaw: Array<{ uid: string }> = await prisma.$queryRaw`SELECT DISTINCT "userId" as uid FROM "user_events" WHERE "createdAt" >= ${fourteenDaysAgo} AND "createdAt" < ${sevenDaysAgo} AND "userId" IS NOT NULL`;
     const activeLastWeekSet = new Set(activeLastWeekRaw.map(r => r.uid));
     let retained = 0;
     for (const r of activeThisWeekRaw) {
@@ -2253,7 +2253,7 @@ r.get('/admin/health-score', authenticate, requireAdmin, async (_req: AuthReques
     // Trend: compare this week's avg DAU vs last week's avg DAU
     const lastWeekDauRaw: Array<{ day: string; cnt: number }> = await prisma.$queryRaw`
       SELECT DATE("createdAt") as day, COUNT(DISTINCT "userId")::int as cnt
-      FROM "UserEvent"
+      FROM "user_events"
       WHERE "createdAt" >= ${fourteenDaysAgo} AND "createdAt" < ${sevenDaysAgo} AND "userId" IS NOT NULL
       GROUP BY DATE("createdAt")`;
     const lastWeekDauValues = lastWeekDauRaw.map(r => Number(r.cnt));
@@ -2370,7 +2370,7 @@ r.get('/admin/predictive-churn', authenticate, requireAdmin, async (_req: AuthRe
         COUNT(*) FILTER (WHERE "createdAt" >= ${thirtyDaysAgo})::int as last30_events,
         COUNT(*) FILTER (WHERE "createdAt" >= ${sixtyDaysAgo} AND "createdAt" < ${thirtyDaysAgo})::int as prior30_events,
         COUNT(DISTINCT DATE("createdAt")) FILTER (WHERE "createdAt" >= ${thirtyDaysAgo})::int as active_days_30
-      FROM "UserEvent"
+      FROM "user_events"
       WHERE "createdAt" >= ${ninetyDaysAgo} AND "userId" IS NOT NULL
       GROUP BY "userId"`;
 
