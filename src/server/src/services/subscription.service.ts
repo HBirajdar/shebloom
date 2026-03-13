@@ -234,17 +234,24 @@ class SubscriptionService {
   // ─── Handle Razorpay renewal ───────────────────────
   async handleRenewal(razorpaySubscriptionId: string, razorpayPaymentId: string, amount: number) {
     const sub = await prisma.userSubscription.findUnique({ where: { razorpaySubscriptionId } });
-    if (!sub) return null;
+    if (!sub) { console.warn(`[Renewal] No subscription found for razorpaySubscriptionId: ${razorpaySubscriptionId}`); return null; }
 
     const now = new Date();
     const plan = await prisma.subscriptionPlan.findUnique({ where: { id: sub.planId } });
     const interval = plan?.interval || 'MONTHLY';
 
+    // Guard: LIFETIME subscriptions should never be renewed via webhook
+    if (interval === 'LIFETIME') {
+      console.warn(`[Renewal] Ignoring renewal for LIFETIME subscription ${sub.id}`);
+      return sub;
+    }
+
+    // Use calendar-based dates instead of fixed day counts
     let newEnd: Date;
     if (interval === 'YEARLY') {
-      newEnd = new Date(now.getTime() + 365 * 86400000);
+      newEnd = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
     } else {
-      newEnd = new Date(now.getTime() + 30 * 86400000);
+      newEnd = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
     }
 
     const prev = sub.status;
@@ -466,7 +473,12 @@ class SubscriptionService {
 
     const updated = await prisma.userSubscription.update({
       where: { id: subscriptionId },
-      data: { currentPeriodEnd: newEnd, status: newStatus },
+      data: {
+        currentPeriodEnd: newEnd,
+        status: newStatus,
+        // Reset grace fields when reactivating
+        ...(newStatus === 'ACTIVE' && prev !== 'ACTIVE' ? { graceStartDate: null, graceEndDate: null, paymentRetryCount: 0 } : {}),
+      },
       include: { plan: true },
     });
 

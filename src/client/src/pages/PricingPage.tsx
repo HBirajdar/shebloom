@@ -97,13 +97,22 @@ export default function PricingPage() {
       const data = res.data?.data || res.data;
 
       if (!data.paymentRequired) {
-        // Free activation
+        // Free activation — force refresh subscription store
+        useSubscriptionStore.getState().clearSubscription();
         await fetchSubscription();
         nav('/dashboard');
         return;
       }
 
-      // Razorpay payment
+      // Check Razorpay SDK is loaded
+      if (typeof window.Razorpay !== 'function') {
+        alert('Payment gateway is loading. Please try again in a moment.');
+        setPayLoading('');
+        return;
+      }
+
+      // Razorpay payment — only send Razorpay response fields to /verify
+      // Server uses stored pending transaction for pricing (prevents tampering)
       const options: any = {
         key: data.keyId,
         name: 'VedaClue',
@@ -115,7 +124,6 @@ export default function PricingPage() {
       };
 
       if (data.paymentType === 'one_time') {
-        // Lifetime — one-time order
         options.amount = data.amount;
         options.currency = data.currency;
         options.order_id = data.razorpayOrderId;
@@ -125,23 +133,15 @@ export default function PricingPage() {
               razorpayOrderId: response.razorpay_order_id,
               razorpayPaymentId: response.razorpay_payment_id,
               razorpaySignature: response.razorpay_signature,
-              planId: data.planId,
-              pricePaid: data.pricePaid,
-              originalPrice: data.originalPrice,
-              couponCode: data.couponCode,
-              couponDiscount: data.couponDiscount,
-              promotionId: data.promotionId,
-              promoDiscount: data.promoDiscount,
-              goal: data.goal,
               paymentType: 'one_time',
             });
+            useSubscriptionStore.getState().clearSubscription();
             await fetchSubscription();
             nav('/dashboard');
           } catch { alert('Payment verification failed. Contact support.'); }
           finally { setPayLoading(''); }
         };
       } else {
-        // Monthly/Yearly — Razorpay subscription
         options.subscription_id = data.razorpaySubscriptionId;
         options.handler = async (response: any) => {
           try {
@@ -149,16 +149,9 @@ export default function PricingPage() {
               razorpaySubscriptionId: data.razorpaySubscriptionId,
               razorpayPaymentId: response.razorpay_payment_id,
               razorpaySignature: response.razorpay_signature,
-              planId: data.planId,
-              pricePaid: data.pricePaid,
-              originalPrice: data.originalPrice,
-              couponCode: data.couponCode,
-              couponDiscount: data.couponDiscount,
-              promotionId: data.promotionId,
-              promoDiscount: data.promoDiscount,
-              goal: data.goal,
               paymentType: 'subscription',
             });
+            useSubscriptionStore.getState().clearSubscription();
             await fetchSubscription();
             nav('/dashboard');
           } catch { alert('Payment verification failed. Contact support.'); }

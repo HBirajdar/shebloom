@@ -1166,6 +1166,31 @@ enum PromotionType {
   REFERRAL
 }
 
+// Pending subscription: stores server-side pricing data between /create and /verify
+// Prevents client from tampering with financial data during payment flow
+model PendingSubscription {
+  id                String   @id @default(cuid())
+  userId            String
+  planId            String
+  razorpayOrderId   String?  @unique  // For one-time (lifetime) payments
+  razorpaySubId     String?  @unique  // For recurring subscriptions
+  originalPrice     Float
+  pricePaid         Float
+  couponCode        String?
+  couponDiscount    Float    @default(0)
+  promotionId       String?
+  promoDiscount     Float    @default(0)
+  goal              String?
+  paymentType       String   // 'one_time' or 'subscription'
+  expiresAt         DateTime // Auto-expire after 30 min
+  createdAt         DateTime @default(now())
+
+  @@index([userId])
+  @@index([razorpayOrderId])
+  @@index([razorpaySubId])
+  @@map("pending_subscriptions")
+}
+
 // ─── PRODUCT PAYOUTS (seller/vendor settlement) ──────
 // For future marketplace: if products are sold by different sellers,
 // track their earnings separately. Currently VedaClue owns products

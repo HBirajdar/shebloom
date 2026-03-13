@@ -14,7 +14,8 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET!,
 });
 
-const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET || '';
+const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET;
+if (!webhookSecret) console.warn('[WARN] RAZORPAY_WEBHOOK_SECRET not set — webhook signature verification will fail');
 
 // ═══════════════════════════════════════════════════════
 // WEBHOOK (before authenticate — raw body)
@@ -22,7 +23,12 @@ const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPA
 
 r.post('/webhook', async (req: Request, res: Response) => {
   try {
-    const rawBody = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+    if (!webhookSecret) { console.error('[Webhook] No webhook secret configured'); res.status(500).json({ error: 'Webhook not configured' }); return; }
+
+    // Handle raw body correctly — express.raw() gives Buffer, express.json() gives object
+    const rawBody = Buffer.isBuffer(req.body)
+      ? req.body.toString('utf-8')
+      : (typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
     const signature = req.headers['x-razorpay-signature'] as string;
     if (!signature) { res.status(400).json({ error: 'Missing signature' }); return; }
 
@@ -33,7 +39,9 @@ r.post('/webhook', async (req: Request, res: Response) => {
       res.status(400).json({ error: 'Invalid signature' }); return;
     }
 
-    const event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    const event = Buffer.isBuffer(req.body)
+      ? JSON.parse(req.body.toString('utf-8'))
+      : (typeof req.body === 'string' ? JSON.parse(req.body) : req.body);
     const eventName = event.event;
     const subEntity = event.payload?.subscription?.entity;
     const paymentEntity = event.payload?.payment?.entity;
@@ -67,8 +75,9 @@ r.post('/webhook', async (req: Request, res: Response) => {
 
     res.json({ status: 'ok' });
   } catch (e: any) {
-    console.error('[Subscription Webhook Error]', e.message);
-    res.status(500).json({ error: 'Webhook processing failed' });
+    // Return 200 to prevent Razorpay from retrying permanently — log the error for investigation
+    console.error('[Subscription Webhook Error]', e.message, e.stack);
+    res.json({ status: 'error_logged', message: 'Processing failed but acknowledged' });
   }
 });
 
@@ -143,7 +152,7 @@ r.post('/create', async (q: AuthRequest, s: Response, n: NextFunction) => {
       promotionId = promoResult.promotion.id;
     }
 
-    // Apply coupon
+    // Apply coupon (full validation including expiry, firstOrderOnly, minAmount)
     let couponDiscount = 0;
     if (couponCode) {
       const coupon = await prisma.coupon.findUnique({
@@ -151,16 +160,27 @@ r.post('/create', async (q: AuthRequest, s: Response, n: NextFunction) => {
         include: { redemptions: { where: { userId: q.user!.id } } },
       });
       if (coupon && coupon.isActive && (coupon.applicableTo === 'ALL' || coupon.applicableTo === 'SUBSCRIPTION')) {
-        if (coupon.redemptions.length < coupon.maxUsesPerUser) {
-          if (!coupon.maxUses || coupon.currentUses < coupon.maxUses) {
-            let cd = coupon.discountType === 'PERCENTAGE'
-              ? price * (coupon.discountValue / 100)
-              : coupon.discountValue;
-            if (coupon.discountType === 'PERCENTAGE' && coupon.maxDiscountAmount && cd > coupon.maxDiscountAmount) {
-              cd = coupon.maxDiscountAmount;
-            }
-            couponDiscount = Math.min(cd, price);
+        const now = new Date();
+        const notExpired = (!coupon.validUntil || new Date(coupon.validUntil) > now) && new Date(coupon.validFrom) <= now;
+        const withinUserLimit = coupon.redemptions.length < coupon.maxUsesPerUser;
+        const withinGlobalLimit = !coupon.maxUses || coupon.currentUses < coupon.maxUses;
+        const meetsMinOrder = price >= coupon.minOrderAmount;
+
+        // firstOrderOnly check: user has never had any subscription
+        let firstOrderOk = true;
+        if (coupon.firstOrderOnly) {
+          const prevSubs = await prisma.userSubscription.count({ where: { userId: q.user!.id } });
+          firstOrderOk = prevSubs === 0;
+        }
+
+        if (notExpired && withinUserLimit && withinGlobalLimit && meetsMinOrder && firstOrderOk) {
+          let cd = coupon.discountType === 'PERCENTAGE'
+            ? price * (coupon.discountValue / 100)
+            : coupon.discountValue;
+          if (coupon.discountType === 'PERCENTAGE' && coupon.maxDiscountAmount && cd > coupon.maxDiscountAmount) {
+            cd = coupon.maxDiscountAmount;
           }
+          couponDiscount = Math.min(cd, price);
         }
       }
     }
@@ -201,6 +221,17 @@ r.post('/create', async (q: AuthRequest, s: Response, n: NextFunction) => {
         notes: { userId: q.user!.id, planId, planSlug: plan.slug, goal: goal || '', type: 'subscription_lifetime' },
       });
 
+      // Store server-side pricing (prevents client tampering on /verify)
+      await prisma.pendingSubscription.create({
+        data: {
+          userId: q.user!.id, planId, razorpayOrderId: rzpOrder.id,
+          originalPrice, pricePaid, couponCode: couponCode || null,
+          couponDiscount, promotionId: promotionId || null, promoDiscount,
+          goal: goal || null, paymentType: 'one_time',
+          expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 min expiry
+        },
+      });
+
       successResponse(s, {
         paymentRequired: true,
         paymentType: 'one_time',
@@ -208,14 +239,7 @@ r.post('/create', async (q: AuthRequest, s: Response, n: NextFunction) => {
         amount: rzpOrder.amount,
         currency: rzpOrder.currency,
         keyId: process.env.RAZORPAY_KEY_ID,
-        planId,
-        originalPrice,
-        pricePaid,
-        couponDiscount,
-        promoDiscount,
-        promotionId,
-        couponCode,
-        goal,
+        planId, goal,
       });
       return;
     }
@@ -228,13 +252,12 @@ r.post('/create', async (q: AuthRequest, s: Response, n: NextFunction) => {
 
     const subOpts: any = {
       plan_id: plan.razorpayPlanId,
-      total_count: plan.interval === 'YEARLY' ? 10 : 120, // Max cycles
+      total_count: plan.interval === 'YEARLY' ? 10 : 120,
       quantity: 1,
       customer_notify: 1,
       notes: { userId: q.user!.id, planId, planSlug: plan.slug, goal: goal || '' },
     };
 
-    // Trial period
     if (plan.trialDays > 0) {
       const trialEnd = Math.floor(Date.now() / 1000) + plan.trialDays * 86400;
       subOpts.start_at = trialEnd;
@@ -242,29 +265,33 @@ r.post('/create', async (q: AuthRequest, s: Response, n: NextFunction) => {
 
     const rzpSub = await razorpay.subscriptions.create(subOpts);
 
+    // Store server-side pricing (prevents client tampering on /verify)
+    await prisma.pendingSubscription.create({
+      data: {
+        userId: q.user!.id, planId, razorpaySubId: rzpSub.id,
+        originalPrice, pricePaid, couponCode: couponCode || null,
+        couponDiscount, promotionId: promotionId || null, promoDiscount,
+        goal: goal || null, paymentType: 'subscription',
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+      },
+    });
+
     successResponse(s, {
       paymentRequired: true,
       paymentType: 'subscription',
       razorpaySubscriptionId: rzpSub.id,
       keyId: process.env.RAZORPAY_KEY_ID,
-      planId,
-      originalPrice,
-      pricePaid,
-      couponDiscount,
-      promoDiscount,
-      promotionId,
-      couponCode,
-      goal,
+      planId, goal,
     });
   } catch (e) { n(e); }
 });
 
-// POST /subscriptions/verify — Verify payment
+// POST /subscriptions/verify — Verify payment (uses server-side pending data, NOT client-sent prices)
 r.post('/verify', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
-    const { razorpaySubscriptionId, razorpayOrderId, razorpayPaymentId, razorpaySignature, planId, pricePaid, originalPrice, couponCode, couponDiscount, promotionId, promoDiscount, goal, paymentType } = q.body;
+    const { razorpaySubscriptionId, razorpayOrderId, razorpayPaymentId, razorpaySignature, paymentType } = q.body;
 
-    // Verify signature
+    // 1. Verify Razorpay signature (timing-safe)
     let expectedSignature: string;
     if (paymentType === 'one_time' && razorpayOrderId) {
       expectedSignature = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
@@ -276,48 +303,81 @@ r.post('/verify', async (q: AuthRequest, s: Response, n: NextFunction) => {
       errorResponse(s, 'Invalid payment data', 400); return;
     }
 
-    if (expectedSignature !== razorpaySignature) {
+    // Timing-safe comparison to prevent timing attacks
+    try {
+      const sigBuf = Buffer.from(razorpaySignature, 'hex');
+      const expBuf = Buffer.from(expectedSignature, 'hex');
+      if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+        errorResponse(s, 'Payment verification failed', 400); return;
+      }
+    } catch {
       errorResponse(s, 'Payment verification failed', 400); return;
     }
 
-    // Create subscription record
-    const verifyIp = q.ip || q.headers['x-forwarded-for']?.toString();
-    const verifyUa = q.headers['user-agent'];
-    const sub = await subscriptionService.createSubscription(q.user!.id, planId, {
-      razorpaySubscriptionId: razorpaySubscriptionId || undefined,
-      couponCode, goal,
-      pricePaid: Number(pricePaid) || 0,
-      originalPrice: Number(originalPrice) || 0,
-      couponDiscount: Number(couponDiscount) || 0,
-      promotionId: promotionId || undefined,
-      promotionDiscount: Number(promoDiscount) || 0,
-      ipAddress: verifyIp,
-      userAgent: verifyUa,
+    // 2. Look up server-side pending transaction (NOT trusting client-sent prices)
+    const pending = await prisma.pendingSubscription.findFirst({
+      where: paymentType === 'one_time'
+        ? { razorpayOrderId, userId: q.user!.id }
+        : { razorpaySubId: razorpaySubscriptionId, userId: q.user!.id },
     });
 
-    // Record coupon redemption
-    if (couponCode && couponDiscount > 0) {
-      const coupon = await prisma.coupon.findUnique({ where: { code: couponCode.toUpperCase().trim() } });
-      if (coupon) {
-        await prisma.couponRedemption.create({ data: { couponId: coupon.id, userId: q.user!.id, subscriptionId: sub.id, discount: Number(couponDiscount) } });
-        await prisma.coupon.update({ where: { id: coupon.id }, data: { currentUses: { increment: 1 } } });
-      }
+    if (!pending) {
+      errorResponse(s, 'No pending subscription found. Payment may have already been processed.', 400); return;
     }
 
-    // Audit log
-    await prisma.paymentAuditLog.create({
-      data: {
-        userId: q.user!.id,
-        eventType: 'SUBSCRIPTION_CREATED',
-        razorpayOrderId: razorpayOrderId || null,
-        razorpayPaymentId,
-        subtotal: Number(originalPrice) || 0,
-        couponCode: couponCode || null,
-        couponDiscount: Number(couponDiscount) || 0,
-        totalAmount: Number(pricePaid) || 0,
-        paymentMethod: 'razorpay',
-        metadata: { planId, goal, promotionId, promoDiscount, razorpaySubscriptionId },
-      },
+    if (new Date(pending.expiresAt) < new Date()) {
+      await prisma.pendingSubscription.delete({ where: { id: pending.id } });
+      errorResponse(s, 'Payment session expired. Please try again.', 400); return;
+    }
+
+    // 3. Create subscription in a transaction (atomic: sub + coupon + audit)
+    const verifyIp = q.ip || q.headers['x-forwarded-for']?.toString();
+    const verifyUa = q.headers['user-agent'];
+
+    const sub = await prisma.$transaction(async (tx) => {
+      // Create subscription using server-side pricing data
+      const newSub = await subscriptionService.createSubscription(q.user!.id, pending.planId, {
+        razorpaySubscriptionId: razorpaySubscriptionId || undefined,
+        couponCode: pending.couponCode || undefined,
+        goal: pending.goal || undefined,
+        pricePaid: pending.pricePaid,
+        originalPrice: pending.originalPrice,
+        couponDiscount: pending.couponDiscount,
+        promotionId: pending.promotionId || undefined,
+        promotionDiscount: pending.promoDiscount,
+        ipAddress: verifyIp,
+        userAgent: verifyUa,
+      });
+
+      // Record coupon redemption atomically
+      if (pending.couponCode && pending.couponDiscount > 0) {
+        const coupon = await tx.coupon.findUnique({ where: { code: pending.couponCode.toUpperCase().trim() } });
+        if (coupon) {
+          await tx.couponRedemption.create({ data: { couponId: coupon.id, userId: q.user!.id, subscriptionId: newSub.id, discount: pending.couponDiscount } });
+          await tx.coupon.update({ where: { id: coupon.id }, data: { currentUses: { increment: 1 } } });
+        }
+      }
+
+      // Audit log
+      await tx.paymentAuditLog.create({
+        data: {
+          userId: q.user!.id,
+          eventType: 'SUBSCRIPTION_CREATED',
+          razorpayOrderId: razorpayOrderId || null,
+          razorpayPaymentId,
+          subtotal: pending.originalPrice,
+          couponCode: pending.couponCode || null,
+          couponDiscount: pending.couponDiscount,
+          totalAmount: pending.pricePaid,
+          paymentMethod: 'razorpay',
+          metadata: { planId: pending.planId, goal: pending.goal, promotionId: pending.promotionId, promoDiscount: pending.promoDiscount, razorpaySubscriptionId },
+        },
+      });
+
+      // Delete pending record (prevents double-verify)
+      await tx.pendingSubscription.delete({ where: { id: pending.id } });
+
+      return newSub;
     });
 
     successResponse(s, { subscription: sub }, 'Subscription activated');

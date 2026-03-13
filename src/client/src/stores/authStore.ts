@@ -36,6 +36,8 @@ export const useAuthStore = create<AuthState>()(
       clearAuth: () => {
         localStorage.removeItem('sb_token');
         localStorage.removeItem('sb_refresh');
+        // Clear subscription store on logout to prevent stale data across sessions
+        localStorage.removeItem('vedaclue-subscription');
         set({ user: null, isAuthenticated: false });
       },
       setLoading: (isLoading) => set({ isLoading }),
