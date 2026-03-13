@@ -1,4 +1,4 @@
-# SheBloom Deployment Guide
+# Vedaclue Deployment Guide
 
 ## How to Publish & Deploy Your App for Users
 
@@ -15,12 +15,12 @@ Railway deploys your full stack (API + Database + Redis + Frontend) from one das
 ### Step 1: Push Code to GitHub
 
 ```bash
-cd shebloom
+cd vedaclue
 git init
 git add .
-git commit -m "Initial commit - SheBloom v1.0"
+git commit -m "Initial commit - Vedaclue v1.0"
 git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/shebloom.git
+git remote add origin https://github.com/YOUR_USERNAME/vedaclue.git
 git push -u origin main
 ```
 
@@ -38,7 +38,7 @@ git push -u origin main
 
 ### Step 4: Deploy Backend API
 
-1. Click "Add Service" -> "GitHub Repo" -> Select your shebloom repo
+1. Click "Add Service" -> "GitHub Repo" -> Select your vedaclue repo
 2. Set Root Directory: `src/server`
 3. Set Build Command: `npx prisma generate && npm run build`
 4. Set Start Command: `npm start`
@@ -70,7 +70,7 @@ npx prisma db seed
 ### Step 7: Add Custom Domain
 
 1. Go to your frontend service -> Settings -> Domains
-2. Add your domain (e.g., shebloom.com)
+2. Add your domain (e.g., vedaclue.com)
 3. Update DNS: Add CNAME record pointing to Railway
 
 Your app is now LIVE!
@@ -84,7 +84,7 @@ Your app is now LIVE!
 ### Step 1: Database (Neon - Free PostgreSQL)
 
 1. Go to https://neon.tech -> Sign up
-2. Create project "shebloom"
+2. Create project "vedaclue"
 3. Copy the connection string (DATABASE_URL)
 
 ### Step 2: Redis (Upstash - Free)
@@ -99,7 +99,7 @@ Your app is now LIVE!
 2. Click "New" -> "Web Service"
 3. Connect your GitHub repo
 4. Settings:
-   - Name: shebloom-api
+   - Name: vedaclue-api
    - Root Directory: src/server
    - Build Command: npx prisma generate && npm run build
    - Start Command: npm start
@@ -162,31 +162,31 @@ aws configure
 
 # 2. Create RDS PostgreSQL
 aws rds create-db-instance \
-  --db-instance-identifier shebloom-db \
+  --db-instance-identifier vedaclue-db \
   --db-instance-class db.t3.micro \
   --engine postgres \
-  --master-username shebloom \
+  --master-username vedaclue \
   --master-user-password YOUR_PASSWORD \
   --allocated-storage 20
 
 # 3. Create ElastiCache Redis
 aws elasticache create-cache-cluster \
-  --cache-cluster-id shebloom-redis \
+  --cache-cluster-id vedaclue-redis \
   --engine redis \
   --cache-node-type cache.t3.micro \
   --num-cache-nodes 1
 
 # 4. Deploy API on ECS or Elastic Beanstalk
 # Using Docker:
-aws ecr create-repository --repository-name shebloom-api
-docker build -f docker/Dockerfile.server -t shebloom-api .
-docker tag shebloom-api:latest YOUR_ACCOUNT.dkr.ecr.REGION.amazonaws.com/shebloom-api
-docker push YOUR_ACCOUNT.dkr.ecr.REGION.amazonaws.com/shebloom-api
+aws ecr create-repository --repository-name vedaclue-api
+docker build -f docker/Dockerfile.server -t vedaclue-api .
+docker tag vedaclue-api:latest YOUR_ACCOUNT.dkr.ecr.REGION.amazonaws.com/vedaclue-api
+docker push YOUR_ACCOUNT.dkr.ecr.REGION.amazonaws.com/vedaclue-api
 
 # 5. Deploy Frontend to S3 + CloudFront
 cd src/client
 npm run build
-aws s3 sync dist/ s3://shebloom-frontend --delete
+aws s3 sync dist/ s3://vedaclue-frontend --delete
 aws cloudfront create-invalidation --distribution-id YOUR_DIST_ID --paths "/*"
 ```
 
@@ -226,17 +226,17 @@ curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt install nodejs -y
 
 # Create app user
-adduser shebloom
-usermod -aG docker shebloom
-su - shebloom
+adduser vedaclue
+usermod -aG docker vedaclue
+su - vedaclue
 ```
 
 ### Step 3: Deploy
 
 ```bash
 # Clone your repo
-git clone https://github.com/YOUR_USERNAME/shebloom.git
-cd shebloom
+git clone https://github.com/YOUR_USERNAME/vedaclue.git
+cd vedaclue
 
 # Create environment file
 cp env-example .env
@@ -261,9 +261,9 @@ curl http://localhost:8000/api/health
 apt install nginx certbot python3-certbot-nginx -y
 
 # Create Nginx config
-cat > /etc/nginx/sites-available/shebloom << 'EOF'
+cat > /etc/nginx/sites-available/vedaclue << 'EOF'
 server {
-    server_name shebloom.com www.shebloom.com;
+    server_name vedaclue.com www.vedaclue.com;
 
     location /api/ {
         proxy_pass http://127.0.0.1:8000;
@@ -278,14 +278,14 @@ server {
 }
 EOF
 
-ln -s /etc/nginx/sites-available/shebloom /etc/nginx/sites-enabled/
+ln -s /etc/nginx/sites-available/vedaclue /etc/nginx/sites-enabled/
 nginx -t && systemctl restart nginx
 
 # Get SSL certificate (free!)
-certbot --nginx -d shebloom.com -d www.shebloom.com
+certbot --nginx -d vedaclue.com -d www.vedaclue.com
 ```
 
-Your app is live at https://shebloom.com with SSL!
+Your app is live at https://vedaclue.com with SSL!
 
 ---
 
@@ -304,8 +304,8 @@ Point your domain to your deployment:
 | Type  | Name | Value |
 |-------|------|-------|
 | A     | @    | YOUR_SERVER_IP |
-| CNAME | www  | shebloom.com |
-| CNAME | api  | shebloom.com |
+| CNAME | www  | vedaclue.com |
+| CNAME | api  | vedaclue.com |
 
 ### CloudFlare CDN (Recommended)
 
@@ -352,10 +352,10 @@ Point your domain to your deployment:
 ### 4. AWS S3 (File Uploads)
 
 ```
-1. Create S3 bucket: shebloom-uploads
+1. Create S3 bucket: vedaclue-uploads
 2. Create IAM user with S3 access
 3. Add to .env:
-   AWS_S3_BUCKET=shebloom-uploads
+   AWS_S3_BUCKET=vedaclue-uploads
    AWS_ACCESS_KEY_ID=AKIAxxxxxxx
    AWS_SECRET_ACCESS_KEY=xxxxxxx
    AWS_REGION=ap-south-1
@@ -374,15 +374,15 @@ Point your domain to your deployment:
 
 ## MOBILE APP: Make it Installable (PWA)
 
-To make SheBloom installable on phones without app stores:
+To make Vedaclue installable on phones without app stores:
 
 ### Add PWA Support
 
 Create `src/client/public/manifest.json`:
 ```json
 {
-  "name": "SheBloom",
-  "short_name": "SheBloom",
+  "name": "Vedaclue",
+  "short_name": "Vedaclue",
   "description": "Women's Health & Wellness",
   "start_url": "/dashboard",
   "display": "standalone",

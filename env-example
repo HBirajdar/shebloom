@@ -1,10 +1,10 @@
-# SheBloom Environment Configuration — Copy to .env
+# Vedaclue Environment Configuration — Copy to .env
 
 NODE_ENV=development
-APP_NAME=SheBloom
+APP_NAME=Vedaclue
 APP_PORT=8000
 CLIENT_URL=http://localhost:3000
-DATABASE_URL=postgresql://shebloom:shebloom_secret@localhost:5432/shebloom_db?schema=public
+DATABASE_URL=postgresql://vedaclue:vedaclue_secret@localhost:5432/vedaclue_db?schema=public
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=your-super-secret-jwt-key-min-32-characters-long-here
 JWT_REFRESH_SECRET=your-super-secret-refresh-key-min-32-characters
@@ -18,7 +18,7 @@ GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 SENDGRID_API_KEY=SG.xxxxxxxxxxxxxxxxxxxx
 AWS_REGION=ap-south-1
-AWS_S3_BUCKET=shebloom-uploads
+AWS_S3_BUCKET=vedaclue-uploads
 RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxxxx
 RAZORPAY_KEY_SECRET=your_razorpay_secret
 SENTRY_DSN=https://xxxx@sentry.io/xxxx

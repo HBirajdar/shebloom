@@ -540,7 +540,7 @@ export default function DashboardPage() {
               <button onClick={() => setShowDisclaimer(false)} style={{ background: 'none', border: 'none', color: '#92610A', fontSize: 18, cursor: 'pointer' }}>×</button>
             </div>
             <p style={{ fontSize: 11.5, color: '#6B4A0A', margin: '8px 0 0', lineHeight: 1.6 }}>
-              SheBloom is a <strong>wellness education app</strong>, not a medical device. Predictions are statistical estimates based on your data and published research — they are not clinical diagnoses. Hormone levels shown are <strong>estimated</strong> from typical patterns (Speroff & Fritz model), not your actual measured levels. Always consult qualified healthcare professionals for medical decisions.
+              Vedaclue is a <strong>wellness education app</strong>, not a medical device. Predictions are statistical estimates based on your data and published research — they are not clinical diagnoses. Hormone levels shown are <strong>estimated</strong> from typical patterns (Speroff & Fritz model), not your actual measured levels. Always consult qualified healthcare professionals for medical decisions.
               {predictionData?.confidence?.level === 'low' && <><br/><strong>⚠️ Your prediction confidence is currently LOW</strong> — log more cycles and biomarkers for improved accuracy.</>}
             </p>
           </div>

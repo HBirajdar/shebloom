@@ -604,7 +604,7 @@ function getContextualDisclaimer(goal: string, phase: string, isPregnant: boolea
   emergencyNote: string;
 } {
   const disclaimers: any = {
-    primary: 'SheBloom provides educational wellness information based on published Ayurvedic texts and peer-reviewed medical research. This is NOT a medical device and is NOT a substitute for professional healthcare.',
+    primary: 'Vedaclue provides educational wellness information based on published Ayurvedic texts and peer-reviewed medical research. This is NOT a medical device and is NOT a substitute for professional healthcare.',
 
     regulatory: 'This application is not approved or regulated by any medical regulatory body (FDA, CDSCO, EMA). Predictions are statistical estimates based on your logged data and published research — they are probabilistic, not certain.',
 

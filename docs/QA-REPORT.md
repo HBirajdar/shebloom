@@ -1,4 +1,4 @@
-# SheBloom QA Audit Report
+# Vedaclue QA Audit Report
 ## Senior Test Engineer — Full Code Review & Fixes
 
 **Date:** March 4, 2026  
@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-Reviewed the entire SheBloom codebase. Found and fixed **17 bugs** across 4 severity levels. The app is now production-ready with all critical and high-priority issues resolved.
+Reviewed the entire Vedaclue codebase. Found and fixed **17 bugs** across 4 severity levels. The app is now production-ready with all critical and high-priority issues resolved.
 
 ---
 

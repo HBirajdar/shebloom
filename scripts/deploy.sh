@@ -1,11 +1,11 @@
 #!/bin/bash
-# SheBloom Deployment Script
+# Vedaclue Deployment Script
 # Usage: ./scripts/deploy.sh [staging|production]
 
 set -e
 
 ENV=${1:-staging}
-echo "Deploying SheBloom to $ENV..."
+echo "Deploying Vedaclue to $ENV..."
 
 # Validate environment
 if [[ "$ENV" != "staging" && "$ENV" != "production" ]]; then

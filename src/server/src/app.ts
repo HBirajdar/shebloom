@@ -88,8 +88,8 @@ app.use(helmet({
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
-  'https://shebloom.vercel.app',
-  'https://shebloom.netlify.app',
+  'https://vedaclue.vercel.app',
+  'https://vedaclue.netlify.app',
   'https://vedaclue.com',
   'https://www.vedaclue.com',
   process.env.CLIENT_URL,

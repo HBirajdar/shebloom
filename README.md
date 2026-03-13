@@ -1,4 +1,4 @@
-# 🌸 SheBloom — Women's Health & Wellness Platform
+# 🌸 Vedaclue — Women's Health & Wellness Platform
 
 > **Enterprise-grade full-stack application** for women's health tracking, period management, pregnancy monitoring, doctor discovery, and wellness — built for the Indian market.
 
@@ -143,8 +143,8 @@ redis >= 7 (or use Docker)
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/shebloom.git
-cd shebloom
+git clone https://github.com/your-org/vedaclue.git
+cd vedaclue
 
 # Copy environment files
 cp .env.example .env
@@ -190,7 +190,7 @@ npm run dev          # Starts both client & server
 ## 📁 Project Structure
 
 ```
-shebloom/
+vedaclue/
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml                 # Lint, test, build on PR

@@ -1977,7 +1977,7 @@ export default function TrackerPage() {
                       ))}
                       <div style={{ marginTop: 12, padding: 10, background: '#F0F0F0', borderRadius: 6 }}>
                         <p style={{ fontSize: 10, color: '#666', margin: 0, lineHeight: 1.5 }}>
-                          <strong>About Our Research Methodology:</strong> SheBloom combines evidence from peer-reviewed medical journals (BMJ, Lancet, JMIR, npj Digital Medicine),
+                          <strong>About Our Research Methodology:</strong> Vedaclue combines evidence from peer-reviewed medical journals (BMJ, Lancet, JMIR, npj Digital Medicine),
                           classical Ayurvedic texts (Charaka Samhita, Sushruta Samhita, Ashtanga Hridaya, Bhavaprakasha Nighantu), modern Ayurvedic clinical trials
                           (J Ayurveda Integr Med, AYU, J Ethnopharmacol), clinical guidelines (NICE, ACOG, RCOG, WHO), and Ayurgenomics research (Prasher 2008, Patwardhan 2008).
                           All herbal recommendations include classical text citations and modern pharmacological evidence where available.
@@ -1990,7 +1990,7 @@ export default function TrackerPage() {
                 {/* ── Comprehensive Bottom Disclaimer ─── */}
                 <div style={{ background: '#F5F5F5', borderRadius: 10, padding: 12, margin: '16px 0 0' }}>
                   <p style={{ fontSize: 10, color: '#666', margin: 0, lineHeight: 1.6 }}>
-                    <strong>Disclaimer:</strong> SheBloom is a wellness education platform, not a medical device. It is not approved by FDA, CDSCO, or any regulatory body.
+                    <strong>Disclaimer:</strong> Vedaclue is a wellness education platform, not a medical device. It is not approved by FDA, CDSCO, or any regulatory body.
                     All predictions are statistical estimates. Ayurvedic recommendations are based on classical texts and emerging research — they complement but do not replace modern medicine.
                     {ayurvedaData?.disclaimers?.emergencyNote && <><br/><strong style={{ color: '#CC0000' }}>Emergency:</strong> {ayurvedaData.disclaimers.emergencyNote}</>}
                   </p>

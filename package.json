@@ -1,10 +1,10 @@
 {
-  "name": "shebloom",
+  "name": "vedaclue",
   "version": "1.0.0",
   "private": true,
   "description": "Women's Health & Wellness Platform",
   "license": "MIT",
-  "author": "SheBloom Team",
+  "author": "Vedaclue Team",
   "workspaces": [
     "src/client",
     "src/server"

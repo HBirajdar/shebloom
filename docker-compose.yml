@@ -4,29 +4,29 @@ services:
   # ─── PostgreSQL Database ─────────────────────────────
   postgres:
     image: postgres:16-alpine
-    container_name: shebloom-db
+    container_name: vedaclue-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: shebloom_db
-      POSTGRES_USER: shebloom
-      POSTGRES_PASSWORD: shebloom_secret
+      POSTGRES_DB: vedaclue_db
+      POSTGRES_USER: vedaclue
+      POSTGRES_PASSWORD: vedaclue_secret
     ports:
       - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U shebloom -d shebloom_db']
+      test: ['CMD-SHELL', 'pg_isready -U vedaclue -d vedaclue_db']
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - shebloom-network
+      - vedaclue-network
 
   # ─── Redis Cache ─────────────────────────────────────
   redis:
     image: redis:7-alpine
-    container_name: shebloom-redis
+    container_name: vedaclue-redis
     restart: unless-stopped
     ports:
       - '6379:6379'
@@ -39,20 +39,20 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - shebloom-network
+      - vedaclue-network
 
   # ─── Backend API Server ──────────────────────────────
   api:
     build:
       context: .
       dockerfile: docker/Dockerfile.server
-    container_name: shebloom-api
+    container_name: vedaclue-api
     restart: unless-stopped
     env_file:
       - .env
     environment:
       NODE_ENV: ${NODE_ENV:-development}
-      DATABASE_URL: postgresql://shebloom:shebloom_secret@postgres:5432/shebloom_db?schema=public
+      DATABASE_URL: postgresql://vedaclue:vedaclue_secret@postgres:5432/vedaclue_db?schema=public
       REDIS_URL: redis://redis:6379
     ports:
       - '${APP_PORT:-8000}:8000'
@@ -71,14 +71,14 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - shebloom-network
+      - vedaclue-network
 
   # ─── Frontend Dev Server ─────────────────────────────
   client:
     build:
       context: .
       dockerfile: docker/Dockerfile.client
-    container_name: shebloom-client
+    container_name: vedaclue-client
     restart: unless-stopped
     environment:
       VITE_API_URL: http://localhost:8000
@@ -90,7 +90,7 @@ services:
       - ./src/client:/app/src/client
       - /app/src/client/node_modules
     networks:
-      - shebloom-network
+      - vedaclue-network
 
 volumes:
   postgres_data:
@@ -99,5 +99,5 @@ volumes:
     driver: local
 
 networks:
-  shebloom-network:
+  vedaclue-network:
     driver: bridge
