@@ -124,6 +124,8 @@ class SubscriptionService {
     couponDiscount?: number;
     promotionId?: string;
     promotionDiscount?: number;
+    ipAddress?: string;
+    userAgent?: string;
   }) {
     const plan = await prisma.subscriptionPlan.findUnique({ where: { id: planId } });
     if (!plan || !plan.isActive) throw new Error('Plan not found or inactive');
@@ -192,7 +194,7 @@ class SubscriptionService {
     });
 
     // Log events
-    await this.logEvent(sub.id, userId, 'CREATED', { newStatus: status, amount: opts.pricePaid });
+    await this.logEvent(sub.id, userId, 'CREATED', { newStatus: status, amount: opts.pricePaid, ipAddress: opts.ipAddress, userAgent: opts.userAgent });
     if (hasTrial) {
       await this.logEvent(sub.id, userId, 'TRIAL_STARTED', { newStatus: 'TRIAL' });
     } else {

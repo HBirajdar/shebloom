@@ -525,10 +525,10 @@ function FinanceTab() {
             <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
               <p className="text-[10px] font-bold text-gray-400 uppercase">Scope & Limits</p>
               <div className="flex gap-2">
-                {['ALL', 'CONSULTATION', 'PRODUCTS'].map(s => (
+                {['ALL', 'CONSULTATION', 'PRODUCTS', 'SUBSCRIPTION'].map(s => (
                   <button key={s} onClick={() => setCouponForm({ ...couponForm, applicableTo: s })}
                     className={'flex-1 py-2 rounded-xl text-[10px] font-bold transition-all ' + (couponForm.applicableTo === s ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-600')}>
-                    {s === 'ALL' ? '🌐 All' : s === 'CONSULTATION' ? '👩‍⚕️ Doctor' : '📦 Products'}
+                    {s === 'ALL' ? '🌐 All' : s === 'CONSULTATION' ? '👩‍⚕️ Doctor' : s === 'PRODUCTS' ? '📦 Products' : '💎 Subs'}
                   </button>
                 ))}
               </div>

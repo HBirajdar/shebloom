@@ -146,17 +146,22 @@ r.post('/create', async (q: AuthRequest, s: Response, n: NextFunction) => {
     const totalDiscount = promoDiscount + couponDiscount;
     const pricePaid = Math.max(0, Math.round((price - totalDiscount) * 100) / 100);
 
+    // Capture IP & UserAgent for audit trail
+    const ipAddress = q.ip || q.headers['x-forwarded-for']?.toString();
+    const userAgent = q.headers['user-agent'];
+
     // Free plan or fully discounted → activate directly
     if (plan.isFree || pricePaid === 0) {
       const sub = await subscriptionService.createSubscription(q.user!.id, planId, {
         couponCode, goal, pricePaid: 0, originalPrice, couponDiscount, promotionId, promotionDiscount: promoDiscount,
+        ipAddress, userAgent,
       });
 
       // Record coupon usage if applied
       if (couponCode && couponDiscount > 0) {
         const coupon = await prisma.coupon.findUnique({ where: { code: couponCode.toUpperCase().trim() } });
         if (coupon) {
-          await prisma.couponRedemption.create({ data: { couponId: coupon.id, userId: q.user!.id, discount: couponDiscount } });
+          await prisma.couponRedemption.create({ data: { couponId: coupon.id, userId: q.user!.id, subscriptionId: sub.id, discount: couponDiscount } });
           await prisma.coupon.update({ where: { id: coupon.id }, data: { currentUses: { increment: 1 } } });
         }
       }
@@ -254,6 +259,8 @@ r.post('/verify', async (q: AuthRequest, s: Response, n: NextFunction) => {
     }
 
     // Create subscription record
+    const verifyIp = q.ip || q.headers['x-forwarded-for']?.toString();
+    const verifyUa = q.headers['user-agent'];
     const sub = await subscriptionService.createSubscription(q.user!.id, planId, {
       razorpaySubscriptionId: razorpaySubscriptionId || undefined,
       couponCode, goal,
@@ -262,13 +269,15 @@ r.post('/verify', async (q: AuthRequest, s: Response, n: NextFunction) => {
       couponDiscount: Number(couponDiscount) || 0,
       promotionId: promotionId || undefined,
       promotionDiscount: Number(promoDiscount) || 0,
+      ipAddress: verifyIp,
+      userAgent: verifyUa,
     });
 
     // Record coupon redemption
     if (couponCode && couponDiscount > 0) {
       const coupon = await prisma.coupon.findUnique({ where: { code: couponCode.toUpperCase().trim() } });
       if (coupon) {
-        await prisma.couponRedemption.create({ data: { couponId: coupon.id, userId: q.user!.id, discount: Number(couponDiscount) } });
+        await prisma.couponRedemption.create({ data: { couponId: coupon.id, userId: q.user!.id, subscriptionId: sub.id, discount: Number(couponDiscount) } });
         await prisma.coupon.update({ where: { id: coupon.id }, data: { currentUses: { increment: 1 } } });
       }
     }

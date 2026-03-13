@@ -225,6 +225,7 @@ r.post('/coupons', requireAdmin, async (req: Request, res: Response, next: NextF
     const existing = await prisma.coupon.findUnique({ where: { code: code.toUpperCase().trim() } });
     if (existing) { errorResponse(res, 'Coupon code already exists', 400); return; }
 
+    const adminId = (req as any).user?.id;
     const coupon = await prisma.coupon.create({
       data: {
         code: code.toUpperCase().trim(),
@@ -243,8 +244,21 @@ r.post('/coupons', requireAdmin, async (req: Request, res: Response, next: NextF
         validUntil: validUntil ? new Date(validUntil) : null,
         isActive: isActive !== false,
         firstOrderOnly: firstOrderOnly || false,
+        createdBy: adminId,
+        updatedBy: adminId,
       },
     });
+
+    // Audit log
+    await prisma.couponAuditLog.create({
+      data: {
+        couponId: coupon.id, adminId: adminId || 'system', action: 'CREATED',
+        changes: req.body,
+        ipAddress: req.ip || req.headers['x-forwarded-for']?.toString(),
+        userAgent: req.headers['user-agent'],
+      },
+    });
+
     successResponse(res, coupon, 'Coupon created', 201);
   } catch (e) { next(e); }
 });
@@ -252,7 +266,14 @@ r.post('/coupons', requireAdmin, async (req: Request, res: Response, next: NextF
 // PUT /finance/coupons/:id — Update coupon
 r.put('/coupons/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const data: any = {};
+    const adminId = (req as any).user?.id;
+
+    // Fetch old state for audit diff
+    const oldCoupon = await prisma.coupon.findUnique({ where: { id: req.params.id } });
+    if (!oldCoupon) { errorResponse(res, 'Coupon not found', 404); return; }
+
+    const data: any = { updatedBy: adminId };
+    const changes: Record<string, { old: any; new: any }> = {};
     const fields = [
       'description', 'discountType', 'discountValue', 'maxDiscountAmount',
       'minOrderAmount', 'applicableTo', 'specificDoctorIds', 'specificProductIds',
@@ -261,16 +282,35 @@ r.put('/coupons/:id', requireAdmin, async (req: Request, res: Response, next: Ne
     ];
     for (const f of fields) {
       if (req.body[f] !== undefined) {
+        let newVal: any;
         if (['validFrom', 'validUntil'].includes(f) && req.body[f]) {
-          data[f] = new Date(req.body[f]);
+          newVal = new Date(req.body[f]);
         } else if (['discountValue', 'maxDiscountAmount', 'minOrderAmount', 'maxUses', 'maxUsesPerUser'].includes(f)) {
-          data[f] = req.body[f] !== null ? Number(req.body[f]) : null;
+          newVal = req.body[f] !== null ? Number(req.body[f]) : null;
         } else {
-          data[f] = req.body[f];
+          newVal = req.body[f];
+        }
+        data[f] = newVal;
+        const oldVal = (oldCoupon as any)[f];
+        if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+          changes[f] = { old: oldVal, new: newVal };
         }
       }
     }
     const coupon = await prisma.coupon.update({ where: { id: req.params.id }, data });
+
+    // Audit log with field-level diff
+    if (Object.keys(changes).length > 0) {
+      await prisma.couponAuditLog.create({
+        data: {
+          couponId: coupon.id, adminId: adminId || 'system', action: 'UPDATED',
+          changes,
+          ipAddress: req.ip || req.headers['x-forwarded-for']?.toString(),
+          userAgent: req.headers['user-agent'],
+        },
+      });
+    }
+
     successResponse(res, coupon, 'Coupon updated');
   } catch (e: any) {
     if (e.code === 'P2025') { errorResponse(res, 'Coupon not found', 404); return; }
@@ -281,8 +321,23 @@ r.put('/coupons/:id', requireAdmin, async (req: Request, res: Response, next: Ne
 // DELETE /finance/coupons/:id
 r.delete('/coupons/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await prisma.coupon.delete({ where: { id: req.params.id } });
-    successResponse(res, null, 'Coupon deleted');
+    const adminId = (req as any).user?.id;
+    const coupon = await prisma.coupon.findUnique({ where: { id: req.params.id } });
+    if (!coupon) { errorResponse(res, 'Coupon not found', 404); return; }
+
+    // Log before deleting (cascade will remove audit logs too, so log to console as backup)
+    await prisma.couponAuditLog.create({
+      data: {
+        couponId: coupon.id, adminId: adminId || 'system', action: 'DELETED',
+        changes: { code: coupon.code, description: coupon.description, discountValue: coupon.discountValue },
+        ipAddress: req.ip || req.headers['x-forwarded-for']?.toString(),
+        userAgent: req.headers['user-agent'],
+      },
+    });
+
+    // Soft-delete: deactivate instead of hard delete to preserve audit trail
+    await prisma.coupon.update({ where: { id: req.params.id }, data: { isActive: false, updatedBy: adminId } });
+    successResponse(res, null, 'Coupon deactivated');
   } catch (e: any) {
     if (e.code === 'P2025') { errorResponse(res, 'Coupon not found', 404); return; }
     next(e);

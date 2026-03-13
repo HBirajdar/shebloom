@@ -1059,10 +1059,14 @@ model Coupon {
   isActive          Boolean      @default(true)
   // First-time user only (like PharmEasy, Zepto first-order coupons)
   firstOrderOnly    Boolean      @default(false)
+  // Audit trail
+  createdBy         String?      // Admin user ID who created
+  updatedBy         String?      // Admin user ID who last modified
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
   redemptions       CouponRedemption[]
+  auditLogs         CouponAuditLog[]
 
   @@index([code])
   @@index([isActive])
@@ -1070,19 +1074,38 @@ model Coupon {
 }
 
 model CouponRedemption {
-  id         String   @id @default(cuid())
-  couponId   String
-  userId     String
-  orderId    String?  // For product orders
-  appointmentId String? // For consultation bookings
-  discount   Float    // Actual discount applied
-  createdAt  DateTime @default(now())
+  id             String   @id @default(cuid())
+  couponId       String
+  userId         String
+  orderId        String?  // For product orders
+  appointmentId  String?  // For consultation bookings
+  subscriptionId String?  // For subscription purchases
+  discount       Float    // Actual discount applied
+  createdAt      DateTime @default(now())
 
   coupon     Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
 
   @@index([couponId])
   @@index([userId])
   @@map("coupon_redemptions")
+}
+
+// Audit trail for admin coupon changes (who changed what, when)
+model CouponAuditLog {
+  id         String   @id @default(cuid())
+  couponId   String
+  adminId    String   // Who performed the action
+  action     String   // CREATED, UPDATED, DELETED, TOGGLED
+  changes    Json?    // { field: { old: x, new: y } } for updates
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  coupon     Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+
+  @@index([couponId])
+  @@index([adminId])
+  @@map("coupon_audit_logs")
 }
 
 enum DiscountType {
