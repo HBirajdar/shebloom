@@ -19,8 +19,10 @@ function isEligibleToList(seller: any): { eligible: boolean; reasons: string[] }
   const reasons: string[] = [];
   if (seller.gstStatus !== 'VERIFIED') reasons.push('GST not verified');
   if (!seller.sellerAgreementSigned) reasons.push('Agreement not signed');
-  const hasCert = seller.fssaiStatus === 'VERIFIED' || seller.ayushStatus === 'VERIFIED';
-  if (!hasCert) reasons.push('At least one product certificate (FSSAI or AYUSH) must be verified');
+  const now = new Date();
+  const fssaiValid = seller.fssaiStatus === 'VERIFIED' && (!seller.fssaiExpiry || new Date(seller.fssaiExpiry) > now);
+  const ayushValid = seller.ayushStatus === 'VERIFIED' && (!seller.ayushExpiry || new Date(seller.ayushExpiry) > now);
+  if (!fssaiValid && !ayushValid) reasons.push('At least one product certificate (FSSAI or AYUSH) must be verified and not expired');
   return { eligible: reasons.length === 0, reasons };
 }
 

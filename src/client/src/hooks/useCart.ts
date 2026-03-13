@@ -5,8 +5,16 @@ import toast from 'react-hot-toast';
 
 const LS_KEY = 'sb_cart';
 
+const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
 function loadLocal(): CartItem[] {
-  try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch { return []; }
+  try {
+    const items: CartItem[] = JSON.parse(localStorage.getItem(LS_KEY) || '[]');
+    // Auto-clean items older than 30 days
+    const now = Date.now();
+    const fresh = items.filter(i => !i.addedAt || (now - new Date(i.addedAt).getTime()) < THIRTY_DAYS);
+    if (fresh.length !== items.length) localStorage.setItem(LS_KEY, JSON.stringify(fresh));
+    return fresh;
+  } catch { return []; }
 }
 function saveLocal(items: CartItem[]) {
   localStorage.setItem(LS_KEY, JSON.stringify(items));

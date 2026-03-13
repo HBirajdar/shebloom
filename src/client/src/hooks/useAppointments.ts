@@ -4,8 +4,21 @@ import { appointmentAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
 const LS_KEY = 'sb_bookings';
+const NINETY_DAYS = 90 * 24 * 60 * 60 * 1000;
 
-function getLocal(): any[] { try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch { return []; } }
+function getLocal(): any[] {
+  try {
+    const items: any[] = JSON.parse(localStorage.getItem(LS_KEY) || '[]');
+    // Auto-clean local bookings older than 90 days
+    const now = Date.now();
+    const fresh = items.filter((b: any) => {
+      const ts = b.date || b.createdAt;
+      return !ts || (now - new Date(ts).getTime()) < NINETY_DAYS;
+    });
+    if (fresh.length !== items.length) localStorage.setItem(LS_KEY, JSON.stringify(fresh));
+    return fresh;
+  } catch { return []; }
+}
 function setLocal(b: any[]) { localStorage.setItem(LS_KEY, JSON.stringify(b)); }
 
 export function useAppointments() {

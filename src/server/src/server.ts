@@ -115,7 +115,11 @@ async function bootstrap() {
     logger.warn('Redis unavailable (caching disabled): ' + redisErr.message);
   }
 
-  // 4. Cron: auto-complete past appointments every 15 minutes
+  // ═══════════════════════════════════════════════════
+  // CRON JOBS — automated time-based maintenance
+  // ═══════════════════════════════════════════════════
+
+  // 4a. Auto-complete past appointments (every 15 min)
   cron.schedule('*/15 * * * *', async () => {
     try {
       const result = await prisma.appointment.updateMany({
@@ -132,7 +136,84 @@ async function bootstrap() {
       logger.warn('Cron auto-complete failed: ' + (err.message || '').slice(0, 200));
     }
   });
-  logger.info('Cron: appointment auto-complete scheduled (every 15 min)');
+
+  // 4b. Deactivate expired community polls (every 15 min)
+  cron.schedule('*/15 * * * *', async () => {
+    try {
+      const result = await prisma.communityPoll.updateMany({
+        where: {
+          isActive: true,
+          expiresAt: { not: null, lt: new Date() },
+        },
+        data: { isActive: false },
+      });
+      if (result.count > 0) {
+        logger.info(`Cron: deactivated ${result.count} expired poll(s)`);
+      }
+    } catch (err: any) {
+      logger.warn('Cron poll expiry failed: ' + (err.message || '').slice(0, 200));
+    }
+  });
+
+  // 4c. Deactivate expired coupons (every hour)
+  cron.schedule('0 * * * *', async () => {
+    try {
+      const result = await prisma.coupon.updateMany({
+        where: {
+          isActive: true,
+          validUntil: { not: null, lt: new Date() },
+        },
+        data: { isActive: false },
+      });
+      if (result.count > 0) {
+        logger.info(`Cron: deactivated ${result.count} expired coupon(s)`);
+      }
+    } catch (err: any) {
+      logger.warn('Cron coupon expiry failed: ' + (err.message || '').slice(0, 200));
+    }
+  });
+
+  // 4d. Clean up expired OTPs (every hour)
+  cron.schedule('0 * * * *', async () => {
+    try {
+      const result = await prisma.otpStore.deleteMany({
+        where: { expiresAt: { lt: new Date() } },
+      });
+      if (result.count > 0) {
+        logger.info(`Cron: cleaned up ${result.count} expired OTP(s)`);
+      }
+    } catch (err: any) {
+      logger.warn('Cron OTP cleanup failed: ' + (err.message || '').slice(0, 200));
+    }
+  });
+
+  // 4e. Expire seller licenses (FSSAI/AYUSH) past their expiry date (daily at midnight)
+  cron.schedule('0 0 * * *', async () => {
+    try {
+      const now = new Date();
+      const fssai = await prisma.seller.updateMany({
+        where: {
+          fssaiStatus: 'VERIFIED',
+          fssaiExpiry: { not: null, lt: now },
+        },
+        data: { fssaiStatus: 'EXPIRED' },
+      });
+      const ayush = await prisma.seller.updateMany({
+        where: {
+          ayushStatus: 'VERIFIED',
+          ayushExpiry: { not: null, lt: now },
+        },
+        data: { ayushStatus: 'EXPIRED' },
+      });
+      if (fssai.count > 0 || ayush.count > 0) {
+        logger.info(`Cron: expired ${fssai.count} FSSAI + ${ayush.count} AYUSH license(s)`);
+      }
+    } catch (err: any) {
+      logger.warn('Cron license expiry failed: ' + (err.message || '').slice(0, 200));
+    }
+  });
+
+  logger.info('Cron: all scheduled jobs registered');
 }
 
 process.on('SIGTERM', () => { logger.info('SIGTERM received'); process.exit(0); });
