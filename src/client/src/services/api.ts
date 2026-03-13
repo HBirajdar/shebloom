@@ -446,15 +446,32 @@ export const contentAPI = {
   getDoshaQuestions: () => api.get('/content/dosha-questions'),
   getRemedies: (condition: string, dosha?: string) => api.get('/content/remedies', { params: { condition, dosha } }),
   getPhaseGuidance: (dosha: string, phase: string) => api.get('/content/phase-guidance', { params: { dosha, phase } }),
-  // Admin
+  // Admin — List
   getAllPhaseGuidance: () => api.get('/content/admin/phase-guidance'),
   getAllChatResponses: () => api.get('/content/admin/chat-responses'),
   getAllRemedies: () => api.get('/content/admin/remedies'),
   getAllDoshaQuestions: () => api.get('/content/admin/dosha-questions'),
+  // Admin — Create
+  createPhaseGuidance: (data: any) => api.post('/content/admin/phase-guidance', data),
+  createChatResponse: (data: any) => api.post('/content/admin/chat-responses', data),
+  createRemedy: (data: any) => api.post('/content/admin/remedies', data),
+  createDoshaQuestion: (data: any) => api.post('/content/admin/dosha-questions', data),
+  // Admin — Update
   updatePhaseGuidance: (id: string, data: any) => api.put(`/content/admin/phase-guidance/${id}`, data),
   updateChatResponse: (id: string, data: any) => api.put(`/content/admin/chat-responses/${id}`, data),
   updateRemedy: (id: string, data: any) => api.put(`/content/admin/remedies/${id}`, data),
   updateDoshaQuestion: (id: string, data: any) => api.put(`/content/admin/dosha-questions/${id}`, data),
+  // Admin — Delete
+  deletePhaseGuidance: (id: string) => api.delete(`/content/admin/phase-guidance/${id}`),
+  deleteChatResponse: (id: string) => api.delete(`/content/admin/chat-responses/${id}`),
+  deleteRemedy: (id: string) => api.delete(`/content/admin/remedies/${id}`),
+  deleteDoshaQuestion: (id: string) => api.delete(`/content/admin/dosha-questions/${id}`),
+  // Admin — Toggle active
+  togglePhaseGuidance: (id: string) => api.patch(`/content/admin/phase-guidance/${id}/toggle`),
+  toggleChatResponse: (id: string) => api.patch(`/content/admin/chat-responses/${id}/toggle`),
+  toggleRemedy: (id: string) => api.patch(`/content/admin/remedies/${id}/toggle`),
+  toggleDoshaQuestion: (id: string) => api.patch(`/content/admin/dosha-questions/${id}/toggle`),
+  // Admin — Cache
   refreshCache: () => api.post('/content/admin/cache/refresh'),
 };
 

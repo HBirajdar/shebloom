@@ -1190,10 +1190,15 @@ function ContentManagementTab() {
   const [editId, setEditId] = useState<string | null>(null);
   const [editData, setEditData] = useState<any>({});
   const [saving, setSaving] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newData, setNewData] = useState<any>({});
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setEditId(null);
+    setShowAddForm(false);
+    setConfirmDelete(null);
     try {
       let res: any;
       if (subTab === 'phase_guidance') res = await wrap(contentAPI.getAllPhaseGuidance());
@@ -1207,8 +1212,31 @@ function ContentManagementTab() {
 
   useEffect(() => { if (subTab !== 'cache') fetchData(); else setLoading(false); }, [subTab, fetchData]);
 
-  const startEdit = (item: any) => { setEditId(item.id); setEditData({ ...item }); };
+  const startEdit = (item: any) => { setEditId(item.id); setEditData({ ...item }); setShowAddForm(false); };
   const cancelEdit = () => { setEditId(null); setEditData({}); };
+
+  const startAdd = () => {
+    setShowAddForm(true);
+    setEditId(null);
+    if (subTab === 'phase_guidance') setNewData({ dosha: 'Vata', phase: 'menstrual', dominantDosha: '', imbalanceRisk: '', dietTips: '[]', herbTips: '[]', yogaTips: '[]', lifestyleTips: '[]', avoidList: '[]', modernCorrelation: '' });
+    else if (subTab === 'chat_responses') setNewData({ patternName: '', regexPattern: '', responseText: '', category: 'general', priority: 0, isActive: true });
+    else if (subTab === 'remedies') setNewData({ herbNameSanskrit: '', herbNameEnglish: '', condition: 'general', dosha: 'all', botanicalName: '', benefitText: '', safetyNote: '', pregnancySafety: 'caution', sourceReference: '' });
+    else if (subTab === 'questions') setNewData({ questionText: '', questionCategory: 'body_type', options: '[]', weight: 1, orderIndex: items.length + 1, isActive: true });
+  };
+
+  const saveNew = async () => {
+    setSaving(true);
+    try {
+      if (subTab === 'phase_guidance') await wrap(contentAPI.createPhaseGuidance(newData));
+      else if (subTab === 'chat_responses') await wrap(contentAPI.createChatResponse(newData));
+      else if (subTab === 'remedies') await wrap(contentAPI.createRemedy(newData));
+      else if (subTab === 'questions') await wrap(contentAPI.createDoshaQuestion(newData));
+      toast.success('New entry created');
+      setShowAddForm(false);
+      fetchData();
+    } catch { toast.error('Failed to create'); }
+    setSaving(false);
+  };
 
   const saveEdit = async () => {
     if (!editId) return;
@@ -1225,6 +1253,29 @@ function ContentManagementTab() {
     setSaving(false);
   };
 
+  const deleteItem = async (id: string) => {
+    try {
+      if (subTab === 'phase_guidance') await wrap(contentAPI.deletePhaseGuidance(id));
+      else if (subTab === 'chat_responses') await wrap(contentAPI.deleteChatResponse(id));
+      else if (subTab === 'remedies') await wrap(contentAPI.deleteRemedy(id));
+      else if (subTab === 'questions') await wrap(contentAPI.deleteDoshaQuestion(id));
+      toast.success('Entry deleted');
+      setConfirmDelete(null);
+      fetchData();
+    } catch { toast.error('Failed to delete'); }
+  };
+
+  const toggleActive = async (id: string) => {
+    try {
+      if (subTab === 'phase_guidance') await wrap(contentAPI.togglePhaseGuidance(id));
+      else if (subTab === 'chat_responses') await wrap(contentAPI.toggleChatResponse(id));
+      else if (subTab === 'remedies') await wrap(contentAPI.toggleRemedy(id));
+      else if (subTab === 'questions') await wrap(contentAPI.toggleDoshaQuestion(id));
+      toast.success('Status toggled');
+      fetchData();
+    } catch { toast.error('Failed to toggle'); }
+  };
+
   const refreshCache = async () => {
     try {
       await wrap(contentAPI.refreshCache());
@@ -1234,9 +1285,110 @@ function ContentManagementTab() {
 
   const doshaEmoji = (d: string) => d?.includes('Vata') || d?.includes('VATA') ? '\u{1F32C}\uFE0F' : d?.includes('Pitta') || d?.includes('PITTA') ? '\u{1F525}' : d?.includes('Kapha') || d?.includes('KAPHA') ? '\u{1F33F}' : '\u262F\uFE0F';
 
+  // Shared input styles
+  const inp = "w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:border-purple-400 focus:ring-1 focus:ring-purple-100 focus:outline-none";
+  const lbl = "text-[10px] font-bold text-gray-500 uppercase";
+
+  // ─── Shared form for Phase Guidance (create/edit) ───
+  const PhaseGuidanceForm = ({ data, setData }: { data: any; setData: (d: any) => void }) => (
+    <div className="space-y-3">
+      <div className="flex gap-2">
+        <div className="flex-1"><label className={lbl}>Dosha</label><select value={data.dosha || ''} onChange={e => setData({...data, dosha: e.target.value})} className={inp}><option value="Vata">Vata</option><option value="Pitta">Pitta</option><option value="Kapha">Kapha</option></select></div>
+        <div className="flex-1"><label className={lbl}>Phase</label><select value={data.phase || ''} onChange={e => setData({...data, phase: e.target.value})} className={inp}><option value="menstrual">Menstrual</option><option value="follicular">Follicular</option><option value="ovulation">Ovulation</option><option value="luteal">Luteal</option></select></div>
+      </div>
+      <div className="flex gap-2">
+        <div className="flex-1"><label className={lbl}>Dominant Dosha</label><input value={data.dominantDosha || ''} onChange={e => setData({...data, dominantDosha: e.target.value})} className={inp} /></div>
+        <div className="flex-1"><label className={lbl}>Imbalance Risk</label><input value={data.imbalanceRisk || ''} onChange={e => setData({...data, imbalanceRisk: e.target.value})} className={inp} /></div>
+      </div>
+      {['dietTips', 'herbTips', 'yogaTips', 'lifestyleTips', 'avoidList'].map(f => (
+        <div key={f}><label className={lbl}>{f.replace(/([A-Z])/g, ' $1')} (JSON array)</label><textarea value={typeof data[f] === 'string' ? data[f] : JSON.stringify(data[f] || [], null, 2)} onChange={e => setData({...data, [f]: e.target.value})} className={inp + ' font-mono'} rows={2} /></div>
+      ))}
+      <div><label className={lbl}>Modern Correlation</label><textarea value={data.modernCorrelation || ''} onChange={e => setData({...data, modernCorrelation: e.target.value})} className={inp} rows={2} /></div>
+    </div>
+  );
+
+  // ─── Shared form for Chat Responses ─────────────────
+  const ChatResponseForm = ({ data, setData }: { data: any; setData: (d: any) => void }) => (
+    <div className="space-y-3">
+      <div className="flex gap-2">
+        <div className="flex-1"><label className={lbl}>Pattern Name *</label><input value={data.patternName || ''} onChange={e => setData({...data, patternName: e.target.value})} className={inp} placeholder="e.g. headache" /></div>
+        <div className="flex-1"><label className={lbl}>Category</label><select value={data.category || 'general'} onChange={e => setData({...data, category: e.target.value})} className={inp}><option value="general">General</option><option value="wellness">Wellness</option><option value="medical">Medical</option><option value="fertility">Fertility</option><option value="ayurveda">Ayurveda</option></select></div>
+      </div>
+      <div><label className={lbl}>Regex Pattern *</label><input value={data.regexPattern || ''} onChange={e => setData({...data, regexPattern: e.target.value})} className={inp + ' font-mono'} placeholder="headache|migraine|head pain" /></div>
+      <div><label className={lbl}>Response Text *</label><textarea value={data.responseText || ''} onChange={e => setData({...data, responseText: e.target.value})} className={inp} rows={5} /></div>
+      <div className="flex gap-2 items-center">
+        <div className="flex-1"><label className={lbl}>Priority</label><input type="number" value={data.priority ?? 0} onChange={e => setData({...data, priority: +e.target.value})} className={inp} /></div>
+        <label className="flex items-center gap-2 mt-4"><input type="checkbox" checked={data.isActive ?? true} onChange={e => setData({...data, isActive: e.target.checked})} className="w-4 h-4 rounded border-gray-300 text-purple-600" /><span className="text-[10px] font-bold text-gray-600">Active</span></label>
+      </div>
+    </div>
+  );
+
+  // ─── Shared form for Remedies ───────────────────────
+  const RemedyForm = ({ data, setData }: { data: any; setData: (d: any) => void }) => (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-2">
+        <div><label className={lbl}>Herb (Sanskrit) *</label><input value={data.herbNameSanskrit || ''} onChange={e => setData({...data, herbNameSanskrit: e.target.value})} className={inp} /></div>
+        <div><label className={lbl}>Herb (English) *</label><input value={data.herbNameEnglish || ''} onChange={e => setData({...data, herbNameEnglish: e.target.value})} className={inp} /></div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div><label className={lbl}>Condition</label><input value={data.condition || ''} onChange={e => setData({...data, condition: e.target.value})} className={inp} placeholder="delayed_period, pcos, general" /></div>
+        <div><label className={lbl}>Dosha</label><select value={data.dosha || 'all'} onChange={e => setData({...data, dosha: e.target.value})} className={inp}><option value="all">All</option><option value="Vata">Vata</option><option value="Pitta">Pitta</option><option value="Kapha">Kapha</option></select></div>
+      </div>
+      <div><label className={lbl}>Botanical Name</label><input value={data.botanicalName || ''} onChange={e => setData({...data, botanicalName: e.target.value})} className={inp + ' italic'} /></div>
+      <div><label className={lbl}>Benefit Text *</label><textarea value={data.benefitText || ''} onChange={e => setData({...data, benefitText: e.target.value})} className={inp} rows={3} /></div>
+      <div><label className={lbl}>Safety Note</label><textarea value={data.safetyNote || ''} onChange={e => setData({...data, safetyNote: e.target.value})} className={inp} rows={2} /></div>
+      <div className="flex gap-2">
+        <div className="flex-1"><label className={lbl}>Pregnancy Safety</label><select value={data.pregnancySafety || 'caution'} onChange={e => setData({...data, pregnancySafety: e.target.value})} className={inp}><option value="safe">Safe</option><option value="caution">Caution</option><option value="avoid">Avoid</option><option value="contraindicated">Contraindicated</option></select></div>
+        <div className="flex-1"><label className={lbl}>Source Reference</label><input value={data.sourceReference || ''} onChange={e => setData({...data, sourceReference: e.target.value})} className={inp} /></div>
+      </div>
+    </div>
+  );
+
+  // ─── Shared form for Dosha Questions ────────────────
+  const QuestionForm = ({ data, setData }: { data: any; setData: (d: any) => void }) => (
+    <div className="space-y-3">
+      <div><label className={lbl}>Question Text *</label><textarea value={data.questionText || ''} onChange={e => setData({...data, questionText: e.target.value})} className={inp} rows={2} /></div>
+      <div className="flex gap-2">
+        <div className="flex-1"><label className={lbl}>Category</label><select value={data.questionCategory || 'body_type'} onChange={e => setData({...data, questionCategory: e.target.value})} className={inp}>
+          {['body_type','digestion','sleep','stress','menstrual','emotional','energy','appetite','climate','mental','speech','movement'].map(c => <option key={c} value={c}>{c}</option>)}
+        </select></div>
+        <div className="w-20"><label className={lbl}>Weight</label><input type="number" value={data.weight ?? 1} onChange={e => setData({...data, weight: +e.target.value})} className={inp} /></div>
+        <div className="w-20"><label className={lbl}>Order</label><input type="number" value={data.orderIndex ?? 0} onChange={e => setData({...data, orderIndex: +e.target.value})} className={inp} /></div>
+      </div>
+      <div><label className={lbl}>Options (JSON array)</label><textarea value={typeof data.options === 'string' ? data.options : JSON.stringify(data.options || [], null, 2)} onChange={e => setData({...data, options: e.target.value})} className={inp + ' font-mono'} rows={6} placeholder='[{"label":"Option text","vataScore":2,"pittaScore":0,"kaphaScore":1}]' /></div>
+      <label className="flex items-center gap-2"><input type="checkbox" checked={data.isActive ?? true} onChange={e => setData({...data, isActive: e.target.checked})} className="w-4 h-4 rounded border-gray-300 text-purple-600" /><span className="text-[10px] font-bold text-gray-600">Active</span></label>
+    </div>
+  );
+
+  // ─── Action buttons row (edit/delete/toggle) ────────
+  const ActionButtons = ({ item }: { item: any }) => (
+    <div className="flex items-center gap-1.5">
+      <button onClick={() => toggleActive(item.id)} className={`text-[9px] px-2 py-1 rounded-full font-bold transition-colors ${item.isActive ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+        {item.isActive ? 'Active' : 'Inactive'}
+      </button>
+      <button onClick={() => startEdit(item)} className="text-[9px] px-2 py-1 bg-purple-50 text-purple-600 rounded-full font-bold hover:bg-purple-100">{'\u270F\uFE0F'}</button>
+      {confirmDelete === item.id ? (
+        <div className="flex items-center gap-1">
+          <button onClick={() => deleteItem(item.id)} className="text-[9px] px-2 py-1 bg-red-500 text-white rounded-full font-bold">Confirm</button>
+          <button onClick={() => setConfirmDelete(null)} className="text-[9px] px-2 py-1 bg-gray-100 text-gray-600 rounded-full font-bold">No</button>
+        </div>
+      ) : (
+        <button onClick={() => setConfirmDelete(item.id)} className="text-[9px] px-2 py-1 bg-red-50 text-red-500 rounded-full font-bold hover:bg-red-100">{'\u{1F5D1}\uFE0F'}</button>
+      )}
+    </div>
+  );
+
+  // ─── Save/Cancel buttons ────────────────────────────
+  const SaveCancelButtons = ({ onSave, onCancel }: { onSave: () => void; onCancel: () => void }) => (
+    <div className="flex gap-2 mt-3">
+      <button onClick={onSave} disabled={saving} className="px-4 py-2 bg-purple-500 text-white rounded-xl text-[10px] font-bold disabled:opacity-50 hover:bg-purple-600">{saving ? 'Saving...' : 'Save'}</button>
+      <button onClick={onCancel} className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-[10px] font-bold hover:bg-gray-200">Cancel</button>
+    </div>
+  );
+
   return (<>
     <h3 className="text-base font-extrabold text-gray-900 mb-3">{'\u{1F4DA}'} Content Management</h3>
-    <p className="text-[10px] text-gray-500 mb-3">Edit Ayurvedic content, AI chat responses, herb remedies &amp; dosha questions. Changes auto-invalidate cache.</p>
+    <p className="text-[10px] text-gray-500 mb-3">Full CRUD: Add, edit, delete, toggle active. Changes auto-invalidate cache.</p>
 
     {/* Sub-tabs */}
     <div className="flex flex-wrap gap-2 mb-4">
@@ -1253,6 +1405,25 @@ function ContentManagementTab() {
       ))}
     </div>
 
+    {/* Add New button (shown on all content tabs) */}
+    {subTab !== 'cache' && !showAddForm && !loading && (
+      <button onClick={startAdd} className="w-full mb-4 py-2.5 border-2 border-dashed border-purple-300 rounded-xl text-[11px] font-bold text-purple-500 hover:bg-purple-50 hover:border-purple-400 transition-colors">
+        + Add New {subTab === 'phase_guidance' ? 'Phase Guidance' : subTab === 'chat_responses' ? 'AI Chat Response' : subTab === 'remedies' ? 'Herb Remedy' : 'Dosha Question'}
+      </button>
+    )}
+
+    {/* Add New Form */}
+    {showAddForm && (
+      <div className="bg-white rounded-2xl p-5 shadow-sm border-2 border-purple-200 mb-4">
+        <h4 className="text-xs font-extrabold text-purple-700 mb-3">+ New Entry</h4>
+        {subTab === 'phase_guidance' && <PhaseGuidanceForm data={newData} setData={setNewData} />}
+        {subTab === 'chat_responses' && <ChatResponseForm data={newData} setData={setNewData} />}
+        {subTab === 'remedies' && <RemedyForm data={newData} setData={setNewData} />}
+        {subTab === 'questions' && <QuestionForm data={newData} setData={setNewData} />}
+        <SaveCancelButtons onSave={saveNew} onCancel={() => setShowAddForm(false)} />
+      </div>
+    )}
+
     {loading ? (
       <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-3 border-purple-400 border-t-transparent rounded-full" /></div>
     ) : subTab === 'cache' ? (
@@ -1264,55 +1435,16 @@ function ContentManagementTab() {
           {'\u{1F504}'} Refresh All Caches
         </button>
       </div>
+
     ) : subTab === 'phase_guidance' ? (
       <div className="space-y-3">
         <p className="text-[10px] text-gray-500">{items.length} phase guidance entries</p>
         {items.map((item: any) => (
-          <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm">
+          <div key={item.id} className={`bg-white rounded-2xl p-4 shadow-sm ${!item.isActive ? 'opacity-50' : ''}`}>
             {editId === item.id ? (
-              <div className="space-y-3">
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Dosha</label>
-                    <input value={editData.dosha || ''} onChange={e => setEditData({...editData, dosha: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" />
-                  </div>
-                  <div className="flex-1">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Phase</label>
-                    <input value={editData.phase || ''} onChange={e => setEditData({...editData, phase: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase">Imbalance Risk</label>
-                  <input value={editData.imbalanceRisk || ''} onChange={e => setEditData({...editData, imbalanceRisk: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase">Diet Tips (JSON array)</label>
-                  <textarea value={typeof editData.dietTips === 'string' ? editData.dietTips : JSON.stringify(editData.dietTips || [], null, 2)} onChange={e => setEditData({...editData, dietTips: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm font-mono" rows={3} />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase">Herb Tips (JSON array)</label>
-                  <textarea value={typeof editData.herbTips === 'string' ? editData.herbTips : JSON.stringify(editData.herbTips || [], null, 2)} onChange={e => setEditData({...editData, herbTips: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm font-mono" rows={3} />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase">Yoga Tips (JSON array)</label>
-                  <textarea value={typeof editData.yogaTips === 'string' ? editData.yogaTips : JSON.stringify(editData.yogaTips || [], null, 2)} onChange={e => setEditData({...editData, yogaTips: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm font-mono" rows={3} />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase">Lifestyle Tips (JSON array)</label>
-                  <textarea value={typeof editData.lifestyleTips === 'string' ? editData.lifestyleTips : JSON.stringify(editData.lifestyleTips || [], null, 2)} onChange={e => setEditData({...editData, lifestyleTips: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm font-mono" rows={3} />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase">Avoid List (JSON array)</label>
-                  <textarea value={typeof editData.avoidList === 'string' ? editData.avoidList : JSON.stringify(editData.avoidList || [], null, 2)} onChange={e => setEditData({...editData, avoidList: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm font-mono" rows={2} />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase">Modern Correlation</label>
-                  <textarea value={editData.modernCorrelation || ''} onChange={e => setEditData({...editData, modernCorrelation: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" rows={2} />
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={saveEdit} disabled={saving} className="px-4 py-2 bg-purple-500 text-white rounded-xl text-[10px] font-bold disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
-                  <button onClick={cancelEdit} className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-[10px] font-bold">Cancel</button>
-                </div>
+              <div>
+                <PhaseGuidanceForm data={editData} setData={setEditData} />
+                <SaveCancelButtons onSave={saveEdit} onCancel={cancelEdit} />
               </div>
             ) : (
               <div>
@@ -1324,7 +1456,7 @@ function ContentManagementTab() {
                       <p className="text-[9px] text-gray-500">{item.dominantDosha ? `Dominant: ${item.dominantDosha}` : ''} {item.imbalanceRisk ? `| Risk: ${item.imbalanceRisk}` : ''}</p>
                     </div>
                   </div>
-                  <button onClick={() => startEdit(item)} className="text-[10px] px-3 py-1 bg-purple-50 text-purple-600 rounded-full font-bold hover:bg-purple-100">{'\u270F\uFE0F'} Edit</button>
+                  <ActionButtons item={item} />
                 </div>
                 <div className="grid grid-cols-2 gap-2 mt-2">
                   {[
@@ -1335,7 +1467,7 @@ function ContentManagementTab() {
                   ].map(s => (
                     <div key={s.label} className="bg-gray-50 rounded-lg p-2">
                       <p className={`text-[8px] font-bold uppercase ${s.color}`}>{s.label}</p>
-                      <p className="text-[9px] text-gray-600 line-clamp-2">{Array.isArray(s.data) ? s.data.slice(0, 2).join(', ') : '—'}</p>
+                      <p className="text-[9px] text-gray-600 line-clamp-2">{Array.isArray(s.data) ? s.data.slice(0, 2).join(', ') : '\u2014'}</p>
                     </div>
                   ))}
                 </div>
@@ -1344,45 +1476,16 @@ function ContentManagementTab() {
           </div>
         ))}
       </div>
+
     ) : subTab === 'chat_responses' ? (
       <div className="space-y-3">
         <p className="text-[10px] text-gray-500">{items.length} AI chat response patterns</p>
         {items.map((item: any) => (
-          <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm">
+          <div key={item.id} className={`bg-white rounded-2xl p-4 shadow-sm ${!item.isActive ? 'opacity-50' : ''}`}>
             {editId === item.id ? (
-              <div className="space-y-3">
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Pattern Name</label>
-                    <input value={editData.patternName || ''} onChange={e => setEditData({...editData, patternName: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" />
-                  </div>
-                  <div className="flex-1">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Category</label>
-                    <input value={editData.category || ''} onChange={e => setEditData({...editData, category: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase">Regex Pattern</label>
-                  <input value={editData.regexPattern || ''} onChange={e => setEditData({...editData, regexPattern: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm font-mono" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase">Response Text</label>
-                  <textarea value={editData.responseText || ''} onChange={e => setEditData({...editData, responseText: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" rows={5} />
-                </div>
-                <div className="flex gap-2 items-center">
-                  <div className="flex-1">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Priority</label>
-                    <input type="number" value={editData.priority ?? 0} onChange={e => setEditData({...editData, priority: +e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" />
-                  </div>
-                  <label className="flex items-center gap-2 mt-4">
-                    <input type="checkbox" checked={editData.isActive ?? true} onChange={e => setEditData({...editData, isActive: e.target.checked})} className="w-4 h-4 rounded border-gray-300 text-purple-600" />
-                    <span className="text-[10px] font-bold text-gray-600">Active</span>
-                  </label>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={saveEdit} disabled={saving} className="px-4 py-2 bg-purple-500 text-white rounded-xl text-[10px] font-bold disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
-                  <button onClick={cancelEdit} className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-[10px] font-bold">Cancel</button>
-                </div>
+              <div>
+                <ChatResponseForm data={editData} setData={setEditData} />
+                <SaveCancelButtons onSave={saveEdit} onCancel={cancelEdit} />
               </div>
             ) : (
               <div>
@@ -1390,12 +1493,12 @@ function ContentManagementTab() {
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-bold text-gray-800">{item.patternName}</p>
-                      <span className={`text-[8px] px-2 py-0.5 rounded-full font-bold ${item.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{item.isActive ? 'Active' : 'Inactive'}</span>
                       <span className="text-[8px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 font-bold">{item.category}</span>
+                      <span className="text-[8px] text-gray-400">P:{item.priority}</span>
                     </div>
                     <p className="text-[9px] text-gray-400 font-mono mt-1">/{item.regexPattern}/</p>
                   </div>
-                  <button onClick={() => startEdit(item)} className="text-[10px] px-3 py-1 bg-purple-50 text-purple-600 rounded-full font-bold hover:bg-purple-100">{'\u270F\uFE0F'} Edit</button>
+                  <ActionButtons item={item} />
                 </div>
                 <p className="text-[10px] text-gray-600 mt-2 line-clamp-3">{item.responseText}</p>
               </div>
@@ -1403,61 +1506,16 @@ function ContentManagementTab() {
           </div>
         ))}
       </div>
+
     ) : subTab === 'remedies' ? (
       <div className="space-y-3">
         <p className="text-[10px] text-gray-500">{items.length} Ayurvedic remedies</p>
         {items.map((item: any) => (
-          <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm">
+          <div key={item.id} className={`bg-white rounded-2xl p-4 shadow-sm ${!item.isActive ? 'opacity-50' : ''}`}>
             {editId === item.id ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Herb (Sanskrit)</label>
-                    <input value={editData.herbNameSanskrit || ''} onChange={e => setEditData({...editData, herbNameSanskrit: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Herb (English)</label>
-                    <input value={editData.herbNameEnglish || ''} onChange={e => setEditData({...editData, herbNameEnglish: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Condition</label>
-                    <input value={editData.condition || ''} onChange={e => setEditData({...editData, condition: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Dosha</label>
-                    <input value={editData.dosha || ''} onChange={e => setEditData({...editData, dosha: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase">Botanical Name</label>
-                  <input value={editData.botanicalName || ''} onChange={e => setEditData({...editData, botanicalName: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm italic" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase">Benefit Text</label>
-                  <textarea value={editData.benefitText || ''} onChange={e => setEditData({...editData, benefitText: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" rows={3} />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase">Safety Note</label>
-                  <textarea value={editData.safetyNote || ''} onChange={e => setEditData({...editData, safetyNote: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" rows={2} />
-                </div>
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Pregnancy Safety</label>
-                    <select value={editData.pregnancySafety || 'caution'} onChange={e => setEditData({...editData, pregnancySafety: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm">
-                      <option value="safe">Safe</option><option value="caution">Caution</option><option value="avoid">Avoid</option><option value="contraindicated">Contraindicated</option>
-                    </select>
-                  </div>
-                  <div className="flex-1">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Source Reference</label>
-                    <input value={editData.sourceReference || ''} onChange={e => setEditData({...editData, sourceReference: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" />
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={saveEdit} disabled={saving} className="px-4 py-2 bg-purple-500 text-white rounded-xl text-[10px] font-bold disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
-                  <button onClick={cancelEdit} className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-[10px] font-bold">Cancel</button>
-                </div>
+              <div>
+                <RemedyForm data={editData} setData={setEditData} />
+                <SaveCancelButtons onSave={saveEdit} onCancel={cancelEdit} />
               </div>
             ) : (
               <div>
@@ -1466,7 +1524,7 @@ function ContentManagementTab() {
                     <p className="text-sm font-bold text-gray-800">{item.herbNameSanskrit} <span className="font-normal text-gray-500">({item.herbNameEnglish})</span></p>
                     <p className="text-[9px] text-gray-400 italic">{item.botanicalName}</p>
                   </div>
-                  <button onClick={() => startEdit(item)} className="text-[10px] px-3 py-1 bg-purple-50 text-purple-600 rounded-full font-bold hover:bg-purple-100">{'\u270F\uFE0F'} Edit</button>
+                  <ActionButtons item={item} />
                 </div>
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   <span className="text-[8px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-bold">{item.condition}</span>
@@ -1485,28 +1543,38 @@ function ContentManagementTab() {
           </div>
         ))}
       </div>
+
     ) : subTab === 'questions' ? (
       <div className="space-y-3">
-        <p className="text-[10px] text-gray-500">{items.length} dosha assessment questions (edit via Ayurveda tab)</p>
+        <p className="text-[10px] text-gray-500">{items.length} dosha assessment questions</p>
         {items.map((q: any) => (
-          <div key={q.id} className="bg-white rounded-2xl p-4 shadow-sm">
-            <div className="flex justify-between items-start">
-              <div className="flex-1">
-                <p className="text-[10px] text-purple-600 font-bold uppercase">{q.questionCategory} {'\u2022'} Weight: {q.weight}</p>
-                <p className="text-sm font-medium text-gray-800 mt-1">{q.questionText}</p>
+          <div key={q.id} className={`bg-white rounded-2xl p-4 shadow-sm ${!q.isActive ? 'opacity-50' : ''}`}>
+            {editId === q.id ? (
+              <div>
+                <QuestionForm data={editData} setData={setEditData} />
+                <SaveCancelButtons onSave={saveEdit} onCancel={cancelEdit} />
               </div>
-              <span className={`text-[8px] px-2 py-0.5 rounded-full font-bold ${q.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{q.isActive ? 'Active' : 'Inactive'}</span>
-            </div>
-            <div className="mt-2 space-y-1">
-              {(q.options || []).map((opt: any, j: number) => (
-                <div key={j} className="flex items-center gap-2 text-[10px] text-gray-600 bg-gray-50 rounded-lg px-2 py-1">
-                  <span className="flex-1">{opt.label}</span>
-                  <span className="text-indigo-500">V:{opt.vataScore}</span>
-                  <span className="text-orange-500">P:{opt.pittaScore}</span>
-                  <span className="text-emerald-500">K:{opt.kaphaScore}</span>
+            ) : (
+              <div>
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <p className="text-[10px] text-purple-600 font-bold uppercase">{q.questionCategory} {'\u2022'} W:{q.weight} {'\u2022'} #{q.orderIndex}</p>
+                    <p className="text-sm font-medium text-gray-800 mt-1">{q.questionText}</p>
+                  </div>
+                  <ActionButtons item={q} />
                 </div>
-              ))}
-            </div>
+                <div className="mt-2 space-y-1">
+                  {(q.options || []).map((opt: any, j: number) => (
+                    <div key={j} className="flex items-center gap-2 text-[10px] text-gray-600 bg-gray-50 rounded-lg px-2 py-1">
+                      <span className="flex-1">{opt.label}</span>
+                      <span className="text-indigo-500">V:{opt.vataScore}</span>
+                      <span className="text-orange-500">P:{opt.pittaScore}</span>
+                      <span className="text-emerald-500">K:{opt.kaphaScore}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>

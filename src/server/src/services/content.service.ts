@@ -192,27 +192,130 @@ class ContentService {
     } catch { return []; }
   }
 
+  // ─── Admin: Create methods ───────────────────────────
+  async createPhaseGuidance(data: any) {
+    // Parse JSON string fields if needed
+    for (const f of ['dietTips', 'herbTips', 'yogaTips', 'lifestyleTips', 'avoidList']) {
+      if (typeof data[f] === 'string') try { data[f] = JSON.parse(data[f]); } catch {}
+    }
+    const result = await prisma.doshaPhaseGuidance.create({ data });
+    await this.refreshCache();
+    return result;
+  }
+
+  async createChatResponse(data: any) {
+    if (data.priority !== undefined) data.priority = Number(data.priority);
+    const result = await prisma.aIChatResponse.create({ data });
+    await this.refreshCache();
+    return result;
+  }
+
+  async createRemedy(data: any) {
+    const result = await prisma.ayurvedicRemedy.create({ data });
+    await this.refreshCache();
+    return result;
+  }
+
+  async createDoshaQuestion(data: any) {
+    if (typeof data.options === 'string') try { data.options = JSON.parse(data.options); } catch {}
+    if (data.weight !== undefined) data.weight = Number(data.weight);
+    if (data.orderIndex !== undefined) data.orderIndex = Number(data.orderIndex);
+    const result = await prisma.doshaQuestion.create({ data });
+    await this.refreshCache();
+    return result;
+  }
+
   // ─── Admin: Update methods ────────────────────────────
   async updatePhaseGuidance(id: string, data: any) {
+    // Strip non-updatable fields
+    delete data.id; delete data.createdAt; delete data.updatedAt;
+    for (const f of ['dietTips', 'herbTips', 'yogaTips', 'lifestyleTips', 'avoidList']) {
+      if (typeof data[f] === 'string') try { data[f] = JSON.parse(data[f]); } catch {}
+    }
     const result = await prisma.doshaPhaseGuidance.update({ where: { id }, data });
     await this.refreshCache();
     return result;
   }
 
   async updateChatResponse(id: string, data: any) {
+    delete data.id; delete data.createdAt; delete data.updatedAt;
+    if (data.priority !== undefined) data.priority = Number(data.priority);
     const result = await prisma.aIChatResponse.update({ where: { id }, data });
     await this.refreshCache();
     return result;
   }
 
   async updateRemedy(id: string, data: any) {
+    delete data.id; delete data.createdAt; delete data.updatedAt;
     const result = await prisma.ayurvedicRemedy.update({ where: { id }, data });
     await this.refreshCache();
     return result;
   }
 
   async updateDoshaQuestion(id: string, data: any) {
+    delete data.id; delete data.createdAt; delete data.updatedAt;
+    if (typeof data.options === 'string') try { data.options = JSON.parse(data.options); } catch {}
+    if (data.weight !== undefined) data.weight = Number(data.weight);
+    if (data.orderIndex !== undefined) data.orderIndex = Number(data.orderIndex);
     const result = await prisma.doshaQuestion.update({ where: { id }, data });
+    await this.refreshCache();
+    return result;
+  }
+
+  // ─── Admin: Delete methods ────────────────────────────
+  async deletePhaseGuidance(id: string) {
+    const result = await prisma.doshaPhaseGuidance.delete({ where: { id } });
+    await this.refreshCache();
+    return result;
+  }
+
+  async deleteChatResponse(id: string) {
+    const result = await prisma.aIChatResponse.delete({ where: { id } });
+    await this.refreshCache();
+    return result;
+  }
+
+  async deleteRemedy(id: string) {
+    const result = await prisma.ayurvedicRemedy.delete({ where: { id } });
+    await this.refreshCache();
+    return result;
+  }
+
+  async deleteDoshaQuestion(id: string) {
+    const result = await prisma.doshaQuestion.delete({ where: { id } });
+    await this.refreshCache();
+    return result;
+  }
+
+  // ─── Admin: Toggle active status ──────────────────────
+  async togglePhaseGuidance(id: string) {
+    const item = await prisma.doshaPhaseGuidance.findUnique({ where: { id } });
+    if (!item) throw new Error('Not found');
+    const result = await prisma.doshaPhaseGuidance.update({ where: { id }, data: { isActive: !item.isActive } });
+    await this.refreshCache();
+    return result;
+  }
+
+  async toggleChatResponse(id: string) {
+    const item = await prisma.aIChatResponse.findUnique({ where: { id } });
+    if (!item) throw new Error('Not found');
+    const result = await prisma.aIChatResponse.update({ where: { id }, data: { isActive: !item.isActive } });
+    await this.refreshCache();
+    return result;
+  }
+
+  async toggleRemedy(id: string) {
+    const item = await prisma.ayurvedicRemedy.findUnique({ where: { id } });
+    if (!item) throw new Error('Not found');
+    const result = await prisma.ayurvedicRemedy.update({ where: { id }, data: { isActive: !item.isActive } });
+    await this.refreshCache();
+    return result;
+  }
+
+  async toggleDoshaQuestion(id: string) {
+    const item = await prisma.doshaQuestion.findUnique({ where: { id } });
+    if (!item) throw new Error('Not found');
+    const result = await prisma.doshaQuestion.update({ where: { id }, data: { isActive: !item.isActive } });
     await this.refreshCache();
     return result;
   }

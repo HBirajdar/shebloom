@@ -66,6 +66,35 @@ r.get('/admin/dosha-questions', authenticate, requireAdmin, async (_q: AuthReque
   } catch (e) { n(e); }
 });
 
+// ─── Create (admin) ─────────────────────────────────
+r.post('/admin/phase-guidance', authenticate, requireAdmin, async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const result = await contentService.createPhaseGuidance(q.body);
+    successResponse(s, result, 'Phase guidance created');
+  } catch (e) { n(e); }
+});
+
+r.post('/admin/chat-responses', authenticate, requireAdmin, async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const result = await contentService.createChatResponse(q.body);
+    successResponse(s, result, 'Chat response created');
+  } catch (e) { n(e); }
+});
+
+r.post('/admin/remedies', authenticate, requireAdmin, async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const result = await contentService.createRemedy(q.body);
+    successResponse(s, result, 'Remedy created');
+  } catch (e) { n(e); }
+});
+
+r.post('/admin/dosha-questions', authenticate, requireAdmin, async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const result = await contentService.createDoshaQuestion(q.body);
+    successResponse(s, result, 'Dosha question created');
+  } catch (e) { n(e); }
+});
+
 // ─── Update (admin) ─────────────────────────────────
 r.put('/admin/phase-guidance/:id', authenticate, requireAdmin, async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
@@ -92,6 +121,64 @@ r.put('/admin/dosha-questions/:id', authenticate, requireAdmin, async (q: AuthRe
   try {
     const result = await contentService.updateDoshaQuestion(q.params.id, q.body);
     successResponse(s, result, 'Dosha question updated');
+  } catch (e) { n(e); }
+});
+
+// ─── Delete (admin) ─────────────────────────────────
+r.delete('/admin/phase-guidance/:id', authenticate, requireAdmin, async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    await contentService.deletePhaseGuidance(q.params.id);
+    successResponse(s, { deleted: true }, 'Phase guidance deleted');
+  } catch (e) { n(e); }
+});
+
+r.delete('/admin/chat-responses/:id', authenticate, requireAdmin, async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    await contentService.deleteChatResponse(q.params.id);
+    successResponse(s, { deleted: true }, 'Chat response deleted');
+  } catch (e) { n(e); }
+});
+
+r.delete('/admin/remedies/:id', authenticate, requireAdmin, async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    await contentService.deleteRemedy(q.params.id);
+    successResponse(s, { deleted: true }, 'Remedy deleted');
+  } catch (e) { n(e); }
+});
+
+r.delete('/admin/dosha-questions/:id', authenticate, requireAdmin, async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    await contentService.deleteDoshaQuestion(q.params.id);
+    successResponse(s, { deleted: true }, 'Dosha question deleted');
+  } catch (e) { n(e); }
+});
+
+// ─── Toggle active (admin) ──────────────────────────
+r.patch('/admin/phase-guidance/:id/toggle', authenticate, requireAdmin, async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const result = await contentService.togglePhaseGuidance(q.params.id);
+    successResponse(s, result, 'Phase guidance toggled');
+  } catch (e) { n(e); }
+});
+
+r.patch('/admin/chat-responses/:id/toggle', authenticate, requireAdmin, async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const result = await contentService.toggleChatResponse(q.params.id);
+    successResponse(s, result, 'Chat response toggled');
+  } catch (e) { n(e); }
+});
+
+r.patch('/admin/remedies/:id/toggle', authenticate, requireAdmin, async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const result = await contentService.toggleRemedy(q.params.id);
+    successResponse(s, result, 'Remedy toggled');
+  } catch (e) { n(e); }
+});
+
+r.patch('/admin/dosha-questions/:id/toggle', authenticate, requireAdmin, async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const result = await contentService.toggleDoshaQuestion(q.params.id);
+    successResponse(s, result, 'Dosha question toggled');
   } catch (e) { n(e); }
 });
 
