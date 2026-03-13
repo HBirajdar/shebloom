@@ -107,16 +107,22 @@ export default function AboutPage() {
           </div>
         </div>
 
-        {/* Team */}
-        <div className="bg-white rounded-3xl shadow-lg p-5 text-center">
-          <p className="text-sm font-extrabold text-gray-800 mb-2">Built with {'\u2764\uFE0F'} in Bengaluru, India</p>
-          <p className="text-xs text-gray-500 leading-relaxed">
-            By a passionate team dedicated to women's health and Ayurvedic wellness.
-          </p>
-          <div className="flex items-center justify-center gap-4 mt-4 text-[10px] text-gray-400">
-            <span>{'\uD83D\uDCE7'} vedaclue@gmail.com</span>
-            <span>{'\uD83D\uDCCD'} Bengaluru, India</span>
+        {/* Founder */}
+        <div>
+          <p className="text-sm font-extrabold text-gray-800 mb-3">Meet Our Founder</p>
+          <div className="bg-white rounded-3xl shadow-lg p-6 text-center border-2 border-rose-100">
+            <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-rose-100 to-pink-100 flex items-center justify-center text-4xl shadow-md mb-4">
+              {'\uD83D\uDC69'}
+            </div>
+            <p className="text-base font-extrabold text-gray-900">Sugandhika Patil</p>
+            <p className="text-[10px] text-rose-500 font-bold mt-0.5">Founder & CEO, VedaClue</p>
+            <p className="text-xs text-gray-500 leading-relaxed mt-3">
+              Sugandhika is passionate about making Ayurvedic women's healthcare accessible to every woman in India. VedaClue is her vision of combining ancient Ayurvedic wisdom with modern technology to empower women's health and wellness.
+            </p>
           </div>
+          <p className="text-center text-[10px] text-gray-400 mt-4 leading-relaxed">
+            Built with {'\u2764\uFE0F'} in Bengaluru, India by a team dedicated to women's health and Ayurvedic wellness.
+          </p>
         </div>
 
         {/* CTA */}

@@ -6,13 +6,14 @@ import BottomNav from '../components/BottomNav';
 const SECTIONS = [
   {
     title: 'Who We Are',
-    content: `VedaClue ("we", "us", "our") is an Ayurvedic women's wellness platform operated by VedaClue, based in Bengaluru, Karnataka, India.
+    content: `VedaClue is an Ayurvedic women's wellness platform founded by Sugandhika Patil, operated by VedaClue, based in Bengaluru, Karnataka, India.
 
 Website: vedaclue.com
 Contact: vedaclue@gmail.com
 
 Grievance Officer (as required under IT Act 2000):
-Name: VedaClue Support Team
+Name: Sugandhika Patil
+Designation: Founder, VedaClue
 Email: vedaclue@gmail.com
 Response time: within 24 hours of complaint`,
   },
@@ -133,11 +134,14 @@ We do not use advertising or tracking cookies.`,
   },
   {
     title: 'Contact & Grievance Officer',
-    content: `VedaClue Support Team
+    content: `Grievance Officer (IT Act 2000):
+Name: Sugandhika Patil
+Designation: Founder, VedaClue
 Email: vedaclue@gmail.com
-Address: Bengaluru, Karnataka, India — 560100
+Address: Bengaluru, Karnataka — 560100
+Response time: within 24 hours
 
-Complaints will be acknowledged within 24 hours and resolved within 30 days as per IT Act 2000 requirements.`,
+Complaints acknowledged within 24 hours and resolved within 30 days as per IT Act 2000 requirements.`,
   },
 ];
 

@@ -149,7 +149,8 @@ Courts of Bengaluru, Karnataka have exclusive jurisdiction`,
     title: 'Grievance Officer',
     content: `As required under Consumer Protection Act 2019 and IT Act 2000:
 
-Name: VedaClue Support Team
+Name: Sugandhika Patil
+Designation: Founder, VedaClue
 Email: vedaclue@gmail.com
 Address: Bengaluru, Karnataka — 560100
 Response time: within 24 hours`,
