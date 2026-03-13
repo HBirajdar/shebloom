@@ -477,6 +477,549 @@ async function main() {
     console.log(`⏭  Skipping dosha questions (${doshaQCount} already exist)`)
   }
 
+  // ─── DOSHA PHASE GUIDANCE (12 entries) ──────────────
+  console.log('Seeding dosha phase guidance...')
+  const phaseGuidanceData = [
+    // ── Vata ──
+    {
+      dosha: 'Vata', phase: 'menstrual',
+      dominantDosha: 'Apana Vata governs downward flow (Charaka Samhita)',
+      imbalanceRisk: 'Irregular flow, cramping, scanty bleeding, anxiety',
+      dietTips: [
+        'Warm sesame oil-cooked foods — grounding & Vata-pacifying',
+        'Iron-rich: dates, pomegranate, black sesame, jaggery',
+        'Ghee with warm milk + pinch of turmeric (Haldi Doodh)',
+        'Moong dal khichdi — easy to digest, nourishing',
+        'Avoid raw/cold foods, salads, iced drinks',
+      ],
+      herbTips: [
+        'Dashmool Kwath — 10-root decoction, calms Vata, relieves cramps (Charaka Chi.30)',
+        'Ashoka bark (Saraca indica) — Artava Sthapana, regulates flow',
+        'Shatavari — nourishes Rasa dhatu, balances hormones',
+        'Ajwain water — relieves bloating and spasmodic pain',
+      ],
+      yogaTips: [
+        'Supta Baddha Konasana (reclined butterfly) — opens pelvis',
+        'Balasana (child pose) — calms Vata, relieves lower back',
+        'Gentle Pranayama: Nadi Shodhana (alternate nostril) — balances Vata',
+        'Avoid inversions, intense cardio during menstruation',
+      ],
+      lifestyleTips: [
+        'Abhyanga (warm sesame oil massage) on lower abdomen & feet',
+        'Warm castor oil pack on lower belly for cramp relief',
+        'Early sleep by 10 PM — Vata aggravates in late night (2-6 AM)',
+        'Rest and reduce workload — Rajahsvala Paricharya (menstrual regimen)',
+      ],
+      avoidList: ['Cold beverages', 'Intense exercise', 'Fasting', 'Late nights', 'Excessive travel'],
+      modernCorrelation: 'Prostaglandins peak → uterine contractions. Warm foods ↑ blood flow, reduce spasm (matches Vata-pacifying approach). Magnesium + iron supplementation clinically proven for dysmenorrhea.',
+    },
+    {
+      dosha: 'Vata', phase: 'follicular',
+      dominantDosha: 'Kapha rises as endometrium rebuilds (anabolic phase)',
+      imbalanceRisk: 'Low energy, sluggishness if Vata depleted from menstruation',
+      dietTips: [
+        'Gradually increase protein: paneer, legumes, nuts, seeds',
+        'Ashwagandha milk — adaptogenic, rebuilds Ojas (vitality)',
+        'Seasonal fruits, warm soups, cooked vegetables',
+        'Flaxseeds — phytoestrogens support follicular development',
+      ],
+      herbTips: [
+        'Ashwagandha (standardized root extract, as directed by practitioner) — adaptogenic, reduces cortisol (Withania somnifera)',
+        'Shatavari — phytoestrogenic, supports follicle maturation',
+        'Guduchi (Tinospora) — Rasayana, builds immunity post-period',
+        'Triphala at night — gentle detox, supports digestion',
+      ],
+      yogaTips: [
+        'Sun Salutations (Surya Namaskar) — building energy',
+        'Standing poses: Virabhadrasana I & II — strength & grounding',
+        'Kapalabhati Pranayama — stimulates metabolism',
+        'Gradually increase intensity as energy returns',
+      ],
+      lifestyleTips: [
+        'Rise before sunrise (Brahma Muhurta) — peak Vata time for creativity',
+        'Warm oil massage before bath — nourishes Vata',
+        'Start new projects — estrogen rising = peak creativity & confidence',
+        'Socialize — this is your most extroverted phase',
+      ],
+      avoidList: ['Excessive fasting', 'Irregular meal times', 'Cold/dry foods'],
+      modernCorrelation: 'Rising estradiol stimulates follicular growth. Phytoestrogens (flax, shatavari) may support FSH sensitivity. Ashwagandha reduces cortisol by 28% (Chandrasekhar 2012 IJAM).',
+    },
+    {
+      dosha: 'Vata', phase: 'ovulation',
+      dominantDosha: 'Pitta peaks — Artava (ovum) is Agneya (fiery) in nature',
+      imbalanceRisk: 'Excess heat, irritability, skin breakouts',
+      dietTips: [
+        'Cooling foods: cucumber, coconut water, mint chutney, fennel',
+        'Rose petal jam (Gulkand) — cools Pitta, supports Shukra dhatu',
+        'Pomegranate — Pitta-pacifying, rich in antioxidants',
+        'Light meals — Agni (digestive fire) is moderate',
+      ],
+      herbTips: [
+        'Shatavari — peak fertility support, nourishes Artava',
+        'Yashtimadhu (Licorice) — cooling, anti-inflammatory (avoid if hypertensive; limit to 4-6 weeks)',
+        'Gulkand (rose petal preserve) or food-grade rose water (Arq-e-Gulab) — cools Pitta, calms mind',
+        'Kumari (Aloe vera) — Pitta-pacifying, supports cervical mucus',
+      ],
+      yogaTips: [
+        'Hip openers: Pigeon pose, Malasana (garland) — pelvic circulation',
+        'Sheetali Pranayama (cooling breath) — cools excess Pitta',
+        'Moderate cardio — peak strength window',
+        'Partner yoga if TTC — bonding hormone release',
+      ],
+      lifestyleTips: [
+        'Moonlight walks — cooling, romantic (Chandra Namaskar energy)',
+        'Wear white/light colors — reflects heat, calms Pitta',
+        'If TTC: this is Ritu Kala — optimal conception window (Ashtanga Hridaya)',
+        'Intercourse timing: egg-white CM + positive LH = peak 24-48h window',
+      ],
+      avoidList: ['Spicy food', 'Excessive sun', 'Hot baths', 'Anger/arguments'],
+      modernCorrelation: 'LH surge triggers ovulation within 24-48h. Egg viable 12-24h. Body temp rises 0.2-0.5°C (BBT shift). Cervical mucus becomes egg-white consistency — 94.5% ovulation sensitivity (Bigelow 2004).',
+    },
+    {
+      dosha: 'Vata', phase: 'luteal',
+      dominantDosha: 'Vata begins to accumulate, Pitta sustains corpus luteum',
+      imbalanceRisk: 'PMS: anxiety (Vata), irritability (Pitta), water retention (Kapha)',
+      dietTips: [
+        'Complex carbs: sweet potato, whole grains — serotonin support',
+        'Magnesium-rich: pumpkin seeds, dark chocolate, spinach',
+        'Warm turmeric latte — anti-inflammatory, Pitta-calming',
+        'Sesame-jaggery laddoo — iron + warmth for Vata',
+      ],
+      herbTips: [
+        'Ashoka bark — Pitta-Kapha balance, prevents heavy upcoming flow',
+        'Shankhpushpi — calms anxiety, supports progesterone (Vata-Pitta)',
+        'Brahmi — reduces mental agitation, improves sleep',
+        'Lodhra (Symplocos) — Kapha-pacifying, prevents water retention',
+      ],
+      yogaTips: [
+        'Restorative: Viparita Karani (legs up wall) — calms nervous system',
+        'Yin yoga — slow, grounding, Vata-pacifying',
+        'Yoga Nidra — deep relaxation, reduces PMS symptoms',
+        'Reduce intensity gradually as period approaches',
+      ],
+      lifestyleTips: [
+        'Journal/reflect — progesterone = introspective energy',
+        'Warm baths with Epsom salt — magnesium absorption through skin',
+        'Digital sunset by 8 PM — blue light disrupts melatonin',
+        'Prepare for upcoming period: stock warm foods, plan lighter schedule',
+      ],
+      avoidList: ['Caffeine excess', 'Sugar binges', 'Late nights', 'Over-scheduling'],
+      modernCorrelation: 'Progesterone dominates: ↑ body temp, ↑ appetite, ↓ serotonin. If no implantation, corpus luteum degrades → progesterone crash → PMS. Magnesium reduces PMS severity by 40% (Quaranta 2007).',
+    },
+    // ── Pitta ──
+    {
+      dosha: 'Pitta', phase: 'menstrual',
+      dominantDosha: 'Pitta dominant — Rakta (blood) is Pitta\'s seat',
+      imbalanceRisk: 'Heavy bleeding, clots, headaches, hot flashes, irritability',
+      dietTips: [
+        'Cooling: coconut water, cucumber raita, coriander water',
+        'Iron replenishment: beetroot juice, pomegranate, dates',
+        'Gulkand (rose petal preserve) — classic Pitta coolant',
+        'Avoid spicy, fermented, sour foods during bleeding',
+      ],
+      herbTips: [
+        'Ashoka bark — primary herb for Pittaja Yoniroga (heavy periods)',
+        'Ushira (Vetiver) water — cools Rakta dhatu, reduces heavy flow',
+        'Durva grass (Cynodon) — Raktastambhana (stops excess bleeding)',
+        'Chandanadi Vati — sandalwood-based, cools internal heat',
+      ],
+      yogaTips: [
+        'Sheetali/Sheetkari Pranayama — cooling breaths for Pitta',
+        'Supta Virasana (reclined hero) — cools abdomen',
+        'Gentle forward bends — calming without heating',
+        'Chandra Namaskar (moon salutation) — cooling alternative to Surya',
+      ],
+      lifestyleTips: [
+        'Cool compress on forehead if headaches occur',
+        'Coconut oil massage instead of sesame (too heating for Pitta)',
+        'Sleep in cool, well-ventilated room',
+        'Practice Pitta-calming meditation: visualization of moonlight/water',
+      ],
+      avoidList: ['Spicy food', 'Sun exposure', 'Hot baths', 'Competitive activities', 'Alcohol'],
+      modernCorrelation: 'Pitta prakriti correlates with higher estradiol levels and shorter cycles (Priyanka 2020). Heavy menstrual bleeding (menorrhagia) is clinical when >80ml/cycle. Iron deficiency risk is real — supplement with Vitamin C for absorption.',
+    },
+    {
+      dosha: 'Pitta', phase: 'follicular',
+      dominantDosha: 'Kapha rebuilding phase, Pitta cooling naturally',
+      imbalanceRisk: 'Skin inflammation, acid reflux if Pitta still elevated',
+      dietTips: [
+        'Bitter greens: neem juice (small dose), bitter gourd, methi',
+        'Sweet fruits: grapes, melons, pears — naturally Pitta-cooling',
+        'Moderate protein: mung beans, tofu, cooling fish',
+        'Fresh mint + fennel water throughout the day',
+      ],
+      herbTips: [
+        'Amalaki (Indian Gooseberry) — Pitta Rasayana, vitamin C rich',
+        'Neem — blood purifier, skin-clearing (Pitta tends to breakouts)',
+        'Shatavari — supports estrogen rise without overheating',
+        'Aloe vera juice — cools digestive Pitta',
+      ],
+      yogaTips: [
+        'Moderate Vinyasa — channel Pitta energy productively',
+        'Twists for detox: Ardha Matsyendrasana — liver/digestion support',
+        'Swimming — ideal for Pitta (cooling exercise)',
+        'Trataka (candle gazing) — focuses Pitta mind without agitation',
+      ],
+      lifestyleTips: [
+        'Channel ambition into creative projects — Pitta peak productivity',
+        'Eat meals on schedule — Pitta needs regular Agni management',
+        'Nature walks near water — rivers, lakes cool Pitta',
+        'Practice compassion meditation — Pitta tends toward criticism',
+      ],
+      avoidList: ['Skipping meals', 'Over-working', 'Excessive competition'],
+      modernCorrelation: 'Follicular phase: estradiol rises → skin improves, energy peaks. For Pitta types with acne: zinc + neem shown to reduce inflammatory acne by 50% (Yee 2020 Dermatol Ther).',
+    },
+    {
+      dosha: 'Pitta', phase: 'ovulation',
+      dominantDosha: 'Peak Pitta — ovulation itself is an Agneya (fiery) event',
+      imbalanceRisk: 'Ovulation pain (mittelschmerz), excess heat, skin flares',
+      dietTips: [
+        'Maximum cooling: raw coconut, watermelon, khus sherbet',
+        'Rose sherbet with sabja seeds — classic Pitta recipe',
+        'Fennel + coriander seed tea — digestive cooling',
+        'Light meals — strong Agni needs less fuel',
+      ],
+      herbTips: [
+        'Shatavari (peak dose during fertile window, as directed by practitioner)',
+        'Kumari (Aloe) — cools uterine Pitta, supports CM quality',
+        'Rose water — internal cooling, emotional balance',
+        'Brahmi — calms Pitta mind, reduces over-thinking',
+      ],
+      yogaTips: [
+        'Dynamic flow — Pitta has maximum power at ovulation',
+        'Hip openers with breath focus — pelvic energy flow',
+        'Cooling Pranayama after exercise — Sheetali + Brahmari',
+        'Dance/creative movement — express Pitta fire constructively',
+      ],
+      lifestyleTips: [
+        'If TTC: peak window — Ritu Kala (Ashtanga Hridaya Sha.1)',
+        'Keep emotions cool — Pitta temper peaks with hormones',
+        'Apply sandalwood paste on pulse points — Pitta cooling ritual',
+        'Evening walks — avoid midday sun',
+      ],
+      avoidList: ['Arguments', 'Spicy food', 'Midday sun', 'Over-exercising'],
+      modernCorrelation: 'Pitta types may experience stronger mittelschmerz (ovulation pain) due to inflammatory tendency. NSAIDs work but cooling herbs offer gentler approach. Cervical mucus quality peaks — egg-white CM is the fertility gold standard.',
+    },
+    {
+      dosha: 'Pitta', phase: 'luteal',
+      dominantDosha: 'Pitta sustains corpus luteum, Vata begins rising',
+      imbalanceRisk: 'Anger, migraines, skin breakouts, acid reflux, insomnia',
+      dietTips: [
+        'Anti-inflammatory: turmeric + black pepper, omega-3 rich foods',
+        'Bitter + sweet tastes: kale, dates, almonds, milk',
+        'Chamomile + lavender tea before bed',
+        'Small frequent meals — prevent Pitta acid spikes',
+      ],
+      herbTips: [
+        'Shankhpushpi — calms Pitta-aggravated mind',
+        'Brahmi — neuroprotective, reduces PMS irritability',
+        'Yashtimadhu — soothes digestive Pitta (avoid if hypertensive; limit to 4-6 weeks)',
+        'Triphala — gentle detox, prepare for upcoming flow',
+      ],
+      yogaTips: [
+        'Cooling Yin yoga — long holds, surrender',
+        'Forward folds — calms nervous system',
+        'Supported backbends — open chest without strain',
+        'Brahmari Pranayama (humming bee) — immediate Pitta calm',
+      ],
+      lifestyleTips: [
+        'Early dinner by 7 PM — allow digestive rest',
+        'Moonlight meditation — cooling, Pitta-balancing',
+        'Cool room for sleep — Pitta insomnia worsens in heat',
+        'Creative outlet: painting, music — channel PMS intensity positively',
+      ],
+      avoidList: ['Spicy food', 'Alcohol', 'Late dinners', 'Heated arguments', 'Overworking'],
+      modernCorrelation: 'Progesterone is thermogenic — Pitta types feel this more intensely. Migraines linked to estrogen withdrawal pre-menstrually. Magnesium + riboflavin shown to reduce menstrual migraines by 50% (Mauskop 2012).',
+    },
+    // ── Kapha ──
+    {
+      dosha: 'Kapha', phase: 'menstrual',
+      dominantDosha: 'Kapha tendency — heavier, longer, more mucoid flow',
+      imbalanceRisk: 'Heavy flow with clots, lethargy, water retention, emotional eating',
+      dietTips: [
+        'Light, warm, stimulating: ginger tea, pepper, dry foods',
+        'Avoid dairy, sweets, heavy foods during period',
+        'Warm water with lemon + honey — Kapha-reducing morning drink',
+        'Spiced mung soup — light, warm, easy to digest',
+      ],
+      herbTips: [
+        'Lodhra (Symplocos racemosa) — #1 herb for Kaphaja Yoniroga',
+        'Trikatu (ginger-pepper-pippali) — kindles Agni, reduces Kapha',
+        'Guggulu — anti-inflammatory, reduces water retention',
+        'Triphala — prevents sluggish elimination',
+        'Manjistha (Rubia cordifolia) — Rakta Shodhaka, blood purifier, reduces clots',
+      ],
+      yogaTips: [
+        'Gentle Surya Namaskar — keep energy moving (Kapha stagnates)',
+        'Twist poses — squeeze out Kapha from tissues',
+        'Kapalabhati (skull-shining breath) — energizing, Kapha-reducing',
+        'Even during period, light movement prevents Kapha buildup',
+      ],
+      lifestyleTips: [
+        'Dry brush (Garshana) before shower — stimulates lymphatic flow',
+        'Warm herbal steam — reduces congestion (Kapha = mucus)',
+        'Don\'t oversleep — Kapha people tend to excess sleep during period',
+        'Stay warm — cold increases Kapha and worsens water retention',
+      ],
+      avoidList: ['Cold foods', 'Dairy', 'Oversleeping', 'Inactivity', 'Heavy meals'],
+      modernCorrelation: 'Kapha prakriti associated with higher BMI, longer cycles, heavier flow (Priyanka 2020). Water retention is prostaglandin-mediated. Light exercise during menstruation reduces bloating by 30% (Daley 2009 BJOG).',
+    },
+    {
+      dosha: 'Kapha', phase: 'follicular',
+      dominantDosha: 'Kapha naturally dominant — endometrium rebuilding (anabolic)',
+      imbalanceRisk: 'Weight gain, sluggishness, congestion',
+      dietTips: [
+        'Stimulating spices: turmeric, black pepper, cumin, mustard seeds',
+        'Light proteins: chickpeas, sprouts, grilled vegetables',
+        'Honey in warm water — Kapha-reducing (never heat honey directly)',
+        'Cruciferous vegetables: broccoli, cauliflower — support estrogen metabolism',
+      ],
+      herbTips: [
+        'Guggulu — thyroid support, weight management (Kapha tendency)',
+        'Punarnava — kidney tonic, reduces water retention',
+        'Chitrak (Plumbago) — kindles digestive fire',
+        'Tulsi — adaptogenic, lightens Kapha heaviness',
+      ],
+      yogaTips: [
+        'Vigorous Vinyasa or Ashtanga — peak time to challenge Kapha',
+        'Backbends: Ustrasana, Bhujangasana — open chest, reduce Kapha',
+        'Running, HIIT — Kapha benefits from intense cardio',
+        'Bhastrika Pranayama (bellows breath) — ignites Agni',
+      ],
+      lifestyleTips: [
+        'Wake before 6 AM — avoid Kapha time (6-10 AM = sluggishness)',
+        'Dry sauna or steam — reduces Kapha and water weight',
+        'Start challenging projects — estrogen energy + Kapha stability = productivity',
+        'Reduce screen time — increase physical activity',
+      ],
+      avoidList: ['Oversleeping', 'Heavy breakfast', 'Dairy', 'Sedentary behavior'],
+      modernCorrelation: 'Follicular estrogen rise in Kapha types may cause more fluid retention. Cruciferous vegetables contain DIM (diindolylmethane) which supports healthy estrogen metabolism — clinically relevant for PCOS-prone Kapha types.',
+    },
+    {
+      dosha: 'Kapha', phase: 'ovulation',
+      dominantDosha: 'Pitta temporarily peaks — ovulation is universal Pitta event',
+      imbalanceRisk: 'Bloating, mild acne from hormone surge',
+      dietTips: [
+        'Balance Kapha-Pitta: warm but not too spicy',
+        'Moderate portions — resist Kapha urge to overeat',
+        'Fresh ginger before meals — supports Agni',
+        'Bitter salads with warm dressing — Kapha + Pitta pacifying',
+      ],
+      herbTips: [
+        'Shatavari — fertility support (universal for all doshas at ovulation)',
+        'Ashwagandha — adaptogenic, supports Shukra dhatu',
+        'Pippali (long pepper) — stimulates without overheating',
+        'Brahmi — focus and clarity',
+      ],
+      yogaTips: [
+        'Power yoga or sport — peak physical performance',
+        'Hip openers with dynamic movement — not static',
+        'Team sports — Kapha thrives with social energy',
+        'Agni Sara — abdominal churning, stimulates Kapha center',
+      ],
+      lifestyleTips: [
+        'If TTC: be consistent with timing — Kapha benefits from routine',
+        'Social activities — Kapha ovulation = peak charm and warmth',
+        'Reduce sugar and dairy — prevent Kapha-related CM mucus issues',
+        'Short, energizing showers — not long soaks',
+      ],
+      avoidList: ['Heavy meals', 'Excessive dairy', 'Napping', 'Sugar'],
+      modernCorrelation: 'Ovulation window for Kapha types: cervical mucus may be thicker/more opaque than textbook egg-white. Track CM changes relative to YOUR baseline, not generic descriptions.',
+    },
+    {
+      dosha: 'Kapha', phase: 'luteal',
+      dominantDosha: 'Kapha increases pre-menstrually — water + earth elements',
+      imbalanceRisk: 'Severe water retention, emotional eating, depression, lethargy',
+      dietTips: [
+        'Anti-Kapha: warm, light, spiced — no comfort food binging',
+        'Warm spiced apple or pear — sweet taste without Kapha increase',
+        'Ginger-lemon water throughout day — metabolism support',
+        'Avoid: cheese, ice cream, bread, pasta (worst Kapha foods)',
+      ],
+      herbTips: [
+        'Punarnava — #1 for Kapha water retention',
+        'Trikatu — maintains Agni as Kapha rises',
+        'Guggulu — mood support, thyroid balance',
+        'Jatamansi (Nardostachys jatamansi) — clears Kapha mental fog',
+      ],
+      yogaTips: [
+        'Maintain exercise — DON\'T give in to Kapha lethargy',
+        'Backbends and chest openers — counter Kapha heaviness',
+        'Ujjayi Pranayama — warming, focusing breath',
+        'Group classes — accountability prevents Kapha avoidance',
+      ],
+      lifestyleTips: [
+        'Don\'t comfort eat — recognize it as Kapha PMS pattern',
+        'Morning exercise non-negotiable — prevents spiraling lethargy',
+        'Dry brushing daily — moves lymph, reduces bloating',
+        'Plan social commitments — Kapha PMS = isolation tendency',
+      ],
+      avoidList: ['Comfort food', 'Isolation', 'Sleeping past 7 AM', 'Skipping exercise', 'Dairy'],
+      modernCorrelation: 'Kapha PMS is dominated by water retention (up to 3-5 lbs) and emotional eating driven by serotonin drop. Regular exercise maintains serotonin. Dandelion tea (similar to Punarnava) clinically reduces water retention.',
+    },
+  ]
+  for (const g of phaseGuidanceData) {
+    await prisma.doshaPhaseGuidance.upsert({
+      where: { dosha_phase: { dosha: g.dosha, phase: g.phase } },
+      update: { dietTips: g.dietTips, herbTips: g.herbTips, yogaTips: g.yogaTips, lifestyleTips: g.lifestyleTips, avoidList: g.avoidList, dominantDosha: g.dominantDosha, imbalanceRisk: g.imbalanceRisk, modernCorrelation: g.modernCorrelation },
+      create: g,
+    })
+  }
+  console.log('✅ 12 dosha phase guidance entries seeded')
+
+  // ─── AI CHAT RESPONSES ──────────────────────────────
+  console.log('Seeding AI chat responses...')
+  const chatResponses = [
+    {
+      patternName: 'cramps',
+      regexPattern: 'cramp|pain|period pain|dysmenorrhea',
+      responseText: 'For period cramps, try: 1) Apply heat to your lower abdomen for 20 minutes 2) Ginger tea with honey reduces prostaglandins 3) Gentle child\'s pose yoga 4) Magnesium glycinate supplements (consult your doctor first). If pain is severe, please see a healthcare provider.',
+      category: 'wellness',
+      priority: 10,
+    },
+    {
+      patternName: 'pcos',
+      regexPattern: 'pcod|pcos|polycystic',
+      responseText: 'For PCOS management: focus on a low-glycaemic diet (whole grains, legumes, vegetables), regular moderate exercise, stress reduction (yoga works brilliantly), and adequate sleep. Always work with your gynaecologist to tailor a plan for your specific hormone profile.',
+      category: 'wellness',
+      priority: 10,
+    },
+    {
+      patternName: 'fertility',
+      regexPattern: 'pregnant|pregnancy|conceive|fertility|trying to conceive|ttc',
+      responseText: 'When trying to conceive, track your fertile window (5 days before + day of ovulation). Folic acid (400mcg daily), maintaining a healthy weight, and reducing stress all improve fertility. I recommend consulting a fertility specialist if you\'ve been trying for 12+ months (or 6 months if over 35).',
+      category: 'fertility',
+      priority: 10,
+    },
+    {
+      patternName: 'stress',
+      regexPattern: 'stress|anxiety|mood|mental health|depressed|sad',
+      responseText: 'Hormonal fluctuations throughout your cycle directly affect mood. Some strategies: 1) Track your mood daily to spot patterns 2) Try 4-7-8 breathing during anxiety spikes 3) Omega-3s and B vitamins support brain chemistry 4) Adequate sleep (7-9 hours) is crucial. Reach out to a mental health professional if you feel persistently low.',
+      category: 'wellness',
+      priority: 9,
+    },
+    {
+      patternName: 'sleep',
+      regexPattern: 'sleep|insomnia|tired|fatigue|exhausted',
+      responseText: 'Hormones affect sleep quality throughout your cycle — progesterone in the luteal phase can cause fatigue while pre-period estrogen drops disturb sleep. Tips: maintain a consistent sleep schedule, avoid screens 1 hour before bed, try magnesium glycinate, and keep your bedroom cool (18-20°C is ideal).',
+      category: 'wellness',
+      priority: 8,
+    },
+    {
+      patternName: 'diet',
+      regexPattern: 'diet|food|eat|nutrition|weight',
+      responseText: 'Eating in sync with your cycle is powerful: Menstrual — iron-rich foods; Follicular — fermented foods, sprouts; Ovulation — antioxidant-rich foods (berries, leafy greens); Luteal — complex carbs, magnesium. Avoid ultra-processed foods and excess sugar throughout, as they worsen hormonal imbalance.',
+      category: 'wellness',
+      priority: 7,
+    },
+    {
+      patternName: 'exercise',
+      regexPattern: 'exercise|workout|yoga|gym|fitness',
+      responseText: 'Cycle-syncing your workouts: Menstrual — gentle stretching, walking, yin yoga; Follicular — increasing cardio, pilates, dance; Ovulation — HIIT, strength training, running; Luteal — moderate yoga, swimming, light weights. Listen to your body — it knows what it needs!',
+      category: 'wellness',
+      priority: 7,
+    },
+    {
+      patternName: 'ayurveda',
+      regexPattern: 'ayurveda|herb|natural|home remedy|dosha',
+      responseText: 'Ayurvedic support for cycles: Shatavari (hormone balance), Ashwagandha (stress adaptogen), Triphala (digestion), and Turmeric (anti-inflammatory). Please consult an Ayurvedic practitioner before starting supplements — dosage and combinations matter for your specific constitution (dosha).',
+      category: 'ayurveda',
+      priority: 8,
+    },
+    {
+      patternName: 'late_period',
+      regexPattern: 'late period|missed period|irregular|spotting|delayed period|period delay|period late|not getting period',
+      responseText: 'Late or irregular periods can be caused by stress, sleep disruption, significant weight changes, thyroid issues, PCOS, or early pregnancy. A single late period is often stress-related.\n\n\u{1F33F} Ayurvedic remedies: Shatavari (hormone balance), Ashoka bark (uterine health), Ashwagandha (stress relief). Try warm ginger-jaggery water twice daily, sesame seeds with honey, and warm oil self-massage (Abhyanga). Yoga poses like Baddha Konasana and Supta Virasana help stimulate pelvic blood flow.\n\n\u26A0\uFE0F See a doctor if: period is 2+ weeks late, you have severe pain or unusual discharge, there\'s a possibility of pregnancy, or you have a history of PCOS/thyroid issues.\n\nCheck your Dashboard and Tracker for personalized dosha-specific guidance!',
+      category: 'medical',
+      priority: 10,
+    },
+  ]
+  for (const r of chatResponses) {
+    await prisma.aIChatResponse.upsert({
+      where: { patternName: r.patternName },
+      update: { responseText: r.responseText, regexPattern: r.regexPattern, category: r.category, priority: r.priority },
+      create: r,
+    })
+  }
+  console.log('✅ AI chat responses seeded')
+
+  // ─── AYURVEDIC REMEDIES ─────────────────────────────
+  console.log('Seeding Ayurvedic remedies...')
+  const remedies = [
+    {
+      condition: 'general', dosha: 'all',
+      herbNameSanskrit: 'Shatavari', herbNameEnglish: 'Asparagus racemosus',
+      botanicalName: 'Asparagus racemosus',
+      benefitText: 'Premier female reproductive tonic. Supports hormonal balance, follicular development, and fertility.',
+      safetyNote: 'Traditionally considered safe in pregnancy (Garbhini Paricharya). However, consult your OB-GYN before use. May have phytoestrogenic effects.',
+      pregnancySafety: 'caution',
+      sourceReference: 'Charaka Su. 4/18; Joshi 2016 J Ayurveda Integr Med; API monograph',
+    },
+    {
+      condition: 'general', dosha: 'all',
+      herbNameSanskrit: 'Ashwagandha', herbNameEnglish: 'Winter Cherry',
+      botanicalName: 'Withania somnifera',
+      benefitText: 'Adaptogenic herb that reduces cortisol, supports stress response, and improves female sexual function.',
+      safetyNote: 'AVOID during pregnancy. Classified as Garbhapata (abortifacient) in some classical texts. May stimulate uterine contractions.',
+      pregnancySafety: 'avoid',
+      sourceReference: 'Charaka Chi. 1; Chandrasekhar 2012 IJAM; Lopresti 2019; KSM-66 standardized extract',
+    },
+    {
+      condition: 'heavy_flow', dosha: 'Pitta',
+      herbNameSanskrit: 'Ashoka', herbNameEnglish: 'Ashoka Tree Bark',
+      botanicalName: 'Saraca indica (Saraca asoca)',
+      benefitText: 'Primary herb for Raktapradar (menorrhagia) and Shvetapradar (leucorrhea). Has oxytocin-like uterine activity.',
+      safetyNote: 'STRICTLY AVOID during pregnancy. Has oxytocin-like uterine stimulant activity. Can induce contractions and is an abortifacient.',
+      pregnancySafety: 'contraindicated',
+      sourceReference: 'Bhavaprakasha; Sharma 2018 J Ethnopharmacol; Ashokarishta classical preparation',
+    },
+    {
+      condition: 'general', dosha: 'Vata',
+      herbNameSanskrit: 'Brahmi', herbNameEnglish: 'Brahmi',
+      botanicalName: 'Bacopa monnieri',
+      benefitText: 'Medhya Rasayana (brain tonic). First-line for anxiety, memory, and cognitive function. Reduces PMS-related mental agitation.',
+      safetyNote: 'Limited pregnancy safety data. Traditional use suggests caution. Consult healthcare provider before use during pregnancy.',
+      pregnancySafety: 'caution',
+      sourceReference: 'Charaka Su. 1; Stough 2001; Roodenrys 2002',
+    },
+    {
+      condition: 'heavy_flow', dosha: 'Kapha',
+      herbNameSanskrit: 'Lodhra', herbNameEnglish: 'Lodh Tree Bark',
+      botanicalName: 'Symplocos racemosa',
+      benefitText: 'Grahi (absorbent), Stambhana (astringent) — stops excessive menstrual flow. Used in Pushyanuga Churna for menorrhagia.',
+      safetyNote: 'Not recommended during pregnancy. Primarily used for menorrhagia and leucorrhea — not appropriate in pregnancy context.',
+      pregnancySafety: 'avoid',
+      sourceReference: 'Bhavaprakasha Nighantu; API Monograph; Pushyanuga Churna classical formulation',
+    },
+    {
+      condition: 'general', dosha: 'all',
+      herbNameSanskrit: 'Triphala', herbNameEnglish: 'Three Fruits',
+      botanicalName: 'Amalaki + Bibhitaki + Haritaki',
+      benefitText: 'Tridoshahara — balances all three doshas. Universal Rasayana with antioxidant, anti-inflammatory, and gentle laxative properties.',
+      safetyNote: 'Haritaki component is traditionally avoided in pregnancy (mild uterine stimulant). Use only under practitioner guidance.',
+      pregnancySafety: 'caution',
+      sourceReference: 'Charaka Su. 5; Peterson 2017 J Altern Complement Med; WHO Traditional Medicine monograph',
+    },
+    {
+      condition: 'general', dosha: 'Kapha',
+      herbNameSanskrit: 'Guggulu', herbNameEnglish: 'Indian Bdellium',
+      botanicalName: 'Commiphora mukul',
+      benefitText: 'Medoroga (obesity) treatment cornerstone. Anti-inflammatory, reduces water retention, supports thyroid function.',
+      safetyNote: 'AVOID in pregnancy. Uterine stimulant activity. May cause miscarriage. Also avoid if planning conception.',
+      pregnancySafety: 'contraindicated',
+      sourceReference: 'Sushruta Guggulu Panchapala; Urizar & Moore 2003; Singh 1994',
+    },
+  ]
+  for (const r of remedies) {
+    const id = r.herbNameSanskrit.toLowerCase().replace(/\s/g, '-') + '-' + r.condition
+    await prisma.ayurvedicRemedy.upsert({
+      where: { id },
+      update: {},
+      create: { ...r, id },
+    })
+  }
+  console.log('✅ Ayurvedic remedies seeded')
+
   console.log('🌿 Seed complete!')
 }
 

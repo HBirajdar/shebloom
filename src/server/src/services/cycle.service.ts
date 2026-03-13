@@ -67,6 +67,7 @@
 import prisma from '../config/database';
 import { cacheGet, cacheSet, cacheDel } from '../config/redis';
 import weatherService from './weather.service';
+import contentService from './content.service';
 
 // ─── Day-specific conception probabilities (Wilcox et al. 1995) ──
 // Day relative to ovulation → probability of conception from single act
@@ -1236,15 +1237,28 @@ export class CycleService {
     // ── Resolve dosha for guidance lookup ─────────────────
     // For dual doshas like "Vata-Pitta", get guidance from primary constituent
     const guidanceDosha = dosha.includes('-') ? dosha.split('-')[0].trim() : (dosha === 'Tridoshic' ? 'Vata' : dosha);
-    const doshaGuidance = DOSHA_PHASE_GUIDANCE[guidanceDosha]?.[phase] || DOSHA_PHASE_GUIDANCE.Vata.follicular;
+    // Try DB-backed content first, fall back to hardcoded
+    let doshaGuidance: any;
+    try {
+      const dbGuidance = await contentService.getDoshaPhaseGuidance(guidanceDosha, phase);
+      doshaGuidance = dbGuidance || DOSHA_PHASE_GUIDANCE[guidanceDosha]?.[phase] || DOSHA_PHASE_GUIDANCE.Vata.follicular;
+    } catch {
+      doshaGuidance = DOSHA_PHASE_GUIDANCE[guidanceDosha]?.[phase] || DOSHA_PHASE_GUIDANCE.Vata.follicular;
+    }
 
     // ── Dual dosha blended guidance ──────────────────────
     const isDualDosha = dosha.includes('-');
     let blendedGuidance = null;
     if (isDualDosha) {
       const [d1, d2] = dosha.split('-').map(d => d.trim());
-      const g1 = DOSHA_PHASE_GUIDANCE[d1]?.[phase];
-      const g2 = DOSHA_PHASE_GUIDANCE[d2]?.[phase];
+      let g1: any, g2: any;
+      try {
+        g1 = await contentService.getDoshaPhaseGuidance(d1, phase) || DOSHA_PHASE_GUIDANCE[d1]?.[phase];
+        g2 = await contentService.getDoshaPhaseGuidance(d2, phase) || DOSHA_PHASE_GUIDANCE[d2]?.[phase];
+      } catch {
+        g1 = DOSHA_PHASE_GUIDANCE[d1]?.[phase];
+        g2 = DOSHA_PHASE_GUIDANCE[d2]?.[phase];
+      }
       if (g1 && g2) {
         blendedGuidance = {
           dominantDosha: `${g1.dominantDosha} | ${g2.dominantDosha}`,

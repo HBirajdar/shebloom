@@ -6,6 +6,7 @@
 import { Router, Response, NextFunction } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/response.utils';
+import contentService from '../services/content.service';
 
 const r = Router();
 r.use(authenticate);
@@ -77,22 +78,33 @@ const KEYWORD_RESPONSES: Array<{ keywords: RegExp; response: string }> = [
   },
 ];
 
-function generateAIResponse(message: string, cycleDay: number, phase: string, goal: string): string {
+function generateAIResponse(
+  message: string, cycleDay: number, phase: string, goal: string,
+  dbResponses?: { regex: RegExp; responseText: string }[],
+  dbPhaseAdvice?: Record<string, string[]>,
+): string {
   const msgLower = message.toLowerCase();
 
-  // Check keyword-specific responses first
-  for (const { keywords, response } of KEYWORD_RESPONSES) {
-    if (keywords.test(msgLower)) return response;
+  // Check DB-loaded responses first (if available), then fall back to hardcoded
+  if (dbResponses && dbResponses.length > 0) {
+    for (const { regex, responseText } of dbResponses) {
+      if (regex.test(msgLower)) return responseText;
+    }
+  } else {
+    for (const { keywords, response } of KEYWORD_RESPONSES) {
+      if (keywords.test(msgLower)) return response;
+    }
   }
 
   // Greetings
   if (/^(hi|hello|hey|hiya|namaste)/i.test(msgLower)) {
-    return `Hello! I'm Bloom, your AI wellness coach. I can see you're on cycle day ${cycleDay} in your ${phase.toLowerCase()} phase. How can I support your wellness journey today?`;
+    return `Hello! I'm your Vedaclue wellness guide. I can see you're on cycle day ${cycleDay} in your ${phase.toLowerCase()} phase. How can I support your wellness journey today?`;
   }
 
   // Phase-specific tip request
   if (/tip|advice|suggest|recommend|what (should|can) i/i.test(msgLower)) {
-    const tips = PHASE_ADVICE[phase.toUpperCase()] || PHASE_ADVICE.FOLLICULAR;
+    const adviceSource = dbPhaseAdvice || PHASE_ADVICE;
+    const tips = adviceSource[phase.toUpperCase()] || adviceSource.FOLLICULAR;
     return tips[Math.floor(Math.random() * tips.length)];
   }
 
@@ -108,7 +120,8 @@ function generateAIResponse(message: string, cycleDay: number, phase: string, go
   }
 
   // Default phase-aware response
-  const phaseTips = PHASE_ADVICE[phase.toUpperCase()] || PHASE_ADVICE.FOLLICULAR;
+  const adviceSource2 = dbPhaseAdvice || PHASE_ADVICE;
+  const phaseTips = adviceSource2[phase.toUpperCase()] || adviceSource2.FOLLICULAR;
   return `Great question! On cycle day ${cycleDay}, here's what I'd focus on: ${phaseTips[Math.floor(Math.random() * phaseTips.length)]} Is there anything specific about your ${phase.toLowerCase()} phase you'd like to explore?`;
 }
 
@@ -130,7 +143,15 @@ r.post('/chat', async (q: AuthRequest, s: Response, n: NextFunction) => {
     // Simulate slight AI processing delay
     await new Promise(res => setTimeout(res, 200));
 
-    const reply = generateAIResponse(message, cycleDay, phase, goal);
+    // Load DB content (with fallback to hardcoded if DB fails)
+    let dbResponses: any[] | undefined;
+    let dbPhaseAdvice: Record<string, string[]> | undefined;
+    try {
+      dbResponses = await contentService.getChatResponses();
+      dbPhaseAdvice = await contentService.getPhaseAdvice();
+    } catch { /* fallback to hardcoded */ }
+
+    const reply = generateAIResponse(message, cycleDay, phase, goal, dbResponses, dbPhaseAdvice);
 
     successResponse(s, {
       reply,

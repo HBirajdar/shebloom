@@ -1584,3 +1584,60 @@ model CommunityPollVote {
   @@index([pollId])
   @@map("community_poll_votes")
 }
+
+// ─── AYURVEDIC REMEDIES (DB-managed content) ──────────
+model AyurvedicRemedy {
+  id               String   @id @default(cuid())
+  condition        String   // delayed_period, pcos, heavy_flow, cramps, irregular, general
+  dosha            String   // Vata, Pitta, Kapha, all
+  herbNameSanskrit String
+  herbNameEnglish  String
+  botanicalName    String?
+  benefitText      String
+  safetyNote       String?
+  pregnancySafety  String   @default("caution") // safe, caution, avoid, contraindicated
+  sourceReference  String?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([condition, dosha, isActive])
+  @@map("ayurvedic_remedies")
+}
+
+// ─── DOSHA-PHASE GUIDANCE (DB-managed content) ────────
+model DoshaPhaseGuidance {
+  id             String   @id @default(cuid())
+  dosha          String   // Vata, Pitta, Kapha
+  phase          String   // menstrual, follicular, ovulation, luteal
+  dominantDosha  String?
+  imbalanceRisk  String?
+  dietTips       Json     // String[]
+  herbTips       Json     // String[]
+  yogaTips       Json     // String[]
+  lifestyleTips  Json     // String[]
+  avoidList      Json     // String[]
+  modernCorrelation String? @db.Text
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([dosha, phase])
+  @@map("dosha_phase_guidance")
+}
+
+// ─── AI CHAT RESPONSES (DB-managed content) ───────────
+model AIChatResponse {
+  id           String   @id @default(cuid())
+  patternName  String   @unique // cramps, pcos, fertility, stress, sleep, diet, exercise, ayurveda, late_period
+  regexPattern String   // stored as string, parsed to RegExp on load
+  responseText String   @db.Text
+  category     String   @default("general") // wellness, fertility, ayurveda, medical
+  isActive     Boolean  @default(true)
+  priority     Int      @default(0) // higher = checked first
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isActive, priority])
+  @@map("ai_chat_responses")
+}

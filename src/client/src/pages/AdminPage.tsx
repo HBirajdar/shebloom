@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { adminAPI, doshaAPI, financeAPI, communityAPI } from '../services/api';
+import { adminAPI, doshaAPI, financeAPI, communityAPI, contentAPI } from '../services/api';
 import ImageUpload from '../components/ImageUpload';
 
 // Adapter: normalises axios { data: { success, data: X } } → { success, data: X }
@@ -177,7 +177,7 @@ const FormCheckbox = ({ label, checked, onChange }: { label: string; checked: bo
 );
 type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'NO_SHOW' | 'CANCELLED';
 
-type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness' | 'programs' | 'add_program' | 'edit_program' | 'program_content' | 'sellers' | 'seller_detail' | 'seller_payouts' | 'add_seller' | 'community';
+type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness' | 'programs' | 'add_program' | 'edit_program' | 'program_content' | 'sellers' | 'seller_detail' | 'seller_payouts' | 'add_seller' | 'community' | 'content';
 
 // ─── Finance Admin Tab ──────────────────────────────────
 // Platform config, coupons, revenue analytics — like Practo/Zomato/Amazon admin
@@ -1180,6 +1180,338 @@ function AuditLogTab() {
       </div>
     </div>
   );
+}
+
+// ─── Content Management Tab ──────────────────────────────
+function ContentManagementTab() {
+  const [subTab, setSubTab] = useState<'phase_guidance' | 'chat_responses' | 'remedies' | 'questions' | 'cache'>('phase_guidance');
+  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<any[]>([]);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editData, setEditData] = useState<any>({});
+  const [saving, setSaving] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setEditId(null);
+    try {
+      let res: any;
+      if (subTab === 'phase_guidance') res = await wrap(contentAPI.getAllPhaseGuidance());
+      else if (subTab === 'chat_responses') res = await wrap(contentAPI.getAllChatResponses());
+      else if (subTab === 'remedies') res = await wrap(contentAPI.getAllRemedies());
+      else if (subTab === 'questions') res = await wrap(contentAPI.getAllDoshaQuestions());
+      setItems(res?.data || []);
+    } catch { setItems([]); }
+    setLoading(false);
+  }, [subTab]);
+
+  useEffect(() => { if (subTab !== 'cache') fetchData(); else setLoading(false); }, [subTab, fetchData]);
+
+  const startEdit = (item: any) => { setEditId(item.id); setEditData({ ...item }); };
+  const cancelEdit = () => { setEditId(null); setEditData({}); };
+
+  const saveEdit = async () => {
+    if (!editId) return;
+    setSaving(true);
+    try {
+      if (subTab === 'phase_guidance') await wrap(contentAPI.updatePhaseGuidance(editId, editData));
+      else if (subTab === 'chat_responses') await wrap(contentAPI.updateChatResponse(editId, editData));
+      else if (subTab === 'remedies') await wrap(contentAPI.updateRemedy(editId, editData));
+      else if (subTab === 'questions') await wrap(contentAPI.updateDoshaQuestion(editId, editData));
+      toast.success('Content updated & cache cleared');
+      setEditId(null);
+      fetchData();
+    } catch { toast.error('Failed to update'); }
+    setSaving(false);
+  };
+
+  const refreshCache = async () => {
+    try {
+      await wrap(contentAPI.refreshCache());
+      toast.success('All content caches refreshed');
+    } catch { toast.error('Cache refresh failed'); }
+  };
+
+  const doshaEmoji = (d: string) => d?.includes('Vata') || d?.includes('VATA') ? '\u{1F32C}\uFE0F' : d?.includes('Pitta') || d?.includes('PITTA') ? '\u{1F525}' : d?.includes('Kapha') || d?.includes('KAPHA') ? '\u{1F33F}' : '\u262F\uFE0F';
+
+  return (<>
+    <h3 className="text-base font-extrabold text-gray-900 mb-3">{'\u{1F4DA}'} Content Management</h3>
+    <p className="text-[10px] text-gray-500 mb-3">Edit Ayurvedic content, AI chat responses, herb remedies &amp; dosha questions. Changes auto-invalidate cache.</p>
+
+    {/* Sub-tabs */}
+    <div className="flex flex-wrap gap-2 mb-4">
+      {([
+        { id: 'phase_guidance', icon: '\u{1F319}', label: 'Phase Guidance' },
+        { id: 'chat_responses', icon: '\u{1F4AC}', label: 'AI Chat' },
+        { id: 'remedies', icon: '\u{1F33F}', label: 'Herb Remedies' },
+        { id: 'questions', icon: '\u2753', label: 'Dosha Questions' },
+        { id: 'cache', icon: '\u{1F504}', label: 'Cache' },
+      ] as const).map(t => (
+        <button key={t.id} onClick={() => setSubTab(t.id)} className={`px-3 py-1.5 rounded-full text-[10px] font-bold ${subTab === t.id ? 'bg-purple-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+          {t.icon} {t.label}
+        </button>
+      ))}
+    </div>
+
+    {loading ? (
+      <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-3 border-purple-400 border-t-transparent rounded-full" /></div>
+    ) : subTab === 'cache' ? (
+      <div className="bg-white rounded-2xl p-5 shadow-sm text-center space-y-3">
+        <p className="text-3xl">{'\u{1F504}'}</p>
+        <h4 className="text-sm font-bold text-gray-800">Cache Management</h4>
+        <p className="text-[11px] text-gray-500">Clear all cached content to force fresh reads from the database. Use after bulk edits or data imports.</p>
+        <button onClick={refreshCache} className="px-5 py-2.5 bg-purple-500 text-white rounded-xl text-xs font-bold hover:bg-purple-600 transition-colors">
+          {'\u{1F504}'} Refresh All Caches
+        </button>
+      </div>
+    ) : subTab === 'phase_guidance' ? (
+      <div className="space-y-3">
+        <p className="text-[10px] text-gray-500">{items.length} phase guidance entries</p>
+        {items.map((item: any) => (
+          <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm">
+            {editId === item.id ? (
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Dosha</label>
+                    <input value={editData.dosha || ''} onChange={e => setEditData({...editData, dosha: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Phase</label>
+                    <input value={editData.phase || ''} onChange={e => setEditData({...editData, phase: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Imbalance Risk</label>
+                  <input value={editData.imbalanceRisk || ''} onChange={e => setEditData({...editData, imbalanceRisk: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Diet Tips (JSON array)</label>
+                  <textarea value={typeof editData.dietTips === 'string' ? editData.dietTips : JSON.stringify(editData.dietTips || [], null, 2)} onChange={e => setEditData({...editData, dietTips: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm font-mono" rows={3} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Herb Tips (JSON array)</label>
+                  <textarea value={typeof editData.herbTips === 'string' ? editData.herbTips : JSON.stringify(editData.herbTips || [], null, 2)} onChange={e => setEditData({...editData, herbTips: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm font-mono" rows={3} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Yoga Tips (JSON array)</label>
+                  <textarea value={typeof editData.yogaTips === 'string' ? editData.yogaTips : JSON.stringify(editData.yogaTips || [], null, 2)} onChange={e => setEditData({...editData, yogaTips: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm font-mono" rows={3} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Lifestyle Tips (JSON array)</label>
+                  <textarea value={typeof editData.lifestyleTips === 'string' ? editData.lifestyleTips : JSON.stringify(editData.lifestyleTips || [], null, 2)} onChange={e => setEditData({...editData, lifestyleTips: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm font-mono" rows={3} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Avoid List (JSON array)</label>
+                  <textarea value={typeof editData.avoidList === 'string' ? editData.avoidList : JSON.stringify(editData.avoidList || [], null, 2)} onChange={e => setEditData({...editData, avoidList: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm font-mono" rows={2} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Modern Correlation</label>
+                  <textarea value={editData.modernCorrelation || ''} onChange={e => setEditData({...editData, modernCorrelation: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" rows={2} />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={saveEdit} disabled={saving} className="px-4 py-2 bg-purple-500 text-white rounded-xl text-[10px] font-bold disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
+                  <button onClick={cancelEdit} className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-[10px] font-bold">Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{doshaEmoji(item.dosha)}</span>
+                    <div>
+                      <p className="text-sm font-bold text-gray-800">{item.dosha} — {item.phase}</p>
+                      <p className="text-[9px] text-gray-500">{item.dominantDosha ? `Dominant: ${item.dominantDosha}` : ''} {item.imbalanceRisk ? `| Risk: ${item.imbalanceRisk}` : ''}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => startEdit(item)} className="text-[10px] px-3 py-1 bg-purple-50 text-purple-600 rounded-full font-bold hover:bg-purple-100">{'\u270F\uFE0F'} Edit</button>
+                </div>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  {[
+                    { label: 'Diet', data: item.dietTips, color: 'text-green-600' },
+                    { label: 'Herbs', data: item.herbTips, color: 'text-amber-600' },
+                    { label: 'Yoga', data: item.yogaTips, color: 'text-blue-600' },
+                    { label: 'Lifestyle', data: item.lifestyleTips, color: 'text-purple-600' },
+                  ].map(s => (
+                    <div key={s.label} className="bg-gray-50 rounded-lg p-2">
+                      <p className={`text-[8px] font-bold uppercase ${s.color}`}>{s.label}</p>
+                      <p className="text-[9px] text-gray-600 line-clamp-2">{Array.isArray(s.data) ? s.data.slice(0, 2).join(', ') : '—'}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    ) : subTab === 'chat_responses' ? (
+      <div className="space-y-3">
+        <p className="text-[10px] text-gray-500">{items.length} AI chat response patterns</p>
+        {items.map((item: any) => (
+          <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm">
+            {editId === item.id ? (
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Pattern Name</label>
+                    <input value={editData.patternName || ''} onChange={e => setEditData({...editData, patternName: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Category</label>
+                    <input value={editData.category || ''} onChange={e => setEditData({...editData, category: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Regex Pattern</label>
+                  <input value={editData.regexPattern || ''} onChange={e => setEditData({...editData, regexPattern: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm font-mono" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Response Text</label>
+                  <textarea value={editData.responseText || ''} onChange={e => setEditData({...editData, responseText: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" rows={5} />
+                </div>
+                <div className="flex gap-2 items-center">
+                  <div className="flex-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Priority</label>
+                    <input type="number" value={editData.priority ?? 0} onChange={e => setEditData({...editData, priority: +e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" />
+                  </div>
+                  <label className="flex items-center gap-2 mt-4">
+                    <input type="checkbox" checked={editData.isActive ?? true} onChange={e => setEditData({...editData, isActive: e.target.checked})} className="w-4 h-4 rounded border-gray-300 text-purple-600" />
+                    <span className="text-[10px] font-bold text-gray-600">Active</span>
+                  </label>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={saveEdit} disabled={saving} className="px-4 py-2 bg-purple-500 text-white rounded-xl text-[10px] font-bold disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
+                  <button onClick={cancelEdit} className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-[10px] font-bold">Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-bold text-gray-800">{item.patternName}</p>
+                      <span className={`text-[8px] px-2 py-0.5 rounded-full font-bold ${item.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{item.isActive ? 'Active' : 'Inactive'}</span>
+                      <span className="text-[8px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 font-bold">{item.category}</span>
+                    </div>
+                    <p className="text-[9px] text-gray-400 font-mono mt-1">/{item.regexPattern}/</p>
+                  </div>
+                  <button onClick={() => startEdit(item)} className="text-[10px] px-3 py-1 bg-purple-50 text-purple-600 rounded-full font-bold hover:bg-purple-100">{'\u270F\uFE0F'} Edit</button>
+                </div>
+                <p className="text-[10px] text-gray-600 mt-2 line-clamp-3">{item.responseText}</p>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    ) : subTab === 'remedies' ? (
+      <div className="space-y-3">
+        <p className="text-[10px] text-gray-500">{items.length} Ayurvedic remedies</p>
+        {items.map((item: any) => (
+          <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm">
+            {editId === item.id ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Herb (Sanskrit)</label>
+                    <input value={editData.herbNameSanskrit || ''} onChange={e => setEditData({...editData, herbNameSanskrit: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Herb (English)</label>
+                    <input value={editData.herbNameEnglish || ''} onChange={e => setEditData({...editData, herbNameEnglish: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Condition</label>
+                    <input value={editData.condition || ''} onChange={e => setEditData({...editData, condition: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Dosha</label>
+                    <input value={editData.dosha || ''} onChange={e => setEditData({...editData, dosha: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Botanical Name</label>
+                  <input value={editData.botanicalName || ''} onChange={e => setEditData({...editData, botanicalName: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm italic" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Benefit Text</label>
+                  <textarea value={editData.benefitText || ''} onChange={e => setEditData({...editData, benefitText: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" rows={3} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Safety Note</label>
+                  <textarea value={editData.safetyNote || ''} onChange={e => setEditData({...editData, safetyNote: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" rows={2} />
+                </div>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Pregnancy Safety</label>
+                    <select value={editData.pregnancySafety || 'caution'} onChange={e => setEditData({...editData, pregnancySafety: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm">
+                      <option value="safe">Safe</option><option value="caution">Caution</option><option value="avoid">Avoid</option><option value="contraindicated">Contraindicated</option>
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Source Reference</label>
+                    <input value={editData.sourceReference || ''} onChange={e => setEditData({...editData, sourceReference: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm" />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={saveEdit} disabled={saving} className="px-4 py-2 bg-purple-500 text-white rounded-xl text-[10px] font-bold disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
+                  <button onClick={cancelEdit} className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-[10px] font-bold">Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-gray-800">{item.herbNameSanskrit} <span className="font-normal text-gray-500">({item.herbNameEnglish})</span></p>
+                    <p className="text-[9px] text-gray-400 italic">{item.botanicalName}</p>
+                  </div>
+                  <button onClick={() => startEdit(item)} className="text-[10px] px-3 py-1 bg-purple-50 text-purple-600 rounded-full font-bold hover:bg-purple-100">{'\u270F\uFE0F'} Edit</button>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  <span className="text-[8px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-bold">{item.condition}</span>
+                  <span className="text-[8px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold">{doshaEmoji(item.dosha)} {item.dosha}</span>
+                  <span className={`text-[8px] px-2 py-0.5 rounded-full font-bold ${
+                    item.pregnancySafety === 'safe' ? 'bg-emerald-100 text-emerald-700' :
+                    item.pregnancySafety === 'caution' ? 'bg-yellow-100 text-yellow-700' :
+                    item.pregnancySafety === 'avoid' ? 'bg-orange-100 text-orange-700' :
+                    'bg-red-100 text-red-700'
+                  }`}>{'\u{1F930}'} {item.pregnancySafety}</span>
+                </div>
+                <p className="text-[10px] text-gray-600 mt-2 line-clamp-2">{item.benefitText}</p>
+                {item.safetyNote && <p className="text-[9px] text-red-500 mt-1">{'\u26A0\uFE0F'} {item.safetyNote}</p>}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    ) : subTab === 'questions' ? (
+      <div className="space-y-3">
+        <p className="text-[10px] text-gray-500">{items.length} dosha assessment questions (edit via Ayurveda tab)</p>
+        {items.map((q: any) => (
+          <div key={q.id} className="bg-white rounded-2xl p-4 shadow-sm">
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <p className="text-[10px] text-purple-600 font-bold uppercase">{q.questionCategory} {'\u2022'} Weight: {q.weight}</p>
+                <p className="text-sm font-medium text-gray-800 mt-1">{q.questionText}</p>
+              </div>
+              <span className={`text-[8px] px-2 py-0.5 rounded-full font-bold ${q.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{q.isActive ? 'Active' : 'Inactive'}</span>
+            </div>
+            <div className="mt-2 space-y-1">
+              {(q.options || []).map((opt: any, j: number) => (
+                <div key={j} className="flex items-center gap-2 text-[10px] text-gray-600 bg-gray-50 rounded-lg px-2 py-1">
+                  <span className="flex-1">{opt.label}</span>
+                  <span className="text-indigo-500">V:{opt.vataScore}</span>
+                  <span className="text-orange-500">P:{opt.pittaScore}</span>
+                  <span className="text-emerald-500">K:{opt.kaphaScore}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : null}
+  </>);
 }
 
 // ─── Ayurveda Admin Sub-Tab ────────────────────────────
@@ -2403,6 +2735,7 @@ export default function AdminPage() {
     { id: 'audit_log', icon: '\u{1F4CB}', label: 'Audit Log' },
     { id: 'sellers', icon: '🏪', label: 'Sellers' },
     { id: 'community', icon: '💬', label: 'Community' },
+    { id: 'content', icon: '\u{1F4DA}', label: 'Content' },
   ];
 
   const roleBadge = (role: string) => {
@@ -3269,6 +3602,9 @@ export default function AdminPage() {
 
           {/* ════════ AYURVEDA MANAGEMENT ════════ */}
           {tab === 'ayurveda' && (<AyurvedaAdminTab />)}
+
+          {/* ════════ CONTENT MANAGEMENT ════════ */}
+          {tab === 'content' && (<ContentManagementTab />)}
 
           {/* ════════ ADD PRODUCT ════════ */}
           {tab === 'add_product' && (<>

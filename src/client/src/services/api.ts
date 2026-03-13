@@ -442,6 +442,22 @@ export const weatherAPI = {
   getCurrent: () => api.get('/weather/current'),
 };
 
+export const contentAPI = {
+  getDoshaQuestions: () => api.get('/content/dosha-questions'),
+  getRemedies: (condition: string, dosha?: string) => api.get('/content/remedies', { params: { condition, dosha } }),
+  getPhaseGuidance: (dosha: string, phase: string) => api.get('/content/phase-guidance', { params: { dosha, phase } }),
+  // Admin
+  getAllPhaseGuidance: () => api.get('/content/admin/phase-guidance'),
+  getAllChatResponses: () => api.get('/content/admin/chat-responses'),
+  getAllRemedies: () => api.get('/content/admin/remedies'),
+  getAllDoshaQuestions: () => api.get('/content/admin/dosha-questions'),
+  updatePhaseGuidance: (id: string, data: any) => api.put(`/content/admin/phase-guidance/${id}`, data),
+  updateChatResponse: (id: string, data: any) => api.put(`/content/admin/chat-responses/${id}`, data),
+  updateRemedy: (id: string, data: any) => api.put(`/content/admin/remedies/${id}`, data),
+  updateDoshaQuestion: (id: string, data: any) => api.put(`/content/admin/dosha-questions/${id}`, data),
+  refreshCache: () => api.post('/content/admin/cache/refresh'),
+};
+
 export const communityAPI = {
   // Posts
   listPosts: (params?: any) => api.get('/community/posts', { params }),
