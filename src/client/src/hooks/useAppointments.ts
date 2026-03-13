@@ -16,14 +16,22 @@ export function useAppointments() {
     const local = getLocal();
     try {
       const result = await appointmentAPI.list();
-      const apiData = (result.data?.data || []).map((b: any) => ({
-        id: b.id, doctorId: b.doctorId, doctorName: b.doctor?.fullName || b.doctorName || 'Doctor',
-        date: b.scheduledAt?.split('T')[0] || '', time: b.scheduledAt?.split('T')[1]?.substring(0, 5) || '',
-        reason: b.notes?.split(' | ')[0] || '', notes: b.notes?.split(' | ')[1] || '',
-        status: (['CANCELLED'].includes(b.status) ? 'cancelled' : ['COMPLETED'].includes(b.status) ? 'completed' : ['REJECTED','NO_SHOW'].includes(b.status) ? 'rejected' : 'upcoming'), source: 'api',
-        videoLink: b.videoLink || b.meetingLink || '', meetingLink: b.meetingLink || b.videoLink || '',
-        rejectionReason: b.rejectionReason || '', cancellationReason: b.cancellationReason || '',
-      }));
+      const apiData = (result.data?.data || []).map((b: any) => {
+        const isPast = b.scheduledAt ? new Date(b.scheduledAt).getTime() < Date.now() : false;
+        let status = 'upcoming';
+        if (['CANCELLED'].includes(b.status)) status = 'cancelled';
+        else if (['COMPLETED'].includes(b.status)) status = 'completed';
+        else if (['REJECTED','NO_SHOW'].includes(b.status)) status = 'rejected';
+        else if (isPast) status = 'completed'; // past PENDING/CONFIRMED → completed
+        return {
+          id: b.id, doctorId: b.doctorId, doctorName: b.doctor?.fullName || b.doctorName || 'Doctor',
+          date: b.scheduledAt?.split('T')[0] || '', time: b.scheduledAt?.split('T')[1]?.substring(0, 5) || '',
+          reason: b.notes?.split(' | ')[0] || '', notes: b.notes?.split(' | ')[1] || '',
+          status, source: 'api',
+          videoLink: b.videoLink || b.meetingLink || '', meetingLink: b.meetingLink || b.videoLink || '',
+          rejectionReason: b.rejectionReason || '', cancellationReason: b.cancellationReason || '',
+        };
+      });
       // Merge: API bookings + localStorage bookings (deduplicated)
       const apiIds = new Set(apiData.map((b: any) => b.id));
       const merged = [...apiData, ...local.filter((b: any) => !apiIds.has(b.id))];

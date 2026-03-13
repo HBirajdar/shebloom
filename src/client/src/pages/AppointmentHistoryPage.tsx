@@ -40,18 +40,31 @@ export default function AppointmentHistoryPage() {
 
   useEffect(() => { fetchAppointments(); }, []);
 
+  // Helper: is appointment truly upcoming? Must be PENDING/CONFIRMED AND scheduled in the future
+  const isUpcoming = (a: any) => {
+    if (a.status !== 'PENDING' && a.status !== 'CONFIRMED') return false;
+    const scheduled = new Date(a.scheduledAt || a.createdAt).getTime();
+    return scheduled > Date.now();
+  };
+  // Helper: is appointment effectively completed? Either COMPLETED status or past PENDING/CONFIRMED
+  const isCompleted = (a: any) => {
+    if (a.status === 'COMPLETED') return true;
+    if ((a.status === 'PENDING' || a.status === 'CONFIRMED') && new Date(a.scheduledAt || a.createdAt).getTime() <= Date.now()) return true;
+    return false;
+  };
+
   const filtered = appointments.filter(a => {
     if (filter === 'All') return true;
-    if (filter === 'Upcoming') return a.status === 'PENDING' || a.status === 'CONFIRMED';
-    if (filter === 'Completed') return a.status === 'COMPLETED';
+    if (filter === 'Upcoming') return isUpcoming(a);
+    if (filter === 'Completed') return isCompleted(a);
     if (filter === 'Cancelled') return a.status === 'CANCELLED';
     return true;
   });
 
   const counts = {
     All: appointments.length,
-    Upcoming: appointments.filter(a => a.status === 'PENDING' || a.status === 'CONFIRMED').length,
-    Completed: appointments.filter(a => a.status === 'COMPLETED').length,
+    Upcoming: appointments.filter(a => isUpcoming(a)).length,
+    Completed: appointments.filter(a => isCompleted(a)).length,
     Cancelled: appointments.filter(a => a.status === 'CANCELLED').length,
   };
 
@@ -160,8 +173,11 @@ export default function AppointmentHistoryPage() {
         ) : (
           /* Appointment cards */
           filtered.map(a => {
-            const st = STATUS_STYLES[a.status] || STATUS_STYLES.PENDING;
-            const isActive = a.status === 'PENDING' || a.status === 'CONFIRMED';
+            const effectivelyCompleted = isCompleted(a);
+            const st = effectivelyCompleted && a.status !== 'COMPLETED'
+              ? STATUS_STYLES.COMPLETED
+              : (STATUS_STYLES[a.status] || STATUS_STYLES.PENDING);
+            const isActive = isUpcoming(a);
             return (
               <div key={a.id} className={'bg-white rounded-3xl shadow-lg p-4 ' + (a.status === 'CANCELLED' ? 'opacity-60' : '')}>
                 {/* Top row */}

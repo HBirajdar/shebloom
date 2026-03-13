@@ -105,6 +105,17 @@ r.get('/appointments', async (q: AuthRequest, s: Response, n: NextFunction) => {
     const doctor = await getDoctorProfile(q.user!.id);
     if (!doctor) { errorResponse(s, 'Doctor profile not found', 404); return; }
 
+    // Auto-complete past appointments that are still PENDING/CONFIRMED
+    const now = new Date();
+    await prisma.appointment.updateMany({
+      where: {
+        doctorId: doctor.id,
+        status: { in: ['PENDING', 'CONFIRMED'] },
+        scheduledAt: { lt: now },
+      },
+      data: { status: 'COMPLETED' },
+    });
+
     const { status, date } = q.query as any;
     const where: any = { doctorId: doctor.id };
     if (status) where.status = status;

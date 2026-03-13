@@ -252,6 +252,16 @@ r.delete('/users/:id', async (req: Request, res: Response, next: NextFunction) =
 // ─── Appointments (Prisma) ──────────────────────────
 r.get('/appointments', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // Auto-complete past appointments that are still PENDING/CONFIRMED
+    const now = new Date();
+    await prisma.appointment.updateMany({
+      where: {
+        status: { in: ['PENDING', 'CONFIRMED'] },
+        scheduledAt: { lt: now },
+      },
+      data: { status: 'COMPLETED' },
+    });
+
     const page = parseInt(req.query.page as string) || 1;
     const limit = 20;
     const skip = (page - 1) * limit;

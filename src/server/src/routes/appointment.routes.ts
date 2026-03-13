@@ -144,9 +144,20 @@ r.post('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
   } catch (e) { n(e); }
 });
 
-// GET / — list user's OWN appointments
+// GET / — list user's OWN appointments (auto-completes past ones)
 r.get('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
+    // Auto-complete past appointments that are still PENDING/CONFIRMED
+    const now = new Date();
+    await prisma.appointment.updateMany({
+      where: {
+        userId: q.user!.id,
+        status: { in: ['PENDING', 'CONFIRMED'] },
+        scheduledAt: { lt: now },
+      },
+      data: { status: 'COMPLETED' },
+    });
+
     const data = await prisma.appointment.findMany({
       where: { userId: q.user!.id },
       include: { doctor: { select: { id: true, fullName: true, specialization: true, avatarUrl: true, consultationFee: true } } },
