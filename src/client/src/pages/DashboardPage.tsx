@@ -180,6 +180,8 @@ export default function DashboardPage() {
   const [doctorsLoading, setDoctorsLoading] = useState(true);
   const [predictionData, setPredictionData] = useState<any>(null);
   const [ayurvedaData, setAyurvedaData] = useState<any>(null);
+  const [showDisclaimer, setShowDisclaimer] = useState(true);
+  const [showReferences, setShowReferences] = useState(false);
 
   const theme = phaseThemes[phase] || phaseThemes.follicular;
   // Use individual luteal phase from API (Lenton 1984), fallback to old estimate
@@ -492,6 +494,14 @@ export default function DashboardPage() {
               </div>
             )}
 
+            {(goal === 'fertility') && (
+              <div style={{ background: '#FFF0F0', border: '1px solid #FFB3B3', borderRadius: 10, padding: 12, margin: '0 0 12px' }}>
+                <p style={{ fontSize: 11, color: '#8B0000', margin: 0, lineHeight: 1.5 }}>
+                  <strong>🔬 Fertility Notice:</strong> Conception probabilities are based on population-level research (Wilcox et al. 1995, n=221 women). Individual rates vary by age, partner factors, and health conditions. This app does not account for male factor infertility (~40-50% of cases), tubal factors, or endometriosis. If trying for 12 months (6 months if 35+) without success, consult a fertility specialist per NICE CG156 guidelines.
+                </p>
+              </div>
+            )}
+
             {goal === 'fertility' && (
               <div className="rounded-3xl shadow-sm overflow-hidden" style={{ background: isFertile ? 'linear-gradient(135deg,#7C3AED,#EC4899)' : theme.gradient }}>
                 <div className="p-5 text-white">
@@ -519,6 +529,20 @@ export default function DashboardPage() {
               </div>
               <div className="mt-3 w-full bg-white/20 rounded-full h-2"><div className="bg-white h-2 rounded-full" style={{ width: (pregnancyWeek / 40 * 100) + '%' }} /></div>
             </div>
+          </div>
+        )}
+
+        {/* ── Medical & Regulatory Disclaimer ─── */}
+        {showDisclaimer && (
+          <div style={{ background: '#FFF8E7', border: '1px solid #F5D565', borderRadius: 12, padding: 14, margin: '0 0 16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontWeight: 600, fontSize: 13, color: '#92610A' }}>⚕️ Important Health Notice</span>
+              <button onClick={() => setShowDisclaimer(false)} style={{ background: 'none', border: 'none', color: '#92610A', fontSize: 18, cursor: 'pointer' }}>×</button>
+            </div>
+            <p style={{ fontSize: 11.5, color: '#6B4A0A', margin: '8px 0 0', lineHeight: 1.6 }}>
+              SheBloom is a <strong>wellness education app</strong>, not a medical device. Predictions are statistical estimates based on your data and published research — they are not clinical diagnoses. Hormone levels shown are <strong>estimated</strong> from typical patterns (Speroff & Fritz model), not your actual measured levels. Always consult qualified healthcare professionals for medical decisions.
+              {predictionData?.confidence?.level === 'low' && <><br/><strong>⚠️ Your prediction confidence is currently LOW</strong> — log more cycles and biomarkers for improved accuracy.</>}
+            </p>
           </div>
         )}
 
@@ -904,6 +928,9 @@ export default function DashboardPage() {
               ));
             })()}
             <p className="text-[9px] text-gray-400 mt-1 italic">Estimated from your cycle day {cycleDay}, {phase} phase (Speroff & Fritz endocrinology model)</p>
+            <p style={{ fontSize: 10, color: '#888', marginTop: 6, fontStyle: 'italic' }}>
+              📊 Hormone levels are ESTIMATES based on the Speroff & Fritz endocrinology model for typical menstrual physiology. Actual levels can only be determined through blood tests. These estimates assume ovulatory cycles — conditions like PCOS, thyroid disorders, or hormonal contraception will alter actual levels.
+            </p>
           </div>
         )}
 
@@ -943,6 +970,12 @@ export default function DashboardPage() {
                 {mood === m.key && <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: m.c }} />}
               </button>
             ))}
+          </div>
+          {/* Mental Health Support Note */}
+          <div style={{ background: '#F5F0FF', borderRadius: 8, padding: 10, margin: '8px 0 0' }}>
+            <p style={{ fontSize: 10.5, color: '#4A2380', margin: 0, lineHeight: 1.5 }}>
+              💜 Mood changes across your cycle are normal — {phase === 'luteal' ? 'progesterone withdrawal in your current luteal phase can lower serotonin by 25-30% (Rapkin 2012)' : phase === 'follicular' ? 'rising estrogen in your follicular phase typically boosts serotonin and mood' : phase === 'menstrual' ? 'low hormones during menstruation can affect energy and mood' : 'hormonal peaks around ovulation boost confidence but may increase sensitivity'}. If mood symptoms prevent daily functioning for 3+ cycles, screen for PMDD with your doctor.
+            </p>
           </div>
         </div>
 
@@ -1060,6 +1093,14 @@ export default function DashboardPage() {
               </div>
             </div>
 
+            {/* Herb Safety Warning */}
+            <p style={{ fontSize: 10.5, color: '#8B4513', marginTop: 8, fontStyle: 'italic', lineHeight: 1.4 }}>
+              ⚠️ Herbal supplements can interact with medications. If pregnant, TTC, or on prescription drugs, consult your doctor before use. See References tab for clinical evidence.
+              {ayurvedaData?.herbSafetyProfiles && Object.values(ayurvedaData.herbSafetyProfiles).some((h: any) => h?.pregnancySafety === 'CONTRAINDICATED') && (
+                <strong style={{ color: '#CC0000', display: 'block', marginTop: 4 }}>🚫 Some recommended herbs are CONTRAINDICATED in pregnancy. Tap herb names for safety details.</strong>
+              )}
+            </p>
+
             {/* Modern science correlation */}
             <div className="bg-blue-50 rounded-xl p-2.5 mb-2">
               <p className="text-[9px] font-bold text-blue-700 mb-1">🔬 Science Says</p>
@@ -1118,6 +1159,14 @@ export default function DashboardPage() {
                 <span className="text-[10px] font-bold text-gray-700">{predictionData.lutealPhase} days <span className="text-gray-400">(avg 12.4)</span></span>
               </div>
             )}
+          </div>
+        )}
+
+        {goal === 'periods' && (
+          <div style={{ background: '#F0F7FF', border: '1px solid #B3D4FF', borderRadius: 10, padding: 12, margin: '12px 0' }}>
+            <p style={{ fontSize: 11, color: '#003366', margin: 0, lineHeight: 1.5 }}>
+              <strong>📋 Period Tracking Note:</strong> If you are sexually active and not planning to conceive, do NOT rely on cycle predictions for contraception. Use a proven contraceptive method. Some Ayurvedic recommendations may promote fertility — these are educational only. If planning to conceive or pregnant, switch your goal in Settings for personalized guidance with appropriate safety warnings.
+            </p>
           </div>
         )}
 
@@ -1199,6 +1248,41 @@ export default function DashboardPage() {
             </div>
           </button>
         )}
+
+        {/* ── Research References ─── */}
+        <div style={{ background: '#F8F8FC', borderRadius: 12, padding: 14, margin: '16px 0' }}>
+          <button
+            onClick={() => setShowReferences(!showReferences)}
+            style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', padding: 0, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+          >
+            <span style={{ fontWeight: 600, fontSize: 13, color: '#333' }}>📚 Research References & Evidence Basis</span>
+            <span style={{ fontSize: 12, color: '#666' }}>{showReferences ? '▲' : '▼'}</span>
+          </button>
+          {showReferences && (
+            <div style={{ marginTop: 12 }}>
+              {(ayurvedaData?.references || []).map((refGroup: any, i: number) => (
+                <div key={i} style={{ marginBottom: 12 }}>
+                  <h4 style={{ fontSize: 12, color: '#555', margin: '0 0 6px', borderBottom: '1px solid #E0E0E0', paddingBottom: 4 }}>{refGroup.category || 'References'}</h4>
+                  {(refGroup.citations || [refGroup]).map((cite: string, j: number) => (
+                    <p key={j} style={{ fontSize: 10.5, color: '#666', margin: '3px 0', paddingLeft: 8, borderLeft: '2px solid #DDD', lineHeight: 1.4 }}>
+                      {typeof cite === 'string' ? cite : JSON.stringify(cite)}
+                    </p>
+                  ))}
+                </div>
+              ))}
+              {(!ayurvedaData?.references || ayurvedaData.references.length === 0) && (
+                <div>
+                  <p style={{ fontSize: 10.5, color: '#666', margin: '3px 0' }}>• Wilcox AJ et al. (1995) BMJ — Day-specific conception probabilities</p>
+                  <p style={{ fontSize: 10.5, color: '#666', margin: '3px 0' }}>• Lenton EA et al. (1984) — Individual luteal phase length (7-19 days)</p>
+                  <p style={{ fontSize: 10.5, color: '#666', margin: '3px 0' }}>• Bull JR et al. (2019) npj Digital Medicine — 612K real-world cycle data</p>
+                  <p style={{ fontSize: 10.5, color: '#666', margin: '3px 0' }}>• Charaka Samhita, Sushruta Samhita, Ashtanga Hridaya — Classical Ayurveda</p>
+                  <p style={{ fontSize: 10.5, color: '#666', margin: '3px 0' }}>• Speroff & Fritz — Clinical Gynecologic Endocrinology (hormone model)</p>
+                  <p style={{ fontSize: 10.5, color: '#666', margin: '3px 0' }}>• NICE CG156 (2013) — Fertility assessment guidelines</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ─── Sleep Picker Modal ─── */}
