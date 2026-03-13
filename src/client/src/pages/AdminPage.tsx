@@ -3256,12 +3256,12 @@ export default function AdminPage() {
     { id: 'payouts', icon: '\u{1F4B0}', label: 'Payouts' },
     { id: 'wellness', icon: '🧘', label: 'Wellness' },
     { id: 'programs', icon: '🎓', label: 'Programs' },
+    { id: 'subscriptions', icon: '\u{1F48E}', label: 'Subs' },
     { id: 'finance', icon: '🏦', label: 'Finance' },
     { id: 'audit_log', icon: '\u{1F4CB}', label: 'Audit Log' },
     { id: 'sellers', icon: '🏪', label: 'Sellers' },
     { id: 'community', icon: '💬', label: 'Community' },
     { id: 'content', icon: '\u{1F4DA}', label: 'Content' },
-    { id: 'subscriptions', icon: '\u{1F48E}', label: 'Subs' },
   ];
 
   const roleBadge = (role: string) => {
@@ -3403,6 +3403,7 @@ export default function AdminPage() {
                 { l: 'Write Article', t: 'add_article' as TabId, e: '\u{1F4DD}', c: 'bg-blue-50 text-blue-700' },
                 { l: 'Add Doctor', t: 'add_doctor' as TabId, e: '\u{1F469}\u200D\u2695\uFE0F', c: 'bg-purple-50 text-purple-700' },
                 { l: 'Manage Users', t: 'users' as TabId, e: '\u{1F465}', c: 'bg-cyan-50 text-cyan-700' },
+                { l: 'Subscriptions', t: 'subscriptions' as TabId, e: '\u{1F48E}', c: 'bg-amber-50 text-amber-700' },
                 { l: 'View Analytics', t: 'analytics' as TabId, e: '\u{1F4C8}', c: 'bg-rose-50 text-rose-700' },
               ].map(a => (
                 <button key={a.l} onClick={() => setTab(a.t)} className="w-full flex items-center gap-3.5 p-3.5 rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.98] transition-all">
