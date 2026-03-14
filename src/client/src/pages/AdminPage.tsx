@@ -7965,8 +7965,20 @@ export default function AdminPage() {
           {tab === 'wellness_content' && (<>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-extrabold text-gray-900">🌿 Wellness Content ({wcTotal})</h3>
-              <button onClick={() => { setWcEdit(null); setWcForm({ type: '', key: '', phase: '', goal: '', dosha: '', week: '', category: '', emoji: '', title: '', body: '', metadata: '', sortOrder: '0', isActive: true, sourceReference: '' }); setTab('edit_wellness_content' as TabId); }}
-                className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-xl">+ Add</button>
+              <div className="flex gap-2">
+                {wcTotal === 0 && (
+                  <button onClick={async () => {
+                    if (!confirm('Seed all default wellness content (~391 items)?')) return;
+                    try {
+                      const res = await wellnessContentAPI.adminSeed();
+                      toast.success(res.data?.message || 'Seeded!');
+                      fetchWellnessContent(1);
+                    } catch (e: any) { toast.error(e?.response?.data?.error || 'Seed failed'); }
+                  }} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-xl">Seed Data</button>
+                )}
+                <button onClick={() => { setWcEdit(null); setWcForm({ type: '', key: '', phase: '', goal: '', dosha: '', week: '', category: '', emoji: '', title: '', body: '', metadata: '', sortOrder: '0', isActive: true, sourceReference: '' }); setTab('edit_wellness_content' as TabId); }}
+                  className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-xl">+ Add</button>
+              </div>
             </div>
             <div className="flex gap-2 mb-3 flex-wrap">
               {['', 'phase_tip', 'wellness_tip', 'phase_routine', 'phase_yoga', 'phase_tip_wisdom', 'challenge', 'affirmation', 'self_care_breath', 'journal_prompt', 'self_care', 'dosha_remedy', 'pregnancy_week'].map(t => (

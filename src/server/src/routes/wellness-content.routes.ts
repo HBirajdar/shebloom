@@ -113,4 +113,16 @@ r.patch('/admin/:id/toggle', authenticate, requireAdmin, async (q: AuthRequest, 
   }
 });
 
+// POST /wellness-content/admin/seed — one-time seed of all wellness content
+r.post('/admin/seed', authenticate, requireAdmin, async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try {
+    const result = await wcService.seedAll();
+    if (result.skipped) {
+      successResponse(s, result, 'Wellness content already exists, seed skipped');
+    } else {
+      successResponse(s, result, `Seeded ${result.inserted} wellness content items`);
+    }
+  } catch (e) { n(e); }
+});
+
 export default r;

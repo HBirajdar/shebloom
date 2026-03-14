@@ -661,6 +661,8 @@ export const wellnessContentAPI = {
   adminDelete: (id: string) => api.delete(`/wellness-content/admin/${id}`),
   // Admin: toggle active
   adminToggle: (id: string) => api.patch(`/wellness-content/admin/${id}/toggle`),
+  // Admin: seed all default content
+  adminSeed: () => api.post('/wellness-content/admin/seed'),
 };
 
 export const emailCampaignAPI = {
