@@ -8,6 +8,8 @@ import crypto from 'crypto';
 import prisma from '../config/database';
 import { logger } from '../config/logger';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { validate } from '../middleware/validate';
+import { createOrderSchema } from '../validators/payment.validators';
 import { successResponse, errorResponse } from '../utils/response.utils';
 import { sendOrderConfirmation } from '../services/email.service';
 import { sendPushNotification } from '../services/push.service';
@@ -252,16 +254,11 @@ async function createSellerTransactions(orderId: string, orderItems: any[], deli
 }
 
 // POST /payments/create-order
-r.post('/create-order', async (q: AuthRequest, s: Response, n: NextFunction) => {
+r.post('/create-order', validate(createOrderSchema), async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const { items, deliveryAddress, notes, couponCode } = q.body;
     const uid = q.user!.id;
     const config = await getConfig();
-
-    if (!items?.length) { errorResponse(s, 'Cart is empty', 400); return; }
-    if (!deliveryAddress?.fullName || !deliveryAddress?.phone || !deliveryAddress?.addressLine1 || !deliveryAddress?.city || !deliveryAddress?.state || !deliveryAddress?.pincode) {
-      errorResponse(s, 'Complete delivery address required', 400); return;
-    }
 
     // Fetch products + validate
     const productIds = items.map((i: any) => i.productId);

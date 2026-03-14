@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { Helmet } from 'react-helmet-async'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCycleStore } from '../stores/cycleStore'
@@ -566,6 +567,10 @@ export default function TrackerPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 flex flex-col" style={{ maxWidth: 430, margin: '0 auto' }}>
+      <Helmet>
+        <title>Period Tracker | VedaClue</title>
+        <meta name="description" content="Log your period, track symptoms, and get personalized cycle predictions" />
+      </Helmet>
       <style>{`
         .hide-scrollbar::-webkit-scrollbar { display: none }
         .hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }

@@ -4,7 +4,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service';
 import { validate } from '../middleware/validate';
-import { registerSchema, loginSchema, otpSendSchema, otpVerifySchema, refreshTokenSchema } from '../validators/auth.validators';
+import { registerSchema, loginSchema, otpSendSchema, otpVerifySchema, refreshTokenSchema, forgotPasswordSchema, resetPasswordSchema } from '../validators/auth.validators';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { successResponse } from '../utils/response.utils';
 
@@ -48,15 +48,13 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
   } catch (e) { next(e); }
 });
 
-router.post('/forgot-password', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/forgot-password', validate(forgotPasswordSchema), async (req: Request, res: Response, next: NextFunction) => {
   try { await auth.forgotPassword(req.body.email); successResponse(res, null, 'Reset email sent if account exists'); } catch (e) { next(e); }
 });
 
-router.post('/reset-password', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/reset-password', validate(resetPasswordSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { token, password } = req.body;
-    if (!token || !password) { res.status(400).json({ success: false, error: 'Token and password are required' }); return; }
-    if (typeof password !== 'string' || password.length < 8) { res.status(400).json({ success: false, error: 'Password must be at least 8 characters' }); return; }
     await auth.resetPassword(token, password);
     successResponse(res, null, 'Password reset');
   } catch (e) { next(e); }

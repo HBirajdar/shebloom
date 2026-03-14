@@ -313,14 +313,14 @@ export default function CheckoutPage() {
                   <p className="text-xs font-bold text-gray-800 truncate">{item.name}</p>
                   <p className="text-xs font-extrabold text-rose-600 mt-0.5">₹{item.price}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <button onClick={() => updateQty(item.id, item.qty - 1)} className="w-6 h-6 rounded-full bg-gray-100 text-gray-600 text-xs font-bold flex items-center justify-center active:scale-90">-</button>
+                    <button onClick={() => updateQty(item.id, item.qty - 1)} className="w-10 h-10 rounded-full bg-gray-100 text-gray-600 text-xs font-bold flex items-center justify-center active:scale-90">-</button>
                     <span className="text-xs font-bold w-4 text-center">{item.qty}</span>
-                    <button onClick={() => updateQty(item.id, item.qty + 1)} className="w-6 h-6 rounded-full bg-gray-100 text-gray-600 text-xs font-bold flex items-center justify-center active:scale-90">+</button>
+                    <button onClick={() => updateQty(item.id, item.qty + 1)} className="w-10 h-10 rounded-full bg-gray-100 text-gray-600 text-xs font-bold flex items-center justify-center active:scale-90">+</button>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-extrabold text-gray-900">₹{item.price * item.qty}</p>
-                  <button onClick={() => removeFromCart(item.id)} className="text-[9px] text-red-400 font-bold mt-1 active:scale-95">Remove</button>
+                  <button onClick={() => removeFromCart(item.id)} className="text-xs px-2 py-1 text-red-400 font-bold mt-1 active:scale-95">Remove</button>
                 </div>
               </div>
             ))}

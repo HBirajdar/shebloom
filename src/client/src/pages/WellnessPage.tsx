@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { Helmet } from 'react-helmet-async';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCycleStore } from '../stores/cycleStore';
@@ -308,6 +309,10 @@ export default function WellnessPage() {
 
   return (
     <div className="min-h-screen pb-28 bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+      <Helmet>
+        <title>Wellness Tracker | VedaClue</title>
+        <meta name="description" content="Track your mood, water intake, sleep, and daily wellness score" />
+      </Helmet>
 
       {/* ─── Header ─── */}
       <div className="sticky top-0 z-20 backdrop-blur-xl border-b border-rose-100" style={{ backgroundColor: 'rgba(255,241,242,0.85)' }}>

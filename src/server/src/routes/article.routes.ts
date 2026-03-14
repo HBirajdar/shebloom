@@ -44,6 +44,7 @@ r.get('/', async (q: Request, res: Response, n: NextFunction) => {
 });
 
 // ─── GET /articles/all — auth required, all articles ──
+// NOTE: Admin panel uses /admin/articles. Kept for backward compatibility.
 r.get('/all', authenticate, requireAdmin, async (_req: AuthRequest, res: Response, n: NextFunction) => {
   try {
     const articles = await prisma.article.findMany({ orderBy: { createdAt: 'desc' }, take: 200 });

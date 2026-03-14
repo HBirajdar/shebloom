@@ -198,6 +198,7 @@ r.get('/:id/reviews', async (req: Request, res: Response, next: NextFunction) =>
 });
 
 // GET /products/all — admin only, all products
+// NOTE: Admin uses /admin/products instead. Kept for API consumers.
 r.get('/all', authenticate, requireAdmin, async (_req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const products = await prisma.product.findMany({ orderBy: { createdAt: 'desc' }, take: 200 });

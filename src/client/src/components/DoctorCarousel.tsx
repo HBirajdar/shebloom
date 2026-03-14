@@ -298,14 +298,6 @@ export default function DoctorCarousel({ doctors, onBookNow, title, loading }: D
           ))}
         </div>
 
-        {/* Responsive transform override for sm+ screens */}
-        <style>{`
-          @media (min-width: 640px) {
-            [data-doctor-track] {
-              transform: translateX(calc(-${currentIndex} * (280px + 12px))) !important;
-            }
-          }
-        `}</style>
       </div>
 
       {/* Dot indicators */}

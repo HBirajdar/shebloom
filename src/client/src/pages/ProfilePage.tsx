@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { Helmet } from 'react-helmet-async';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
@@ -324,6 +325,10 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen pb-28 bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+      <Helmet>
+        <title>My Profile | VedaClue</title>
+        <meta name="robots" content="noindex" />
+      </Helmet>
 
       {/* ─── Profile Header ─── */}
       <div className="relative overflow-hidden">

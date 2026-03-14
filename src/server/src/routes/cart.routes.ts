@@ -11,6 +11,8 @@
 import { Router, Response, NextFunction } from 'express';
 import prisma from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { validate } from '../middleware/validate';
+import { addToCartSchema } from '../validators/cart.validators';
 import { successResponse, errorResponse } from '../utils/response.utils';
 
 const r = Router();
@@ -43,15 +45,10 @@ r.get('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
 });
 
 // ─── POST /cart/add ──────────────────────────────────
-r.post('/add', async (q: AuthRequest, s: Response, n: NextFunction) => {
+r.post('/add', validate(addToCartSchema), async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const uid = q.user!.id;
     const { productId, qty = 1 } = q.body;
-
-    if (!productId) {
-      errorResponse(s, 'productId is required', 400);
-      return;
-    }
 
     // Always fetch price from DB to prevent price manipulation
     const product = await prisma.product.findUnique({

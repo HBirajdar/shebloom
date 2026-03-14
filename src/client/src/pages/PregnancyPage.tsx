@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { pregnancyAPI } from '../services/api';
+import toast from 'react-hot-toast';
 
 // ─── Comprehensive Week Data ────────────────────
 const weekData: Record<number, { size: string; emoji: string; len: string; wt: string; tri: number; baby: string[]; mom: string[]; tips: string[]; nutrition: string[]; exercise: string[] }> = {
@@ -102,6 +103,8 @@ export default function PregnancyPage() {
   const [hasPregnancy, setHasPregnancy] = useState<boolean | null>(null);
   const [tab, setTab] = useState<'baby' | 'mom' | 'tips' | 'nutrition' | 'exercise'>('baby');
   const [done, setDone] = useState<Record<number, boolean[]>>({});
+  const [showDateInput, setShowDateInput] = useState(false);
+  const [lmpInput, setLmpInput] = useState('');
 
   useEffect(() => {
     pregnancyAPI.get().then(r => {
@@ -150,33 +153,60 @@ export default function PregnancyPage() {
               <p key={t} className="text-xs text-purple-600">{t}</p>
             ))}
           </div>
-          <button
-            onClick={() => {
-              const lmp = prompt('Enter your last menstrual period date (YYYY-MM-DD):');
-              if (lmp) {
-                pregnancyAPI.create({ lastPeriodDate: lmp }).then(() => {
-                  setHasPregnancy(null);
-                  setApiLoaded(false);
-                  pregnancyAPI.get().then(r => {
-                    const data = r.data?.data;
-                    if (data?.pregnancyWeek) {
-                      const keys = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40];
-                      const nearest = keys.reduce((prev, curr) =>
-                        Math.abs(curr - data.pregnancyWeek) < Math.abs(prev - data.pregnancyWeek) ? curr : prev
-                      );
-                      setWeek(nearest);
-                      setHasPregnancy(true);
-                    }
-                    setApiLoaded(true);
-                  });
-                }).catch(() => alert('Invalid date. Use YYYY-MM-DD format.'));
-              }
-            }}
-            className="mt-6 w-full max-w-xs py-4 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform"
-            style={{ background: 'linear-gradient(135deg, #7C3AED, #EC4899)' }}
-          >
-            🌸 I'm Pregnant! Set My Due Date
-          </button>
+          {showDateInput ? (
+            <div className="mt-6 w-full max-w-xs space-y-3">
+              <label className="text-xs font-bold text-gray-600 block text-left">Last Menstrual Period Date</label>
+              <input
+                type="date"
+                value={lmpInput}
+                onChange={e => setLmpInput(e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
+                className="w-full px-4 py-3 border-2 border-purple-200 rounded-xl text-sm focus:border-purple-500 focus:outline-none"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setShowDateInput(false); setLmpInput(''); }}
+                  className="flex-1 py-3 rounded-2xl text-gray-600 font-bold text-sm border border-gray-200 active:scale-95 transition-transform"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (!lmpInput) { toast.error('Please select a date'); return; }
+                    pregnancyAPI.create({ lastPeriodDate: lmpInput }).then(() => {
+                      setHasPregnancy(null);
+                      setApiLoaded(false);
+                      setShowDateInput(false);
+                      pregnancyAPI.get().then(r => {
+                        const data = r.data?.data;
+                        if (data?.pregnancyWeek) {
+                          const keys = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40];
+                          const nearest = keys.reduce((prev, curr) =>
+                            Math.abs(curr - data.pregnancyWeek) < Math.abs(prev - data.pregnancyWeek) ? curr : prev
+                          );
+                          setWeek(nearest);
+                          setHasPregnancy(true);
+                        }
+                        setApiLoaded(true);
+                      });
+                    }).catch(() => toast.error('Invalid date format'));
+                  }}
+                  className="flex-1 py-3 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform"
+                  style={{ background: 'linear-gradient(135deg, #7C3AED, #EC4899)' }}
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowDateInput(true)}
+              className="mt-6 w-full max-w-xs py-4 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform"
+              style={{ background: 'linear-gradient(135deg, #7C3AED, #EC4899)' }}
+            >
+              🌸 I'm Pregnant! Set My Due Date
+            </button>
+          )}
         </div>
       </div>
     );

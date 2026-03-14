@@ -2,6 +2,8 @@
 import { Router, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { validate } from '../middleware/validate';
+import { updateUserSchema, updateProfileSchema } from '../validators/user.validators';
 import { UserService } from '../services/user.service';
 import prisma from '../config/database';
 import { successResponse, errorResponse } from '../utils/response.utils';
@@ -15,10 +17,10 @@ router.use(authenticate);
 router.get('/me', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try { successResponse(res, await svc.getProfile(req.user!.id)); } catch (e) { next(e); }
 });
-router.put('/me', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.put('/me', validate(updateUserSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try { successResponse(res, await svc.updateUser(req.user!.id, req.body), 'Profile updated'); } catch (e) { next(e); }
 });
-router.put('/me/profile', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.put('/me/profile', validate(updateProfileSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try { successResponse(res, await svc.updateProfile(req.user!.id, req.body), 'Profile updated'); } catch (e) { next(e); }
 });
 router.get('/me/export', async (req: AuthRequest, res: Response, next: NextFunction) => {

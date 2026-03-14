@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { Helmet } from 'react-helmet-async';
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAyurvedaStore } from '../stores/ayurvedaStore';
@@ -1040,6 +1041,10 @@ export default function ArticlesPage() {
   // ─── ARTICLE LIST VIEW ─────────────────────────
   return (
     <div className="min-h-screen pb-28" style={{ backgroundColor: '#FAFAF9' }}>
+      <Helmet>
+        <title>Health Articles | VedaClue</title>
+        <meta name="description" content="Expert articles on periods, fertility, Ayurveda, and women's wellness" />
+      </Helmet>
       <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-md px-5 py-3 border-b border-gray-100 flex items-center gap-3">
         <button onClick={() => nav('/dashboard')} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm active:scale-90">←</button>
         <h1 className="text-base font-extrabold flex-1">Health Articles 📰</h1>

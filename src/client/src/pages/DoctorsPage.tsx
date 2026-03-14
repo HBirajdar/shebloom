@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { Helmet } from 'react-helmet-async';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -106,6 +107,10 @@ export default function DoctorsPage() {
 
   return (
     <div className="min-h-screen pb-24 bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+      <Helmet>
+        <title>Find Doctors | VedaClue</title>
+        <meta name="description" content="Book appointments with verified Ayurvedic and women's health specialists" />
+      </Helmet>
       {/* Header */}
       <div className="sticky top-0 z-10 backdrop-blur-xl border-b border-rose-100 px-5 py-3 flex items-center gap-3" style={{ backgroundColor: 'rgba(255,241,242,0.85)' }}>
         <button onClick={() => nav('/dashboard')} className="w-9 h-9 rounded-2xl bg-white/80 flex items-center justify-center text-sm active:scale-95 transition-all shadow-sm">{'\u2190'}</button>

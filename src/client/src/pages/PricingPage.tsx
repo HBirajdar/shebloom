@@ -1,3 +1,4 @@
+import { Helmet } from 'react-helmet-async';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { subscriptionAPI, financeAPI } from '../services/api';
@@ -181,6 +182,10 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-rose-50 via-white to-amber-50 pb-24">
+      <Helmet>
+        <title>Plans & Pricing | VedaClue</title>
+        <meta name="description" content="Choose your VedaClue plan — free and premium options for complete women's health tracking" />
+      </Helmet>
       {/* Header */}
       <div className="px-4 pt-6 pb-4">
         <button onClick={() => nav(-1)} className="text-gray-500 text-sm mb-4">&larr; Back</button>

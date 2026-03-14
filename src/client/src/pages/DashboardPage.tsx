@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { Helmet } from 'react-helmet-async';
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
@@ -356,6 +357,10 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen pb-28 bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+      <Helmet>
+        <title>Dashboard | VedaClue</title>
+        <meta name="description" content="Track your menstrual cycle, wellness, and Ayurvedic insights" />
+      </Helmet>
       {/* ─── Header ─── */}
       <div className="sticky top-0 z-20 backdrop-blur-xl border-b border-rose-100" style={{ backgroundColor: 'rgba(255,241,242,0.85)' }}>
         <div className="px-5 py-3 flex items-center justify-between">

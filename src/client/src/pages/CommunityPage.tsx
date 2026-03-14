@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { Helmet } from 'react-helmet-async';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
@@ -327,6 +328,10 @@ export default function CommunityPage() {
 
   return (
     <div className="min-h-screen pb-28" style={{ backgroundColor: '#FAFAF9' }}>
+      <Helmet>
+        <title>Community | VedaClue</title>
+        <meta name="description" content="Join the VedaClue community — anonymous, safe space for women's health discussions" />
+      </Helmet>
 
       {/* ─── Header ─── */}
       <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-gray-100">
