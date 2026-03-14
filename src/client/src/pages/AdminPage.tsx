@@ -5594,39 +5594,87 @@ export default function AdminPage() {
 
 
   return (
-    <div className="min-h-screen pb-8 bg-gray-50">
-      {/* Header */}
-      <div className="sticky top-0 z-20 bg-gradient-to-r from-rose-600 to-pink-600 text-white shadow-lg">
-        <div className="px-5 py-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-white/20 backdrop-blur flex items-center justify-center text-lg">
+    <div className="min-h-screen bg-gray-50 lg:flex">
+
+      {/* ═══ Desktop Sidebar — hidden on mobile ═══ */}
+      <aside className="hidden lg:flex lg:flex-col lg:w-60 xl:w-64 lg:fixed lg:inset-y-0 bg-gradient-to-b from-[#1a1a2e] to-[#16213e] text-white z-30">
+        <div className="px-5 py-5 border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center text-xl shadow-lg">
               {'\u{1F6E1}\uFE0F'}
             </div>
             <div>
-              <h1 className="text-sm font-extrabold tracking-tight">VedaClue Admin</h1>
-              <p className="text-[9px] text-white/60 font-medium">Control Panel</p>
+              <h1 className="text-sm font-extrabold tracking-tight">VedaClue</h1>
+              <p className="text-[10px] text-white/40 font-medium">Admin Console</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={fetchDashboard} className="text-[10px] font-bold bg-white/15 hover:bg-white/25 backdrop-blur px-3.5 py-2 rounded-full active:scale-95 transition-all">
-              {'\u{1F504}'} Refresh
+        </div>
+        <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-0.5 scrollbar-hide">
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={'w-full text-left px-3 py-2 rounded-lg text-[13px] font-medium transition-all flex items-center gap-2.5 ' + (tab === t.id ? 'bg-white/15 text-white shadow-sm' : 'text-white/50 hover:text-white/80 hover:bg-white/5')}>
+              <span className="text-base w-5 text-center flex-shrink-0">{t.icon}</span> {t.label}
             </button>
-            <button onClick={handleLock} className="text-[10px] font-bold bg-white/15 hover:bg-white/25 backdrop-blur px-3.5 py-2 rounded-full active:scale-95 transition-all">
-              {'\u{1F512}'} Lock
+          ))}
+        </nav>
+        <div className="px-4 py-4 border-t border-white/10 space-y-2">
+          <button onClick={fetchDashboard} className="w-full text-[12px] font-bold bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg transition-all">
+            {'\u{1F504}'} Refresh Data
+          </button>
+          <button onClick={handleLock} className="w-full text-[12px] font-bold bg-red-500/20 hover:bg-red-500/30 text-red-300 px-3 py-2 rounded-lg transition-all">
+            {'\u{1F512}'} Lock & Exit
+          </button>
+        </div>
+      </aside>
+
+      {/* ═══ Main Content Area ═══ */}
+      <div className="flex-1 lg:pl-60 xl:pl-64 pb-8">
+
+        {/* Mobile Header — hidden on desktop */}
+        <div className="lg:hidden sticky top-0 z-20 bg-gradient-to-r from-rose-600 to-pink-600 text-white shadow-lg">
+          <div className="px-5 py-3.5 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-white/20 backdrop-blur flex items-center justify-center text-lg">
+                {'\u{1F6E1}\uFE0F'}
+              </div>
+              <div>
+                <h1 className="text-sm font-extrabold tracking-tight">VedaClue Admin</h1>
+                <p className="text-[9px] text-white/60 font-medium">Control Panel</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={fetchDashboard} className="text-[10px] font-bold bg-white/15 hover:bg-white/25 backdrop-blur px-3.5 py-2 rounded-full active:scale-95 transition-all">
+                {'\u{1F504}'} Refresh
+              </button>
+              <button onClick={handleLock} className="text-[10px] font-bold bg-white/15 hover:bg-white/25 backdrop-blur px-3.5 py-2 rounded-full active:scale-95 transition-all">
+                {'\u{1F512}'} Lock
+              </button>
+            </div>
+          </div>
+          <div className="px-3 pb-2.5 flex gap-2 overflow-x-auto scrollbar-hide">
+            {tabs.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                className={'px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap transition-all ' + (tab === t.id ? 'bg-white text-rose-600 shadow-sm' : 'text-white/60 hover:text-white/90 hover:bg-white/10')}>
+                {t.icon} {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Desktop Top Bar — hidden on mobile */}
+        <div className="hidden lg:flex sticky top-0 z-20 bg-white border-b border-gray-200 px-8 py-4 items-center justify-between">
+          <div>
+            <h2 className="text-lg font-extrabold text-gray-900">{tabs.find(t => t.id === tab)?.icon} {tabs.find(t => t.id === tab)?.label || 'Overview'}</h2>
+            <p className="text-xs text-gray-400">Admin Dashboard</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={fetchDashboard} className="text-xs font-bold bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-all">
+              {'\u{1F504}'} Refresh
             </button>
           </div>
         </div>
-        <div className="px-3 pb-2.5 flex gap-2 overflow-x-auto scrollbar-hide">
-          {tabs.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={'px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap transition-all ' + (tab === t.id ? 'bg-white text-rose-600 shadow-sm' : 'text-white/60 hover:text-white/90 hover:bg-white/10')}>
-              {t.icon} {t.label}
-            </button>
-          ))}
-        </div>
-      </div>
 
-      <div className="px-5 pt-5 space-y-4 max-w-[430px] mx-auto">
+        <div className="px-5 lg:px-8 pt-5 space-y-4 lg:space-y-6 max-w-[430px] lg:max-w-none mx-auto lg:mx-0">
 
         {/* Loading spinner */}
         {dashLoading && (
@@ -5640,13 +5688,13 @@ export default function AdminPage() {
           {/* ════════ OVERVIEW ════════ */}
           {tab === 'overview' && (<>
             {/* Welcome greeting */}
-            <div className="bg-gradient-to-r from-rose-500 to-pink-500 rounded-2xl p-5 text-white shadow-md">
-              <p className="text-sm font-medium text-white/80">Welcome back, Admin</p>
-              <p className="text-xl font-extrabold mt-0.5">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-              <p className="text-[10px] text-white/60 mt-1">Here is your dashboard overview</p>
+            <div className="bg-gradient-to-r from-rose-500 to-pink-500 rounded-2xl p-5 lg:p-6 text-white shadow-md">
+              <p className="text-sm lg:text-base font-medium text-white/80">Welcome back, Admin</p>
+              <p className="text-xl lg:text-2xl font-extrabold mt-0.5">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+              <p className="text-[10px] lg:text-xs text-white/60 mt-1">Here is your dashboard overview</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4">
               {[
                 { l: 'Products', v: products.length, p: pubProducts, c: '#059669', border: 'border-l-emerald-500' },
                 { l: 'Articles', v: articles.length, p: pubArticles, c: '#2563EB', border: 'border-l-blue-500', review: reviewArticles },
@@ -5657,24 +5705,25 @@ export default function AdminPage() {
                   { l: 'Appointments', v: analytics.totalAppointments, p: 0, c: '#BE185D', border: 'border-l-pink-500' },
                 ] : []),
               ].map(s => (
-                <div key={s.l} className={"bg-white rounded-2xl p-4 shadow-sm border-l-4 hover:shadow-md transition-all " + s.border}>
-                  <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: s.c }}>{s.l}</p>
-                  <p className="text-2xl font-extrabold text-gray-900 mt-1">{s.v}</p>
-                  <p className="text-[9px] text-gray-500">{s.p > 0 ? s.p + ' active' : ''}{(s as any).review > 0 ? ' \u2022 ' + (s as any).review + ' pending review' : ''}</p>
+                <div key={s.l} className={"bg-white rounded-2xl p-4 lg:p-5 shadow-sm border-l-4 hover:shadow-md transition-all " + s.border}>
+                  <p className="text-[10px] lg:text-xs font-bold uppercase tracking-wide" style={{ color: s.c }}>{s.l}</p>
+                  <p className="text-2xl lg:text-3xl font-extrabold text-gray-900 mt-1">{s.v}</p>
+                  <p className="text-[9px] lg:text-xs text-gray-500">{s.p > 0 ? s.p + ' active' : ''}{(s as any).review > 0 ? ' \u2022 ' + (s as any).review + ' pending review' : ''}</p>
                 </div>
               ))}
             </div>
 
             {/* Recent items preview */}
+            <div className="lg:grid lg:grid-cols-2 lg:gap-4 space-y-4 lg:space-y-0">
             {articles.length > 0 && (
               <div className="bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
-                <h3 className="text-sm font-bold text-gray-800 mb-3">Recent Articles</h3>
+                <h3 className="text-sm lg:text-base font-bold text-gray-800 mb-3">Recent Articles</h3>
                 {articles.slice(0, 3).map(a => (
                   <div key={a.id} className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0">
-                    <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center text-lg flex-shrink-0">{a.emoji}</div>
+                    <div className="w-9 h-9 lg:w-10 lg:h-10 rounded-xl bg-blue-50 flex items-center justify-center text-lg flex-shrink-0">{a.emoji}</div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-bold text-gray-700 truncate">{a.title}</p>
-                      <p className="text-[9px] text-gray-400">{a.category} - {a.status || (a.isPublished ? 'PUBLISHED' : 'DRAFT')}</p>
+                      <p className="text-[11px] lg:text-sm font-bold text-gray-700 truncate">{a.title}</p>
+                      <p className="text-[9px] lg:text-xs text-gray-400">{a.category} - {a.status || (a.isPublished ? 'PUBLISHED' : 'DRAFT')}</p>
                     </div>
                     {statusBadge(a.status || (a.isPublished ? 'PUBLISHED' : 'DRAFT'))}
                   </div>
@@ -5684,7 +5733,7 @@ export default function AdminPage() {
 
             {doctors.length > 0 && (
               <div className="bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
-                <h3 className="text-sm font-bold text-gray-800 mb-3">Recent Doctors</h3>
+                <h3 className="text-sm lg:text-base font-bold text-gray-800 mb-3">Recent Doctors</h3>
                 {doctors.slice(0, 3).map(d => (
                   <div key={d.id} className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0">
                     <div className="w-9 h-9 rounded-full bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
@@ -5699,9 +5748,10 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
+            </div>
 
             <div className="bg-white rounded-2xl p-5 shadow-sm">
-              <h3 className="text-sm font-bold text-gray-800 mb-3">Quick Actions</h3>
+              <h3 className="text-sm lg:text-base font-bold text-gray-800 mb-3">Quick Actions</h3>
               <div className="space-y-2">
               {[
                 { l: 'Add Product', t: 'add_product' as TabId, e: '\u{1F4E6}', c: 'bg-emerald-50 text-emerald-700' },
@@ -5731,7 +5781,7 @@ export default function AdminPage() {
           {/* ════════ USERS ════════ */}
           {tab === 'users' && (<>
             <div className="flex justify-between items-center">
-              <h3 className="text-base font-extrabold text-gray-900">{'\u{1F465}'} Users ({usersTotal})</h3>
+              <h3 className="text-base lg:text-lg font-extrabold text-gray-900">{'\u{1F465}'} Users ({usersTotal})</h3>
             </div>
             <input
               value={usersSearch}
@@ -5756,9 +5806,9 @@ export default function AdminPage() {
               <p className="text-center text-gray-400 text-sm py-8">No users found</p>
             ) : (
               <>
-                <div className="space-y-3">
+                <div className="space-y-3 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0">
                 {users.map(u => (
-                  <div key={u.id} className="bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all">
+                  <div key={u.id} className="bg-white rounded-2xl p-4 lg:p-5 shadow-sm hover:shadow-md transition-all">
                     <div className="flex items-center gap-3">
                       <div className="w-11 h-11 rounded-full bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
                         {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full rounded-full object-cover" /> : initials(u.fullName)}
@@ -5767,10 +5817,10 @@ export default function AdminPage() {
                         <div className="flex items-center gap-1.5">
                           <p className="text-sm font-bold text-gray-800 truncate">{u.fullName}</p>
                           {roleBadge(u.role)}
-                          {!u.isActive && <span className="text-[7px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">BANNED</span>}
+                          {!u.isActive && <span className="text-[7px] lg:text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">BANNED</span>}
                         </div>
-                        <p className="text-[10px] text-gray-500 truncate">{u.email || u.phone || 'No contact'}</p>
-                        <p className="text-[9px] text-gray-400">Joined: {new Date(u.createdAt).toLocaleDateString()}</p>
+                        <p className="text-[10px] lg:text-xs text-gray-500 truncate">{u.email || u.phone || 'No contact'}</p>
+                        <p className="text-[9px] lg:text-[11px] text-gray-400">Joined: {new Date(u.createdAt).toLocaleDateString()}</p>
                       </div>
                     </div>
                     <div className="flex gap-2 mt-3 border-t border-gray-100 pt-3 items-center">
@@ -5813,12 +5863,12 @@ export default function AdminPage() {
           {/* ════════ PRODUCTS LIST ════════ */}
           {tab === 'products' && (<>
             <div className="flex justify-between items-center">
-              <h3 className="text-base font-extrabold text-gray-900">{'\u{1F4E6}'} Products ({products.length})</h3>
+              <h3 className="text-base lg:text-lg font-extrabold text-gray-900">{'\u{1F4E6}'} Products ({products.length})</h3>
               <button onClick={() => setTab('add_product')} className="text-[11px] font-bold text-white bg-gradient-to-r from-rose-500 to-pink-500 px-4 py-2 rounded-full active:scale-95 shadow-sm hover:shadow transition-all">+ Add</button>
             </div>
             <AdminSearchBar value={productSearch} onChange={setProductSearch} placeholder="Search by name, category..." />
             {products.length === 0 && <p className="text-center text-gray-400 text-sm py-8">No products yet. Click + Add to create one.</p>}
-            <div className="space-y-3">
+            <div className="space-y-3 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0">
             {products.filter(p => {
               if (!productSearch.trim()) return true;
               const q = productSearch.toLowerCase();
@@ -5863,12 +5913,12 @@ export default function AdminPage() {
           {/* ════════ ARTICLES LIST ════════ */}
           {tab === 'articles' && (<>
             <div className="flex justify-between items-center">
-              <h3 className="text-base font-extrabold text-gray-900">{'\u{1F4DD}'} Articles ({articles.length})</h3>
+              <h3 className="text-base lg:text-lg font-extrabold text-gray-900">{'\u{1F4DD}'} Articles ({articles.length})</h3>
               <button onClick={() => setTab('add_article')} className="text-[11px] font-bold text-white bg-gradient-to-r from-rose-500 to-pink-500 px-4 py-2 rounded-full active:scale-95 shadow-sm hover:shadow transition-all">+ Write</button>
             </div>
             <AdminSearchBar value={articleSearch} onChange={setArticleSearch} placeholder="Search by title, category, author..." />
             {articles.length === 0 && <p className="text-center text-gray-400 text-sm py-8">No articles yet. Click + Write to create one.</p>}
-            <div className="space-y-3">
+            <div className="space-y-3 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0">
             {articles.filter(a => {
               if (!articleSearch.trim()) return true;
               const q = articleSearch.toLowerCase();
@@ -5921,12 +5971,12 @@ export default function AdminPage() {
           {/* ════════ DOCTORS LIST ════════ */}
           {tab === 'doctors' && (<>
             <div className="flex justify-between items-center">
-              <h3 className="text-base font-extrabold text-gray-900">{'\u{1F469}\u200D\u2695\uFE0F'} Doctors ({doctors.length})</h3>
+              <h3 className="text-base lg:text-lg font-extrabold text-gray-900">{'\u{1F469}\u200D\u2695\uFE0F'} Doctors ({doctors.length})</h3>
               <button onClick={() => setTab('add_doctor')} className="text-[11px] font-bold text-white bg-gradient-to-r from-rose-500 to-pink-500 px-4 py-2 rounded-full active:scale-95 shadow-sm hover:shadow transition-all">+ Add</button>
             </div>
             <AdminSearchBar value={doctorSearch} onChange={setDoctorSearch} placeholder="Search by name, specialization, hospital..." />
             {doctors.length === 0 && <p className="text-center text-gray-400 text-sm py-8">No doctors yet. Click + Add to create one.</p>}
-            <div className="space-y-3">
+            <div className="space-y-3 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0">
             {doctors.filter(d => {
               if (!doctorSearch.trim()) return true;
               const q = doctorSearch.toLowerCase();
@@ -5982,7 +6032,7 @@ export default function AdminPage() {
           {/* ════════ APPOINTMENTS ════════ */}
           {tab === 'appointments' && (<>
             <div className="flex justify-between items-center">
-              <h3 className="text-base font-extrabold text-gray-900">{'\u{1F4C5}'} Appointments ({apptsTotal})</h3>
+              <h3 className="text-base lg:text-lg font-extrabold text-gray-900">{'\u{1F4C5}'} Appointments ({apptsTotal})</h3>
             </div>
             <AdminSearchBar value={appointmentSearch} onChange={setAppointmentSearch} placeholder="Search by patient, doctor name..." />
             <div className="flex gap-1.5 flex-wrap">
@@ -6000,7 +6050,7 @@ export default function AdminPage() {
               <p className="text-center text-gray-400 text-sm py-8">No appointments found</p>
             ) : (
               <>
-                <div className="space-y-3">
+                <div className="space-y-3 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0">
                 {appts.filter(a => {
                   if (!appointmentSearch.trim()) return true;
                   const q = appointmentSearch.toLowerCase();
@@ -6311,7 +6361,7 @@ export default function AdminPage() {
           {/* ════════ ORDERS ════════ */}
           {tab === 'orders' && (<>
             <div className="flex justify-between items-center">
-              <h3 className="text-base font-extrabold text-gray-900">{'\u{1F6D2}'} Orders ({ordersTotal})</h3>
+              <h3 className="text-base lg:text-lg font-extrabold text-gray-900">{'\u{1F6D2}'} Orders ({ordersTotal})</h3>
               <button onClick={() => fetchOrders()} className="text-[10px] font-bold bg-white text-gray-600 px-3 py-1.5 rounded-full active:scale-95 shadow-sm hover:shadow transition-all">Refresh</button>
             </div>
             <AdminSearchBar value={orderSearch} onChange={setOrderSearch} placeholder="Search by order number, customer name..." />
@@ -6320,7 +6370,7 @@ export default function AdminPage() {
             ) : orders.length === 0 ? (
               <div className="text-center py-10"><span className="text-4xl">{'\u{1F4E6}'}</span><p className="text-sm text-gray-400 mt-2">No orders yet</p></div>
             ) : (<>
-              <div className="space-y-3">
+              <div className="space-y-3 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0">
               {orders.filter((order: any) => {
                 if (!orderSearch.trim()) return true;
                 const q = orderSearch.toLowerCase();
@@ -6374,7 +6424,7 @@ export default function AdminPage() {
           {/* ════════ PRESCRIPTIONS ════════ */}
           {tab === 'prescriptions' && (<>
             <div className="flex justify-between items-center">
-              <h3 className="text-base font-extrabold text-gray-900">{'\u{1F48A}'} Prescriptions</h3>
+              <h3 className="text-base lg:text-lg font-extrabold text-gray-900">{'\u{1F48A}'} Prescriptions</h3>
               <button onClick={fetchPrescriptions} className="text-[10px] font-bold bg-white text-gray-600 px-3 py-1.5 rounded-full active:scale-95 shadow-sm hover:shadow transition-all">Refresh</button>
             </div>
             <AdminSearchBar value={prescriptionSearch} onChange={setPrescriptionSearch} placeholder="Search by patient, doctor, diagnosis..." />
@@ -6457,7 +6507,7 @@ export default function AdminPage() {
           {/* ════════ ADD PRODUCT ════════ */}
           {tab === 'add_product' && (<>
             <div className="flex items-center gap-3 mb-2"><button onClick={() => setTab('products')} className="text-gray-400 text-lg hover:text-gray-600 transition-colors">{'\u2190'}</button><h3 className="text-base font-extrabold text-gray-900">New Product</h3></div>
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl p-5 lg:p-6 shadow-sm space-y-4 lg:max-w-3xl">
             <ImageUpload label="Product Image" value={np.imageUrl} onChange={url => setNp({...np, imageUrl: url})} />
             <MultiImageUpload label="Gallery Images" values={np.galleryImages} onChange={urls => setNp({...np, galleryImages: urls})} maxImages={5} />
             <FormField label="Name *" value={np.name} onChange={v => setNp({...np, name: v})} placeholder="Bhringraj Hair Oil" />
@@ -6493,7 +6543,7 @@ export default function AdminPage() {
           {/* ════════ EDIT PRODUCT ════════ */}
           {tab === 'edit_product' && editProduct && (<>
             <div className="flex items-center gap-3 mb-2"><button onClick={() => { setEditProduct(null); setTab('products'); }} className="text-gray-400 text-lg hover:text-gray-600 transition-colors">{'\u2190'}</button><h3 className="text-base font-extrabold text-gray-900">Edit Product</h3></div>
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl p-5 lg:p-6 shadow-sm space-y-4 lg:max-w-3xl">
             <ImageUpload label="Product Image" value={ep.imageUrl} onChange={url => setEp({...ep, imageUrl: url})} />
             <MultiImageUpload label="Gallery Images" values={ep.galleryImages} onChange={urls => setEp({...ep, galleryImages: urls})} maxImages={5} />
             <FormField label="Name *" value={ep.name} onChange={v => setEp({...ep, name: v})} placeholder="Product Name" />
@@ -6529,7 +6579,7 @@ export default function AdminPage() {
           {/* ════════ ADD ARTICLE ════════ */}
           {tab === 'add_article' && (<>
             <div className="flex items-center gap-3 mb-2"><button onClick={() => setTab('articles')} className="text-gray-400 text-lg hover:text-gray-600 transition-colors">{'\u2190'}</button><h3 className="text-base font-extrabold text-gray-900">Write Article</h3></div>
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl p-5 lg:p-6 shadow-sm space-y-4 lg:max-w-3xl">
             <ImageUpload label="Cover Image" value={na.imageUrl} onChange={url => setNa({...na, imageUrl: url})} />
             <FormField label="Title *" value={na.title} onChange={v => setNa({...na, title: v})} placeholder="Understanding PCOD..." />
             <FormField label="Excerpt" value={na.excerpt} onChange={v => setNa({...na, excerpt: v})} placeholder="Short summary..." />
@@ -6552,7 +6602,7 @@ export default function AdminPage() {
           {/* ════════ EDIT ARTICLE ════════ */}
           {tab === 'edit_article' && editArticle && (<>
             <div className="flex items-center gap-3 mb-2"><button onClick={() => { setEditArticle(null); setTab('articles'); }} className="text-gray-400 text-lg hover:text-gray-600 transition-colors">{'\u2190'}</button><h3 className="text-base font-extrabold text-gray-900">Edit Article</h3></div>
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl p-5 lg:p-6 shadow-sm space-y-4 lg:max-w-3xl">
             <ImageUpload label="Cover Image" value={ea.imageUrl} onChange={url => setEa({...ea, imageUrl: url})} />
             <FormField label="Title *" value={ea.title} onChange={v => setEa({...ea, title: v})} placeholder="Title" />
             <FormField label="Excerpt" value={ea.excerpt} onChange={v => setEa({...ea, excerpt: v})} placeholder="Short summary..." />
@@ -6575,7 +6625,7 @@ export default function AdminPage() {
           {/* ════════ ADD DOCTOR ════════ */}
           {tab === 'add_doctor' && (<>
             <div className="flex items-center gap-3 mb-2"><button onClick={() => setTab('doctors')} className="text-gray-400 text-lg hover:text-gray-600 transition-colors">{'\u2190'}</button><h3 className="text-base font-extrabold text-gray-900">Add Doctor</h3></div>
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl p-5 lg:p-6 shadow-sm space-y-4 lg:max-w-3xl">
             <ImageUpload label="Doctor Photo" value={nd.avatarUrl} onChange={url => setNd({...nd, avatarUrl: url})} />
             <FormField label="Full Name *" value={nd.name} onChange={v => setNd({...nd, name: v})} placeholder="Dr. Shruthi R" />
             <FormField label="Specialization *" value={nd.specialization} onChange={v => setNd({...nd, specialization: v})} placeholder="Gynecologist" />
@@ -6598,7 +6648,7 @@ export default function AdminPage() {
           {/* ════════ EDIT DOCTOR ════════ */}
           {tab === 'edit_doctor' && editDoctor && (<>
             <div className="flex items-center gap-3 mb-2"><button onClick={() => { setEditDoctor(null); setTab('doctors'); }} className="text-gray-400 text-lg hover:text-gray-600 transition-colors">{'\u2190'}</button><h3 className="text-base font-extrabold text-gray-900">Edit Doctor</h3></div>
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl p-5 lg:p-6 shadow-sm space-y-4 lg:max-w-3xl">
             <ImageUpload label="Doctor Photo" value={ed.avatarUrl} onChange={url => setEd({...ed, avatarUrl: url})} />
             <FormField label="Full Name *" value={ed.name} onChange={v => setEd({...ed, name: v})} placeholder="Dr. Shruthi R" />
             <FormField label="Specialization *" value={ed.specialization} onChange={v => setEd({...ed, specialization: v})} placeholder="Gynecologist" />
@@ -6621,7 +6671,7 @@ export default function AdminPage() {
           {/* ════════ CALLBACKS ════════ */}
           {tab === 'callbacks' && (<>
             <div className="flex justify-between items-center">
-              <h3 className="text-base font-extrabold text-gray-900">{'\u{1F4DE}'} Callback Requests</h3>
+              <h3 className="text-base lg:text-lg font-extrabold text-gray-900">{'\u{1F4DE}'} Callback Requests</h3>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2.5 py-1 rounded-full">{callbacks.filter(c => c.status === 'PENDING').length} pending</span>
                 <button onClick={fetchCallbacks} className="text-[10px] font-bold bg-white text-gray-600 px-3 py-1.5 rounded-full active:scale-95 shadow-sm hover:shadow transition-all">Refresh</button>
@@ -6720,7 +6770,7 @@ export default function AdminPage() {
           {/* ════════ PAYOUTS ════════ */}
           {tab === 'payouts' && (<>
             <div className="flex justify-between items-center">
-              <h3 className="text-base font-extrabold text-gray-900">{'\u{1F4B0}'} Doctor Payouts</h3>
+              <h3 className="text-base lg:text-lg font-extrabold text-gray-900">{'\u{1F4B0}'} Doctor Payouts</h3>
               <button onClick={() => { fetchPayoutSummary(); fetchPayoutList(); }} className="text-[10px] font-bold bg-white text-gray-600 px-3 py-1.5 rounded-full active:scale-95 shadow-sm hover:shadow transition-all">Refresh</button>
             </div>
 
@@ -6872,7 +6922,7 @@ export default function AdminPage() {
               <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ maxWidth: 430, margin: '0 auto' }}>
                 <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowPayoutModal(null)} />
                 <div className="relative bg-white rounded-2xl p-5 shadow-2xl w-full max-w-sm space-y-4 z-10">
-                  <h3 className="text-base font-extrabold text-gray-900">Generate Settlement</h3>
+                  <h3 className="text-base lg:text-lg font-extrabold text-gray-900">Generate Settlement</h3>
                   <div className="bg-gray-50 rounded-xl p-3">
                     <p className="text-sm font-bold text-gray-800">{showPayoutModal.doctorName}</p>
                     <p className="text-[10px] text-gray-500">{showPayoutModal.specialization}</p>
@@ -6909,7 +6959,7 @@ export default function AdminPage() {
               <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ maxWidth: 430, margin: '0 auto' }}>
                 <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMarkPaidModal(null)} />
                 <div className="relative bg-white rounded-2xl p-5 shadow-2xl w-full max-w-sm space-y-4 z-10">
-                  <h3 className="text-base font-extrabold text-gray-900">Mark as Paid</h3>
+                  <h3 className="text-base lg:text-lg font-extrabold text-gray-900">Mark as Paid</h3>
                   <div className="bg-emerald-50 rounded-xl p-3">
                     <p className="text-sm font-bold text-gray-800">{markPaidModal.doctor?.fullName}</p>
                     <p className="text-lg font-extrabold text-emerald-700">{'\u20B9'}{markPaidModal.netPayout?.toLocaleString()}</p>
@@ -6947,7 +6997,7 @@ export default function AdminPage() {
           {/* ════════ PROGRAMS MANAGEMENT ════════ */}
           {tab === 'programs' && (<>
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-extrabold text-gray-900">🎓 Programs</h3>
+              <h3 className="text-base lg:text-lg font-extrabold text-gray-900">🎓 Programs</h3>
               <button onClick={() => { resetProgramForm(); setTab('add_program'); }}
                 className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[10px] font-bold active:scale-95 shadow-sm transition-all">
                 + Create Program
@@ -7041,9 +7091,9 @@ export default function AdminPage() {
           {(tab === 'add_program' || tab === 'edit_program') && (<>
             <div className="flex items-center gap-3">
               <button onClick={() => { resetProgramForm(); setTab('programs'); }} className="text-gray-400 text-lg active:scale-90">←</button>
-              <h3 className="text-base font-extrabold text-gray-900">{editProgram ? 'Edit Program' : 'Create Program'}</h3>
+              <h3 className="text-base lg:text-lg font-extrabold text-gray-900">{editProgram ? 'Edit Program' : 'Create Program'}</h3>
             </div>
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl p-5 lg:p-6 shadow-sm space-y-4 lg:max-w-3xl">
               <div className="grid grid-cols-[60px_1fr] gap-3">
                 <div>
                   <label className="text-[10px] font-bold text-gray-500 uppercase">Emoji</label>
@@ -7117,7 +7167,7 @@ export default function AdminPage() {
           {tab === 'program_content' && (<>
             <div className="flex items-center gap-3">
               <button onClick={() => setTab('programs')} className="text-gray-400 text-lg active:scale-90">←</button>
-              <h3 className="text-base font-extrabold text-gray-900">📋 Program Content</h3>
+              <h3 className="text-base lg:text-lg font-extrabold text-gray-900">📋 Program Content</h3>
             </div>
             {/* Add content form */}
             <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
@@ -7229,7 +7279,7 @@ export default function AdminPage() {
           {/* ════════ WELLNESS MANAGEMENT ════════ */}
           {tab === 'wellness' && (<>
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-extrabold text-gray-900">🧘 Wellness Activities</h3>
+              <h3 className="text-base lg:text-lg font-extrabold text-gray-900">🧘 Wellness Activities</h3>
               <button onClick={() => { resetWellnessForm(); setTab('add_wellness'); }}
                 className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-[10px] font-bold active:scale-95 shadow-sm transition-all">
                 + Add Activity
@@ -7326,10 +7376,10 @@ export default function AdminPage() {
           {(tab === 'add_wellness' || tab === 'edit_wellness') && (<>
             <div className="flex items-center gap-3">
               <button onClick={() => { resetWellnessForm(); setTab('wellness'); }} className="text-gray-400 text-lg active:scale-90">←</button>
-              <h3 className="text-base font-extrabold text-gray-900">{editWellness ? 'Edit Activity' : 'Add Activity'}</h3>
+              <h3 className="text-base lg:text-lg font-extrabold text-gray-900">{editWellness ? 'Edit Activity' : 'Add Activity'}</h3>
             </div>
 
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl p-5 lg:p-6 shadow-sm space-y-4 lg:max-w-3xl">
               <FormField label="Title" value={wfTitle} onChange={setWfTitle} placeholder="e.g. Morning Sun Salutation" />
               <FormField label="Description" value={wfDescription} onChange={setWfDescription} placeholder="Brief description..." multiline />
 
@@ -7402,7 +7452,7 @@ export default function AdminPage() {
           {/* ════════ SELLERS / VENDORS ════════ */}
           {tab === 'sellers' && (<>
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-extrabold text-gray-900">🏪 Seller Management</h3>
+              <h3 className="text-base lg:text-lg font-extrabold text-gray-900">🏪 Seller Management</h3>
               <div className="flex gap-2">
                 <button onClick={() => setTab('add_seller')}
                   className="px-3 py-1.5 bg-purple-600 text-white text-[10px] font-bold rounded-full active:scale-95">+ Add Seller</button>
@@ -7591,9 +7641,9 @@ export default function AdminPage() {
           {tab === 'add_seller' && (<>
             <div className="flex items-center gap-3">
               <button onClick={() => setTab('sellers')} className="text-gray-400 text-lg active:scale-90">{'\u2190'}</button>
-              <h3 className="text-base font-extrabold text-gray-900">+ Add New Seller</h3>
+              <h3 className="text-base lg:text-lg font-extrabold text-gray-900">+ Add New Seller</h3>
             </div>
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl p-5 lg:p-6 shadow-sm space-y-4 lg:max-w-3xl">
               <p className="text-[10px] text-gray-400">Admin manually onboards trusted sellers. No public registration.</p>
               <FormField label="User ID (existing user account)" value={addSellerForm.userId} onChange={v => setAddSellerForm(f => ({ ...f, userId: v }))} placeholder="Paste user UUID" />
               <FormField label="Business Name *" value={addSellerForm.businessName} onChange={v => setAddSellerForm(f => ({ ...f, businessName: v }))} placeholder="e.g. Kama Ayurveda" />
@@ -7645,7 +7695,7 @@ export default function AdminPage() {
           {tab === 'seller_detail' && sellerDetail && (<>
             <div className="flex items-center gap-3">
               <button onClick={() => setTab('sellers')} className="text-gray-400 text-lg active:scale-90">{'\u2190'}</button>
-              <h3 className="text-base font-extrabold text-gray-900">{'\u{1F3EA}'} {sellerDetail.businessName}</h3>
+              <h3 className="text-base lg:text-lg font-extrabold text-gray-900">{'\u{1F3EA}'} {sellerDetail.businessName}</h3>
             </div>
 
             {/* Onboarding Checklist */}
@@ -7828,7 +7878,7 @@ export default function AdminPage() {
           {tab === 'seller_payouts' && (<>
             <div className="flex items-center gap-3">
               <button onClick={() => setTab('sellers')} className="text-gray-400 text-lg active:scale-90">←</button>
-              <h3 className="text-base font-extrabold text-gray-900">💰 Seller Payouts</h3>
+              <h3 className="text-base lg:text-lg font-extrabold text-gray-900">💰 Seller Payouts</h3>
               <button onClick={() => handleExportCsv('payouts')}
                 className="ml-auto px-3 py-1.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full active:scale-95">📤 Export CSV</button>
             </div>
@@ -7964,7 +8014,7 @@ export default function AdminPage() {
           {/* ════════ WELLNESS CONTENT ════════ */}
           {tab === 'wellness_content' && (<>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-extrabold text-gray-900">🌿 Wellness Content ({wcTotal})</h3>
+              <h3 className="text-base lg:text-lg font-extrabold text-gray-900">🌿 Wellness Content ({wcTotal})</h3>
               <div className="flex gap-2">
                 {wcTotal === 0 && (
                   <button onClick={async () => {
@@ -7989,7 +8039,7 @@ export default function AdminPage() {
               ))}
             </div>
             {wcLoading ? <p className="text-sm text-gray-400">Loading...</p> : (
-              <div className="space-y-2">
+              <div className="space-y-2 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-3 lg:space-y-0">
                 {wcItems.map(item => (
                   <div key={item.id} className="bg-white rounded-xl p-3 shadow-sm">
                     <div className="flex items-start justify-between gap-2">
@@ -8034,7 +8084,7 @@ export default function AdminPage() {
           {tab === 'edit_wellness_content' && (<>
             <div className="flex items-center gap-2 mb-4">
               <button onClick={() => setTab('wellness_content')} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm">←</button>
-              <h3 className="text-base font-extrabold text-gray-900">{wcEdit ? 'Edit' : 'Add'} Wellness Content</h3>
+              <h3 className="text-base lg:text-lg font-extrabold text-gray-900">{wcEdit ? 'Edit' : 'Add'} Wellness Content</h3>
             </div>
             <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
               <div className="grid grid-cols-2 gap-3">
@@ -8138,13 +8188,13 @@ export default function AdminPage() {
             <h3 className="text-base font-extrabold text-gray-900">{'\u2699\uFE0F'} Settings</h3>
 
             {/* Change Password */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl p-5 lg:p-6 shadow-sm space-y-4 lg:max-w-3xl">
               <h4 className="text-sm font-bold text-gray-700">{'\u{1F512}'} Change Admin PIN</h4>
               <p className="text-[10px] text-gray-400">The admin PIN is managed server-side via the ADMIN_PIN_HASH environment variable. To change it, generate a new bcrypt hash and update the environment variable on the server.</p>
             </div>
 
             {/* Email Whitelist */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl p-5 lg:p-6 shadow-sm space-y-4 lg:max-w-3xl">
               <h4 className="text-sm font-bold text-gray-700">{'\u{1F4E7}'} Email Whitelist</h4>
               <p className="text-[10px] text-gray-400">Emails allowed to register or access admin features.</p>
               <div className="flex gap-2">
@@ -8203,14 +8253,15 @@ export default function AdminPage() {
       </div>
 
       {/* Delete confirmation modal */}
+      {/* Delete confirmation modal */}
       {confirmDel && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6" onClick={() => setConfirmDel(null)}>
-          <div className="bg-white rounded-2xl p-6 text-center max-w-xs shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl p-6 text-center max-w-xs lg:max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="w-16 h-16 mx-auto rounded-full bg-red-50 flex items-center justify-center mb-3">
               <span className="text-3xl">{'\u26A0\uFE0F'}</span>
             </div>
             <h3 className="text-base font-extrabold text-gray-900">Delete {confirmDel.type}?</h3>
-            <p className="text-[11px] text-gray-500 mt-1">This action cannot be undone.</p>
+            <p className="text-[11px] lg:text-sm text-gray-500 mt-1">This action cannot be undone.</p>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setConfirmDel(null)} className="flex-1 py-3 bg-gray-100 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-200 transition-all">Cancel</button>
               <button onClick={() => {
@@ -8223,6 +8274,8 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+      </div>
     </div>
   );
 }
