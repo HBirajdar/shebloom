@@ -288,7 +288,7 @@ model Cycle {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, startDate])
+  @@index([userId, startDate])
   @@map("cycles")
 }
 
