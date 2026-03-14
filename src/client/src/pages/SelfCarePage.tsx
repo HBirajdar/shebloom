@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCycleStore } from '../stores/cycleStore';
+import { wellnessContentAPI } from '../services/api';
 
 const phaseWellness: Record<string, { title: string; emoji: string; color: string; affirmation: string; breath: string; journalPrompt: string; selfCare: string[] }> = {
   menstrual: { title: 'Rest & Restore', emoji: '\u{1FA78}', color: '#E11D48',
@@ -49,7 +50,42 @@ export default function SelfCarePage() {
   const [sosName, setSosName] = useState('');
   const [sosPhone, setSosPhone] = useState('');
 
-  const pw = phaseWellness[phase] || phaseWellness.menstrual;
+  const hardcodedPw = phaseWellness[phase] || phaseWellness.menstrual;
+
+  // ─── DB content (Redis → DB → hardcoded fallback) ─────
+  const [dbAffirmation, setDbAffirmation] = useState<string | null>(null);
+  const [dbBreath, setDbBreath] = useState<string | null>(null);
+  const [dbJournal, setDbJournal] = useState<string | null>(null);
+  const [dbSelfCare, setDbSelfCare] = useState<string[] | null>(null);
+  const [dbTitle, setDbTitle] = useState<string | null>(null);
+  useEffect(() => {
+    wellnessContentAPI.getBulk(['affirmation', 'self_care_breath', 'journal_prompt', 'self_care'], { phase }).then(r => {
+      const data = r?.data?.data;
+      if (!data) return;
+      if (Array.isArray(data.affirmation) && data.affirmation.length > 0) {
+        setDbAffirmation(data.affirmation[0].body);
+        if (data.affirmation[0].title) setDbTitle(data.affirmation[0].title);
+      }
+      if (Array.isArray(data.self_care_breath) && data.self_care_breath.length > 0) {
+        setDbBreath(data.self_care_breath[0].body);
+      }
+      if (Array.isArray(data.journal_prompt) && data.journal_prompt.length > 0) {
+        setDbJournal(data.journal_prompt[0].body);
+      }
+      if (Array.isArray(data.self_care) && data.self_care.length > 0) {
+        setDbSelfCare(data.self_care.map((i: any) => i.body));
+      }
+    }).catch(() => {}); // Non-critical — hardcoded fallback
+  }, [phase]);
+
+  const pw = {
+    ...hardcodedPw,
+    title: dbTitle || hardcodedPw.title,
+    affirmation: dbAffirmation || hardcodedPw.affirmation,
+    breath: dbBreath || hardcodedPw.breath,
+    journalPrompt: dbJournal || hardcodedPw.journalPrompt,
+    selfCare: dbSelfCare || hardcodedPw.selfCare,
+  };
 
   // Breathing exercise — store all timer IDs for proper cleanup
   const breathTimers = useRef<ReturnType<typeof setTimeout>[]>([]);

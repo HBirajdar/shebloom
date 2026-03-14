@@ -1859,6 +1859,34 @@ model DoshaPhaseGuidance {
   @@map("dosha_phase_guidance")
 }
 
+// ─── WELLNESS CONTENT (DB-managed, admin-editable tips/guidance) ───
+model WellnessContent {
+  id              String   @id @default(cuid())
+  type            String   // phase_tip, wellness_tip, phase_routine, phase_yoga, self_care, affirmation, journal_prompt, pregnancy_week, dosha_remedy, challenge, self_care_breath, phase_tip_wisdom
+  key             String   // unique slug e.g. "menstrual_fertility_1", "week_4_baby_1"
+  phase           String?  // menstrual, follicular, ovulation, luteal
+  goal            String?  // periods, fertility, pregnancy, wellness
+  dosha           String?  // Vata, Pitta, Kapha
+  week            Int?     // pregnancy week (4, 8, 12...40)
+  category        String?  // morning, afternoon, evening, baby, mom, tips, nutrition, exercise, herb, diet, lifestyle
+  emoji           String?
+  title           String?
+  body            String   @db.Text
+  metadata        Json?    // extra data (challenge duration, breathing info, size/weight for pregnancy)
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+  sourceReference String?  // origin: "DashboardPage.tsx:phaseTips.menstrual[0]" or "Admin-created"
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([type, key])
+  @@index([type, phase, goal])
+  @@index([type, dosha])
+  @@index([type, week])
+  @@index([isActive])
+  @@map("wellness_contents")
+}
+
 // ─── AI CHAT RESPONSES (DB-managed content) ───────────
 model AIChatResponse {
   id           String   @id @default(cuid())

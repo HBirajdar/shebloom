@@ -1115,6 +1115,418 @@ async function main() {
     console.log('Welcome bonus promotion seeded')
   }
 
+  // ─── WELLNESS CONTENT ─────────────────────────────
+  const wcCount = await prisma.wellnessContent.count()
+  if (wcCount === 0) {
+    console.log('Inserting wellness content (~377 items)...')
+
+    const wcData: Array<{
+      type: string; key: string; phase?: string; goal?: string; dosha?: string;
+      week?: number; category?: string; emoji?: string; title?: string;
+      body: string; metadata?: any; sortOrder?: number; sourceReference?: string;
+    }> = []
+
+    // ═══════════════════════════════════════════════════
+    // 1. PHASE TIPS — Fertility goal (16 items)
+    // ═══════════════════════════════════════════════════
+    const fertilityPhaseTips: Record<string, string[]> = {
+      menstrual: ['🌡️ Warm compress relieves cramps', '🥬 Eat iron-rich foods (spinach, dates)', '😴 Extra rest is completely valid', '🫖 Ginger tea helps inflammation'],
+      follicular: ['⚡ Great phase to build up workout intensity', '🚀 Start new projects now', '🥑 Load up on healthy fats', '💃 Your social energy is high'],
+      ovulation: ['💜 Peak fertility window — highest chance 1-2 days before ovulation', '💧 Check egg-white cervical mucus', '🌸 Libido naturally peaks', '🔥 Peak energy — try your most challenging workout'],
+      luteal: ['🌰 Magnesium reduces PMS (almonds)', '🍠 Complex carbs stabilize mood', '😴 Body needs extra sleep now', '🚫 Reduce caffeine and salt'],
+    }
+    for (const [phase, tips] of Object.entries(fertilityPhaseTips)) {
+      tips.forEach((tip, i) => {
+        const emoji = tip.match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)/u)?.[0] || ''
+        wcData.push({
+          type: 'phase_tip', key: `fertility_${phase}_${i}`, phase, goal: 'fertility',
+          emoji, body: tip, sortOrder: i, sourceReference: `DashboardPage.tsx:phaseTips.${phase}[${i}]`,
+        })
+      })
+    }
+
+    // ═══════════════════════════════════════════════════
+    // 2. PHASE TIPS — Periods goal (16 items)
+    // ═══════════════════════════════════════════════════
+    const periodPhaseTips: Record<string, string[]> = {
+      menstrual: ['🌡️ Warm compress relieves cramps', '🥬 Eat iron-rich foods (spinach, dates)', '😴 Extra rest is completely valid', '🫖 Ginger tea helps inflammation'],
+      follicular: ['⚡ Great phase to build up workout intensity', '🚀 Start new projects now', '🥑 Load up on healthy fats', '💃 Your social energy is high'],
+      ovulation: ['🌸 You may feel more confident today', '🔥 Peak energy — try intense workouts', '💧 Stay extra hydrated', '🧘 Great time for challenging goals'],
+      luteal: ['🌰 Magnesium reduces PMS (almonds)', '🍠 Complex carbs stabilize mood', '😴 Body needs extra sleep now', '🚫 Reduce caffeine and salt'],
+    }
+    for (const [phase, tips] of Object.entries(periodPhaseTips)) {
+      tips.forEach((tip, i) => {
+        const emoji = tip.match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)/u)?.[0] || ''
+        wcData.push({
+          type: 'phase_tip', key: `periods_${phase}_${i}`, phase, goal: 'periods',
+          emoji, body: tip, sortOrder: i, sourceReference: `DashboardPage.tsx:periodTips.${phase}[${i}]`,
+        })
+      })
+    }
+
+    // ═══════════════════════════════════════════════════
+    // 3. WELLNESS TIPS (8 items)
+    // ═══════════════════════════════════════════════════
+    const wellnessTipsList = [
+      '💧 Stay well hydrated throughout the day — your skin and energy will thank you',
+      '🧘 Even 5 minutes of deep breathing can measurably reduce stress hormones',
+      '😴 Blue light before bed delays melatonin — try reading instead',
+      '🏃 A 20-minute walk can boost mood for several hours',
+      '🥗 Nutrient-rich lunches with greens may help sustain afternoon energy',
+      '🌅 Morning sunlight for 10 min resets your circadian rhythm',
+      '📵 Screen breaks every 45 min reduce eye strain and stress',
+      '🫖 Chamomile or lavender tea before bed may help improve sleep quality',
+    ]
+    wellnessTipsList.forEach((tip, i) => {
+      const emoji = tip.match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)/u)?.[0] || ''
+      wcData.push({
+        type: 'wellness_tip', key: `wellness_${i}`, goal: 'wellness',
+        emoji, body: tip, sortOrder: i, sourceReference: `DashboardPage.tsx:wellnessTips[${i}]`,
+      })
+    })
+
+    // ═══════════════════════════════════════════════════
+    // 4. PHASE ROUTINES — WellnessPage (4 phases × 3 times × ~5 items = ~49)
+    // ═══════════════════════════════════════════════════
+    const phaseRoutines: Record<string, { morning: string[]; afternoon: string[]; evening: string[] }> = {
+      menstrual: {
+        morning: ['🌅 Gentle stretch (5 min)', '🫖 Warm ginger tea', '🧘 Child\'s Pose yoga', '💊 Iron supplement (if doctor-recommended)', '🥬 Iron-rich breakfast (spinach, dates)'],
+        afternoon: ['🌡️ Warm compress for cramps', '😴 10-min rest if needed', '🥣 Light, warm meal', '💧 Extra hydration (2.5L)'],
+        evening: ['🛁 Warm bath with Epsom salt', '📖 Light journaling', '🫖 Chamomile tea', '🌙 Early bedtime — rest is healing'],
+      },
+      follicular: {
+        morning: ['☀️ Sun salutations (10 min)', '🥑 Nutrient-dense breakfast', '🧠 Set weekly intentions', '💪 Start a new healthy habit', '🚀 Best time for bold decisions'],
+        afternoon: ['🏃 Ideal for intense workout', '🥗 Antioxidant-rich lunch', '📚 Learn something new', '🤝 Connect with people'],
+        evening: ['🧘 Energizing vinyasa flow', '📓 Journal progress', '😴 8h sleep for optimal recovery'],
+      },
+      ovulation: {
+        morning: ['💜 High-intensity workout', '🥜 Protein-rich breakfast', '🤸 Challenge your body', '💧 Stay well hydrated today', '🌟 You\'re at peak confidence'],
+        afternoon: ['🥗 Zinc & fiber-rich lunch', '👥 Social energy is high', '🎯 Tackle hardest tasks now', '💼 Best day for negotiations'],
+        evening: ['🧘 Hip-opening yoga flow', '🛀 Luxurious self-care', '💜 Connect deeply with loved ones'],
+      },
+      luteal: {
+        morning: ['🌅 Gentle yoga (15 min)', '🌰 Magnesium-rich breakfast', '😮‍💨 Box breathing (5 min)', '📓 Journal feelings — don\'t suppress'],
+        afternoon: ['🥗 Complex carbs (sweet potato, oats)', '😴 Power nap if needed', '🚶 Slow walk in nature', '🚫 Limit caffeine'],
+        evening: ['🛁 Calming lavender bath', '🫖 Ashwagandha or chamomile tea', '📵 No screens after 9pm', '🌙 Sleep by 10pm'],
+      },
+    }
+    for (const [phase, times] of Object.entries(phaseRoutines)) {
+      for (const [timeOfDay, items] of Object.entries(times)) {
+        items.forEach((item, i) => {
+          const emoji = item.match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)/u)?.[0] || ''
+          wcData.push({
+            type: 'phase_routine', key: `${phase}_${timeOfDay}_${i}`, phase,
+            category: timeOfDay, emoji, body: item, sortOrder: i,
+            sourceReference: `WellnessPage.tsx:PHASE_DATA.${phase}.routine.${timeOfDay}[${i}]`,
+          })
+        })
+      }
+    }
+
+    // ═══════════════════════════════════════════════════
+    // 5. PHASE YOGA — WellnessPage (4 phases × 4 poses = 16)
+    // ═══════════════════════════════════════════════════
+    const phaseYoga: Record<string, { name: string; emoji: string; dur: string; benefit: string }[]> = {
+      menstrual: [
+        { name: "Child's Pose", emoji: '🧎', dur: '3 min', benefit: 'Relieves cramps' },
+        { name: 'Supine Twist', emoji: '🔄', dur: '2 min', benefit: 'Relaxes lower back' },
+        { name: 'Butterfly Pose', emoji: '🦋', dur: '3 min', benefit: 'Opens hips' },
+        { name: 'Legs Up Wall', emoji: '🦵', dur: '5 min', benefit: 'Reduces fatigue' },
+      ],
+      follicular: [
+        { name: 'Sun Salutation', emoji: '☀️', dur: '10 min', benefit: 'Energizes body' },
+        { name: 'Warrior I & II', emoji: '💪', dur: '5 min', benefit: 'Builds strength' },
+        { name: 'Dancer Pose', emoji: '💃', dur: '3 min', benefit: 'Balance & focus' },
+        { name: 'Vinyasa Flow', emoji: '🌊', dur: '20 min', benefit: 'Full body energy' },
+      ],
+      ovulation: [
+        { name: 'Camel Pose', emoji: '🐪', dur: '3 min', benefit: 'Opens heart' },
+        { name: 'Bridge Pose', emoji: '🌉', dur: '3 min', benefit: 'Hip flexors' },
+        { name: 'Pigeon Pose', emoji: '🕊️', dur: '5 min', benefit: 'Hip release' },
+        { name: 'Wheel Pose', emoji: '⭕', dur: '2 min', benefit: 'Peak energy' },
+      ],
+      luteal: [
+        { name: 'Yin Yoga', emoji: '🌙', dur: '20 min', benefit: 'Deep tissue release' },
+        { name: 'Forward Fold', emoji: '🙇', dur: '5 min', benefit: 'Calms nervous system' },
+        { name: 'Spinal Twist', emoji: '🌀', dur: '3 min', benefit: 'Aids digestion & spinal mobility' },
+        { name: 'Corpse Pose', emoji: '😴', dur: '10 min', benefit: 'Deep restoration' },
+      ],
+    }
+    for (const [phase, poses] of Object.entries(phaseYoga)) {
+      poses.forEach((pose, i) => {
+        wcData.push({
+          type: 'phase_yoga', key: `${phase}_yoga_${i}`, phase,
+          emoji: pose.emoji, title: pose.name, body: pose.benefit,
+          metadata: { duration: pose.dur }, sortOrder: i,
+          sourceReference: `WellnessPage.tsx:PHASE_DATA.${phase}.yoga[${i}]`,
+        })
+      })
+    }
+
+    // ═══════════════════════════════════════════════════
+    // 6. PHASE TIP WISDOM — WellnessPage (4 items)
+    // ═══════════════════════════════════════════════════
+    const phaseWisdom: Record<string, string> = {
+      menstrual: 'Rest is your superpower right now. Your body is doing extraordinary work.',
+      follicular: 'Your energy is rising! This is the best time to start new goals and challenges.',
+      ovulation: 'Peak fertility and confidence. You\'re literally glowing — use this energy wisely!',
+      luteal: 'Progesterone peaks then drops — mood changes are real. Practice radical self-compassion.',
+    }
+    for (const [phase, tip] of Object.entries(phaseWisdom)) {
+      wcData.push({
+        type: 'phase_tip_wisdom', key: `wisdom_${phase}`, phase,
+        body: tip, sortOrder: 0, sourceReference: `WellnessPage.tsx:PHASE_DATA.${phase}.tip`,
+      })
+    }
+
+    // ═══════════════════════════════════════════════════
+    // 7. CHALLENGES — WellnessPage (4 items)
+    // ═══════════════════════════════════════════════════
+    const challenges = [
+      { id: 'iron', title: '7-Day Iron Boost', emoji: '🌿', days: 7, desc: 'Eat iron-rich foods daily', color: '#E11D48', bg: '#FFF1F2', badge: '🏅' },
+      { id: 'stress', title: '14-Day Stress-Free', emoji: '🧘', days: 14, desc: 'Meditate 5 minutes daily', color: '#7C3AED', bg: '#F5F3FF', badge: '🥇' },
+      { id: 'sync', title: '21-Day Cycle Sync', emoji: '🌸', days: 21, desc: 'Phase-aligned living', color: '#EC4899', bg: '#FDF2F8', badge: '🏆' },
+      { id: 'water', title: '8-Glass Water', emoji: '💧', days: 7, desc: '8 glasses every day', color: '#3B82F6', bg: '#EFF6FF', badge: '💎' },
+    ]
+    challenges.forEach((c, i) => {
+      wcData.push({
+        type: 'challenge', key: `challenge_${c.id}`,
+        emoji: c.emoji, title: c.title, body: c.desc,
+        metadata: { days: c.days, color: c.color, bg: c.bg, badge: c.badge },
+        sortOrder: i, sourceReference: `WellnessPage.tsx:CHALLENGES[${i}]`,
+      })
+    })
+
+    // ═══════════════════════════════════════════════════
+    // 8. AFFIRMATIONS — SelfCarePage (4 items)
+    // ═══════════════════════════════════════════════════
+    const affirmations: Record<string, { title: string; emoji: string; affirmation: string }> = {
+      menstrual: { title: 'Rest & Restore', emoji: '🩸', affirmation: 'I honor my body\'s need for rest. I am allowed to slow down.' },
+      follicular: { title: 'Create & Explore', emoji: '🌱', affirmation: 'I am full of creative energy. Today I start something new.' },
+      ovulation: { title: 'Shine & Connect', emoji: '✨', affirmation: 'I am confident, radiant, and worthy of all good things.' },
+      luteal: { title: 'Nurture & Complete', emoji: '🍃', affirmation: 'I am enough exactly as I am. My feelings are valid.' },
+    }
+    for (const [phase, a] of Object.entries(affirmations)) {
+      wcData.push({
+        type: 'affirmation', key: `affirmation_${phase}`, phase,
+        emoji: a.emoji, title: a.title, body: a.affirmation,
+        sortOrder: 0, sourceReference: `SelfCarePage.tsx:phaseWellness.${phase}.affirmation`,
+      })
+    }
+
+    // ═══════════════════════════════════════════════════
+    // 9. BREATHING EXERCISES — SelfCarePage (4 items)
+    // ═══════════════════════════════════════════════════
+    const breathExercises: Record<string, string> = {
+      menstrual: '4-7-8 Relaxation: Inhale 4s, hold 7s, exhale 8s',
+      follicular: 'Energizing Breath (Kapalabhati): Quick inhale-exhale through nose, 30 rounds. Avoid during menstruation or pregnancy.',
+      ovulation: 'Box Breathing: Inhale 4s, hold 4s, exhale 4s, hold 4s',
+      luteal: 'Nadi Shodhana: Alternate nostril breathing, 10 rounds',
+    }
+    for (const [phase, desc] of Object.entries(breathExercises)) {
+      wcData.push({
+        type: 'self_care_breath', key: `breath_${phase}`, phase,
+        body: desc, sortOrder: 0, sourceReference: `SelfCarePage.tsx:phaseWellness.${phase}.breath`,
+      })
+    }
+
+    // ═══════════════════════════════════════════════════
+    // 10. JOURNAL PROMPTS — SelfCarePage (4 items)
+    // ═══════════════════════════════════════════════════
+    const journalPrompts: Record<string, string> = {
+      menstrual: 'What does my body need most right now? How can I be gentle with myself this week?',
+      follicular: 'What new project or goal excites me? What would I do if I couldn\'t fail?',
+      ovulation: 'What conversation have I been avoiding? Today I have the courage to speak my truth.',
+      luteal: 'What am I grateful for today? What can I let go of that no longer serves me?',
+    }
+    for (const [phase, prompt] of Object.entries(journalPrompts)) {
+      wcData.push({
+        type: 'journal_prompt', key: `journal_${phase}`, phase,
+        body: prompt, sortOrder: 0, sourceReference: `SelfCarePage.tsx:phaseWellness.${phase}.journalPrompt`,
+      })
+    }
+
+    // ═══════════════════════════════════════════════════
+    // 11. SELF-CARE IDEAS — SelfCarePage (4 phases × 5 items = 20)
+    // ═══════════════════════════════════════════════════
+    const selfCareIdeas: Record<string, string[]> = {
+      menstrual: ['Warm bath with essential oils', 'Gentle stretching or yin yoga', 'Hot tea and a good book', 'Say no to one extra commitment', 'Eat your favorite comfort food guilt-free'],
+      follicular: ['Try a new workout or class', 'Plan something social', 'Start a creative project', 'Meal prep healthy foods', 'Explore somewhere new'],
+      ovulation: ['Have that important conversation', 'Dress up and feel good', 'Connect deeply with someone', 'Dance or move joyfully', 'Express yourself creatively'],
+      luteal: ['Dark chocolate (guilt-free magnesium!)', 'Early bedtime with calming music', 'Warm oil self-massage', 'Organize or clean one space', 'Call someone who makes you smile'],
+    }
+    for (const [phase, ideas] of Object.entries(selfCareIdeas)) {
+      ideas.forEach((idea, i) => {
+        wcData.push({
+          type: 'self_care', key: `selfcare_${phase}_${i}`, phase,
+          body: idea, sortOrder: i, sourceReference: `SelfCarePage.tsx:phaseWellness.${phase}.selfCare[${i}]`,
+        })
+      })
+    }
+
+    // ═══════════════════════════════════════════════════
+    // 12. DOSHA REMEDIES — DashboardPage ayurvedic (3 doshas × 4 phases × 3 items = 36)
+    // ═══════════════════════════════════════════════════
+    const doshaRemedies: Record<string, Record<string, string[]>> = {
+      vata: {
+        menstrual: ['Warm sesame oil massage (Abhyanga)', 'Ashwagandha tea for calm', 'Warm, grounding foods (soups, root veggies)'],
+        follicular: ['Warming spices (ginger, cinnamon)', 'Routine-based daily schedule', 'Nourishing fats (ghee, avocado)'],
+        ovulation: ['Stay warm and grounded', 'Gentle movement, avoid overexertion', 'Warm milk with saffron before bed'],
+        luteal: ['Oil self-massage before bed', 'Avoid cold, raw foods', 'Calming herbs (Brahmi, Jatamansi)'],
+      },
+      pitta: {
+        menstrual: ['Coconut oil cooling massage', 'Rose water face mist', 'Cooling foods (cucumber, mint)'],
+        follicular: ['Aloe vera juice morning drink', 'Avoid excess spicy/sour foods', 'Moderate exercise in cool environment'],
+        ovulation: ['Sandalwood cooling paste', 'Sweet fruits (grapes, pomegranate)', 'Moonlight meditation'],
+        luteal: ['Pitta-balancing herbs (Shatavari)', 'Cooling pranayama (Shitali)', 'Avoid competitive activities'],
+      },
+      kapha: {
+        menstrual: ['Dry brushing before bath', 'Warming herbal tea (Trikatu)', 'Light, warm meals — avoid dairy'],
+        follicular: ['Vigorous exercise (best phase!)', 'Honey in warm water morning', 'Pungent spices stimulate metabolism'],
+        ovulation: ['Stay active and social', 'Light, dry foods preferred', 'Triphala for digestive balance'],
+        luteal: ['Avoid heavy, oily comfort foods', 'Energizing aromatherapy (eucalyptus)', 'Stimulating yoga (Surya Namaskar)'],
+      },
+    }
+    for (const [dosha, phases] of Object.entries(doshaRemedies)) {
+      for (const [phase, items] of Object.entries(phases)) {
+        items.forEach((item, i) => {
+          wcData.push({
+            type: 'dosha_remedy', key: `dosha_${dosha}_${phase}_${i}`, phase, dosha,
+            body: item, sortOrder: i,
+            sourceReference: `DashboardPage.tsx:doshaRemedies.${dosha}.${phase}[${i}]`,
+          })
+        })
+      }
+    }
+
+    // ═══════════════════════════════════════════════════
+    // 13. PREGNANCY WEEK DATA (10 weeks × 5 categories × ~4 items = ~200)
+    // ═══════════════════════════════════════════════════
+    const pregWeekData: Record<number, { size: string; emoji: string; len: string; wt: string; tri: number; baby: string[]; mom: string[]; tips: string[]; nutrition: string[]; exercise: string[] }> = {
+      4: { size: 'Poppy Seed', emoji: '🌾', len: '0.1 cm', wt: '<1g', tri: 1,
+        baby: ['Embryo implants in uterus wall', 'Neural tube beginning to form', 'Tiny heart starts to develop', 'Amniotic sac forming around embryo'],
+        mom: ['Missed period — first sign!', 'Fatigue and breast tenderness', 'Possible light spotting (implantation)', 'Heightened sense of smell'],
+        tips: ['Start prenatal vitamins with 400µg folic acid', 'Avoid alcohol, smoking & raw fish', 'Schedule your first prenatal appointment', 'Begin tracking symptoms in a journal'],
+        nutrition: ['Folic acid (leafy greens, fortified cereals)', 'Iron (red meat, spinach, lentils)', 'Stay hydrated — 8–10 glasses/day', 'Small frequent meals if nauseated'],
+        exercise: ['Walking 20–30 min daily', 'Gentle yoga & stretching', 'Avoid contact sports', 'Listen to your body — rest when tired'] },
+      8: { size: 'Raspberry', emoji: '🫐', len: '1.6 cm', wt: '1g', tri: 1,
+        baby: ['All major organs forming', 'Tiny fingers and toes appear', 'Heart beats at 150–170 BPM', 'Eyelids starting to fuse shut'],
+        mom: ['Morning sickness at its peak', 'Frequent urination begins', 'Breast size increasing', 'Extreme fatigue is normal'],
+        tips: ['Eat small meals every 2–3 hours', 'Ginger tea helps with nausea', 'Get 8–9 hours of sleep', 'First ultrasound may happen now'],
+        nutrition: ['Vitamin B6 helps nausea (bananas, nuts)', 'Protein at every meal', 'Avoid unpasteurized dairy', 'Calcium-rich foods (yogurt, cheese)'],
+        exercise: ['Prenatal swimming', 'Light pilates', 'Kegel exercises — start now!', 'Rest on your side when possible'] },
+      12: { size: 'Lime', emoji: '🍋', len: '5.4 cm', wt: '14g', tri: 1,
+        baby: ['Reflexes developing — can kick!', 'Fingernails and toenails growing', 'Vocal cords beginning to form', 'Kidneys start producing urine'],
+        mom: ['Nausea often starts improving', 'Energy returning gradually', 'Slight baby bump may show', 'Skin may glow or break out'],
+        tips: ['First trimester screening (NT scan)', 'Share news with close family', 'Start moisturizing belly daily', 'Begin researching birthing classes'],
+        nutrition: ['Omega-3 fatty acids (salmon, walnuts)', 'Fiber-rich foods prevent constipation', 'Vitamin D (sunlight, fortified milk)', 'Limit caffeine to 200mg/day'],
+        exercise: ['Prenatal yoga classes', 'Stationary cycling', 'Arm exercises with light weights', 'Pelvic floor exercises'] },
+      16: { size: 'Avocado', emoji: '🥑', len: '11.6 cm', wt: '100g', tri: 2,
+        baby: ['Can make facial expressions!', 'Bones hardening (ossifying)', 'Can hear your heartbeat', 'Eyebrows and eyelashes growing'],
+        mom: ['Baby bump clearly visible', 'May feel first flutters ("quickening")', 'Round ligament pain possible', 'Nasal congestion is common'],
+        tips: ['Schedule anomaly scan (18–20 weeks)', 'Start sleeping on your left side', 'Plan a babymoon trip', 'Begin thinking about baby names'],
+        nutrition: ['Increase protein intake to 75g/day', 'Calcium: 1000mg/day (dairy, tofu)', 'Vitamin C (oranges, bell peppers)', 'Iron supplements if prescribed'],
+        exercise: ['Swimming is excellent now', 'Prenatal dance classes', 'Walking 30–45 min daily', 'Avoid high-altitude exercise'] },
+      20: { size: 'Banana', emoji: '🍌', len: '16.5 cm', wt: '300g', tri: 2,
+        baby: ['Developing sleep/wake cycles', 'Can swallow amniotic fluid', 'Vernix (waxy coating) on skin', 'Gender visible on ultrasound'],
+        mom: ['Regular kicks felt daily', 'Skin stretching — possible itching', 'Linea nigra may appear', 'Hair and nails growing faster'],
+        tips: ['HALFWAY THERE! Celebrate! 🎉', 'Anatomy scan this week', 'Start a kick count journal', 'Research childbirth education classes'],
+        nutrition: ['DHA supplement for brain development', 'Zinc (pumpkin seeds, chickpeas)', 'Magnesium (dark chocolate, avocado)', 'Drink 3 liters of water daily'],
+        exercise: ['Aqua aerobics', 'Modified yoga poses', 'Gentle back stretches', 'Avoid exercises lying flat on back'] },
+      24: { size: 'Corn Cob', emoji: '🌽', len: '30 cm', wt: '600g', tri: 2,
+        baby: ['Lungs developing surfactant', 'Face fully formed', 'Responds to your voice', 'Taste buds are functional'],
+        mom: ['Braxton Hicks may start', 'Swelling in feet and ankles', 'Glucose screening test due', 'Back pain increasing'],
+        tips: ['Take glucose tolerance test', 'Elevate feet when resting', 'Practice relaxation techniques', 'Start planning the nursery'],
+        nutrition: ['Monitor sugar intake for GD test', 'Potassium (bananas, sweet potatoes)', 'Fiber to prevent hemorrhoids', 'Small meals to reduce heartburn'],
+        exercise: ['Prenatal pilates', 'Side-lying exercises', 'Shoulder and neck stretches', 'Pelvic tilts for back pain'] },
+      28: { size: 'Eggplant', emoji: '🍆', len: '37.5 cm', wt: '1 kg', tri: 3,
+        baby: ['Eyes can open and close', 'Brain developing rapidly', 'Can dream (REM sleep!)', 'Responds to light through belly'],
+        mom: ['Third trimester begins!', 'Shortness of breath', 'Trouble sleeping at night', 'Frequent Braxton Hicks'],
+        tips: ['Start counting kicks daily (10 in 2hrs)', 'Prepare your hospital bag', 'Discuss birth plan with doctor', 'Take a hospital tour'],
+        nutrition: ['Increase calorie intake by 450/day', 'Vitamin K (broccoli, kale)', 'Evening primrose oil (after 36w, discuss with doctor)', 'Probiotic foods for gut health'],
+        exercise: ['Gentle walking only', 'Birthing ball exercises', 'Deep breathing practice', 'Perineal massage preparation'] },
+      32: { size: 'Coconut', emoji: '🥥', len: '42 cm', wt: '1.7 kg', tri: 3,
+        baby: ['Practicing breathing movements', 'Bones hardening (skull stays soft)', 'All five senses are functional', 'Gaining ~250g per week'],
+        mom: ['Frequent bathroom trips', 'Heartburn and indigestion', 'Nesting instinct kicks in', 'Difficulty finding comfortable sleep position'],
+        tips: ['Finalize birth plan', 'Install car seat', 'Wash baby clothes & bedding', 'Practice labor breathing exercises'],
+        nutrition: ['Dates (6/day from 36w helps labor)', 'Red raspberry leaf tea (discuss with doctor first)', 'High-protein snacks', 'Limit salty foods for swelling'],
+        exercise: ['Squats for labor preparation', 'Cat-cow stretches', 'Ankle circles for swelling', 'Visualization & meditation'] },
+      36: { size: 'Honeydew', emoji: '🍈', len: '47 cm', wt: '2.6 kg', tri: 3,
+        baby: ['Head may engage in pelvis', 'Lungs nearly mature', 'Fat layer developing', 'Gaining 30g every day'],
+        mom: ['Increased pelvic pressure', 'Lightning crotch pain', '"Dropping" — baby moves lower', 'Cervix may start softening'],
+        tips: ['Hospital bag should be packed', 'Know the signs of labor', 'Group B strep test this week', 'Rest as much as possible'],
+        nutrition: ['Energy-boosting snacks for labor', 'Continue prenatal vitamins', 'Hydration is critical', 'Complex carbs for sustained energy'],
+        exercise: ['Walking to encourage engagement', 'Hip circles on birthing ball', 'Relaxation exercises', 'Partner massage techniques'] },
+      40: { size: 'Watermelon', emoji: '🍉', len: '51 cm', wt: '3.4 kg', tri: 3,
+        baby: ['Fully developed!', 'Lungs ready for first breath', 'Immune system boosted by antibodies', 'Average 51cm long, 3.4kg'],
+        mom: ['Cervix dilating', 'Mucus plug may pass', 'Extreme nesting urge', 'Contractions may begin anytime'],
+        tips: ['Baby can arrive any day!', 'Time contractions (5-1-1 rule)', 'Stay calm — you are ready', 'Call doctor when water breaks'],
+        nutrition: ['Light, easily digestible meals', 'Energy bars for early labor', 'Coconut water for electrolytes', 'Honey for quick energy'],
+        exercise: ['Walking to stay active and comfortable', 'Nipple stimulation (with doctor OK)', 'Stair climbing', 'Gentle bouncing on birth ball'] },
+    }
+    for (const [weekNum, data] of Object.entries(pregWeekData)) {
+      const w = parseInt(weekNum)
+      // Store week metadata
+      wcData.push({
+        type: 'pregnancy_week', key: `preg_week_${w}_meta`, week: w,
+        emoji: data.emoji, title: data.size,
+        body: `Size: ${data.size} | Length: ${data.len} | Weight: ${data.wt}`,
+        metadata: { size: data.size, length: data.len, weight: data.wt, trimester: data.tri },
+        sortOrder: 0, sourceReference: `PregnancyPage.tsx:weekData[${w}]`,
+      })
+      // Baby development
+      data.baby.forEach((item, i) => {
+        wcData.push({
+          type: 'pregnancy_week', key: `preg_week_${w}_baby_${i}`, week: w,
+          category: 'baby', body: item, sortOrder: i,
+          sourceReference: `PregnancyPage.tsx:weekData[${w}].baby[${i}]`,
+        })
+      })
+      // Mom symptoms
+      data.mom.forEach((item, i) => {
+        wcData.push({
+          type: 'pregnancy_week', key: `preg_week_${w}_mom_${i}`, week: w,
+          category: 'mom', body: item, sortOrder: i,
+          sourceReference: `PregnancyPage.tsx:weekData[${w}].mom[${i}]`,
+        })
+      })
+      // Tips
+      data.tips.forEach((item, i) => {
+        wcData.push({
+          type: 'pregnancy_week', key: `preg_week_${w}_tips_${i}`, week: w,
+          category: 'tips', body: item, sortOrder: i,
+          sourceReference: `PregnancyPage.tsx:weekData[${w}].tips[${i}]`,
+        })
+      })
+      // Nutrition
+      data.nutrition.forEach((item, i) => {
+        wcData.push({
+          type: 'pregnancy_week', key: `preg_week_${w}_nutrition_${i}`, week: w,
+          category: 'nutrition', body: item, sortOrder: i,
+          sourceReference: `PregnancyPage.tsx:weekData[${w}].nutrition[${i}]`,
+        })
+      })
+      // Exercise
+      data.exercise.forEach((item, i) => {
+        wcData.push({
+          type: 'pregnancy_week', key: `preg_week_${w}_exercise_${i}`, week: w,
+          category: 'exercise', body: item, sortOrder: i,
+          sourceReference: `PregnancyPage.tsx:weekData[${w}].exercise[${i}]`,
+        })
+      })
+    }
+
+    // Batch insert in chunks of 50 to avoid huge queries
+    const chunkSize = 50
+    for (let i = 0; i < wcData.length; i += chunkSize) {
+      const chunk = wcData.slice(i, i + chunkSize)
+      await prisma.wellnessContent.createMany({ data: chunk })
+    }
+    console.log(`✅ Seeded ${wcData.length} wellness content items`)
+  } else {
+    console.log(`Wellness content already exists (${wcCount} items), skipping...`)
+  }
+
   console.log('🌿 Seed complete!')
 }
 

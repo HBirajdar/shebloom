@@ -53,6 +53,7 @@ import analyticsRoutes from './routes/analytics.routes';
 import referralRoutes from './routes/referral.routes';
 import emailCampaignRoutes from './routes/email-campaign.routes';
 import insightsRoutes from './routes/insights.routes';
+import wellnessContentRoutes from './routes/wellness-content.routes';
 
 // ─── Startup security checks ─────────────────────────
 if (process.env.NODE_ENV === 'production') {
@@ -344,6 +345,7 @@ app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v1/referrals', referralRoutes);
 app.use('/api/v1/email-campaigns', emailCampaignRoutes);
 app.use('/api/v1/insights', insightsRoutes);
+app.use('/api/v1/wellness-content', wellnessContentRoutes);
 if (process.env.NODE_ENV !== 'production') {
   app.use('/api/v1/debug', debugRoutes);
 }

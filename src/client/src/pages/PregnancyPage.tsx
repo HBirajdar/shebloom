@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { pregnancyAPI } from '../services/api';
+import { pregnancyAPI, wellnessContentAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
 // ─── Comprehensive Week Data ────────────────────
@@ -150,11 +150,12 @@ export default function PregnancyPage() {
                   Cancel
                 </button>
                 <button
+                  disabled={!apiLoaded}
                   onClick={() => {
                     if (!lmpInput) { toast.error('Please select a date'); return; }
+                    setApiLoaded(false);
                     pregnancyAPI.create({ lastPeriodDate: lmpInput }).then(() => {
                       setHasPregnancy(null);
-                      setApiLoaded(false);
                       setShowDateInput(false);
                       pregnancyAPI.get().then(r => {
                         const data = r.data?.data;
@@ -168,12 +169,12 @@ export default function PregnancyPage() {
                         }
                         setApiLoaded(true);
                       }).catch(() => { toast.error('Could not load pregnancy data. Please refresh.'); setApiLoaded(true); });
-                    }).catch(() => toast.error('Invalid date format'));
+                    }).catch(() => { toast.error('Invalid date format'); setApiLoaded(true); });
                   }}
-                  className="flex-1 py-3 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform"
+                  className="flex-1 py-3 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform disabled:opacity-50"
                   style={{ background: 'linear-gradient(135deg, #7C3AED, #EC4899)' }}
                 >
-                  Confirm
+                  {!apiLoaded ? 'Saving...' : 'Confirm'}
                 </button>
               </div>
             </div>
@@ -191,7 +192,31 @@ export default function PregnancyPage() {
     );
   }
 
-  const d = weekData[week] || weekData[16];
+  // ─── DB content (Redis → DB → hardcoded fallback) ─────
+  const [dbWeekData, setDbWeekData] = useState<Record<number, any>>({});
+  useEffect(() => {
+    wellnessContentAPI.getByType('pregnancy_week', { week }).then(r => {
+      const items = r?.data?.data;
+      if (!Array.isArray(items) || items.length === 0) return;
+      // Parse DB items into weekData-compatible shape
+      const meta = items.find((i: any) => i.key?.endsWith('_meta'));
+      const baby = items.filter((i: any) => i.category === 'baby').sort((a: any, b: any) => a.sortOrder - b.sortOrder).map((i: any) => i.body);
+      const mom = items.filter((i: any) => i.category === 'mom').sort((a: any, b: any) => a.sortOrder - b.sortOrder).map((i: any) => i.body);
+      const tips = items.filter((i: any) => i.category === 'tips').sort((a: any, b: any) => a.sortOrder - b.sortOrder).map((i: any) => i.body);
+      const nutrition = items.filter((i: any) => i.category === 'nutrition').sort((a: any, b: any) => a.sortOrder - b.sortOrder).map((i: any) => i.body);
+      const exercise = items.filter((i: any) => i.category === 'exercise').sort((a: any, b: any) => a.sortOrder - b.sortOrder).map((i: any) => i.body);
+      if (baby.length || mom.length || tips.length) {
+        setDbWeekData(prev => ({ ...prev, [week]: {
+          size: meta?.title || meta?.metadata?.size || '',
+          emoji: meta?.emoji || '', len: meta?.metadata?.length || '',
+          wt: meta?.metadata?.weight || '', tri: meta?.metadata?.trimester || 1,
+          baby, mom, tips, nutrition, exercise,
+        }}));
+      }
+    }).catch(() => {}); // Non-critical — hardcoded fallback
+  }, [week]);
+
+  const d = dbWeekData[week] || weekData[week] || weekData[16];
   const pct = Math.round((week / 40) * 100);
   const daysLeft = (40 - week) * 7;
   const dueDate = new Date();
@@ -324,7 +349,7 @@ export default function PregnancyPage() {
             <span className="text-[10px] text-gray-400">{checks.filter(Boolean).length}/{checks.length} done</span>
           </div>
           <div className="space-y-1">
-            {d.tips.map((tip, i) => (
+            {d.tips.map((tip: string, i: number) => (
               <button key={i} onClick={() => toggleCheck(i)} className="flex items-center gap-3 w-full py-2.5 px-1 rounded-xl transition-colors active:bg-gray-50">
                 <div className={'w-6 h-6 rounded-lg border-2 flex items-center justify-center text-[10px] transition-all flex-shrink-0 ' +
                   (checks[i] ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-gray-300')}>

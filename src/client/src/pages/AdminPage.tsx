@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { adminAPI, doshaAPI, financeAPI, communityAPI, contentAPI, subscriptionAPI, analyticsAPI, referralAPI, emailCampaignAPI } from '../services/api';
+import { adminAPI, doshaAPI, financeAPI, communityAPI, contentAPI, subscriptionAPI, analyticsAPI, referralAPI, emailCampaignAPI, wellnessContentAPI } from '../services/api';
 import ImageUpload from '../components/ImageUpload';
 
 // Adapter: normalises axios { data: { success, data: X } } → { success, data: X }
@@ -176,7 +176,7 @@ const FormCheckbox = ({ label, checked, onChange }: { label: string; checked: bo
 );
 type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'NO_SHOW' | 'CANCELLED';
 
-type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness' | 'programs' | 'add_program' | 'edit_program' | 'program_content' | 'sellers' | 'seller_detail' | 'seller_payouts' | 'add_seller' | 'community' | 'content' | 'subscriptions' | 'leads' | 'insights' | 'user_detail' | 'live_feed' | 'churn_risk' | 'segments' | 'alerts' | 'forecast' | 'cohorts' | 'exports' | 'journeys' | 'geo' | 'referrals' | 'streaks' | 'campaigns' | 'nps' | 'ltv' | 'ab_tests' | 'email_campaigns' | 'badges' | 'anomalies' | 'health_score' | 'content_perf';
+type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness' | 'programs' | 'add_program' | 'edit_program' | 'program_content' | 'sellers' | 'seller_detail' | 'seller_payouts' | 'add_seller' | 'community' | 'content' | 'subscriptions' | 'leads' | 'insights' | 'user_detail' | 'live_feed' | 'churn_risk' | 'segments' | 'alerts' | 'forecast' | 'cohorts' | 'exports' | 'journeys' | 'geo' | 'referrals' | 'streaks' | 'campaigns' | 'nps' | 'ltv' | 'ab_tests' | 'email_campaigns' | 'badges' | 'anomalies' | 'health_score' | 'content_perf' | 'wellness_content' | 'edit_wellness_content';
 
 // ─── Finance Admin Tab ──────────────────────────────────
 // Platform config, coupons, revenue analytics — like Practo/Zomato/Amazon admin
@@ -4476,6 +4476,15 @@ export default function AdminPage() {
   const [oldPin, setOldPin] = useState('');
   const [newPin, setNewPin] = useState('');
 
+  // Wellness Content state
+  const [wcItems, setWcItems] = useState<any[]>([]);
+  const [wcTotal, setWcTotal] = useState(0);
+  const [wcPage, setWcPage] = useState(1);
+  const [wcTypeFilter, setWcTypeFilter] = useState('');
+  const [wcLoading, setWcLoading] = useState(false);
+  const [wcEdit, setWcEdit] = useState<any>(null);
+  const [wcForm, setWcForm] = useState({ type: '', key: '', phase: '', goal: '', dosha: '', week: '', category: '', emoji: '', title: '', body: '', metadata: '', sortOrder: '0', isActive: true, sourceReference: '' });
+
   // Settings state
   const [emailWhitelist, setEmailWhitelist] = useState<string[]>(() => JSON.parse(localStorage.getItem('sb_email_whitelist') || '[]'));
   const [newEmail, setNewEmail] = useState('');
@@ -4830,6 +4839,56 @@ export default function AdminPage() {
     } catch { toast.error('Failed to load wellness activities'); }
     finally { setWellnessLoading(false); }
   };
+  // ─── Wellness Content CRUD ─────────────────────────
+  const fetchWellnessContent = async (page = 1) => {
+    setWcLoading(true);
+    try {
+      const res = await wellnessContentAPI.adminList({ type: wcTypeFilter || undefined, page, limit: 50 });
+      const d = res?.data?.data;
+      setWcItems(d?.items || []);
+      setWcTotal(d?.total || 0);
+      setWcPage(page);
+    } catch { toast.error('Failed to load wellness content'); }
+    finally { setWcLoading(false); }
+  };
+  const handleWcSave = async () => {
+    if (!wcForm.type || !wcForm.key || !wcForm.body) { toast.error('Type, key, and body are required'); return; }
+    try {
+      const payload = {
+        ...wcForm,
+        week: wcForm.week ? parseInt(wcForm.week) : undefined,
+        sortOrder: parseInt(wcForm.sortOrder) || 0,
+        metadata: wcForm.metadata ? JSON.parse(wcForm.metadata) : undefined,
+      };
+      if (wcEdit) {
+        await wellnessContentAPI.adminUpdate(wcEdit.id, payload);
+        toast.success('Content updated');
+      } else {
+        await wellnessContentAPI.adminCreate(payload);
+        toast.success('Content created');
+      }
+      setWcEdit(null);
+      setWcForm({ type: '', key: '', phase: '', goal: '', dosha: '', week: '', category: '', emoji: '', title: '', body: '', metadata: '', sortOrder: '0', isActive: true, sourceReference: '' });
+      fetchWellnessContent(wcPage);
+      setTab('wellness_content');
+    } catch (e: any) { toast.error(e.message || 'Save failed'); }
+  };
+  const handleWcDelete = async (id: string) => {
+    if (!confirm('Delete this content item?')) return;
+    try {
+      await wellnessContentAPI.adminDelete(id);
+      toast.success('Deleted');
+      fetchWellnessContent(wcPage);
+    } catch { toast.error('Delete failed'); }
+  };
+  const handleWcToggle = async (id: string) => {
+    try {
+      await wellnessContentAPI.adminToggle(id);
+      toast.success('Toggled');
+      fetchWellnessContent(wcPage);
+    } catch { toast.error('Toggle failed'); }
+  };
+
   const resetWellnessForm = () => {
     setWfTitle(''); setWfDescription(''); setWfCategory('yoga'); setWfDuration('10');
     setWfDifficulty('beginner'); setWfPhases([]); setWfImageUrl(''); setWfVideoUrl('');
@@ -5052,6 +5111,7 @@ export default function AdminPage() {
     if (tab === 'programs') fetchPrograms();
     if (tab === 'sellers') { fetchSellers(); fetchSellerAnalytics(); }
     if (tab === 'seller_payouts') fetchSellerPayouts();
+    if (tab === 'wellness_content') fetchWellnessContent(1);
   }, [tab, isUnlocked]);
 
   // ─── Auth ───────────────────────────────────────────
@@ -5497,6 +5557,7 @@ export default function AdminPage() {
     { id: 'programs', icon: '🎓', label: 'Programs' },
     { id: 'sellers', icon: '🏪', label: 'Sellers' },
     { id: 'community', icon: '💬', label: 'Community' },
+    { id: 'wellness_content', icon: '🌿', label: 'Tips/Content' },
     { id: 'content', icon: '\u{1F4DA}', label: 'Content' },
     { id: 'audit_log', icon: '\u{1F4CB}', label: 'Audit Log' },
     { id: 'settings', icon: '\u2699\uFE0F', label: 'Settings' },
@@ -7893,6 +7954,166 @@ export default function AdminPage() {
 
           {/* ════════ CONTENT PERFORMANCE ════════ */}
           {tab === 'content_perf' && (<ContentPerfTab />)}
+
+          {/* ════════ WELLNESS CONTENT ════════ */}
+          {tab === 'wellness_content' && (<>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-extrabold text-gray-900">🌿 Wellness Content ({wcTotal})</h3>
+              <button onClick={() => { setWcEdit(null); setWcForm({ type: '', key: '', phase: '', goal: '', dosha: '', week: '', category: '', emoji: '', title: '', body: '', metadata: '', sortOrder: '0', isActive: true, sourceReference: '' }); setTab('edit_wellness_content' as TabId); }}
+                className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-xl">+ Add</button>
+            </div>
+            <div className="flex gap-2 mb-3 flex-wrap">
+              {['', 'phase_tip', 'wellness_tip', 'phase_routine', 'phase_yoga', 'phase_tip_wisdom', 'challenge', 'affirmation', 'self_care_breath', 'journal_prompt', 'self_care', 'dosha_remedy', 'pregnancy_week'].map(t => (
+                <button key={t} onClick={() => { setWcTypeFilter(t); setTimeout(() => fetchWellnessContent(1), 0); }}
+                  className={'px-2 py-1 rounded-full text-[9px] font-bold ' + (wcTypeFilter === t ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600')}>
+                  {t || 'All'}
+                </button>
+              ))}
+            </div>
+            {wcLoading ? <p className="text-sm text-gray-400">Loading...</p> : (
+              <div className="space-y-2">
+                {wcItems.map(item => (
+                  <div key={item.id} className="bg-white rounded-xl p-3 shadow-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700">{item.type}</span>
+                          {item.phase && <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600">{item.phase}</span>}
+                          {item.goal && <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-600">{item.goal}</span>}
+                          {item.dosha && <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600">{item.dosha}</span>}
+                          {item.week !== null && <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-pink-50 text-pink-600">W{item.week}</span>}
+                          {!item.isActive && <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-red-50 text-red-600">OFF</span>}
+                        </div>
+                        <p className="text-[10px] font-bold text-gray-800 mt-1 truncate">{item.emoji} {item.title || item.key}</p>
+                        <p className="text-[9px] text-gray-500 truncate">{item.body?.slice(0, 80)}</p>
+                        {item.sourceReference && <p className="text-[8px] text-gray-300 mt-0.5">{item.sourceReference}</p>}
+                      </div>
+                      <div className="flex gap-1 flex-shrink-0">
+                        <button onClick={() => handleWcToggle(item.id)} className="text-[9px] px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200">{item.isActive ? '⏸️' : '▶️'}</button>
+                        <button onClick={() => { setWcEdit(item); setWcForm({ type: item.type, key: item.key, phase: item.phase || '', goal: item.goal || '', dosha: item.dosha || '', week: item.week !== null ? String(item.week) : '', category: item.category || '', emoji: item.emoji || '', title: item.title || '', body: item.body, metadata: item.metadata ? JSON.stringify(item.metadata) : '', sortOrder: String(item.sortOrder || 0), isActive: item.isActive, sourceReference: item.sourceReference || '' }); setTab('edit_wellness_content' as TabId); }}
+                          className="text-[9px] px-2 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100">✏️</button>
+                        <button onClick={() => handleWcDelete(item.id)} className="text-[9px] px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100">🗑️</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {wcItems.length === 0 && <p className="text-sm text-gray-400 text-center py-8">No content found</p>}
+              </div>
+            )}
+            {wcTotal > 50 && (
+              <div className="flex justify-center gap-2 mt-4">
+                {Array.from({ length: Math.ceil(wcTotal / 50) }, (_, i) => (
+                  <button key={i} onClick={() => fetchWellnessContent(i + 1)}
+                    className={'w-7 h-7 rounded-full text-[10px] font-bold ' + (wcPage === i + 1 ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600')}>
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>)}
+
+          {/* ════════ WELLNESS CONTENT EDIT ════════ */}
+          {tab === 'edit_wellness_content' && (<>
+            <div className="flex items-center gap-2 mb-4">
+              <button onClick={() => setTab('wellness_content')} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm">←</button>
+              <h3 className="text-base font-extrabold text-gray-900">{wcEdit ? 'Edit' : 'Add'} Wellness Content</h3>
+            </div>
+            <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[9px] font-bold text-gray-500 block mb-1">Type *</label>
+                  <select value={wcForm.type} onChange={e => setWcForm({ ...wcForm, type: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-xl text-xs">
+                    <option value="">Select type...</option>
+                    {['phase_tip', 'wellness_tip', 'phase_routine', 'phase_yoga', 'phase_tip_wisdom', 'challenge', 'affirmation', 'self_care_breath', 'journal_prompt', 'self_care', 'dosha_remedy', 'pregnancy_week'].map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold text-gray-500 block mb-1">Key *</label>
+                  <input value={wcForm.key} onChange={e => setWcForm({ ...wcForm, key: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-xl text-xs" placeholder="unique_key" />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-[9px] font-bold text-gray-500 block mb-1">Phase</label>
+                  <select value={wcForm.phase} onChange={e => setWcForm({ ...wcForm, phase: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-xl text-xs">
+                    <option value="">None</option>
+                    {['menstrual', 'follicular', 'ovulation', 'luteal'].map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold text-gray-500 block mb-1">Goal</label>
+                  <select value={wcForm.goal} onChange={e => setWcForm({ ...wcForm, goal: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-xl text-xs">
+                    <option value="">None</option>
+                    {['fertility', 'periods', 'wellness', 'pregnancy'].map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold text-gray-500 block mb-1">Dosha</label>
+                  <select value={wcForm.dosha} onChange={e => setWcForm({ ...wcForm, dosha: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-xl text-xs">
+                    <option value="">None</option>
+                    {['vata', 'pitta', 'kapha'].map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-4 gap-3">
+                <div>
+                  <label className="text-[9px] font-bold text-gray-500 block mb-1">Week</label>
+                  <input type="number" value={wcForm.week} onChange={e => setWcForm({ ...wcForm, week: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-xl text-xs" placeholder="4-40" />
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold text-gray-500 block mb-1">Category</label>
+                  <input value={wcForm.category} onChange={e => setWcForm({ ...wcForm, category: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-xl text-xs" placeholder="morning/baby/..." />
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold text-gray-500 block mb-1">Emoji</label>
+                  <input value={wcForm.emoji} onChange={e => setWcForm({ ...wcForm, emoji: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-xl text-xs" placeholder="🌿" />
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold text-gray-500 block mb-1">Sort Order</label>
+                  <input type="number" value={wcForm.sortOrder} onChange={e => setWcForm({ ...wcForm, sortOrder: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-xl text-xs" />
+                </div>
+              </div>
+              <div>
+                <label className="text-[9px] font-bold text-gray-500 block mb-1">Title</label>
+                <input value={wcForm.title} onChange={e => setWcForm({ ...wcForm, title: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-xl text-xs" placeholder="Optional title" />
+              </div>
+              <div>
+                <label className="text-[9px] font-bold text-gray-500 block mb-1">Body *</label>
+                <textarea value={wcForm.body} onChange={e => setWcForm({ ...wcForm, body: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-xl text-xs" rows={3} placeholder="Content text..." />
+              </div>
+              <div>
+                <label className="text-[9px] font-bold text-gray-500 block mb-1">Metadata (JSON)</label>
+                <textarea value={wcForm.metadata} onChange={e => setWcForm({ ...wcForm, metadata: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-xl text-xs font-mono" rows={2} placeholder='{"duration": "5 min"}' />
+              </div>
+              <div>
+                <label className="text-[9px] font-bold text-gray-500 block mb-1">Source Reference</label>
+                <input value={wcForm.sourceReference} onChange={e => setWcForm({ ...wcForm, sourceReference: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-xl text-xs" placeholder="DashboardPage.tsx:phaseTips.menstrual[0]" />
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" checked={wcForm.isActive} onChange={e => setWcForm({ ...wcForm, isActive: e.target.checked })} />
+                <label className="text-xs text-gray-700">Active</label>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={handleWcSave} className="flex-1 py-2.5 bg-emerald-600 text-white text-xs font-bold rounded-xl">{wcEdit ? 'Update' : 'Create'}</button>
+                <button onClick={() => setTab('wellness_content')} className="px-4 py-2.5 bg-gray-100 text-gray-600 text-xs font-bold rounded-xl">Cancel</button>
+              </div>
+            </div>
+          </>)}
 
           {/* ════════ SETTINGS ════════ */}
           {tab === 'settings' && (<>

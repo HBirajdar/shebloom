@@ -12,7 +12,7 @@ const BASE =
 
 export const api = axios.create({
   baseURL: BASE + '/api/v1',
-  timeout: 30000,
+  timeout: 15000, // 15s — fail fast, retry handles recovery
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -31,7 +31,7 @@ async function refreshToken(): Promise<string | null> {
   const rt = localStorage.getItem('sb_refresh');
   if (!rt) return null;
   try {
-    const resp = await axios.post(BASE + '/api/v1/auth/refresh', { refreshToken: rt });
+    const resp = await axios.post(BASE + '/api/v1/auth/refresh', { refreshToken: rt }, { timeout: 10000 });
     const newToken = resp.data.data.accessToken;
     localStorage.setItem('sb_token', newToken);
     localStorage.setItem('sb_refresh', resp.data.data.refreshToken);
@@ -54,6 +54,28 @@ async function refreshToken(): Promise<string | null> {
   }
 }
 
+// Retry logic: retry network errors and 5xx up to 2 times with backoff
+const RETRY_STATUSES = new Set([500, 502, 503, 504]);
+const MAX_RETRIES = 2;
+
+function shouldRetry(err: any): boolean {
+  if (err.response?.status === 401) return false; // handled by refresh
+  if (RETRY_STATUSES.has(err.response?.status)) return true;
+  if (!err.response && err.code !== 'ERR_CANCELED') return true; // network error
+  if (err.code === 'ECONNABORTED') return true; // timeout
+  return false;
+}
+
+async function retryRequest(err: any): Promise<any> {
+  const req = err.config;
+  if (!req) return Promise.reject(err);
+  req._retryCount = (req._retryCount || 0) + 1;
+  if (req._retryCount > MAX_RETRIES) return Promise.reject(err);
+  // Exponential backoff: 1s, 2s
+  await new Promise(r => setTimeout(r, req._retryCount * 1000));
+  return api(req);
+}
+
 api.interceptors.response.use(
   (r) => r,
   async (err) => {
@@ -72,18 +94,22 @@ api.interceptors.response.use(
       }
     }
 
+    // Auto-retry on network/5xx errors
+    if (shouldRetry(err) && (req?._retryCount || 0) < MAX_RETRIES) {
+      return retryRequest(err);
+    }
+
     // Attach readable error message for catch blocks
     const serverMsg = err.response?.data?.error || err.response?.data?.message;
     if (serverMsg) {
       err.message = serverMsg;
     } else if (err.code === 'ECONNABORTED') {
-      err.message = 'Request timed out — server may be starting up, try again';
+      err.message = 'Request timed out — please try again';
     } else if (err.response?.status === 429) {
       err.message = 'Too many requests — please wait a minute';
     } else if (err.response?.status === 403) {
       err.message = 'Access denied — admin login required';
     } else if (!err.response) {
-      // Log detailed info for debugging network errors in production
       console.error('[API] No response:', err.code, err.message, req?.url);
       err.message = 'Network error — check your connection';
     }
@@ -616,6 +642,27 @@ export const referralAPI = {
 };
 
 // ─── EMAIL CAMPAIGN API ──────────────────────────
+// ─── WELLNESS CONTENT API ──────────────────────
+export const wellnessContentAPI = {
+  // Public: fetch content by type + filters
+  getByType: (type: string, filters?: { phase?: string; goal?: string; dosha?: string; week?: number; category?: string }) =>
+    api.get('/wellness-content', { params: { type, ...filters } }),
+  // Public: fetch multiple types in one call
+  getBulk: (types: string[], filters?: { phase?: string; goal?: string; dosha?: string; week?: number }) =>
+    api.get('/wellness-content/bulk', { params: { types: types.join(','), ...filters } }),
+  // Admin: list all (paginated, filterable)
+  adminList: (params?: { type?: string; phase?: string; goal?: string; dosha?: string; week?: number; isActive?: string; page?: number; limit?: number }) =>
+    api.get('/wellness-content/admin', { params }),
+  // Admin: create
+  adminCreate: (d: any) => api.post('/wellness-content/admin', d),
+  // Admin: update
+  adminUpdate: (id: string, d: any) => api.put(`/wellness-content/admin/${id}`, d),
+  // Admin: delete
+  adminDelete: (id: string) => api.delete(`/wellness-content/admin/${id}`),
+  // Admin: toggle active
+  adminToggle: (id: string) => api.patch(`/wellness-content/admin/${id}/toggle`),
+};
+
 export const emailCampaignAPI = {
   list: () => api.get('/email-campaigns'),
   create: (d: any) => api.post('/email-campaigns', d),

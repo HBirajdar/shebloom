@@ -2,7 +2,7 @@ import { Helmet } from 'react-helmet-async';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCycleStore } from '../stores/cycleStore';
-import { wellnessAPI } from '../services/api';
+import { wellnessAPI, wellnessContentAPI } from '../services/api';
 import BottomNav from '../components/BottomNav';
 import toast from 'react-hot-toast';
 
@@ -131,7 +131,57 @@ export default function WellnessPage() {
   const nav = useNavigate();
   const { phase, cycleDay, goal, hasRealData } = useCycleStore();
   const safePhase = (PHASE_DATA[phase] ? phase : 'follicular') as keyof typeof PHASE_DATA;
-  const pd = PHASE_DATA[safePhase];
+  const hardcodedPd = PHASE_DATA[safePhase];
+
+  // ─── DB content (Redis → DB → hardcoded fallback) ─────
+  const [dbRoutine, setDbRoutine] = useState<Record<string, string[]> | null>(null);
+  const [dbYoga, setDbYoga] = useState<any[] | null>(null);
+  const [dbTipWisdom, setDbTipWisdom] = useState<string | null>(null);
+  const [dbChallenges, setDbChallenges] = useState<any[] | null>(null);
+  useEffect(() => {
+    // Fetch phase-specific content in one bulk call
+    wellnessContentAPI.getBulk(['phase_routine', 'phase_yoga', 'phase_tip_wisdom', 'challenge'], { phase: safePhase }).then(r => {
+      const data = r?.data?.data;
+      if (!data) return;
+      // Routines: group by category (morning/afternoon/evening)
+      if (Array.isArray(data.phase_routine) && data.phase_routine.length > 0) {
+        const grouped: Record<string, string[]> = { morning: [], afternoon: [], evening: [] };
+        data.phase_routine.forEach((item: any) => {
+          if (grouped[item.category]) grouped[item.category].push(item.body);
+        });
+        if (grouped.morning.length || grouped.afternoon.length || grouped.evening.length) setDbRoutine(grouped);
+      }
+      // Yoga poses
+      if (Array.isArray(data.phase_yoga) && data.phase_yoga.length > 0) {
+        setDbYoga(data.phase_yoga.map((item: any) => ({
+          name: item.title || item.body, emoji: item.emoji || '',
+          dur: item.metadata?.duration || '5 min', benefit: item.body,
+        })));
+      }
+      // Tip wisdom
+      if (Array.isArray(data.phase_tip_wisdom) && data.phase_tip_wisdom.length > 0) {
+        setDbTipWisdom(data.phase_tip_wisdom[0].body);
+      }
+      // Challenges
+      if (Array.isArray(data.challenge) && data.challenge.length > 0) {
+        setDbChallenges(data.challenge.map((item: any) => ({
+          id: item.key?.replace('challenge_', '') || item.key,
+          title: item.title, emoji: item.emoji || '', desc: item.body,
+          days: item.metadata?.days || 7, color: item.metadata?.color || '#7C3AED',
+          bg: item.metadata?.bg || '#F5F3FF', badge: item.metadata?.badge || '🏅',
+        })));
+      }
+    }).catch(() => {}); // Non-critical — hardcoded fallback
+  }, [safePhase]);
+
+  // Merged pd: DB content takes priority, hardcoded is fallback
+  const pd = {
+    ...hardcodedPd,
+    routine: dbRoutine || hardcodedPd.routine,
+    yoga: dbYoga || hardcodedPd.yoga,
+    tip: dbTipWisdom || hardcodedPd.tip,
+  };
+  const activeChallenges = dbChallenges || CHALLENGES;
 
   // ─── API yoga/breathing content ───────────────────────
   const [apiYoga, setApiYoga] = useState<any[]>([]);
@@ -237,7 +287,7 @@ export default function WellnessPage() {
     localStorage.setItem('sb_joined_challenges', JSON.stringify([...next]));
   };
   const logChallengeDay = (id: string) => {
-    const c = CHALLENGES.find(x => x.id === id)!;
+    const c = activeChallenges.find(x => x.id === id)!;
     const curr = challengeProgress[id] || 0;
     if (curr >= c.days) { toast('Already completed! 🎉'); return; }
     const next = { ...challengeProgress, [id]: curr + 1 };
@@ -454,7 +504,7 @@ export default function WellnessPage() {
             <div className="bg-white rounded-3xl p-4 shadow-lg">
               <h3 className="text-xs font-extrabold text-gray-800 mb-3">🎯 Your Challenges</h3>
               <div className="space-y-3">
-                {CHALLENGES.filter(c => joinedChallenges.has(c.id)).map(c => {
+                {activeChallenges.filter(c => joinedChallenges.has(c.id)).map(c => {
                   const prog = challengeProgress[c.id] || 0;
                   const pct = Math.round((prog / c.days) * 100);
                   const done = prog >= c.days;
@@ -491,7 +541,7 @@ export default function WellnessPage() {
           <div className="bg-white rounded-3xl p-4 shadow-lg">
             <h3 className="text-xs font-extrabold text-gray-800 mb-3">🏆 Wellness Challenges</h3>
             <div className="space-y-3">
-              {CHALLENGES.filter(c => !joinedChallenges.has(c.id)).map(c => (
+              {activeChallenges.filter(c => !joinedChallenges.has(c.id)).map(c => (
                 <div key={c.id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100">
                   <span className="text-2xl">{c.emoji}</span>
                   <div className="flex-1">
@@ -505,7 +555,7 @@ export default function WellnessPage() {
                   </button>
                 </div>
               ))}
-              {CHALLENGES.every(c => joinedChallenges.has(c.id)) && (
+              {activeChallenges.every(c => joinedChallenges.has(c.id)) && (
                 <div className="text-center py-4">
                   <span className="text-3xl">🏆</span>
                   <p className="text-xs font-bold text-gray-600 mt-2">You're on all challenges!</p>
