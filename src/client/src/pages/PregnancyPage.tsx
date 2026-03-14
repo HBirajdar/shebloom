@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { pregnancyAPI, wellnessContentAPI } from '../services/api';
 import toast from 'react-hot-toast';
@@ -74,6 +74,8 @@ const triColors = ['', 'text-emerald-600 bg-emerald-50', 'text-blue-600 bg-blue-
 // ─── Baby Growth SVG ─────────────────────────────
 export default function PregnancyPage() {
   const nav = useNavigate();
+  const isMountedRef = useRef(true);
+  useEffect(() => { return () => { isMountedRef.current = false; }; }, []);
   const [week, setWeek] = useState(16);
   const [apiLoaded, setApiLoaded] = useState(false);
   const [hasPregnancy, setHasPregnancy] = useState<boolean | null>(null);
@@ -113,7 +115,9 @@ export default function PregnancyPage() {
   }, [week, hasPregnancy]);
 
   useEffect(() => {
+    let cancelled = false;
     pregnancyAPI.get().then(r => {
+      if (cancelled) return;
       const data = r.data?.data;
       if (data?.pregnancyWeek && typeof data.pregnancyWeek === 'number') {
         const keys = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40];
@@ -126,7 +130,8 @@ export default function PregnancyPage() {
         setHasPregnancy(false);
       }
       setApiLoaded(true);
-    }).catch(() => { setHasPregnancy(false); setApiLoaded(true); });
+    }).catch(() => { if (!cancelled) { setHasPregnancy(false); setApiLoaded(true); } });
+    return () => { cancelled = true; };
   }, []);
 
   if (!apiLoaded) {
@@ -182,9 +187,11 @@ export default function PregnancyPage() {
                     if (!lmpInput) { toast.error('Please select a date'); return; }
                     setApiLoaded(false);
                     pregnancyAPI.create({ lastPeriodDate: lmpInput }).then(() => {
+                      if (!isMountedRef.current) return;
                       setHasPregnancy(null);
                       setShowDateInput(false);
                       pregnancyAPI.get().then(r => {
+                        if (!isMountedRef.current) return;
                         const data = r.data?.data;
                         if (data?.pregnancyWeek) {
                           const keys = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40];
@@ -195,8 +202,8 @@ export default function PregnancyPage() {
                           setHasPregnancy(true);
                         }
                         setApiLoaded(true);
-                      }).catch(() => { toast.error('Could not load pregnancy data. Please refresh.'); setApiLoaded(true); });
-                    }).catch(() => { toast.error('Invalid date format'); setApiLoaded(true); });
+                      }).catch(() => { if (isMountedRef.current) { toast.error('Could not load pregnancy data. Please refresh.'); setApiLoaded(true); } });
+                    }).catch(() => { if (isMountedRef.current) { toast.error('Invalid date format'); setApiLoaded(true); } });
                   }}
                   className="flex-1 py-3 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform disabled:opacity-50"
                   style={{ background: 'linear-gradient(135deg, #7C3AED, #EC4899)' }}

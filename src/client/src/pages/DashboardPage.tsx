@@ -258,33 +258,38 @@ export default function DashboardPage() {
   const tips = dbTips || hardcodedTips;
   useEffect(() => {
     setTipIdx(0);
-    const t = setInterval(() => setTipIdx(i => (i + 1) % tips.length), 4000);
+    const t = setInterval(() => setTipIdx(i => tips.length > 0 ? (i + 1) % tips.length : 0), 4000);
     return () => clearInterval(t);
   }, [tips]);
 
   useEffect(() => { fetchSubscription(); }, []);
 
   useEffect(() => {
+    let cancelled = false;
     userAPI.me().then(res => {
-      const p = res.data.data || res.data;
+      if (cancelled) return;
+      const p = res?.data?.data || res?.data;
       const currentUser = useAuthStore.getState().user;
       if (p && currentUser) useAuthStore.getState().setUser({ ...currentUser, fullName: p.fullName || currentUser.fullName, email: p.email || currentUser.email, role: p.role || currentUser.role, avatarUrl: p.avatarUrl || currentUser.avatarUrl, phone: p.phone || currentUser.phone });
     }).catch(() => {});
     cycleAPI.predict().then(r => {
-      const d = r.data.data;
+      if (cancelled) return;
+      const d = r?.data?.data;
       if (d && typeof d.cycleDay === 'number') {
         set({ cycleDay: d.cycleDay, phase: d.phase, daysUntilPeriod: d.daysUntilPeriod, cycleLength: d.cycleLength || 28, periodLength: d.periodLength || 5, hasRealData: true });
         setPredictionData(d); // Store full prediction for advanced features
       } else { set({ hasRealData: false }); }
-    }).catch(() => toast.error('Could not load cycle data. Check your connection.')).finally(() => setDashLoading(false));
+    }).catch(() => toast.error('Could not load cycle data. Check your connection.')).finally(() => { if (!cancelled) setDashLoading(false); });
     // Load Ayurvedic insights for personalized dashboard
     cycleAPI.getAyurvedicInsights().then(r => {
+      if (cancelled) return;
       setAyurvedaData(r?.data?.data || null);
     }).catch(() => {}); // Non-critical — dashboard works without Ayurveda
     // Auto-detect location for weather-based Ayurvedic adjustments
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
+          if (cancelled) return;
           weatherAPI.saveLocation(pos.coords.latitude, pos.coords.longitude).catch(() => {}); // Non-critical
         },
         () => {}, // User denied — silently skip, will use seasonal fallback
@@ -293,6 +298,7 @@ export default function DashboardPage() {
     }
     // Load today's wellness data — restore all logged items after refresh
     wellnessAPI.dailyScore().then(r => {
+      if (cancelled) return;
       const d = r?.data?.data || r?.data;
       if (d?.components?.water?.glasses !== undefined) setWater(d.components.water.glasses);
       if (d?.components?.mood?.logged && d.components.mood.value) setMood(d.components.mood.value);
@@ -301,14 +307,17 @@ export default function DashboardPage() {
     }).catch(() => {}); // Non-critical — wellness defaults to zero
     // Load personalized insights (patterns, tips, predictions, mood trends)
     insightsAPI.get().then(r => {
+      if (cancelled) return;
       setInsightsData(r?.data?.data || null);
     }).catch(() => {}); // Non-critical — falls back to static tips
     // Load real notification count
     notificationAPI.list().then(r => {
-      setNotifCount(r.data.unreadCount || 0);
+      if (cancelled) return;
+      setNotifCount(r?.data?.unreadCount || 0);
     }).catch(() => {}); // Non-critical — badge just won't show
     // Load top doctors for carousel
     doctorAPI.search({ isPublished: true, limit: 10 }).then(r => {
+      if (cancelled) return;
       const raw = r?.data?.data || r?.data?.doctors || r?.data || [];
       const items = Array.isArray(raw) ? raw : [];
       const mapped: CarouselDoctor[] = items.map((d: any) => ({
@@ -326,7 +335,8 @@ export default function DashboardPage() {
         isChief: d.isChief || false,
       }));
       setCarouselDoctors(mapped);
-    }).catch(() => {}).finally(() => setDoctorsLoading(false)); // Non-critical — carousel just hidden
+    }).catch(() => {}).finally(() => { if (!cancelled) setDoctorsLoading(false); }); // Non-critical — carousel just hidden
+    return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -22,6 +22,7 @@ r.get('/', authenticate, async (q: AuthRequest, s: Response, n: NextFunction) =>
   try {
     const { type, phase, goal, dosha, week, category } = q.query as any;
     if (!type) { errorResponse(s, 'type parameter is required', 400); return; }
+    if (!wcService.isValidType(type)) { errorResponse(s, 'Invalid content type', 400); return; }
     const data = await wcService.getByType(type, {
       phase, goal, dosha,
       week: safeInt(week),
@@ -39,7 +40,9 @@ r.get('/bulk', authenticate, async (q: AuthRequest, s: Response, n: NextFunction
     const typeList = (types as string).split(',').map((t: string) => t.trim()).filter(Boolean);
     if (typeList.length === 0) { errorResponse(s, 'At least one type is required', 400); return; }
     if (typeList.length > 20) { errorResponse(s, 'Maximum 20 types per bulk request', 400); return; }
-    const data = await wcService.getBulk(typeList, {
+    const validTypes = typeList.filter((t: string) => wcService.isValidType(t));
+    if (validTypes.length === 0) { errorResponse(s, 'No valid types provided', 400); return; }
+    const data = await wcService.getBulk(validTypes, {
       phase, goal, dosha,
       week: safeInt(week),
     });

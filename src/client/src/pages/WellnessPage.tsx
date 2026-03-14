@@ -193,14 +193,17 @@ export default function WellnessPage() {
 
   // Fetch wellness activities from API
   useEffect(() => {
+    let cancelled = false;
     setContentLoading(true);
     Promise.all([
       wellnessAPI.list({ category: 'yoga' }).catch(() => ({ data: { data: [] } })),
       wellnessAPI.list({ category: 'breathing' }).catch(() => ({ data: { data: [] } })),
     ]).then(([yogaRes, breathRes]) => {
+      if (cancelled) return;
       setApiYoga(yogaRes.data?.data || []);
       setApiBreathing(breathRes.data?.data || []);
-    }).finally(() => setContentLoading(false));
+    }).finally(() => { if (!cancelled) setContentLoading(false); });
+    return () => { cancelled = true; };
   }, []);
 
   // ─── State ────────────────────────────────────────────
@@ -245,7 +248,7 @@ export default function WellnessPage() {
   const [breathSeconds, setBreathSeconds] = useState(0);
   const [breathRounds, setBreathRounds] = useState(0);
   const breathRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const bMode = BREATHING_MODES.find(b => b.id === breathMode)!;
+  const bMode = BREATHING_MODES.find(b => b.id === breathMode) || BREATHING_MODES[0];
 
   // Load today's wellness data from API on mount
   useEffect(() => {
@@ -323,12 +326,17 @@ export default function WellnessPage() {
   const fmtTimer = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
   // ─── Breathing logic ──────────────────────────────────
+  const phaseIdxRef = useRef(breathPhaseIdx);
+  const secsRef = useRef(breathSeconds);
+  phaseIdxRef.current = breathPhaseIdx;
+  secsRef.current = breathSeconds;
+
   useEffect(() => {
     if (!breathActive) { if (breathRef.current) clearInterval(breathRef.current); return; }
     const timing = bMode.timing;
-    let phaseIdx = breathPhaseIdx, secs = breathSeconds;
     breathRef.current = setInterval(() => {
-      secs++;
+      let phaseIdx = phaseIdxRef.current;
+      let secs = secsRef.current + 1;
       const dur = timing[phaseIdx];
       if (dur > 0 && secs >= dur) {
         secs = 0;

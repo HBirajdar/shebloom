@@ -208,6 +208,9 @@ const ConfirmModal = ({ modal, onClose }: { modal: ConfirmModalState; onClose: (
     setLoading(true);
     try {
       await modal.onConfirm();
+    } catch (err: any) {
+      // Error handling is done inside onConfirm callbacks (toast.error),
+      // but catch here to prevent unhandled rejection
     } finally {
       setLoading(false);
       onClose();
@@ -4573,8 +4576,6 @@ export default function AdminPage() {
   const [ea, setEa] = useState(emptyArticle);
   const [ed, setEd] = useState(emptyDoctor);
 
-  const [oldPin, setOldPin] = useState('');
-  const [newPin, setNewPin] = useState('');
 
   // Wellness Content state
   const [wcItems, setWcItems] = useState<any[]>([]);
@@ -4586,7 +4587,10 @@ export default function AdminPage() {
   const [wcForm, setWcForm] = useState({ type: '', key: '', phase: '', goal: '', dosha: '', week: '', category: '', emoji: '', title: '', body: '', metadata: '', sortOrder: '0', isActive: true, sourceReference: '' });
 
   // Settings state
-  const [emailWhitelist, setEmailWhitelist] = useState<string[]>(() => JSON.parse(localStorage.getItem('sb_email_whitelist') || '[]'));
+  const [emailWhitelist, setEmailWhitelist] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('sb_email_whitelist') || '[]'); }
+    catch { return []; }
+  });
   const [newEmail, setNewEmail] = useState('');
   const [maintenanceMode, setMaintenanceMode] = useState(() => localStorage.getItem('sb_maintenance') === 'true');
   const [registrationsOpen, setRegistrationsOpen] = useState(() => localStorage.getItem('sb_registrations_off') !== 'true');
@@ -4710,14 +4714,6 @@ export default function AdminPage() {
   const [orderSearch, setOrderSearch] = useState('');
   const [callbackSearch, setCallbackSearch] = useState('');
   const [prescriptionSearch, setPrescriptionSearch] = useState('');
-
-  // ─── Auth guards (after all hooks to satisfy Rules of Hooks) ───
-  if (!isAuthenticated || !user) {
-    return <Navigate to="/auth" replace />;
-  }
-  if (user.role !== 'ADMIN') {
-    return <Navigate to="/dashboard" replace />;
-  }
 
   // ─── Helpers ────────────────────────────────────────
   // Verify token exists before any admin API call; redirect to login if missing
@@ -5799,6 +5795,13 @@ export default function AdminPage() {
 
   const initials = (name: string) => name ? name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : '??';
 
+  // ─── Auth guards (after all hooks to satisfy Rules of Hooks) ───
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/auth" replace />;
+  }
+  if (user.role !== 'ADMIN') {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 lg:flex">
