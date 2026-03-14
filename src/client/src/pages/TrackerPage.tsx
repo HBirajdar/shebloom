@@ -82,6 +82,9 @@ export default function TrackerPage() {
   const [ayurvedaLoading, setAyurvedaLoading] = useState(false)
   const [showMedWarnings, setShowMedWarnings] = useState(false)
   const [showRefLibrary, setShowRefLibrary] = useState(false)
+  const [expandedHerb, setExpandedHerb] = useState<string | null>(null)
+  const [showMentalHealth, setShowMentalHealth] = useState(false)
+  const [showPredictionInfo, setShowPredictionInfo] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -720,14 +723,17 @@ export default function TrackerPage() {
                 </div>
 
                 {/* Prediction Accuracy Notice */}
-                <div style={{ background: '#FFFBE6', borderRadius: 8, padding: 10, margin: '8px 12px 0' }}>
-                  <p style={{ fontSize: 10.5, color: '#7A6800', margin: 0, lineHeight: 1.5 }}>
-                    📐 <strong>Prediction Method:</strong> Weighted moving average of your last 12 cycles (Bull et al. 2019) + individual luteal phase estimation (Lenton 1984, NOT the outdated "day 14" rule).
-                    Confidence: <strong>{prediction?.confidence?.level?.replace('_', ' ') || 'calculating...'}</strong> ({prediction?.confidence?.score || '—'}%).
-                    {prediction?.confidence?.level === 'low' && ' Log more cycles and biomarkers to improve.'}
-                    {prediction?.confirmedOvulation && ' ✅ Ovulation confirmed by BBT thermal shift (97% specificity, Baird 2005).'}
-                  </p>
-                </div>
+                {cycles.length >= 3 && prediction?.confidence?.score != null && (
+                  <div style={{ borderRadius: 8, padding: '6px 12px', margin: '8px 12px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>
+                      {prediction.confidence.score >= 70 ? 'High confidence' : prediction.confidence.score >= 50 ? 'Medium confidence' : 'Low confidence'}
+                    </span>
+                    <button
+                      onClick={() => setShowPredictionInfo(true)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'rgba(255,255,255,0.4)', padding: 0, lineHeight: 1 }}
+                    >ⓘ</button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1257,7 +1263,7 @@ export default function TrackerPage() {
                   </div>
 
                   {/* Late Period — Ayurvedic Guidance Card */}
-                  {isLate && (
+                  {daysLate > 7 && (
                     <div className="bg-white rounded-3xl p-4 shadow-lg border border-rose-100">
                       <div className="flex items-center gap-2 mb-3">
                         <span className="text-lg">{'\u{1F33F}'}</span>
@@ -1377,13 +1383,11 @@ export default function TrackerPage() {
                 {showFertility && <HormoneBar label="LH" value={prediction?.hormones?.lh ?? phaseInfo.lh} color="bg-amber-400" />}
                 {showFertility && <HormoneBar label="FSH" value={prediction?.hormones?.fsh ?? phaseInfo.fsh} color="bg-emerald-400" />}
               </div>
-              <p className="text-xs text-gray-400 mt-2 text-center">
-                {prediction?.hormones ? 'Based on your cycle day & individual phase lengths' : 'Approximate relative levels'}
-              </p>
+              <p className="text-[10px] text-gray-500 text-center mt-2 italic">Estimated patterns based on cycle phase, not measured levels</p>
             </div>
 
             {/* Confidence & Prediction Quality */}
-            {prediction?.confidence && (
+            {prediction?.confidence && cycles.length >= 3 && (
               <div className="bg-white rounded-3xl p-4 shadow-lg">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-bold text-gray-700">Prediction Confidence</span>
@@ -1391,7 +1395,7 @@ export default function TrackerPage() {
                     prediction.confidence.score >= 70 ? 'bg-emerald-100 text-emerald-700' :
                     prediction.confidence.score >= 50 ? 'bg-amber-100 text-amber-700' :
                     'bg-gray-100 text-gray-600'
-                  }`}>{prediction.confidence.score}%</span>
+                  }`}>{prediction.confidence.score >= 70 ? 'High' : prediction.confidence.score >= 50 ? 'Medium' : 'Low'}</span>
                 </div>
                 <div className="w-full bg-gray-100 rounded-full h-2 mb-2">
                   <div className={`h-2 rounded-full transition-all ${
@@ -1493,17 +1497,6 @@ export default function TrackerPage() {
         ) : tab === 'fertility' ? (
           /* FERTILITY TAB */
           <div className="px-5 py-4 space-y-3">
-            {/* Fertility Tracking Disclaimer */}
-            <div style={{ background: '#FFF5F5', border: '1px solid #FFC0C0', borderRadius: 10, padding: 12, margin: '0 0 12px' }}>
-              <p style={{ fontSize: 11, color: '#8B0000', margin: 0, lineHeight: 1.5 }}>
-                <strong>⚕️ Important Fertility Notice</strong><br/>
-                • Conception probabilities are population estimates (Wilcox 1995), not personal guarantees<br/>
-                • This app cannot detect: male factor infertility (~40-50% of cases), tubal blockage, endometriosis, or diminished ovarian reserve<br/>
-                • If TTC for 12 months (6 months if 35+) without success → consult specialist (NICE CG156)<br/>
-                • Age significantly affects fertility: peak at 20-24, gradual decline after 30, rapid after 35 (Dunson 2002)<br/>
-                • Do NOT use this app as contraception — no app can replace proven contraceptive methods
-              </p>
-            </div>
 
             {/* Fertility Score Hero */}
             <div className="bg-gradient-to-br from-rose-50 to-purple-50 rounded-3xl p-5 border border-rose-100 shadow-lg">
@@ -1683,16 +1676,7 @@ export default function TrackerPage() {
             )}
 
             {/* Research Info */}
-            <div className="bg-indigo-50 rounded-3xl p-4 border border-indigo-100">
-              <p className="text-xs font-bold text-indigo-700 mb-2">🔬 Science Behind Your Predictions</p>
-              <div className="space-y-1.5 text-[10px] text-indigo-600">
-                <p>• <strong>Ovulation</strong>: Calculated from your individual luteal phase length ({prediction?.lutealPhase || 13}d), not the assumed 14 days (Lenton 1984)</p>
-                <p>• <strong>Fertile window</strong>: 6-day window based on sperm survival (5d) + egg life (1d) per Wilcox et al. 1995</p>
-                <p>• <strong>Cycle prediction</strong>: Weighted moving average — recent cycles matter more (Bull 2019, 612K cycles)</p>
-                <p>• <strong>BBT</strong>: 3-over-6 rule detects 0.2-0.5°C post-ovulation shift with 97% specificity (Baird 2005)</p>
-                <p>• <strong>Cervical mucus</strong>: Egg-white CM peak predicts ovulation with 94.5% sensitivity (Bigelow 2004)</p>
-              </div>
-            </div>
+            <p className="text-[10px] text-gray-400 text-center"><button onClick={() => navigate('/about-us#research')} className="text-indigo-500 hover:underline">Evidence-based — 40+ research citations →</button></p>
 
             {/* Log Fertility Data Button */}
             <button
@@ -1794,35 +1778,52 @@ export default function TrackerPage() {
                   </div>
                 )}
 
-                {/* Herb Safety Classification */}
+                {/* Herb Safety Classification — Compact Chips */}
                 {ayurvedaData?.herbSafetyProfiles && Object.keys(ayurvedaData.herbSafetyProfiles).length > 0 && (
-                  <div style={{ background: '#FFF8F0', borderRadius: 10, padding: 12, margin: '12px 0' }}>
-                    <h4 style={{ margin: '0 0 8px', fontSize: 13, color: '#8B4513' }}>🌿 Herb Safety Profiles</h4>
-                    {Object.entries(ayurvedaData.herbSafetyProfiles).map(([name, profile]: [string, any]) => profile && (
-                      <div key={name} style={{ marginBottom: 10, padding: 8, background:
-                        profile.pregnancySafety === 'CONTRAINDICATED' ? '#FFE0E0' :
-                        profile.pregnancySafety === 'AVOID' ? '#FFF0E0' :
-                        profile.pregnancySafety === 'CAUTION' ? '#FFFFF0' : '#F0FFF0',
-                        borderRadius: 6 }}>
-                        <div style={{ fontWeight: 600, fontSize: 12, color: '#333' }}>
-                          {profile.pregnancySafety === 'CONTRAINDICATED' ? '🚫' : profile.pregnancySafety === 'AVOID' ? '⚠️' : profile.pregnancySafety === 'CAUTION' ? '⚡' : '✅'} {profile.sanskritName} ({profile.botanicalName})
-                        </div>
-                        <p style={{ fontSize: 10.5, margin: '4px 0 2px', color: '#555' }}>
-                          <strong>Pregnancy:</strong> <span style={{ color: profile.pregnancySafety === 'CONTRAINDICATED' || profile.pregnancySafety === 'AVOID' ? '#CC0000' : '#666' }}>{profile.pregnancySafety} — {profile.pregnancyNote}</span>
-                        </p>
-                        {profile.generalContraindications?.length > 0 && (
-                          <p style={{ fontSize: 10, margin: '2px 0', color: '#777' }}>
-                            <strong>Contraindications:</strong> {profile.generalContraindications.join('; ')}
+                  <div style={{ borderRadius: 10, padding: 12, margin: '12px 0' }}>
+                    <p className="text-xs font-extrabold text-gray-800 mb-2">🌿 Herb Safety</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {Object.entries(ayurvedaData.herbSafetyProfiles).map(([name, profile]: [string, any]) => profile && (
+                        <button
+                          key={name}
+                          onClick={() => setExpandedHerb(expandedHerb === name ? null : name)}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all active:scale-95 ${
+                            expandedHerb === name ? 'border-gray-400 bg-gray-50 shadow-sm' : 'border-gray-200 bg-white'
+                          }`}
+                        >
+                          <span className="text-[8px]">{profile.pregnancySafety === 'CONTRAINDICATED' ? '🔴' : profile.pregnancySafety === 'AVOID' ? '🟠' : profile.pregnancySafety === 'CAUTION' ? '🟡' : '🟢'}</span>
+                          <span className="text-gray-700">{profile.sanskritName || name}</span>
+                        </button>
+                      ))}
+                    </div>
+                    {expandedHerb && ayurvedaData.herbSafetyProfiles[expandedHerb] && (() => {
+                      const profile = ayurvedaData.herbSafetyProfiles[expandedHerb];
+                      return (
+                        <div style={{ marginTop: 8, padding: 8, background:
+                          profile.pregnancySafety === 'CONTRAINDICATED' ? '#FFE0E0' :
+                          profile.pregnancySafety === 'AVOID' ? '#FFF0E0' :
+                          profile.pregnancySafety === 'CAUTION' ? '#FFFFF0' : '#F0FFF0',
+                          borderRadius: 6 }}>
+                          <div style={{ fontWeight: 600, fontSize: 12, color: '#333' }}>
+                            {profile.pregnancySafety === 'CONTRAINDICATED' ? '🚫' : profile.pregnancySafety === 'AVOID' ? '⚠️' : profile.pregnancySafety === 'CAUTION' ? '⚡' : '✅'} {profile.sanskritName} ({profile.botanicalName})
+                          </div>
+                          <p style={{ fontSize: 10.5, margin: '4px 0 2px', color: '#555' }}>
+                            <strong>Pregnancy:</strong> <span style={{ color: profile.pregnancySafety === 'CONTRAINDICATED' || profile.pregnancySafety === 'AVOID' ? '#CC0000' : '#666' }}>{profile.pregnancySafety} — {profile.pregnancyNote}</span>
                           </p>
-                        )}
-                        <p style={{ fontSize: 10, margin: '2px 0', color: '#777' }}>
-                          <strong>Evidence:</strong> {profile.modernEvidence}
-                        </p>
-                        <p style={{ fontSize: 10, margin: '2px 0', color: '#888', fontStyle: 'italic' }}>
-                          📜 {profile.classicalReference}
-                        </p>
-                      </div>
-                    ))}
+                          {profile.generalContraindications?.length > 0 && (
+                            <p style={{ fontSize: 10, margin: '2px 0', color: '#777' }}>
+                              <strong>Contraindications:</strong> {profile.generalContraindications.join('; ')}
+                            </p>
+                          )}
+                          <p style={{ fontSize: 10, margin: '2px 0', color: '#777' }}>
+                            <strong>Evidence:</strong> {profile.modernEvidence}
+                          </p>
+                          <p style={{ fontSize: 10, margin: '2px 0', color: '#888', fontStyle: 'italic' }}>
+                            📜 {profile.classicalReference}
+                          </p>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 
@@ -1921,107 +1922,54 @@ export default function TrackerPage() {
                   </div>
                 )}
 
-                {/* Medication Interaction Warnings */}
-                {showMedWarnings && ayurvedaData?.medicationWarnings && (
-                  <div style={{ background: '#FFF0F0', borderRadius: 10, padding: 12, margin: '12px 0' }}>
-                    <h4 style={{ margin: '0 0 8px', fontSize: 13, color: '#8B0000' }}>💊 Medication & Herb Interactions</h4>
-                    <p style={{ fontSize: 10.5, color: '#8B0000', margin: '0 0 8px', lineHeight: 1.4 }}>
-                      If you take any of these medications, discuss herbal supplements with your doctor:
-                    </p>
-                    {ayurvedaData.medicationWarnings.slice(0, 5).map((med: any, i: number) => (
-                      <div key={i} style={{ marginBottom: 8, padding: 8, background: '#FFF8F8', borderRadius: 6, borderLeft: '3px solid #FF6666' }}>
-                        <div style={{ fontWeight: 600, fontSize: 11.5, color: '#333' }}>{med.name}</div>
-                        <p style={{ fontSize: 10, margin: '3px 0', color: '#555' }}><strong>Cycle effect:</strong> {med.effect}</p>
-                        <p style={{ fontSize: 10, margin: '2px 0', color: '#CC4400' }}><strong>Herb interaction:</strong> {med.herbInteraction}</p>
-                        <p style={{ fontSize: 9.5, margin: '2px 0', color: '#888', fontStyle: 'italic' }}>Ref: {med.reference}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <button
-                  onClick={() => setShowMedWarnings(!showMedWarnings)}
-                  style={{ background: '#FFF0F0', border: '1px solid #FFB3B3', borderRadius: 8, padding: '8px 12px', fontSize: 11.5, color: '#8B0000', cursor: 'pointer', width: '100%', marginBottom: 12 }}
-                >
-                  {showMedWarnings ? 'Hide' : 'Show'} Medication Interaction Warnings 💊
-                </button>
 
-                {/* Mental Health & Cycle Phase */}
+                {/* Mental Health & Cycle Phase — Collapsible */}
                 {ayurvedaData?.mentalHealthInsight && (
-                  <div style={{ background: '#F5F0FF', borderRadius: 10, padding: 12, margin: '12px 0' }}>
-                    <h4 style={{ margin: '0 0 8px', fontSize: 13, color: '#4A2380' }}>💜 Mental Health & Your Cycle Phase</h4>
-                    <p style={{ fontSize: 11, color: '#333', margin: '0 0 8px', lineHeight: 1.5 }}>{ayurvedaData.mentalHealthInsight.insight}</p>
+                  <div style={{ margin: '12px 0' }}>
+                    <button
+                      onClick={() => setShowMentalHealth(!showMentalHealth)}
+                      className="w-full text-left bg-purple-50 border border-purple-200 rounded-2xl px-4 py-3 active:scale-[0.99] transition-transform"
+                    >
+                      <span className="text-xs font-bold text-purple-700">💜 Mood insight for {ayurvedaData.phase} phase →</span>
+                    </button>
+                    {showMentalHealth && (
+                      <div style={{ background: '#F5F0FF', borderRadius: 10, padding: 12, marginTop: 4 }}>
+                        <h4 style={{ margin: '0 0 8px', fontSize: 13, color: '#4A2380' }}>💜 Mental Health & Your Cycle Phase</h4>
+                        <p style={{ fontSize: 11, color: '#333', margin: '0 0 8px', lineHeight: 1.5 }}>{ayurvedaData.mentalHealthInsight.insight}</p>
 
-                    <div style={{ margin: '8px 0' }}>
-                      <strong style={{ fontSize: 11, color: '#4A2380' }}>Risk Factors This Phase:</strong>
-                      {ayurvedaData.mentalHealthInsight.riskFactors?.map((r: string, i: number) => (
-                        <p key={i} style={{ fontSize: 10.5, color: '#555', margin: '2px 0 2px 8px' }}>• {r}</p>
-                      ))}
-                    </div>
-
-                    <div style={{ margin: '8px 0' }}>
-                      <strong style={{ fontSize: 11, color: '#4A2380' }}>Support Strategies:</strong>
-                      {ayurvedaData.mentalHealthInsight.supportStrategies?.map((s: string, i: number) => (
-                        <p key={i} style={{ fontSize: 10.5, color: '#555', margin: '2px 0 2px 8px' }}>✓ {s}</p>
-                      ))}
-                    </div>
-
-                    <p style={{ fontSize: 10.5, color: '#4A2380', margin: '8px 0 4px', fontWeight: 600 }}>Ayurvedic Approach:</p>
-                    <p style={{ fontSize: 10.5, color: '#555', margin: '0 0 8px', lineHeight: 1.4 }}>{ayurvedaData.mentalHealthInsight.ayurvedicApproach}</p>
-
-                    <div style={{ background: '#EDE4FF', borderRadius: 6, padding: 8, marginTop: 8 }}>
-                      <p style={{ fontSize: 10, color: '#4A2380', margin: 0, lineHeight: 1.5 }}>
-                        <strong>🆘 When to Seek Help:</strong> {ayurvedaData.mentalHealthInsight.whenToSeekHelp}
-                      </p>
-                    </div>
-                    <p style={{ fontSize: 9.5, color: '#888', margin: '6px 0 0', fontStyle: 'italic' }}>Ref: {ayurvedaData.mentalHealthInsight.reference}</p>
-                  </div>
-                )}
-
-                {/* ── Comprehensive Research References ─── */}
-                <div style={{ background: '#F8F8FC', borderRadius: 12, padding: 14, margin: '16px 0' }}>
-                  <button
-                    onClick={() => setShowRefLibrary(!showRefLibrary)}
-                    style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', padding: 0, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                  >
-                    <span style={{ fontWeight: 600, fontSize: 13, color: '#333' }}>📚 Complete Research Library ({
-                      (ayurvedaData?.references || []).reduce((acc: number, g: any) => acc + (g.citations?.length || 1), 0)
-                    } citations)</span>
-                    <span style={{ fontSize: 12, color: '#666' }}>{showRefLibrary ? '▲ Collapse' : '▼ Expand'}</span>
-                  </button>
-                  {showRefLibrary && (
-                    <div style={{ marginTop: 12 }}>
-                      {Array.isArray(ayurvedaData?.references) && ayurvedaData.references.map((refGroup: any, i: number) => (
-                        <div key={i} style={{ marginBottom: 14 }}>
-                          <h4 style={{ fontSize: 12, color: '#444', margin: '0 0 6px', borderBottom: '1px solid #E0E0E0', paddingBottom: 4 }}>
-                            {refGroup.category || 'References'}
-                          </h4>
-                          {(refGroup.citations || [refGroup]).map((cite: string, j: number) => (
-                            <p key={j} style={{ fontSize: 10, color: '#666', margin: '3px 0', paddingLeft: 10, borderLeft: '2px solid #CCC', lineHeight: 1.4 }}>
-                              {typeof cite === 'string' ? cite : JSON.stringify(cite)}
-                            </p>
+                        <div style={{ margin: '8px 0' }}>
+                          <strong style={{ fontSize: 11, color: '#4A2380' }}>Risk Factors This Phase:</strong>
+                          {ayurvedaData.mentalHealthInsight.riskFactors?.map((r: string, i: number) => (
+                            <p key={i} style={{ fontSize: 10.5, color: '#555', margin: '2px 0 2px 8px' }}>• {r}</p>
                           ))}
                         </div>
-                      ))}
-                      <div style={{ marginTop: 12, padding: 10, background: '#F0F0F0', borderRadius: 6 }}>
-                        <p style={{ fontSize: 10, color: '#666', margin: 0, lineHeight: 1.5 }}>
-                          <strong>About Our Research Methodology:</strong> Vedaclue combines evidence from peer-reviewed medical journals (BMJ, Lancet, JMIR, npj Digital Medicine),
-                          classical Ayurvedic texts (Charaka Samhita, Sushruta Samhita, Ashtanga Hridaya, Bhavaprakasha Nighantu), modern Ayurvedic clinical trials
-                          (J Ayurveda Integr Med, AYU, J Ethnopharmacol), clinical guidelines (NICE, ACOG, RCOG, WHO), and Ayurgenomics research (Prasher 2008, Patwardhan 2008).
-                          All herbal recommendations include classical text citations and modern pharmacological evidence where available.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
 
-                {/* ── Comprehensive Bottom Disclaimer ─── */}
-                <div style={{ background: '#F5F5F5', borderRadius: 10, padding: 12, margin: '16px 0 0' }}>
-                  <p style={{ fontSize: 10, color: '#666', margin: 0, lineHeight: 1.6 }}>
-                    <strong>Disclaimer:</strong> Vedaclue is a wellness education platform, not a medical device. It is not approved by FDA, CDSCO, or any regulatory body.
-                    All predictions are statistical estimates. Ayurvedic recommendations are based on classical texts and emerging research — they complement but do not replace modern medicine.
-                    {ayurvedaData?.disclaimers?.emergencyNote && <><br/><strong style={{ color: '#CC0000' }}>Emergency:</strong> {ayurvedaData.disclaimers.emergencyNote}</>}
-                  </p>
-                </div>
+                        <div style={{ margin: '8px 0' }}>
+                          <strong style={{ fontSize: 11, color: '#4A2380' }}>Support Strategies:</strong>
+                          {ayurvedaData.mentalHealthInsight.supportStrategies?.map((s: string, i: number) => (
+                            <p key={i} style={{ fontSize: 10.5, color: '#555', margin: '2px 0 2px 8px' }}>✓ {s}</p>
+                          ))}
+                        </div>
+
+                        <p style={{ fontSize: 10.5, color: '#4A2380', margin: '8px 0 4px', fontWeight: 600 }}>Ayurvedic Approach:</p>
+                        <p style={{ fontSize: 10.5, color: '#555', margin: '0 0 8px', lineHeight: 1.4 }}>{ayurvedaData.mentalHealthInsight.ayurvedicApproach}</p>
+
+                        <div style={{ background: '#EDE4FF', borderRadius: 6, padding: 8, marginTop: 8 }}>
+                          <p style={{ fontSize: 10, color: '#4A2380', margin: 0, lineHeight: 1.5 }}>
+                            <strong>🆘 When to Seek Help:</strong> {ayurvedaData.mentalHealthInsight.whenToSeekHelp}
+                          </p>
+                        </div>
+                        <p style={{ fontSize: 9.5, color: '#888', margin: '6px 0 0', fontStyle: 'italic' }}>Ref: {ayurvedaData.mentalHealthInsight.reference}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Research link */}
+                <p className="text-[10px] text-gray-400 text-center"><button onClick={() => navigate('/about-us#research')} className="text-indigo-500 hover:underline">Evidence-based — 40+ research citations →</button></p>
+
+                {/* Bottom Disclaimer */}
+                <p className="text-[10px] text-gray-400 text-center mt-4 leading-relaxed">VedaClue is a wellness education app, not a medical device. Not a substitute for professional medical advice.</p>
               </>
             ) : ayurvedaError === 'upgrade' ? (
               <UpgradePrompt feature="cycle:ayurvedic-insights" title="Unlock Ayurvedic Insights" description="Upgrade to VedaClue Premium for personalized Ayurvedic guidance based on your dosha and cycle phase." />
@@ -2302,6 +2250,20 @@ export default function TrackerPage() {
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Prediction Info Bottom Sheet */}
+      {showPredictionInfo && (
+        <div className="fixed inset-0 z-50" style={{ maxWidth: 430, left: '50%', transform: 'translateX(-50%)' }}>
+          <div className="absolute inset-0 bg-black/30" onClick={() => setShowPredictionInfo(false)} />
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-6 shadow-2xl z-10">
+            <div className="flex justify-center mb-4"><div className="w-10 h-1.5 bg-gray-300 rounded-full" /></div>
+            <p className="text-sm font-bold text-gray-800 mb-2">How we predict your cycle</p>
+            <p className="text-xs text-gray-500 leading-relaxed mb-4">Based on your cycle history using research-backed methods including weighted moving averages, individual luteal phase estimation, and biomarker analysis.</p>
+            <button onClick={() => navigate('/about-us#research')} className="text-xs text-indigo-500 font-semibold hover:underline">View 40+ research sources →</button>
+            <button onClick={() => setShowPredictionInfo(false)} className="w-full mt-4 py-2.5 bg-gray-100 rounded-xl text-sm font-semibold text-gray-600">Close</button>
           </div>
         </div>
       )}

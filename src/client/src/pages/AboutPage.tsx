@@ -125,6 +125,55 @@ export default function AboutPage() {
           </p>
         </div>
 
+        {/* Research & Evidence Base */}
+        <div id="research" className="px-6 py-10">
+          <h2 className="text-2xl font-extrabold text-gray-900 text-center mb-2">Our Science</h2>
+          <p className="text-sm text-gray-500 text-center mb-8 max-w-md mx-auto">
+            Every feature in VedaClue is backed by peer-reviewed research and classical Ayurvedic texts.
+          </p>
+          <div className="space-y-4 max-w-lg mx-auto">
+            {[
+              { category: 'Cycle Prediction', refs: [
+                'Bull JR et al. (2019) Real-world menstrual cycle characteristics of more than 600,000 cycles. npj Digital Medicine.',
+                'Lenton EA et al. (1984) Normal variation in the length of the luteal phase. BJOG.',
+              ]},
+              { category: 'Fertility & Ovulation', refs: [
+                'Wilcox AJ et al. (1995) Timing of sexual intercourse in relation to ovulation. NEJM.',
+                'Baird DD et al. (2005) Application of a method for estimating day of ovulation. Epidemiology.',
+                'Bigelow JL et al. (2004) Mucus observations in the fertile window. Human Reproduction.',
+                'Dunson DB et al. (2002) Changes with age in the level and duration of fertility. Human Reproduction.',
+              ]},
+              { category: 'Clinical Guidelines', refs: [
+                'NICE CG156 — Fertility problems: assessment and treatment.',
+                'ACOG Committee Opinion — Menstruation in girls and adolescents.',
+                'WHO/RCOG — Guidelines on reproductive health.',
+              ]},
+              { category: 'Ayurvedic Classical Texts', refs: [
+                'Charaka Samhita — Chikitsa Sthana, Chapter 30 (Yonivyapad)',
+                'Sushruta Samhita — Sharira Sthana 2/29',
+                'Ashtanga Hridaya — Uttara Tantra',
+                'Bhavaprakasha Nighantu — Herbal classifications',
+              ]},
+              { category: 'Modern Ayurvedic Research', refs: [
+                'Prasher B et al. (2008) Whole genome expression and biochemical correlates of Ayurveda Prakriti. J Translational Medicine.',
+                'Patwardhan B et al. (2008) Ayugenomics: Integration of Ayurveda with genomics. AYU Journal.',
+              ]},
+              { category: 'Endocrinology', refs: [
+                'Speroff L & Fritz MA — Clinical Gynecologic Endocrinology and Infertility (hormone level models).',
+              ]},
+            ].map((group) => (
+              <div key={group.category} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                <p className="text-xs font-bold text-gray-800 mb-2">{group.category}</p>
+                <div className="space-y-1.5">
+                  {group.refs.map((ref, i) => (
+                    <p key={i} className="text-[11px] text-gray-500 leading-relaxed pl-3 border-l-2 border-gray-200">{ref}</p>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* CTA */}
         <div className="bg-gradient-to-br from-rose-500 to-pink-600 rounded-3xl p-6 text-center shadow-xl shadow-rose-200">
           <p className="text-base font-extrabold text-white">Ready to start your wellness journey?</p>

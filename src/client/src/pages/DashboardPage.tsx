@@ -519,11 +519,9 @@ export default function DashboardPage() {
             )}
 
             {(goal === 'fertility') && (
-              <div style={{ background: '#FFF0F0', border: '1px solid #FFB3B3', borderRadius: 10, padding: 12, margin: '0 0 12px' }}>
-                <p style={{ fontSize: 11, color: '#8B0000', margin: 0, lineHeight: 1.5 }}>
-                  <strong>🔬 Fertility Notice:</strong> Conception probabilities are based on population-level research (Wilcox et al. 1995, n=221 women). Individual rates vary by age, partner factors, and health conditions. This app does not account for male factor infertility (~40-50% of cases), tubal factors, or endometriosis. If trying for 12 months (6 months if 35+) without success, consult a fertility specialist per NICE CG156 guidelines.
-                </p>
-              </div>
+              <p className="text-[9px] text-gray-400 text-center leading-relaxed px-2 mb-1">
+                Conception probabilities are population-level estimates (Wilcox 1995). Individual rates vary. Not a substitute for fertility specialist advice.
+              </p>
             )}
 
             {goal === 'fertility' && (
@@ -556,19 +554,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ── Medical & Regulatory Disclaimer ─── */}
-        {showDisclaimer && (
-          <div style={{ background: '#FFF8E7', border: '1px solid #F5D565', borderRadius: 12, padding: 14, margin: '0 0 16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontWeight: 600, fontSize: 13, color: '#92610A' }}>⚕️ Important Health Notice</span>
-              <button onClick={() => setShowDisclaimer(false)} style={{ background: 'none', border: 'none', color: '#92610A', fontSize: 18, cursor: 'pointer' }}>×</button>
-            </div>
-            <p style={{ fontSize: 11.5, color: '#6B4A0A', margin: '8px 0 0', lineHeight: 1.6 }}>
-              Vedaclue is a <strong>wellness education app</strong>, not a medical device. Predictions are statistical estimates based on your data and published research — they are not clinical diagnoses. Hormone levels shown are <strong>estimated</strong> from typical patterns (Speroff & Fritz model), not your actual measured levels. Always consult qualified healthcare professionals for medical decisions.
-              {predictionData?.confidence?.level === 'low' && <><br/><strong>⚠️ Your prediction confidence is currently LOW</strong> — log more cycles and biomarkers for improved accuracy.</>}
-            </p>
-          </div>
-        )}
+        {/* Medical disclaimer moved to bottom of page */}
 
         {/* ─── Horizontal Scroll Prediction Cards (goal-specific) ─── */}
         {hasRealData && goal !== 'pregnancy' && (
@@ -666,6 +652,8 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
+                {/* Expanded Ayurvedic guidance: only show when daysLate > 7 or heavy flow */}
+                {(daysLate > 7) && (<>
                 {/* Possible Causes */}
                 <div className="bg-white rounded-2xl p-3 mb-3">
                   <p className="text-[10px] font-bold text-gray-700 mb-2">Common Causes</p>
@@ -756,11 +744,7 @@ export default function DashboardPage() {
                     ))}
                   </div>
                 </div>
-
-                {/* Medical disclaimer */}
-                <p className="text-[8px] text-gray-400 text-center leading-relaxed mb-3">
-                  These Ayurvedic suggestions are for educational purposes only and do not replace professional medical advice. Consult a qualified practitioner before starting any herbal regimen. References: Charaka Samhita Chi. 30, Sushruta Samhita Sha. 2/29, Ashtanga Hridaya.
-                </p>
+                </>)}
 
                 {/* Action buttons */}
                 <div className="flex gap-2">
@@ -951,10 +935,7 @@ export default function DashboardPage() {
                 </div>
               ));
             })()}
-            <p className="text-[9px] text-gray-400 mt-1 italic">Estimated from your cycle day {cycleDay}, {phase} phase (Speroff & Fritz endocrinology model)</p>
-            <p style={{ fontSize: 10, color: '#888', marginTop: 6, fontStyle: 'italic' }}>
-              📊 Hormone levels are ESTIMATES based on the Speroff & Fritz endocrinology model for typical menstrual physiology. Actual levels can only be determined through blood tests. These estimates assume ovulatory cycles — conditions like PCOS, thyroid disorders, or hormonal contraception will alter actual levels.
-            </p>
+            <p className="text-[10px] text-gray-500 text-center mt-2 italic">Estimated patterns based on cycle phase, not measured levels</p>
           </div>
         )}
 
@@ -1142,13 +1123,13 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ─── Prediction Confidence — hidden for wellness/pregnancy users ─── */}
-        {predictionData?.confidence && hasRealData && (goal === 'periods' || goal === 'fertility') && (
+        {/* ─── Prediction Confidence — hidden for wellness/pregnancy users, hidden if < 3 cycles ─── */}
+        {predictionData?.confidence && hasRealData && (goal === 'periods' || goal === 'fertility') && (predictionData?.totalCyclesTracked >= 3) && (
           <div className="bg-white rounded-3xl p-4 shadow-lg">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-xs font-extrabold text-gray-800">📊 Prediction Confidence</h3>
-              <span className={'text-[10px] font-bold px-2 py-0.5 rounded-full ' + (predictionData.confidence.score >= 70 ? 'bg-emerald-100 text-emerald-700' : predictionData.confidence.score >= 40 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700')}>
-                {predictionData.confidence.score}% {predictionData.confidence.level.replace('_', ' ')}
+              <span className={'text-[10px] font-bold px-2 py-0.5 rounded-full ' + (predictionData.confidence.score >= 70 ? 'bg-emerald-100 text-emerald-700' : predictionData.confidence.score >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700')}>
+                {predictionData.confidence.score >= 70 ? 'High' : predictionData.confidence.score >= 50 ? 'Medium' : 'Low'}
               </span>
             </div>
             <div className="w-full bg-gray-100 rounded-full h-2.5 mb-3">
@@ -1186,13 +1167,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {goal === 'periods' && (
-          <div style={{ background: '#F0F7FF', border: '1px solid #B3D4FF', borderRadius: 10, padding: 12, margin: '12px 0' }}>
-            <p style={{ fontSize: 11, color: '#003366', margin: 0, lineHeight: 1.5 }}>
-              <strong>📋 Period Tracking Note:</strong> If you are sexually active and not planning to conceive, do NOT rely on cycle predictions for contraception. Use a proven contraceptive method. Some Ayurvedic recommendations may promote fertility — these are educational only. If planning to conceive or pregnant, switch your goal in Settings for personalized guidance with appropriate safety warnings.
-            </p>
-          </div>
-        )}
+        {/* Period tracking note removed — consolidated into bottom disclaimer */}
 
         {/* ─── Conception Quick Card (TTC users) ─── */}
         {ayurvedaData?.conceptionGuide && hasRealData && (goal === 'fertility') && (
@@ -1273,40 +1248,10 @@ export default function DashboardPage() {
           </button>
         )}
 
-        {/* ── Research References ─── */}
-        <div style={{ background: '#F8F8FC', borderRadius: 12, padding: 14, margin: '16px 0' }}>
-          <button
-            onClick={() => setShowReferences(!showReferences)}
-            style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', padding: 0, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-          >
-            <span style={{ fontWeight: 600, fontSize: 13, color: '#333' }}>📚 Research References & Evidence Basis</span>
-            <span style={{ fontSize: 12, color: '#666' }}>{showReferences ? '▲' : '▼'}</span>
-          </button>
-          {showReferences && (
-            <div style={{ marginTop: 12 }}>
-              {(ayurvedaData?.references || []).map((refGroup: any, i: number) => (
-                <div key={i} style={{ marginBottom: 12 }}>
-                  <h4 style={{ fontSize: 12, color: '#555', margin: '0 0 6px', borderBottom: '1px solid #E0E0E0', paddingBottom: 4 }}>{refGroup.category || 'References'}</h4>
-                  {(refGroup.citations || [refGroup]).map((cite: string, j: number) => (
-                    <p key={j} style={{ fontSize: 10.5, color: '#666', margin: '3px 0', paddingLeft: 8, borderLeft: '2px solid #DDD', lineHeight: 1.4 }}>
-                      {typeof cite === 'string' ? cite : JSON.stringify(cite)}
-                    </p>
-                  ))}
-                </div>
-              ))}
-              {(!ayurvedaData?.references || ayurvedaData.references.length === 0) && (
-                <div>
-                  <p style={{ fontSize: 10.5, color: '#666', margin: '3px 0' }}>• Wilcox AJ et al. (1995) BMJ — Day-specific conception probabilities</p>
-                  <p style={{ fontSize: 10.5, color: '#666', margin: '3px 0' }}>• Lenton EA et al. (1984) — Individual luteal phase length (7-19 days)</p>
-                  <p style={{ fontSize: 10.5, color: '#666', margin: '3px 0' }}>• Bull JR et al. (2019) npj Digital Medicine — 612K real-world cycle data</p>
-                  <p style={{ fontSize: 10.5, color: '#666', margin: '3px 0' }}>• Charaka Samhita, Sushruta Samhita, Ashtanga Hridaya — Classical Ayurveda</p>
-                  <p style={{ fontSize: 10.5, color: '#666', margin: '3px 0' }}>• Speroff & Fritz — Clinical Gynecologic Endocrinology (hormone model)</p>
-                  <p style={{ fontSize: 10.5, color: '#666', margin: '3px 0' }}>• NICE CG156 (2013) — Fertility assessment guidelines</p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        {/* ── Research References Link ─── */}
+        <p className="text-[10px] text-gray-400 text-center mt-2">
+          <button onClick={() => nav('/about-us#research')} className="text-indigo-500 hover:underline">Evidence-based — 40+ research citations →</button>
+        </p>
       </div>
 
       {/* ─── Sleep Picker Modal ─── */}
@@ -1368,6 +1313,9 @@ export default function DashboardPage() {
         </div>
       )}
 
+      <p className="text-[10px] text-gray-400 text-center px-6 pb-4 leading-relaxed">
+        VedaClue is a wellness education app, not a medical device. Not a substitute for professional medical advice.
+      </p>
       <BottomNav />
     </div>
   );
