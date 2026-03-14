@@ -4,8 +4,9 @@ import { useAuthStore } from '../stores/authStore';
 import { analyticsAPI } from '../services/api';
 
 const NPS_STORAGE_KEY = 'vedaclue_last_nps';
-const NPS_COOLDOWN_DAYS = 90;
-const ACCOUNT_AGE_MIN_DAYS = 7;
+const NPS_DISMISSED_KEY = 'vedaclue_nps_dismissed';
+const NPS_COOLDOWN_DAYS = 60;
+const NPS_SESSION_PAGES_BEFORE_SHOW = 5; // show after 5 page views in a session
 
 function getScoreColor(score: number): string {
   if (score <= 6) return 'bg-red-500 hover:bg-red-600';
@@ -30,36 +31,55 @@ export default function NpsPopup() {
   const [fadeOut, setFadeOut] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const shouldShow = useCallback(() => {
-    if (!isAuthenticated || !user) return false;
+  // Track page views in session — only show NPS after user has browsed a bit
+  const [pageViews, setPageViews] = useState(0);
+  const [dismissed, setDismissedState] = useState(() => {
+    return sessionStorage.getItem(NPS_DISMISSED_KEY) === 'true';
+  });
+
+  // Count page views
+  useEffect(() => {
+    if (isAuthenticated) {
+      setPageViews((prev) => prev + 1);
+    }
+  }, [location.pathname, isAuthenticated]);
+
+  useEffect(() => {
+    // Already shown/dismissed this session
+    if (dismissed) return;
+    if (!isAuthenticated || !user) return;
 
     // Don't show on admin or doctor dashboard pages
     const path = location.pathname;
-    if (path.startsWith('/admin') || path.startsWith('/doctor-dashboard')) return false;
+    if (path.startsWith('/admin') || path.startsWith('/doctor-dashboard')) return;
 
-    // Check cooldown (90 days since last NPS)
+    // Wait until user has browsed a few pages (not on first load)
+    if (pageViews < NPS_SESSION_PAGES_BEFORE_SHOW) return;
+
+    // Check cooldown (60 days since last NPS response or dismissal)
     const lastNps = localStorage.getItem(NPS_STORAGE_KEY);
     if (lastNps) {
       const daysSince = (Date.now() - Number(lastNps)) / (1000 * 60 * 60 * 24);
-      if (daysSince < NPS_COOLDOWN_DAYS) return false;
+      if (daysSince < NPS_COOLDOWN_DAYS) return;
     }
-
-    return true;
-  }, [isAuthenticated, user, location.pathname]);
-
-  useEffect(() => {
-    if (!shouldShow()) return;
 
     // Show after a short delay so the page loads first
     const timer = setTimeout(() => {
       setVisible(true);
-    }, 3000);
+    }, 5000);
 
     return () => clearTimeout(timer);
-  }, [shouldShow]);
+  }, [dismissed, isAuthenticated, user, location.pathname, pageViews]);
 
   const handleDismiss = () => {
     setFadeOut(true);
+    setDismissedState(true);
+    sessionStorage.setItem(NPS_DISMISSED_KEY, 'true');
+    // Closing the X = don't ask again for 30 days
+    const thirtyDaysAgo = Date.now() - (NPS_COOLDOWN_DAYS - 30) * 24 * 60 * 60 * 1000;
+    if (!localStorage.getItem(NPS_STORAGE_KEY)) {
+      localStorage.setItem(NPS_STORAGE_KEY, String(thirtyDaysAgo));
+    }
     setTimeout(() => setVisible(false), 300);
   };
 
@@ -73,6 +93,8 @@ export default function NpsPopup() {
         page: location.pathname,
       });
       localStorage.setItem(NPS_STORAGE_KEY, String(Date.now()));
+      sessionStorage.setItem(NPS_DISMISSED_KEY, 'true');
+      setDismissedState(true);
       setSubmitted(true);
       setTimeout(() => {
         setFadeOut(true);
@@ -81,6 +103,8 @@ export default function NpsPopup() {
     } catch {
       // Silent fail — don't block user experience
       localStorage.setItem(NPS_STORAGE_KEY, String(Date.now()));
+      sessionStorage.setItem(NPS_DISMISSED_KEY, 'true');
+      setDismissedState(true);
       setSubmitted(true);
       setTimeout(() => {
         setFadeOut(true);
@@ -92,10 +116,13 @@ export default function NpsPopup() {
   };
 
   const handleMaybeLater = () => {
-    // Set a shorter cooldown (7 days) for "maybe later"
-    const sevenDaysAgo = Date.now() - (NPS_COOLDOWN_DAYS - 7) * 24 * 60 * 60 * 1000;
-    localStorage.setItem(NPS_STORAGE_KEY, String(sevenDaysAgo));
-    handleDismiss();
+    // "Maybe later" = don't ask again for 14 days
+    const fourteenDaysAgo = Date.now() - (NPS_COOLDOWN_DAYS - 14) * 24 * 60 * 60 * 1000;
+    localStorage.setItem(NPS_STORAGE_KEY, String(fourteenDaysAgo));
+    setDismissedState(true);
+    sessionStorage.setItem(NPS_DISMISSED_KEY, 'true');
+    setFadeOut(true);
+    setTimeout(() => setVisible(false), 300);
   };
 
   if (!visible) return null;
