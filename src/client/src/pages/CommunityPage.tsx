@@ -1,5 +1,5 @@
 import { Helmet } from 'react-helmet-async';
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useChiefDoctor } from '../hooks/useChiefDoctor';
@@ -49,6 +49,17 @@ const EXPERT_QA = [
 
 const REPORT_REASONS = ['Spam', 'Harassment', 'Misinformation', 'Inappropriate content', 'Other'];
 
+const ALL_TRENDING = ['#PCOS', '#PeriodPain', '#TTC', '#Pregnancy', '#Menopause', '#Ayurveda', '#HormoneBalance', '#SelfCare'];
+
+/** Truncate text to first sentence */
+function truncateToFirstSentence(text: string): { truncated: string; wasTruncated: boolean } {
+  const match = text.match(/^[^.!?]*[.!?]/);
+  if (match && match[0].length < text.length) {
+    return { truncated: match[0], wasTruncated: true };
+  }
+  return { truncated: text, wasTruncated: false };
+}
+
 export default function CommunityPage() {
   const nav = useNavigate();
   const user = useAuthStore(s => s.user);
@@ -85,6 +96,30 @@ export default function CommunityPage() {
   // Edit modal
   const [editTarget, setEditTarget] = useState<{ type: 'post' | 'reply'; id: string; content: string } | null>(null);
   const [editContent, setEditContent] = useState('');
+
+  // UX: collapsible Expert Q&A
+  const [showExpertQA, setShowExpertQA] = useState(false);
+  const [expandedQA, setExpandedQA] = useState<Set<string>>(new Set());
+
+  // UX: trending hashtags - show top 4 by default
+  const [showAllTrending, setShowAllTrending] = useState(false);
+
+  // UX: 3-dot menu for posts and replies
+  const [openMenuPost, setOpenMenuPost] = useState<string | null>(null);
+  const [openMenuReply, setOpenMenuReply] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menus on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuPost(null);
+        setOpenMenuReply(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   // Debounce search to avoid firing API on every keystroke
   useEffect(() => {
@@ -264,6 +299,8 @@ export default function CommunityPage() {
   const startEdit = (type: 'post' | 'reply', id: string, content: string) => {
     setEditTarget({ type, id, content });
     setEditContent(content);
+    setOpenMenuPost(null);
+    setOpenMenuReply(null);
   };
   const submitEdit = async () => {
     if (!editTarget || !editContent.trim() || editSaving) return;
@@ -324,6 +361,9 @@ export default function CommunityPage() {
   // poll helpers
   const pollOptions = (poll?.options || []) as { id: string; label: string }[];
   const pollTotal = poll?.totalVotes || 0;
+
+  // Trending hashtags to display
+  const visibleTrending = showAllTrending ? ALL_TRENDING : ALL_TRENDING.slice(0, 4);
 
   return (
     <div className="min-h-screen pb-28" style={{ backgroundColor: '#FAFAF9' }}>
@@ -402,39 +442,71 @@ export default function CommunityPage() {
           </div>
         )}
 
-        {/* ─── Expert Q&A ─── */}
+        {/* ─── Expert Q&A (collapsed by default) ─── */}
         {cat === 'all' && !searchQ && (
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-extrabold text-gray-400 uppercase tracking-wider">👩‍⚕️ Expert Q&A</span>
-              <div className="flex-1 h-px bg-gray-100" />
-            </div>
-            <div className="space-y-3">
-              {EXPERT_QA.map(qa => (
-                <div key={qa.id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
-                  <div className="bg-emerald-50 px-4 py-2 border-b border-emerald-100">
-                    <p className="text-[10px] font-extrabold text-emerald-800">❓ {qa.question}</p>
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-xs text-white font-bold">👩‍⚕️</div>
-                      <div>
-                        <p className="text-[10px] font-extrabold text-gray-800">{qa.doctor}</p>
-                        <p className="text-[8px] text-emerald-600 font-bold">{qa.specialty} · ✓ Verified</p>
+            <button
+              onClick={() => setShowExpertQA(prev => !prev)}
+              className="w-full flex items-center justify-between py-2.5 px-3 bg-emerald-50 rounded-xl border border-emerald-100 active:scale-[0.99] transition-transform"
+            >
+              <span className="text-xs font-extrabold text-emerald-700">
+                💬 Expert Q&A ({EXPERT_QA.length} questions)
+              </span>
+              <span className="text-xs text-emerald-500 font-bold">
+                {showExpertQA ? '▾ Hide' : 'Ask our experts →'}
+              </span>
+            </button>
+
+            {showExpertQA && (
+              <div className="space-y-3 mt-3">
+                {EXPERT_QA.map(qa => {
+                  const { truncated, wasTruncated } = truncateToFirstSentence(qa.answer);
+                  const isExpanded = expandedQA.has(qa.id);
+                  return (
+                    <div key={qa.id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                      <div className="bg-emerald-50 px-4 py-2 border-b border-emerald-100">
+                        <p className="text-[10px] font-extrabold text-emerald-800">❓ {qa.question}</p>
+                      </div>
+                      <div className="p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-xs text-white font-bold">👩‍⚕️</div>
+                          <div>
+                            <p className="text-[10px] font-extrabold text-gray-800">{qa.doctor}</p>
+                            <p className="text-[8px] text-emerald-600 font-bold">{qa.specialty} · ✓ Verified</p>
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-700 leading-relaxed">
+                          {isExpanded || !wasTruncated ? qa.answer : truncated}
+                          {wasTruncated && !isExpanded && (
+                            <button
+                              onClick={() => setExpandedQA(prev => new Set([...prev, qa.id]))}
+                              className="text-emerald-600 font-bold ml-1"
+                            >
+                              Read more →
+                            </button>
+                          )}
+                          {wasTruncated && isExpanded && (
+                            <button
+                              onClick={() => setExpandedQA(prev => { const next = new Set(prev); next.delete(qa.id); return next; })}
+                              className="text-emerald-600 font-bold ml-1"
+                            >
+                              Show less
+                            </button>
+                          )}
+                        </p>
+                        <button onClick={() => {
+                          if (likedQA.has(qa.id)) return;
+                          setLikedQA(prev => new Set([...prev, qa.id]));
+                        }} className="flex items-center gap-1 mt-3 text-[10px] text-gray-400 active:scale-95 transition-transform">
+                          <span>{likedQA.has(qa.id) ? '❤️' : '🤍'}</span>
+                          <span className="font-bold">{qa.likes + (likedQA.has(qa.id) ? 1 : 0)} helpful</span>
+                        </button>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-700 leading-relaxed">{qa.answer}</p>
-                    <button onClick={() => {
-                      if (likedQA.has(qa.id)) return;
-                      setLikedQA(prev => new Set([...prev, qa.id]));
-                    }} className="flex items-center gap-1 mt-3 text-[10px] text-gray-400 active:scale-95 transition-transform">
-                      <span>{likedQA.has(qa.id) ? '❤️' : '🤍'}</span>
-                      <span className="font-bold">{qa.likes + (likedQA.has(qa.id) ? 1 : 0)} helpful</span>
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -507,31 +579,93 @@ export default function CommunityPage() {
               {post.isPinned && <div className="bg-amber-50 px-4 py-1 text-[8px] font-bold text-amber-600">📌 Pinned</div>}
               {post.isHidden && <div className="bg-red-50 px-4 py-1 text-[8px] font-bold text-red-500">🚫 Hidden by moderator</div>}
               <div className="p-4">
-                {/* Category badge */}
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-[8px] font-extrabold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: catColor(post.category) }}>
-                    {CATEGORIES.find(c => c.id === post.category)?.emoji} {post.category}
-                  </span>
-                </div>
-                {/* Author */}
+                {/* Author row with subtle category + time + 3-dot menu */}
                 <div className="flex items-center gap-2.5 mb-2.5">
-                  <div className={'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ' + (isDocRole(post) ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white' : 'bg-gray-100 text-gray-500')}>
+                  <div className={'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ' + (isDocRole(post) ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white' : 'bg-gray-100 text-gray-500')}>
                     {isDocRole(post) ? '👩‍⚕️' : authorInitial(post)}
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-bold text-gray-800">{authorName(post)}</span>
                       {isDocRole(post) && <span className="text-[7px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">DOCTOR ✓</span>}
+                      {/* Subtle category label */}
+                      <span className="text-[8px] font-bold px-1.5 py-0.5 rounded text-gray-400 bg-gray-50">
+                        {CATEGORIES.find(c => c.id === post.category)?.emoji} {post.category}
+                      </span>
                     </div>
-                    <span className="text-[9px] text-gray-400">{timeAgo(post.createdAt)}{post.isEdited && ' · (edited)'}</span>
+                    <span className="text-[9px] text-gray-400">
+                      {timeAgo(post.createdAt)}
+                      {post.isEdited && <span className="text-gray-300"> · edited</span>}
+                    </span>
+                  </div>
+                  {/* 3-dot menu button */}
+                  <div className="relative flex-shrink-0" ref={openMenuPost === post.id ? menuRef : undefined}>
+                    <button
+                      onClick={() => setOpenMenuPost(openMenuPost === post.id ? null : post.id)}
+                      className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 active:scale-90 transition-transform text-gray-400 text-sm"
+                    >
+                      ⋮
+                    </button>
+                    {openMenuPost === post.id && (
+                      <div className="absolute right-0 top-8 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-30 min-w-[140px]">
+                        <button
+                          onClick={() => { setReportTarget({ type: 'post', id: post.id }); setOpenMenuPost(null); }}
+                          className="w-full text-left px-3 py-2 text-[10px] font-bold text-gray-600 hover:bg-gray-50"
+                        >
+                          🚩 Report
+                        </button>
+                        {canEdit(post) && (
+                          <>
+                            <button
+                              onClick={() => startEdit('post', post.id, post.content)}
+                              className="w-full text-left px-3 py-2 text-[10px] font-bold text-blue-600 hover:bg-gray-50"
+                            >
+                              ✏️ Edit ({minsLeft(post)}m left)
+                            </button>
+                            <button
+                              onClick={() => { deleteOwnPost(post.id); setOpenMenuPost(null); }}
+                              className="w-full text-left px-3 py-2 text-[10px] font-bold text-red-500 hover:bg-gray-50"
+                            >
+                              🗑️ Delete my post
+                            </button>
+                          </>
+                        )}
+                        {isModerator && (
+                          <button
+                            onClick={() => { hidePost(post.id); setOpenMenuPost(null); }}
+                            className="w-full text-left px-3 py-2 text-[10px] font-bold text-orange-500 hover:bg-gray-50"
+                          >
+                            {post.isHidden ? '👁️ Unhide' : '🙈 Hide'}
+                          </button>
+                        )}
+                        {isAdmin && (
+                          <>
+                            <button
+                              onClick={() => { pinPost(post.id); setOpenMenuPost(null); }}
+                              className="w-full text-left px-3 py-2 text-[10px] font-bold text-amber-500 hover:bg-gray-50"
+                            >
+                              {post.isPinned ? '📌 Unpin' : '📌 Pin'}
+                            </button>
+                            <button
+                              onClick={() => { if (confirm('Delete this post permanently?')) deletePost(post.id); setOpenMenuPost(null); }}
+                              className="w-full text-left px-3 py-2 text-[10px] font-bold text-red-600 hover:bg-gray-50"
+                            >
+                              ❌ Delete (admin)
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                {/* Content */}
                 <p className="text-sm text-gray-700 leading-relaxed">{post.content}</p>
 
-                {/* Actions */}
-                <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-50 flex-wrap">
+                {/* Compact actions: Like + Reply only */}
+                <div className="flex items-center gap-4 mt-2.5 pt-2 border-t border-gray-50">
                   <button onClick={() => likePost(post.id)} className={'flex items-center gap-1 text-[10px] active:scale-95 transition-transform ' + (likedPosts.has(post.id) ? 'text-rose-500' : 'text-gray-400')}>
-                    <span>{likedPosts.has(post.id) ? '❤️' : '🤍'}</span>
+                    <span className="text-xs">{likedPosts.has(post.id) ? '❤️' : '🤍'}</span>
                     <span className="font-bold">{post.likeCount || 0}</span>
                   </button>
                   <button onClick={() => {
@@ -539,44 +673,13 @@ export default function CommunityPage() {
                       setExpandedPost(null);
                     } else {
                       setExpandedPost(post.id);
-                      setReplyText(''); // Clear reply text when switching posts
+                      setReplyText('');
                       fetchPostDetail(post.id);
                     }
-                  }} className="flex items-center gap-1 text-[10px] text-gray-500 active:scale-95 transition-transform">
-                    <span>💬</span>
-                    <span className="font-bold">{post.replyCount || 0} replies</span>
+                  }} className="flex items-center gap-1 text-[10px] text-gray-400 active:scale-95 transition-transform">
+                    <span className="text-xs">💬</span>
+                    <span className="font-bold">{post.replyCount || 0}</span>
                   </button>
-                  <button onClick={() => setReportTarget({ type: 'post', id: post.id })} className="text-[10px] text-gray-400 active:scale-95 transition-transform">
-                    🚩
-                  </button>
-                  {/* Owner edit/delete (within 30 min) */}
-                  {canEdit(post) && (
-                    <>
-                      <button onClick={() => startEdit('post', post.id, post.content)} className="text-[9px] text-blue-500 font-bold active:scale-95">
-                        ✏️ Edit
-                      </button>
-                      <button onClick={() => deleteOwnPost(post.id)} className="text-[9px] text-red-400 font-bold active:scale-95">
-                        🗑️ Delete
-                      </button>
-                      <span className="text-[8px] text-gray-300">{minsLeft(post)}m left</span>
-                    </>
-                  )}
-                  {/* Moderation buttons */}
-                  {isModerator && (
-                    <button onClick={() => hidePost(post.id)} className="text-[9px] text-orange-500 font-bold active:scale-95 ml-auto">
-                      {post.isHidden ? 'Unhide' : 'Hide'}
-                    </button>
-                  )}
-                  {isAdmin && (
-                    <>
-                      <button onClick={() => pinPost(post.id)} className="text-[9px] text-amber-500 font-bold active:scale-95">
-                        {post.isPinned ? 'Unpin' : 'Pin'}
-                      </button>
-                      <button onClick={() => { if (confirm('Delete this post permanently?')) deletePost(post.id); }} className="text-[9px] text-red-500 font-bold active:scale-95">
-                        Delete
-                      </button>
-                    </>
-                  )}
                 </div>
 
                 {/* Replies */}
@@ -587,26 +690,62 @@ export default function CommunityPage() {
                         <div className="flex items-center gap-1.5 mb-1">
                           <span className={'text-[10px] font-bold ' + (isDocRole(reply) ? 'text-emerald-700' : 'text-gray-600')}>{authorName(reply)}</span>
                           {isDocRole(reply) && <span className="text-[7px] font-bold bg-emerald-200 text-emerald-800 px-1 py-0.5 rounded">✓ Verified Doctor</span>}
-                          <span className="text-[9px] text-gray-400">{timeAgo(reply.createdAt)}{reply.isEdited && ' · (edited)'}</span>
+                          <span className="text-[9px] text-gray-400">
+                            {timeAgo(reply.createdAt)}
+                            {reply.isEdited && <span className="text-gray-300"> · edited</span>}
+                          </span>
+                          <div className="ml-auto relative flex-shrink-0" ref={openMenuReply === reply.id ? menuRef : undefined}>
+                            <button
+                              onClick={() => setOpenMenuReply(openMenuReply === reply.id ? null : reply.id)}
+                              className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-gray-200 active:scale-90 transition-transform text-gray-400 text-[10px]"
+                            >
+                              ⋮
+                            </button>
+                            {openMenuReply === reply.id && (
+                              <div className="absolute right-0 top-6 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-30 min-w-[130px]">
+                                <button
+                                  onClick={() => { setReportTarget({ type: 'reply', id: reply.id }); setOpenMenuReply(null); }}
+                                  className="w-full text-left px-3 py-1.5 text-[9px] font-bold text-gray-600 hover:bg-gray-50"
+                                >
+                                  🚩 Report
+                                </button>
+                                {canEdit(reply) && (
+                                  <>
+                                    <button
+                                      onClick={() => startEdit('reply', reply.id, reply.content)}
+                                      className="w-full text-left px-3 py-1.5 text-[9px] font-bold text-blue-600 hover:bg-gray-50"
+                                    >
+                                      ✏️ Edit ({minsLeft(reply)}m)
+                                    </button>
+                                    <button
+                                      onClick={() => { deleteOwnReply(reply.id); setOpenMenuReply(null); }}
+                                      className="w-full text-left px-3 py-1.5 text-[9px] font-bold text-red-500 hover:bg-gray-50"
+                                    >
+                                      🗑️ Delete
+                                    </button>
+                                  </>
+                                )}
+                                {isModerator && (
+                                  <button
+                                    onClick={() => { hideReply(reply.id); setOpenMenuReply(null); }}
+                                    className="w-full text-left px-3 py-1.5 text-[9px] font-bold text-orange-500 hover:bg-gray-50"
+                                  >
+                                    🙈 Hide
+                                  </button>
+                                )}
+                                {isAdmin && (
+                                  <button
+                                    onClick={() => { if (confirm('Delete reply?')) deleteReply(reply.id); setOpenMenuReply(null); }}
+                                    className="w-full text-left px-3 py-1.5 text-[9px] font-bold text-red-600 hover:bg-gray-50"
+                                  >
+                                    ❌ Delete (admin)
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                         <p className="text-xs text-gray-700 leading-relaxed">{reply.content}</p>
-                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                          <button onClick={() => setReportTarget({ type: 'reply', id: reply.id })} className="text-[9px] text-gray-400 active:scale-95">🚩</button>
-                          {/* Owner edit/delete reply (within 30 min) */}
-                          {canEdit(reply) && (
-                            <>
-                              <button onClick={() => startEdit('reply', reply.id, reply.content)} className="text-[8px] text-blue-500 font-bold active:scale-95">✏️ Edit</button>
-                              <button onClick={() => deleteOwnReply(reply.id)} className="text-[8px] text-red-400 font-bold active:scale-95">🗑️</button>
-                              <span className="text-[7px] text-gray-300">{minsLeft(reply)}m</span>
-                            </>
-                          )}
-                          {isModerator && (
-                            <button onClick={() => hideReply(reply.id)} className="text-[8px] text-orange-500 font-bold active:scale-95">Hide</button>
-                          )}
-                          {isAdmin && (
-                            <button onClick={() => { if (confirm('Delete reply?')) deleteReply(reply.id); }} className="text-[8px] text-red-500 font-bold active:scale-95">Delete</button>
-                          )}
-                        </div>
                       </div>
                     ))}
                     <div className="flex gap-2">
@@ -623,16 +762,24 @@ export default function CommunityPage() {
           ))
         )}
 
-        {/* ─── Trending hashtags ─── */}
+        {/* ─── Trending hashtags (show top 4, expand to all) ─── */}
         <div className="bg-white rounded-2xl p-4 shadow-sm">
           <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider mb-3">Trending Today</p>
           <div className="flex flex-wrap gap-2">
-            {['#PCOS', '#PeriodPain', '#TTC', '#Pregnancy', '#Menopause', '#Ayurveda', '#HormoneBalance', '#SelfCare'].map(tag => (
+            {visibleTrending.map(tag => (
               <button key={tag} onClick={() => setSearchQ(tag.slice(1))}
                 className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-600 active:scale-95 transition-transform border border-rose-100">
                 {tag}
               </button>
             ))}
+            {!showAllTrending && ALL_TRENDING.length > 4 && (
+              <button
+                onClick={() => setShowAllTrending(true)}
+                className="px-2.5 py-1 rounded-full text-[10px] font-bold text-gray-400 active:scale-95 transition-transform border border-gray-200"
+              >
+                More trending →
+              </button>
+            )}
           </div>
         </div>
 

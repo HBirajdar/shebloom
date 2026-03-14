@@ -39,6 +39,11 @@ export default function SelfCarePage() {
   const [energyScore, setEnergyScore] = useState(0);
   const [stressScore, setStressScore] = useState(0);
   const [checkedCare, setCheckedCare] = useState<number[]>([]);
+  const [showAllCare, setShowAllCare] = useState(false);
+  const [showAllHelplines, setShowAllHelplines] = useState(false);
+  const [gratitudeCount, setGratitudeCount] = useState(1);
+  const [journalOpen, setJournalOpen] = useState(true);
+  const [gratitudeOpen, setGratitudeOpen] = useState(true);
   const [sosContacts, setSosContacts] = useState<{ name: string; phone: string }[]>(() => {
     try { return JSON.parse(localStorage.getItem('vedaclue_sos_contacts') || '[]'); } catch { return []; }
   });
@@ -153,7 +158,7 @@ export default function SelfCarePage() {
           <div className="bg-white rounded-2xl p-4 shadow-sm">
             <h3 className="text-sm font-extrabold text-gray-900 mb-1">Today's Self-Care</h3>
             <p className="text-[10px] text-gray-400 mb-3">Curated for your {phase} phase</p>
-            {pw.selfCare.map((care, i) => (
+            {(showAllCare ? pw.selfCare : pw.selfCare.slice(0, 3)).map((care, i) => (
               <button key={i} onClick={() => toggleCare(i)} className="flex items-center gap-3 w-full py-2.5 border-b border-gray-50 last:border-0">
                 <div className={'w-6 h-6 rounded-lg border-2 flex items-center justify-center text-[10px] transition-all flex-shrink-0 ' +
                   (checkedCare.includes(i) ? 'text-white' : 'border-gray-300')} style={checkedCare.includes(i) ? { backgroundColor: pw.color, borderColor: pw.color } : {}}>
@@ -162,6 +167,11 @@ export default function SelfCarePage() {
                 <span className={'text-xs flex-1 text-left ' + (checkedCare.includes(i) ? 'text-gray-400 line-through' : 'text-gray-700')}>{care}</span>
               </button>
             ))}
+            {pw.selfCare.length > 3 && (
+              <button onClick={() => setShowAllCare(!showAllCare)} className="w-full text-center pt-2 text-[11px] font-bold active:scale-95" style={{ color: pw.color }}>
+                {showAllCare ? 'Show less' : `More self-care ideas \u2192 (${pw.selfCare.length - 3} more)`}
+              </button>
+            )}
           </div>
         </>)}
 
@@ -193,15 +203,6 @@ export default function SelfCarePage() {
             )}
           </div>
 
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-4 border border-blue-100">
-            <h3 className="text-xs font-bold text-blue-800 mb-2">Breathing Benefits</h3>
-            <div className="space-y-1 text-[10px] text-blue-700">
-              <p>{'\u2022'} Reduces cortisol (stress hormone) by up to 30%</p>
-              <p>{'\u2022'} Activates parasympathetic nervous system</p>
-              <p>{'\u2022'} Helps with period cramps and PMS anxiety</p>
-              <p>{'\u2022'} 5 minutes daily = measurable stress reduction</p>
-            </div>
-          </div>
         </>)}
 
         {/* JOURNAL */}
@@ -211,20 +212,39 @@ export default function SelfCarePage() {
             <p className="text-sm text-gray-700 mt-1 italic leading-relaxed">"{pw.journalPrompt}"</p>
           </div>
 
-          <div className="bg-white rounded-2xl p-4 shadow-sm">
-            <h3 className="text-sm font-extrabold text-gray-900 mb-2">{'\u{1F4DD}'} Free Write</h3>
-            <textarea value={journalText} onChange={e => setJournalText(e.target.value)} placeholder="Write whatever comes to mind..."
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none resize-none leading-relaxed" rows={8} />
-            <p className="text-[9px] text-gray-400 mt-1 text-right">{journalText.length} characters</p>
+          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <button onClick={() => setJournalOpen(!journalOpen)} className="w-full flex items-center justify-between p-4 active:bg-gray-50">
+              <h3 className="text-sm font-extrabold text-gray-900">{'\u{1F4DD}'} Free Write</h3>
+              <span className="text-xs text-gray-400">{journalOpen ? '\u25B2' : '\u25BC'}</span>
+            </button>
+            {journalOpen && (
+              <div className="px-4 pb-4">
+                <textarea value={journalText} onChange={e => setJournalText(e.target.value)} placeholder="Write whatever comes to mind..."
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-rose-400 focus:outline-none resize-none leading-relaxed" rows={8} />
+                <p className="text-[9px] text-gray-400 mt-1 text-right">{journalText.length} characters</p>
+              </div>
+            )}
           </div>
 
-          <div className="bg-white rounded-2xl p-4 shadow-sm">
-            <h3 className="text-sm font-extrabold text-gray-900 mb-3">{'\u{1F64F}'} 3 Gratitudes</h3>
-            {[0, 1, 2].map(i => (
-              <input key={i} value={gratitude[i]} onChange={e => { const g = [...gratitude]; g[i] = e.target.value; setGratitude(g); }}
-                placeholder={['I am grateful for...', 'I appreciate...', 'Something good today...'][i]}
-                className="w-full mb-2 px-4 py-2.5 border border-gray-200 rounded-xl text-xs focus:border-rose-400 focus:outline-none" />
-            ))}
+          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <button onClick={() => setGratitudeOpen(!gratitudeOpen)} className="w-full flex items-center justify-between p-4 active:bg-gray-50">
+              <h3 className="text-sm font-extrabold text-gray-900">{'\u{1F64F}'} Gratitude</h3>
+              <span className="text-xs text-gray-400">{gratitudeOpen ? '\u25B2' : '\u25BC'}</span>
+            </button>
+            {gratitudeOpen && (
+              <div className="px-4 pb-4">
+                {Array.from({ length: gratitudeCount }).map((_, i) => (
+                  <input key={i} value={gratitude[i]} onChange={e => { const g = [...gratitude]; g[i] = e.target.value; setGratitude(g); }}
+                    placeholder={['I am grateful for...', 'I appreciate...', 'Something good today...'][i]}
+                    className="w-full mb-2 px-4 py-2.5 border border-gray-200 rounded-xl text-xs focus:border-rose-400 focus:outline-none" />
+                ))}
+                {gratitudeCount < 3 && (
+                  <button onClick={() => setGratitudeCount(c => Math.min(c + 1, 3))} className="text-[11px] font-bold mt-1 active:scale-95" style={{ color: pw.color }}>
+                    + Add another
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </>)}
 
@@ -242,8 +262,13 @@ export default function SelfCarePage() {
           {/* Helpline numbers */}
           <div className="bg-white rounded-2xl p-4 shadow-sm">
             <h3 className="text-sm font-extrabold text-gray-900 mb-3">{'\u{1F4DE}'} Helplines</h3>
-            {[
-              { name: 'Women Helpline (India)', num: '181', emoji: '\u{1F1EE}\u{1F1F3}' },
+            <a href="tel:181" className="flex items-center justify-center gap-2 w-full py-3.5 bg-emerald-600 text-white rounded-2xl font-bold text-sm active:scale-95 mb-3">
+              {'\u{1F4DE}'} Call Women Helpline (181)
+            </a>
+            <button onClick={() => setShowAllHelplines(!showAllHelplines)} className="w-full text-center text-[11px] font-bold text-gray-500 active:scale-95 mb-1">
+              {showAllHelplines ? 'Hide helplines' : 'More helplines \u2192'}
+            </button>
+            {showAllHelplines && [
               { name: 'National Commission for Women', num: '7827-170-170', emoji: '\u{1F46E}\u200D\u2640\uFE0F' },
               { name: 'Domestic Violence Helpline', num: '1800-599-0019', emoji: '\u{1F91D}' },
               { name: 'Mental Health Helpline (iCall)', num: '9152987821', emoji: '\u{1F9E0}' },
@@ -274,10 +299,7 @@ export default function SelfCarePage() {
             </div>
           </div>
 
-          <div className="bg-purple-50 rounded-2xl p-4 border border-purple-100">
-            <h3 className="text-xs font-bold text-purple-800">{'\u{1F49C}'} You Are Not Alone</h3>
-            <p className="text-[10px] text-purple-700 mt-1 leading-relaxed">1 in 3 women worldwide experience violence. If you or someone you know needs help, reach out. These helplines are free, confidential, and available 24/7.</p>
-          </div>
+          <p className="text-[10px] text-gray-400 text-center mt-2">All helplines are free, confidential, and available 24/7.</p>
         </>)}
       </div>
     </div>

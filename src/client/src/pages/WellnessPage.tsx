@@ -181,6 +181,12 @@ export default function WellnessPage() {
   const yogaRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [showSleepPicker, setShowSleepPicker] = useState(false);
 
+  // ─── UX: Collapsible state ─────────────────────────
+  const currentTimeOfDay = new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening';
+  const [expandedRoutine, setExpandedRoutine] = useState<'morning' | 'afternoon' | 'evening' | null>(currentTimeOfDay);
+  const [showAllYoga, setShowAllYoga] = useState(false);
+  const [showAllBreathBenefits, setShowAllBreathBenefits] = useState(false);
+
   // ─── Breathing state ──────────────────────────────────
   const [breathMode, setBreathMode] = useState('478');
   const [breathActive, setBreathActive] = useState(false);
@@ -531,31 +537,39 @@ export default function WellnessPage() {
             const timeEmoji = time === 'morning' ? '🌅' : time === 'afternoon' ? '☀️' : '🌙';
             const tasks = pd.routine[time];
             const doneTasks = tasks.filter(t => routineDone.has(`${time}_${t}`));
+            const isExpanded = expandedRoutine === time;
             return (
               <div key={time} className="bg-white rounded-3xl shadow-lg overflow-hidden">
-                <div className="px-4 py-3 flex items-center justify-between border-b border-gray-50">
+                <button
+                  onClick={() => setExpandedRoutine(isExpanded ? null : time)}
+                  className="w-full px-4 py-3 flex items-center justify-between border-b border-gray-50 active:bg-gray-50 transition-colors">
                   <div className="flex items-center gap-2">
                     <span className="text-lg">{timeEmoji}</span>
                     <h3 className="text-sm font-extrabold text-gray-800 capitalize">{time}</h3>
                     {time === timeOfDay && <span className="text-[8px] font-bold bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full">NOW</span>}
                   </div>
-                  <span className="text-[10px] font-bold text-gray-400">{doneTasks.length}/{tasks.length}</span>
-                </div>
-                <div className="divide-y divide-gray-50">
-                  {tasks.map(task => {
-                    const key = `${time}_${task}`;
-                    const done = routineDone.has(key);
-                    return (
-                      <button key={key} onClick={() => toggleRoutine(key)}
-                        className={'w-full flex items-center gap-3 px-4 py-3 text-left active:bg-gray-50 transition-colors ' + (done ? 'opacity-60' : '')}>
-                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${done ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300'}`}>
-                          {done && <span className="text-white text-xs font-bold">✓</span>}
-                        </div>
-                        <span className={'text-xs ' + (done ? 'line-through text-gray-400' : 'text-gray-700')}>{task}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-gray-400">{doneTasks.length}/{tasks.length}</span>
+                    <span className="text-xs text-gray-300 transition-transform" style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
+                  </div>
+                </button>
+                {isExpanded && (
+                  <div className="divide-y divide-gray-50">
+                    {tasks.map(task => {
+                      const key = `${time}_${task}`;
+                      const done = routineDone.has(key);
+                      return (
+                        <button key={key} onClick={() => toggleRoutine(key)}
+                          className={'w-full flex items-center gap-3 px-4 py-3 text-left active:bg-gray-50 transition-colors ' + (done ? 'opacity-60' : '')}>
+                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${done ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300'}`}>
+                            {done && <span className="text-white text-xs font-bold">✓</span>}
+                          </div>
+                          <span className={'text-xs ' + (done ? 'line-through text-gray-400' : 'text-gray-700')}>{task}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -677,7 +691,7 @@ export default function WellnessPage() {
 
           {/* Poses grid */}
           <div className="grid grid-cols-2 gap-3">
-            {pd.yoga.map(pose => (
+            {(showAllYoga ? pd.yoga : pd.yoga.slice(0, 2)).map(pose => (
               <div key={pose.name} className="bg-white rounded-3xl shadow-lg overflow-hidden">
                 <div className="h-24 flex items-center justify-center text-5xl" style={{ backgroundColor: pd.bg }}>{pose.emoji}</div>
                 <div className="p-3">
@@ -695,6 +709,19 @@ export default function WellnessPage() {
               </div>
             ))}
           </div>
+          {pd.yoga.length > 2 && !showAllYoga && (
+            <button onClick={() => setShowAllYoga(true)}
+              className="w-full py-2.5 text-center text-xs font-bold active:scale-95 transition-transform rounded-xl border border-gray-200 bg-white"
+              style={{ color: pd.color }}>
+              Show all {pd.yoga.length} yoga poses →
+            </button>
+          )}
+          {showAllYoga && pd.yoga.length > 2 && (
+            <button onClick={() => setShowAllYoga(false)}
+              className="w-full py-2 text-center text-[10px] font-bold text-gray-400 active:scale-95 transition-transform">
+              Show fewer
+            </button>
+          )}
 
           {/* Phase yoga tips */}
           <div className="rounded-2xl p-4" style={{ backgroundColor: pd.bg }}>
@@ -850,7 +877,7 @@ export default function WellnessPage() {
             {breathRounds > 0 && !breathActive && (
               <div className="mt-4 bg-purple-50 rounded-2xl p-3 text-center w-full">
                 <p className="text-sm font-extrabold text-purple-700">🌬️ {breathRounds} round{breathRounds > 1 ? 's' : ''} complete!</p>
-                <p className="text-[10px] text-purple-500 mt-1">Great job. Breathwork reduces cortisol by up to 20%.</p>
+                <p className="text-[10px] text-purple-500 mt-1">Great job — keep it up!</p>
               </div>
             )}
           </div>
@@ -858,17 +885,31 @@ export default function WellnessPage() {
           {/* Breathwork benefits */}
           <div className="bg-white rounded-3xl p-4 shadow-lg">
             <h3 className="text-xs font-extrabold text-gray-800 mb-3">🧪 Why breathwork works</h3>
-            {[
-              { e: '🧠', t: 'Activates parasympathetic nervous system (rest & digest)' },
-              { e: '❤️', t: 'Lowers heart rate and blood pressure within minutes' },
-              { e: '😌', t: 'Reduces cortisol (the stress hormone)' },
-              { e: '💜', t: 'Helps with PMS anxiety and mood swings' },
-            ].map(b => (
-              <div key={b.t} className="flex items-start gap-2 mb-2">
-                <span className="text-sm">{b.e}</span>
-                <p className="text-xs text-gray-600 leading-relaxed">{b.t}</p>
-              </div>
-            ))}
+            {(() => {
+              const benefits = [
+                { e: '🧠', t: 'Calms your nervous system' },
+                { e: '❤️', t: 'Lowers heart rate & blood pressure' },
+                { e: '😌', t: 'Reduces stress hormones' },
+                { e: '💜', t: 'Helps with PMS anxiety & mood swings' },
+              ];
+              const visible = showAllBreathBenefits ? benefits : benefits.slice(0, 2);
+              return (
+                <>
+                  {visible.map(b => (
+                    <div key={b.t} className="flex items-start gap-2 mb-2">
+                      <span className="text-sm">{b.e}</span>
+                      <p className="text-xs text-gray-600 leading-relaxed">{b.t}</p>
+                    </div>
+                  ))}
+                  {!showAllBreathBenefits && benefits.length > 2 && (
+                    <button onClick={() => setShowAllBreathBenefits(true)}
+                      className="text-[10px] font-bold text-purple-500 mt-1 active:scale-95 transition-transform">
+                      More tips →
+                    </button>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </>)}
 

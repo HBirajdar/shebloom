@@ -105,6 +105,9 @@ export default function PregnancyPage() {
   const [done, setDone] = useState<Record<number, boolean[]>>({});
   const [showDateInput, setShowDateInput] = useState(false);
   const [lmpInput, setLmpInput] = useState('');
+  const [showEmergencySigns, setShowEmergencySigns] = useState(false);
+  const [showAllAppointments, setShowAllAppointments] = useState(false);
+  const [showAllTabItems, setShowAllTabItems] = useState(false);
 
   useEffect(() => {
     pregnancyAPI.get().then(r => {
@@ -227,7 +230,7 @@ export default function PregnancyPage() {
 
   const checks = done[week] || d.tips.map(() => false);
   const tabContent: Record<string, { items: string[]; color: string; icon: string }> = {
-    baby: { items: d.baby, color: 'purple', icon: '\u{1F476}' },
+    baby: { items: [`Length: ${d.len}  \u00B7  Weight: ${d.wt}`, ...d.baby], color: 'purple', icon: '\u{1F476}' },
     mom: { items: d.mom, color: 'pink', icon: '\u{1F930}' },
     tips: { items: d.tips, color: 'emerald', icon: '\u{1F4A1}' },
     nutrition: { items: d.nutrition, color: 'amber', icon: '\u{1F957}' },
@@ -235,6 +238,9 @@ export default function PregnancyPage() {
   };
 
   const cur = tabContent[tab];
+  const TAB_PREVIEW_COUNT = 3;
+  const hasMoreTabItems = cur.items.length > TAB_PREVIEW_COUNT;
+  const visibleTabItems = showAllTabItems ? cur.items : cur.items.slice(0, TAB_PREVIEW_COUNT);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-10">
@@ -275,18 +281,11 @@ export default function PregnancyPage() {
               <span className="text-[9px] text-white/80 font-medium">3rd Tri</span>
             </div>
           </div>
-          <div className="flex gap-2 mt-3 relative z-10">
-            {[
-              { l: 'Length', v: d.len },
-              { l: 'Weight', v: d.wt },
-              { l: 'Due Date', v: dueDate.toLocaleDateString('en', { month: 'short', day: 'numeric' }) },
-              { l: 'Left', v: daysLeft + 'd' },
-            ].map(s => (
-              <div key={s.l} className="bg-white/20 rounded-xl px-2 py-2.5 text-center flex-1 backdrop-blur-sm">
-                <p className="text-[9px] text-white/90 font-medium uppercase">{s.l}</p>
-                <p className="text-sm font-extrabold text-white">{s.v}</p>
-              </div>
-            ))}
+          <div className="mt-3 relative z-10">
+            <div className="bg-white/20 rounded-xl px-4 py-2.5 text-center backdrop-blur-sm inline-flex items-center gap-2">
+              <p className="text-[10px] text-white/90 font-medium uppercase">Due</p>
+              <p className="text-sm font-extrabold text-white">{dueDate.toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+            </div>
           </div>
         </div>
 
@@ -313,14 +312,14 @@ export default function PregnancyPage() {
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <div className="flex overflow-x-auto border-b border-gray-100">
             {([['baby', '\u{1F476} Baby'], ['mom', '\u{1F930} You'], ['tips', '\u{1F4A1} Tips'], ['nutrition', '\u{1F957} Food'], ['exercise', '\u{1F3CB}\uFE0F Move']] as const).map(([key, label]) => (
-              <button key={key} onClick={() => setTab(key)}
+              <button key={key} onClick={() => { setTab(key); setShowAllTabItems(false); }}
                 className={'flex-shrink-0 px-4 py-3 text-[10px] font-bold whitespace-nowrap transition-all ' + (tab === key ? 'text-purple-600 border-b-2 border-purple-500 bg-purple-50/50' : 'text-gray-400')}>
                 {label}
               </button>
             ))}
           </div>
           <div className="p-4 space-y-3">
-            {cur.items.map((item, i) => (
+            {visibleTabItems.map((item, i) => (
               <div key={i} className="flex items-start gap-3">
                 <div className={'w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-white ' +
                   (cur.color === 'purple' ? 'bg-purple-400' : cur.color === 'pink' ? 'bg-pink-400' : cur.color === 'emerald' ? 'bg-emerald-400' : cur.color === 'amber' ? 'bg-amber-400' : 'bg-blue-400')}>
@@ -329,6 +328,16 @@ export default function PregnancyPage() {
                 <p className="text-sm text-gray-700 leading-relaxed">{item}</p>
               </div>
             ))}
+            {hasMoreTabItems && !showAllTabItems && (
+              <button onClick={() => setShowAllTabItems(true)} className="text-xs font-bold text-purple-600 pt-1">
+                Show more {'\u2192'}
+              </button>
+            )}
+            {hasMoreTabItems && showAllTabItems && (
+              <button onClick={() => setShowAllTabItems(false)} className="text-xs font-bold text-purple-600 pt-1">
+                Show less {'\u2191'}
+              </button>
+            )}
           </div>
         </div>
 
@@ -352,32 +361,73 @@ export default function PregnancyPage() {
         </div>
 
         {/* Appointments */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4">
-          <h3 className="text-sm font-bold text-blue-800 mb-2">{'\u{1F4C5}'} Key Appointments</h3>
-          <div className="space-y-2 text-xs text-blue-700">
-            {week < 12 && <p>{'\u2022'} First prenatal visit & dating scan (8–12 weeks)</p>}
-            {week < 14 && <p>{'\u2022'} First trimester screening / NT scan (11–14 weeks)</p>}
-            {week >= 12 && week < 22 && <p>{'\u2022'} Anatomy scan / anomaly ultrasound (18–22 weeks)</p>}
-            {week >= 20 && week < 28 && <p>{'\u2022'} Glucose tolerance test (24–28 weeks)</p>}
-            {week >= 28 && week < 36 && <p>{'\u2022'} Bi-weekly checkups + growth scan</p>}
-            {week >= 35 && week < 38 && <p>{'\u2022'} Group B Streptococcus test (35–37 weeks)</p>}
-            {week >= 36 && <p>{'\u2022'} Weekly checkups until delivery</p>}
-            <button onClick={() => nav('/doctors')} className="text-blue-600 font-bold underline mt-1 block">Find a Doctor {'\u2192'}</button>
-          </div>
+        {(() => {
+          const allAppts = [
+            { show: week < 12, text: 'First prenatal visit & dating scan (8\u201312 weeks)' },
+            { show: week < 14, text: 'First trimester screening / NT scan (11\u201314 weeks)' },
+            { show: week >= 12 && week < 22, text: 'Anatomy scan / anomaly ultrasound (18\u201322 weeks)' },
+            { show: week >= 20 && week < 28, text: 'Glucose tolerance test (24\u201328 weeks)' },
+            { show: week >= 28 && week < 36, text: 'Bi-weekly checkups + growth scan' },
+            { show: week >= 35 && week < 38, text: 'Group B Streptococcus test (35\u201337 weeks)' },
+            { show: week >= 36, text: 'Weekly checkups until delivery' },
+          ].filter(a => a.show);
+          const nextAppt = allAppts[0];
+          const restAppts = allAppts.slice(1);
+          return (
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4">
+              <h3 className="text-sm font-bold text-blue-800 mb-2">{'\u{1F4C5}'} Next Appointment</h3>
+              {nextAppt ? (
+                <div className="bg-white/70 rounded-xl px-3 py-2.5 text-sm text-blue-700 font-medium">
+                  {'\u2192'} {nextAppt.text}
+                </div>
+              ) : (
+                <p className="text-xs text-blue-600">No upcoming appointments for this week range.</p>
+              )}
+              {restAppts.length > 0 && (
+                <>
+                  <button onClick={() => setShowAllAppointments(!showAllAppointments)} className="text-xs font-bold text-blue-600 mt-2">
+                    {showAllAppointments ? 'Hide appointments \u2191' : `View all appointments (${restAppts.length} more) \u2192`}
+                  </button>
+                  {showAllAppointments && (
+                    <div className="space-y-1.5 mt-2 text-xs text-blue-700">
+                      {restAppts.map((a, i) => <p key={i}>{'\u2022'} {a.text}</p>)}
+                    </div>
+                  )}
+                </>
+              )}
+              <button onClick={() => nav('/doctors')} className="text-blue-600 font-bold underline mt-2 block text-xs">Find a Doctor {'\u2192'}</button>
+            </div>
+          );
+        })()}
+
+        {/* Emergency Signs — collapsed by default */}
+        <div className="rounded-2xl overflow-hidden">
+          <button
+            onClick={() => setShowEmergencySigns(!showEmergencySigns)}
+            className="w-full text-left bg-red-50 border border-red-100 rounded-2xl px-4 py-3 flex items-center justify-between"
+          >
+            <span className="text-xs font-bold text-red-600">{'\u26A0\uFE0F'} Know the warning signs</span>
+            <span className="text-red-400 text-xs">{showEmergencySigns ? '\u2191' : '\u2193'}</span>
+          </button>
+          {showEmergencySigns && (
+            <div className="bg-red-50 border border-t-0 border-red-100 rounded-b-2xl px-4 pb-4 pt-2 -mt-3">
+              <h3 className="text-sm font-bold text-red-700 mb-2">Call Your Doctor If...</h3>
+              <div className="text-xs text-red-600 space-y-1.5">
+                <p>{'\u2022'} Heavy bleeding or fluid leaking</p>
+                <p>{'\u2022'} Severe abdominal pain / cramping</p>
+                <p>{'\u2022'} High fever (above 100.4\u00B0F / 38\u00B0C)</p>
+                <p>{'\u2022'} Severe headache or vision changes</p>
+                {week >= 28 && <p>{'\u2022'} Baby not moving for 2+ hours</p>}
+                {week >= 37 && <p>{'\u2022'} Regular contractions before 37 weeks</p>}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Emergency Signs */}
-        <div className="bg-red-50 rounded-2xl p-4 border border-red-100">
-          <h3 className="text-sm font-bold text-red-700 mb-2">{'\u26A0\uFE0F'} Call Your Doctor If...</h3>
-          <div className="text-xs text-red-600 space-y-1.5">
-            <p>{'\u2022'} Heavy bleeding or fluid leaking</p>
-            <p>{'\u2022'} Severe abdominal pain / cramping</p>
-            <p>{'\u2022'} High fever (above 100.4°F / 38°C)</p>
-            <p>{'\u2022'} Severe headache or vision changes</p>
-            {week >= 28 && <p>{'\u2022'} Baby not moving for 2+ hours</p>}
-            {week >= 37 && <p>{'\u2022'} Regular contractions before 37 weeks</p>}
-          </div>
-        </div>
+        {/* Disclaimer */}
+        <p className="text-[10px] text-gray-400 text-center px-4 pb-2">
+          For informational purposes only. Consult your healthcare provider for medical advice.
+        </p>
       </div>
     </div>
   );
