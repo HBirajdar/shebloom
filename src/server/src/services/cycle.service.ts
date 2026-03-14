@@ -747,7 +747,10 @@ export class CycleService {
     // ── Step 4: Compute current cycle position ───────────────────
     const lastStart = cycles[0].startDate;
     const periodLength = profile.periodLength || 5;
-    const cycleDay = Math.floor((Date.now() - lastStart.getTime()) / 86400000) + 1;
+    // Normalize to date-only (midnight UTC) so cycleDay increments at midnight, not at the exact time the period was logged
+    const todayMidnight = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()));
+    const startMidnight = new Date(Date.UTC(lastStart.getUTCFullYear(), lastStart.getUTCMonth(), lastStart.getUTCDate()));
+    const cycleDay = Math.floor((todayMidnight.getTime() - startMidnight.getTime()) / 86400000) + 1;
 
     // Ovulation day = cycle length - individual luteal phase (NOT the mythical -14)
     const ovulationDay = Math.max(1, Math.min(avgCycleLength - 1, avgCycleLength - lutealPhase));
@@ -882,7 +885,7 @@ export class CycleService {
       daysUntilPeriod: Math.floor(
         ((confirmedOvulation
           ? adjustedOvulationDate.getTime() + lutealPhase * 86400000
-          : nextPeriod.getTime()) - Date.now()) / 86400000
+          : nextPeriod.getTime()) - todayMidnight.getTime()) / 86400000
       ),
       daysUntilOvulation: Math.max(0, ovulationDay - cycleDay),
 
