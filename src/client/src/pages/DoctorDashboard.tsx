@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
@@ -242,7 +241,7 @@ function DoctorAyurvedaTab() {
   const [selectedPatient, setSelectedPatient] = useState<string | null>(null);
   const [patientDosha, setPatientDosha] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [clinicalForm, setClinicalForm] = useState({ primaryDosha: '', vataScore: 33, pittaScore: 34, kaphaScore: 33, notes: '' });
+  const [clinicalForm, setClinicalForm] = useState<Record<string, any>>({ primaryDosha: '', vataScore: 33, pittaScore: 34, kaphaScore: 33, notes: '' });
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {

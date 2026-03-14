@@ -292,6 +292,9 @@ r.patch('/availability', async (q: AuthRequest, s: Response, n: NextFunction) =>
 });
 
 // ─── GET /doctor/slots — list time slots ─────────────
+// NOTE: startTime/endTime strings are assumed to be in IST (Asia/Kolkata).
+// For future multi-timezone support, store a timezone field per slot and
+// convert when presenting to users in different timezones.
 r.get('/slots', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const doctor = await getDoctorProfile(q.user!.id);
@@ -306,6 +309,8 @@ r.get('/slots', async (q: AuthRequest, s: Response, n: NextFunction) => {
 });
 
 // ─── POST /doctor/slots — create a time slot ─────────
+// NOTE: startTime/endTime are stored as plain strings (e.g. "09:00", "17:00")
+// and assumed to be in IST (Asia/Kolkata) since this is an India-focused app.
 r.post('/slots', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const doctor = await getDoctorProfile(q.user!.id);

@@ -1,10 +1,10 @@
-// @ts-nocheck
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { appointmentAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
-const STATUS_STYLES = {
+const STATUS_STYLES: Record<string, { bg: string; icon: string; label: string }> = {
   PENDING: { bg: 'bg-amber-50 text-amber-700 border border-amber-200', icon: '⏳', label: 'Pending' },
   CONFIRMED: { bg: 'bg-emerald-50 text-emerald-700 border border-emerald-200', icon: '✓', label: 'Confirmed' },
   CANCELLED: { bg: 'bg-red-50 text-red-600 border border-red-200', icon: '✕', label: 'Cancelled' },

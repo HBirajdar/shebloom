@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * VedaClue Data Hooks — Connects React to FastAPI backend
  * 

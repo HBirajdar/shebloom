@@ -1,9 +1,8 @@
-// @ts-nocheck
 import { useLocation, useNavigate, Navigate } from 'react-router-dom';
 
 export default function OrderSuccessPage() {
   const navigate = useNavigate();
-  const { state } = useLocation();
+  const { state } = useLocation() as { state: any };
 
   if (!state?.orderId && !state?.orderNumber) return <Navigate to="/my-orders" replace />;
 

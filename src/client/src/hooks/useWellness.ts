@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect, useCallback } from 'react';
 import { wellnessAPI } from '../services/api';
 import toast from 'react-hot-toast';

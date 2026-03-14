@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { Helmet } from 'react-helmet-async';
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -1089,13 +1089,13 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 gap-2 mb-3">
               <div className="bg-emerald-50 rounded-xl p-2.5">
                 <p className="text-[9px] font-bold text-emerald-700 mb-1">🍽️ Eat</p>
-                {ayurvedaData.guidance.diet?.slice(0, 2).map((d, i) => (
+                {ayurvedaData.guidance.diet?.slice(0, 2).map((d: any, i: number) => (
                   <p key={i} className="text-[10px] text-emerald-600 leading-relaxed mb-0.5">• {d.split('—')[0].trim()}</p>
                 ))}
               </div>
               <div className="bg-purple-50 rounded-xl p-2.5">
                 <p className="text-[9px] font-bold text-purple-700 mb-1">🌿 Herbs</p>
-                {ayurvedaData.guidance.herbs?.slice(0, 2).map((h, i) => (
+                {ayurvedaData.guidance.herbs?.slice(0, 2).map((h: any, i: number) => (
                   <p key={i} className="text-[10px] text-purple-600 leading-relaxed mb-0.5">• {h.split('—')[0].trim()}</p>
                 ))}
               </div>
@@ -1105,13 +1105,13 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 gap-2 mb-3">
               <div className="bg-indigo-50 rounded-xl p-2.5">
                 <p className="text-[9px] font-bold text-indigo-700 mb-1">🧘 Yoga</p>
-                {ayurvedaData.guidance.yoga?.slice(0, 2).map((y, i) => (
+                {ayurvedaData.guidance.yoga?.slice(0, 2).map((y: any, i: number) => (
                   <p key={i} className="text-[10px] text-indigo-600 leading-relaxed mb-0.5">• {y.split('—')[0].trim()}</p>
                 ))}
               </div>
               <div className="bg-red-50 rounded-xl p-2.5">
                 <p className="text-[9px] font-bold text-red-600 mb-1">⚠️ Avoid</p>
-                {ayurvedaData.guidance.avoid?.slice(0, 3).map((a, i) => (
+                {ayurvedaData.guidance.avoid?.slice(0, 3).map((a: any, i: number) => (
                   <p key={i} className="text-[10px] text-red-500 mb-0.5">• {a}</p>
                 ))}
               </div>
@@ -1158,7 +1158,7 @@ export default function DashboardPage() {
               }} />
             </div>
             <div className="space-y-1">
-              {predictionData.confidence.factors?.map((f, i) => (
+              {predictionData.confidence.factors?.map((f: any, i: number) => (
                 <div key={i} className="flex items-center gap-1.5">
                   <span className="text-emerald-500 text-[10px]">✓</span>
                   <span className="text-[10px] text-gray-500">{f}</span>
@@ -1234,10 +1234,10 @@ export default function DashboardPage() {
               </div>
             </div>
             <p className="text-[10px] text-sky-600 font-semibold mb-1">Dosha risk: {ayurvedaData.weatherInsight.dominantDosha} ({ayurvedaData.weatherInsight.riskLevel})</p>
-            {ayurvedaData.weatherInsight.adjustments?.slice(0, 2).map((adj, i) => (
+            {ayurvedaData.weatherInsight.adjustments?.slice(0, 2).map((adj: any, i: number) => (
               <p key={i} className="text-[11px] text-sky-700 leading-relaxed mb-1">• {adj}</p>
             ))}
-            {ayurvedaData.weatherInsight.dietTips?.slice(0, 1).map((t, i) => (
+            {ayurvedaData.weatherInsight.dietTips?.slice(0, 1).map((t: any, i: number) => (
               <p key={i} className="text-[10px] text-emerald-600 mt-1">🍽️ {t}</p>
             ))}
           </div>
@@ -1253,7 +1253,7 @@ export default function DashboardPage() {
                 <p className="text-xs font-extrabold text-teal-800">{ayurvedaData.seasonalAdjustment.currentRitu}</p>
               </div>
             </div>
-            {ayurvedaData.seasonalAdjustment.adjustment?.slice(0, 2).map((adj, i) => (
+            {ayurvedaData.seasonalAdjustment.adjustment?.slice(0, 2).map((adj: any, i: number) => (
               <p key={i} className="text-[11px] text-teal-700 leading-relaxed mb-1">• {adj}</p>
             ))}
           </div>

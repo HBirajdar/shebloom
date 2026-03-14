@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
@@ -1362,7 +1361,7 @@ function SegmentsTab({ onViewUser }: { onViewUser: (id: string) => void }) {
     finally { setLoading(false); }
   };
 
-  const handlePreset = (p: Record<string, string>) => {
+  const handlePreset = (p: any) => {
     setFilters(p);
     setPage(1);
     fetchSegment(p, 1);

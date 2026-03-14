@@ -1,12 +1,18 @@
-// @ts-nocheck
 import { Helmet } from 'react-helmet-async';
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAyurvedaStore } from '../stores/ayurvedaStore';
 import { useCycleStore } from '../stores/cycleStore';
 import { api } from '../services/api';
-import type { Article } from '../stores/ayurvedaStore';
+import type { Article as BaseArticle } from '../stores/ayurvedaStore';
 import { useChiefDoctor } from '../hooks/useChiefDoctor';
+
+// Extend Article type with optional image fields added during API mapping
+type Article = BaseArticle & {
+  coverImage?: string | null;
+  coverImageUrl?: string | null;
+  imageUrl?: string | null;
+};
 import BottomNav from '../components/BottomNav';
 import toast from 'react-hot-toast';
 
@@ -1109,7 +1115,7 @@ export default function ArticlesPage() {
                 {phaseArticles.map(a => (
                   <button key={a.id} onClick={() => setReadingArticle(a)}
                     className="w-52 bg-white rounded-2xl p-3 shadow-sm text-left active:scale-[0.97] transition-transform flex-shrink-0 relative">
-                    <div className="w-full h-16 rounded-xl flex items-center justify-center text-3xl overflow-hidden" style={{ backgroundColor: '#FFF1F2' }}>{(a.coverImage || a.coverImageUrl || a.imageUrl) ? <img src={a.coverImage || a.coverImageUrl || a.imageUrl} alt={a.title} className="w-full h-full object-cover rounded-xl" /> : a.emoji}</div>
+                    <div className="w-full h-16 rounded-xl flex items-center justify-center text-3xl overflow-hidden" style={{ backgroundColor: '#FFF1F2' }}>{(a.coverImage || a.coverImageUrl || a.imageUrl) ? <img src={(a.coverImage || a.coverImageUrl || a.imageUrl)!} alt={a.title} className="w-full h-full object-cover rounded-xl" /> : a.emoji}</div>
                     <button onClick={e => toggleBookmark(a.id, e)} className="absolute top-5 right-5 w-6 h-6 bg-white rounded-full shadow-sm flex items-center justify-center text-xs active:scale-90">
                       {bookmarks.has(a.id) ? '🔖' : '🔗'}
                     </button>
@@ -1135,7 +1141,7 @@ export default function ArticlesPage() {
               <div className="flex gap-3 min-w-max pb-2">
                 {goalSpecific.slice(0, 4).map(a => (
                   <button key={a.id} onClick={() => setReadingArticle(a)} className="w-56 bg-white rounded-2xl p-3 shadow-sm text-left active:scale-95 transition-transform flex-shrink-0">
-                    <div className="w-full h-16 rounded-xl flex items-center justify-center text-3xl overflow-hidden" style={{ backgroundColor: '#F5F3FF' }}>{(a.coverImage || a.coverImageUrl || a.imageUrl) ? <img src={a.coverImage || a.coverImageUrl || a.imageUrl} alt={a.title} className="w-full h-full object-cover rounded-xl" /> : a.emoji}</div>
+                    <div className="w-full h-16 rounded-xl flex items-center justify-center text-3xl overflow-hidden" style={{ backgroundColor: '#F5F3FF' }}>{(a.coverImage || a.coverImageUrl || a.imageUrl) ? <img src={(a.coverImage || a.coverImageUrl || a.imageUrl)!} alt={a.title} className="w-full h-full object-cover rounded-xl" /> : a.emoji}</div>
                     <p className="text-xs font-bold text-gray-800 mt-2 line-clamp-2 leading-tight">{a.title}</p>
                     <p className="text-[10px] text-gray-400 mt-1">{authorName(a)} {'\u2022'} {a.readTime}</p>
                   </button>
@@ -1166,7 +1172,7 @@ export default function ArticlesPage() {
               {visible.filter(a => bookmarks.has(a.id)).map(a => (
                 <button key={a.id} onClick={() => setReadingArticle(a)}
                   className="flex-shrink-0 w-40 bg-white rounded-2xl p-3 shadow-sm text-left active:scale-95 transition-transform">
-                  <div className="h-12 flex items-center justify-center text-2xl overflow-hidden" style={{ backgroundColor: '#F5F3FF' }}>{(a.coverImage || a.coverImageUrl || a.imageUrl) ? <img src={a.coverImage || a.coverImageUrl || a.imageUrl} alt={a.title} className="w-full h-full object-cover" /> : a.emoji}</div>
+                  <div className="h-12 flex items-center justify-center text-2xl overflow-hidden" style={{ backgroundColor: '#F5F3FF' }}>{(a.coverImage || a.coverImageUrl || a.imageUrl) ? <img src={(a.coverImage || a.coverImageUrl || a.imageUrl)!} alt={a.title} className="w-full h-full object-cover" /> : a.emoji}</div>
                   <p className="text-[10px] font-bold text-gray-800 mt-1.5 line-clamp-2">{a.title}</p>
                   <p className="text-[9px] text-gray-400 mt-0.5">{a.readTime}</p>
                 </button>
@@ -1184,7 +1190,7 @@ export default function ArticlesPage() {
           <div key={a.id} className="bg-white rounded-2xl p-4 shadow-sm relative">
             <button onClick={() => setReadingArticle(a)} className="w-full text-left active:opacity-90">
               <div className="flex gap-3">
-                <div className="w-16 h-16 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden" style={{ backgroundColor: '#F5F3FF' }}>{(a.coverImage || a.coverImageUrl || a.imageUrl) ? <img src={a.coverImage || a.coverImageUrl || a.imageUrl} alt={a.title} className="w-full h-full object-cover" /> : a.emoji}</div>
+                <div className="w-16 h-16 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden" style={{ backgroundColor: '#F5F3FF' }}>{(a.coverImage || a.coverImageUrl || a.imageUrl) ? <img src={(a.coverImage || a.coverImageUrl || a.imageUrl)!} alt={a.title} className="w-full h-full object-cover" /> : a.emoji}</div>
                 <div className="flex-1 min-w-0 pr-6">
                   <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                     <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600">{a.category}</span>

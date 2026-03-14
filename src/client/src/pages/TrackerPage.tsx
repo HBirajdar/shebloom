@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Helmet } from 'react-helmet-async'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -43,22 +42,22 @@ export default function TrackerPage() {
   useEffect(() => { fetchSubscription() }, [])
 
   const [selectedMonth, setSelectedMonth] = useState(new Date())
-  const [cycles, setCycles] = useState([])
-  const [prediction, setPrediction] = useState(null)
+  const [cycles, setCycles] = useState<any[]>([])
+  const [prediction, setPrediction] = useState<any>(null)
   const [showLogSheet, setShowLogSheet] = useState(false)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('calendar')
 
   // Log form state
   const [logStartDate, setLogStartDate] = useState(new Date())
-  const [logEndDate, setLogEndDate] = useState(null)
+  const [logEndDate, setLogEndDate] = useState<Date | null>(null)
   const [logFlow, setLogFlow] = useState('')
   const [logPain, setLogPain] = useState(0)
-  const [logMoods, setLogMoods] = useState([])
-  const [logSymptoms, setLogSymptoms] = useState([])
+  const [logMoods, setLogMoods] = useState<string[]>([])
+  const [logSymptoms, setLogSymptoms] = useState<string[]>([])
   const [logNotes, setLogNotes] = useState('')
   const [saving, setSaving] = useState(false)
-  const [expandedCycle, setExpandedCycle] = useState(null)
+  const [expandedCycle, setExpandedCycle] = useState<any>(null)
   const [customStartInput, setCustomStartInput] = useState('')
   const [customEndInput, setCustomEndInput] = useState('')
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
@@ -66,9 +65,9 @@ export default function TrackerPage() {
   const [showFullCalendar, setShowFullCalendar] = useState(false)
 
   // Advanced fertility tracking state
-  const [bbtHistory, setBbtHistory] = useState([])
-  const [cmHistory, setCmHistory] = useState([])
-  const [fertilityDaily, setFertilityDaily] = useState([])
+  const [bbtHistory, setBbtHistory] = useState<any[]>([])
+  const [cmHistory, setCmHistory] = useState<any[]>([])
+  const [fertilityDaily, setFertilityDaily] = useState<any[]>([])
   const [showFertilitySheet, setShowFertilitySheet] = useState(false)
   const [fertLogDate, setFertLogDate] = useState(new Date().toISOString().slice(0, 10))
   const [fertBBT, setFertBBT] = useState('')
@@ -79,7 +78,7 @@ export default function TrackerPage() {
   const [fertSaving, setFertSaving] = useState(false)
 
   // Ayurvedic insights state
-  const [ayurvedaData, setAyurvedaData] = useState(null)
+  const [ayurvedaData, setAyurvedaData] = useState<any>(null)
   const [ayurvedaLoading, setAyurvedaLoading] = useState(false)
   const [showMedWarnings, setShowMedWarnings] = useState(false)
   const [showRefLibrary, setShowRefLibrary] = useState(false)
@@ -1401,7 +1400,7 @@ export default function TrackerPage() {
                   }`} style={{ width: `${prediction.confidence.score}%` }} />
                 </div>
                 <div className="space-y-1">
-                  {prediction.confidence.factors?.map((f, i) => (
+                  {prediction.confidence.factors?.map((f: any, i: number) => (
                     <div key={i} className="flex items-center gap-2 text-xs text-gray-500">
                       <span className="text-emerald-500">✓</span> {f}
                     </div>
@@ -1434,7 +1433,7 @@ export default function TrackerPage() {
                 </p>
                 {prediction.biomarkerSignals?.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
-                    {prediction.biomarkerSignals.map((s, i) => (
+                    {prediction.biomarkerSignals.map((s: any, i: number) => (
                       <span key={i} className="text-[10px] font-bold bg-white/80 px-2 py-0.5 rounded-full text-gray-600">{s}</span>
                     ))}
                   </div>
@@ -1622,8 +1621,8 @@ export default function TrackerPage() {
               {cmHistory.length > 0 ? (
                 <div className="flex items-end gap-1 h-16">
                   {cmHistory.slice(-30).map((entry, i) => {
-                    const cmColors = { dry: 'bg-gray-200', sticky: 'bg-yellow-300', creamy: 'bg-amber-200', watery: 'bg-blue-300', eggWhite: 'bg-emerald-400', spotting: 'bg-rose-300' }
-                    const cmHeights = { dry: '20%', sticky: '35%', creamy: '50%', watery: '70%', eggWhite: '95%', spotting: '25%' }
+                    const cmColors: Record<string, string> = { dry: 'bg-gray-200', sticky: 'bg-yellow-300', creamy: 'bg-amber-200', watery: 'bg-blue-300', eggWhite: 'bg-emerald-400', spotting: 'bg-rose-300' }
+                    const cmHeights: Record<string, string> = { dry: '20%', sticky: '35%', creamy: '50%', watery: '70%', eggWhite: '95%', spotting: '25%' }
                     return (
                       <div key={i} className="flex-1 min-w-[8px] flex flex-col justify-end" title={`${new Date(entry.logDate).toLocaleDateString()}: ${entry.type}`}>
                         <div className={`w-full rounded-t-sm ${cmColors[entry.type] || 'bg-gray-200'}`}
@@ -1770,7 +1769,7 @@ export default function TrackerPage() {
                     <p className="text-xs font-extrabold text-gray-800 mb-1">🍽️ Diet — {ayurvedaData.phase} phase</p>
                     <p className="text-[10px] text-gray-400 mb-3">{ayurvedaData.guidance?.dominantDosha}</p>
                     <div className="space-y-2">
-                      {ayurvedaData.guidance?.diet?.map((tip, i) => (
+                      {ayurvedaData.guidance?.diet?.map((tip: any, i: number) => (
                         <div key={i} className="flex gap-2">
                           <span className="text-emerald-500 text-xs mt-0.5">●</span>
                           <p className="text-[11px] text-gray-600 leading-relaxed">{tip}</p>
@@ -1785,7 +1784,7 @@ export default function TrackerPage() {
                   <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                     <p className="text-xs font-extrabold text-gray-800 mb-3">🌿 Ayurvedic Herbs</p>
                     <div className="space-y-2">
-                      {ayurvedaData.guidance?.herbs?.map((herb, i) => (
+                      {ayurvedaData.guidance?.herbs?.map((herb: any, i: number) => (
                         <div key={i} className="flex gap-2">
                           <span className="text-purple-500 text-xs mt-0.5">●</span>
                           <p className="text-[11px] text-gray-600 leading-relaxed">{herb}</p>
@@ -1832,7 +1831,7 @@ export default function TrackerPage() {
                   <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                     <p className="text-xs font-extrabold text-gray-800 mb-3">🧘 Yoga & Pranayama</p>
                     <div className="space-y-2">
-                      {ayurvedaData.guidance?.yoga?.map((pose, i) => (
+                      {ayurvedaData.guidance?.yoga?.map((pose: any, i: number) => (
                         <div key={i} className="flex gap-2">
                           <span className="text-indigo-500 text-xs mt-0.5">●</span>
                           <p className="text-[11px] text-gray-600 leading-relaxed">{pose}</p>
@@ -1847,7 +1846,7 @@ export default function TrackerPage() {
                   <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                     <p className="text-xs font-extrabold text-gray-800 mb-3">🌸 Lifestyle (Dinacharya)</p>
                     <div className="space-y-2">
-                      {ayurvedaData.guidance?.lifestyle?.map((tip, i) => (
+                      {ayurvedaData.guidance?.lifestyle?.map((tip: any, i: number) => (
                         <div key={i} className="flex gap-2">
                           <span className="text-rose-400 text-xs mt-0.5">●</span>
                           <p className="text-[11px] text-gray-600 leading-relaxed">{tip}</p>
@@ -1868,7 +1867,7 @@ export default function TrackerPage() {
                   <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4">
                     <p className="text-xs font-extrabold text-violet-800 mb-3">🔍 Your Symptoms — Ayurvedic Lens</p>
                     <div className="space-y-2">
-                      {ayurvedaData.symptomInsights?.map((insight, i) => (
+                      {ayurvedaData.symptomInsights?.map((insight: any, i: number) => (
                         <p key={i} className="text-[11px] text-violet-700 leading-relaxed">• {insight}</p>
                       ))}
                     </div>
@@ -1882,19 +1881,19 @@ export default function TrackerPage() {
                     <p className="text-[11px] text-pink-700 leading-relaxed mb-3">{ayurvedaData.conceptionGuide.rituKala}</p>
                     <p className="text-[10px] font-bold text-pink-600 mb-1">Shukra Dhatu (Reproductive Tissue):</p>
                     <div className="space-y-1 mb-3">
-                      {ayurvedaData.conceptionGuide.shukraDhatuTips?.map((tip, i) => (
+                      {ayurvedaData.conceptionGuide.shukraDhatuTips?.map((tip: any, i: number) => (
                         <p key={i} className="text-[11px] text-pink-600">• {tip}</p>
                       ))}
                     </div>
                     <p className="text-[10px] font-bold text-pink-600 mb-1">Garbhadhana Diet (Pre-conception):</p>
                     <div className="space-y-1 mb-3">
-                      {ayurvedaData.conceptionGuide.diet?.map((d, i) => (
+                      {ayurvedaData.conceptionGuide.diet?.map((d: any, i: number) => (
                         <p key={i} className="text-[11px] text-pink-600">• {d}</p>
                       ))}
                     </div>
                     <p className="text-[10px] font-bold text-pink-600 mb-1">Modern Timing Science:</p>
                     <div className="space-y-1">
-                      {ayurvedaData.conceptionGuide.timing?.map((t, i) => (
+                      {ayurvedaData.conceptionGuide.timing?.map((t: any, i: number) => (
                         <p key={i} className="text-[11px] text-pink-600">• {t}</p>
                       ))}
                     </div>
@@ -1907,7 +1906,7 @@ export default function TrackerPage() {
                     <p className="text-xs font-extrabold text-teal-800 mb-1">🍃 Seasonal Wisdom (Ritucharya)</p>
                     <p className="text-[10px] text-teal-600 mb-3">{ayurvedaData.seasonalAdjustment.currentRitu} — {ayurvedaData.seasonalAdjustment.dominantDosha} season</p>
                     <div className="space-y-1.5">
-                      {ayurvedaData.seasonalAdjustment.adjustment?.map((adj, i) => (
+                      {ayurvedaData.seasonalAdjustment.adjustment?.map((adj: any, i: number) => (
                         <p key={i} className="text-[11px] text-teal-700 leading-relaxed">• {adj}</p>
                       ))}
                     </div>

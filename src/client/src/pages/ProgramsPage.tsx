@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
@@ -196,7 +195,7 @@ export default function ProgramsPage() {
           }
           setPaymentProcessing(false);
         },
-        prefill: { name: user.name || '', email: user.email || '', contact: user.phone || '' },
+        prefill: { name: user.fullName || '', email: user.email || '', contact: user.phone || '' },
         theme: { color: '#7C3AED' },
         modal: {
           ondismiss: () => {

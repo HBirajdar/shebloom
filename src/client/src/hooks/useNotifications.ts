@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect, useCallback } from 'react';
 import { notificationAPI } from '../services/api';
 import toast from 'react-hot-toast';

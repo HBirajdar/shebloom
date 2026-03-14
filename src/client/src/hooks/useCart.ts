@@ -1,7 +1,16 @@
-// @ts-nocheck
 import { useState, useCallback, useEffect } from 'react';
 import { cartAPI } from '../services/api';
 import toast from 'react-hot-toast';
+
+export interface CartItem {
+  id: string;
+  productId: string;
+  name: string;
+  price: number;
+  image: string;
+  qty: number;
+  addedAt: string;
+}
 
 const LS_KEY = 'sb_cart';
 
@@ -18,16 +27,6 @@ function loadLocal(): CartItem[] {
 }
 function saveLocal(items: CartItem[]) {
   localStorage.setItem(LS_KEY, JSON.stringify(items));
-}
-
-export interface CartItem {
-  id: string;
-  productId: string;
-  name: string;
-  price: number;
-  image: string;
-  qty: number;
-  addedAt: string;
 }
 
 interface UseCartReturn {

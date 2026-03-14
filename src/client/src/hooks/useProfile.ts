@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect, useCallback } from 'react';
 import { userAPI } from '../services/api';
 import { useAuthStore } from '../stores/authStore';

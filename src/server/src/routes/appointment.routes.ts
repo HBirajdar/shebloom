@@ -57,7 +57,8 @@ async function calcCouponDiscount(code: string | undefined, userId: string, amou
 // POST / — create appointment with Jitsi video link
 r.post('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
-    const { doctorId, doctorName, scheduledAt, reason, notes, paymentId, couponCode } = q.body;
+    const { doctorId, doctorName, scheduledAt, reason, notes, paymentId, couponCode,
+            timezone = 'Asia/Kolkata' } = q.body;
 
     // Try to find doctor in DB
     const doctor = doctorId
@@ -88,7 +89,12 @@ r.post('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
     if (!scheduledAt) return s.status(400).json({ success: false, error: 'scheduledAt is required' });
     const scheduledDate = new Date(scheduledAt);
     if (isNaN(scheduledDate.getTime())) return s.status(400).json({ success: false, error: 'Invalid date for scheduledAt' });
-    if (scheduledDate < new Date()) return s.status(400).json({ success: false, error: 'Cannot book appointments in the past' });
+
+    // Compare dates in the user's timezone to avoid false "past date" rejections
+    // when the server is in a different timezone than the user
+    const nowInTz = new Date(new Date().toLocaleString('en-US', { timeZone: timezone }));
+    const scheduledInTz = new Date(scheduledDate.toLocaleString('en-US', { timeZone: timezone }));
+    if (scheduledInTz < nowInTz) return s.status(400).json({ success: false, error: 'Cannot book appointments in the past' });
 
     // Generate Jitsi room (use crypto for unpredictable room ID)
     const jitsiRoomId = `VedaClue-${resolvedDoctorName.replace(/\s+/g, '-')}-${crypto.randomBytes(8).toString('hex')}`;
@@ -121,7 +127,7 @@ r.post('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
           couponDiscount: serverCouponDiscount,
           platformFee: serverPlatformFee,
           paymentId: paymentId || null,
-          notes: [reason, notes].filter(Boolean).join(' | ') || null,
+          notes: [reason, notes, `tz:${timezone}`].filter(Boolean).join(' | ') || null,
           meetingLink: videoLink,
         },
         include: { doctor: { select: { id: true, fullName: true, specialization: true, avatarUrl: true, consultationFee: true } } },

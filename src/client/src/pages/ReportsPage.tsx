@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCycleStore } from '../stores/cycleStore'
@@ -653,7 +653,7 @@ export default function ReportsPage() {
   const navigate = useNavigate()
   const cycleStore = useCycleStore()
 
-  const [data, setData] = useState(null)
+  const [data, setData] = useState<any>(null)
   const [aiInsight, setAiInsight] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
   const [loading, setLoading] = useState(true)

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Helmet } from 'react-helmet-async';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -274,7 +273,7 @@ export default function DoctorsPage() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-1.5 mt-3 relative z-10">
-                {chief.tags.map(t => (
+                {chief.tags.map((t: string) => (
                   <span key={t} className="text-[9px] bg-white/15 px-2 py-0.5 rounded-full text-white/90 font-medium backdrop-blur-sm">{t}</span>
                 ))}
               </div>
@@ -319,7 +318,7 @@ export default function DoctorsPage() {
           <button key={d.id} onClick={() => setSel(d)} className="w-full bg-white rounded-3xl p-4 shadow-lg text-left active:scale-[0.98] transition-transform">
             <div className="flex gap-3">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm overflow-hidden">
-                {(d.photoUrl || d.avatarUrl) ? <img src={d.photoUrl || d.avatarUrl} alt={d.name} className="w-full h-full object-cover" /> : d.name.split(' ').map(w => w[0]).join('').slice(0, 2)}
+                {(d.photoUrl || d.avatarUrl) ? <img src={d.photoUrl || d.avatarUrl} alt={d.name} className="w-full h-full object-cover" /> : d.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2)}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-gray-800 text-sm">{d.name}</p>
@@ -329,7 +328,7 @@ export default function DoctorsPage() {
                   <span className="text-[10px] text-gray-400">({d.reviews} reviews)</span>
                 </div>
                 <div className="flex gap-1 mt-1.5 flex-wrap">
-                  {d.tags.map(t => <span key={t} className="text-[9px] px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full font-medium">{'\uD83C\uDFF7\uFE0F'} {t}</span>)}
+                  {d.tags.map((t: string) => <span key={t} className="text-[9px] px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full font-medium">{'\uD83C\uDFF7\uFE0F'} {t}</span>)}
                 </div>
                 {d.availability && <p className="text-[10px] text-gray-400 mt-1">{'\uD83D\uDD50'} {d.availability}</p>}
                 {d.languages && <p className="text-[10px] text-gray-400">{'\uD83D\uDDE3\uFE0F'} {d.languages.join(', ')}</p>}

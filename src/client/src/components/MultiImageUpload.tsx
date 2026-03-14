@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { api } from '../services/api';

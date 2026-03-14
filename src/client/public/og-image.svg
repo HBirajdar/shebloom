@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E11D48"/>
+      <stop offset="100%" stop-color="#F59E0B"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Lotus / flower icon (centered above text) -->
+  <g transform="translate(600, 220)" fill="white" fill-opacity="0.95">
+    <!-- Center petal (top) -->
+    <ellipse cx="0" cy="-40" rx="18" ry="45" />
+    <!-- Left petals -->
+    <ellipse cx="-35" cy="-20" rx="18" ry="42" transform="rotate(-30, -35, -20)"/>
+    <ellipse cx="-55" cy="10" rx="16" ry="38" transform="rotate(-60, -55, 10)"/>
+    <!-- Right petals -->
+    <ellipse cx="35" cy="-20" rx="18" ry="42" transform="rotate(30, 35, -20)"/>
+    <ellipse cx="55" cy="10" rx="16" ry="38" transform="rotate(60, 55, 10)"/>
+    <!-- Outer left -->
+    <ellipse cx="-65" cy="35" rx="14" ry="32" transform="rotate(-80, -65, 35)"/>
+    <!-- Outer right -->
+    <ellipse cx="65" cy="35" rx="14" ry="32" transform="rotate(80, 65, 35)"/>
+    <!-- Center circle -->
+    <circle cx="0" cy="5" r="14" fill="#F59E0B" fill-opacity="0.6"/>
+  </g>
+
+  <!-- "VedaClue" text -->
+  <text x="600" y="370" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif"
+        font-size="80" font-weight="bold" fill="white" letter-spacing="4">
+    VedaClue
+  </text>
+
+  <!-- Tagline -->
+  <text x="600" y="430" text-anchor="middle" font-family="Arial, Helvetica, sans-serif"
+        font-size="32" fill="white" fill-opacity="0.9" letter-spacing="2">
+    Period &amp; Wellness Tracker
+  </text>
+</svg>

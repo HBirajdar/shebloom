@@ -216,6 +216,92 @@ if (process.env.NODE_ENV !== 'production') {
   });
 }
 
+// ─── Dynamic Sitemap ─────────────────────────────────
+let sitemapCache: { xml: string; generatedAt: number } | null = null;
+const SITEMAP_CACHE_MS = 60 * 60 * 1000; // 1 hour
+
+app.get('/sitemap.xml', async (_req, res) => {
+  try {
+    const now = Date.now();
+    if (sitemapCache && (now - sitemapCache.generatedAt) < SITEMAP_CACHE_MS) {
+      res.set('Content-Type', 'application/xml');
+      return res.send(sitemapCache.xml);
+    }
+
+    const BASE_URL = 'https://vedaclue.com';
+    const today = new Date().toISOString().split('T')[0];
+
+    // Static routes
+    const staticRoutes = [
+      { loc: '/',          changefreq: 'weekly',  priority: '1.0' },
+      { loc: '/articles',  changefreq: 'daily',   priority: '0.9' },
+      { loc: '/doctors',   changefreq: 'weekly',  priority: '0.8' },
+      { loc: '/wellness',  changefreq: 'weekly',  priority: '0.8' },
+      { loc: '/pricing',   changefreq: 'monthly', priority: '0.7' },
+      { loc: '/community', changefreq: 'daily',   priority: '0.7' },
+      { loc: '/tracker',   changefreq: 'daily',   priority: '0.9' },
+      { loc: '/programs',  changefreq: 'weekly',  priority: '0.7' },
+      { loc: '/hospitals', changefreq: 'weekly',  priority: '0.7' },
+    ];
+
+    // Dynamic data from DB
+    const [articles, doctors, products] = await Promise.all([
+      prisma.article.findMany({ where: { status: 'PUBLISHED' }, select: { slug: true, updatedAt: true } }),
+      prisma.doctor.findMany({ where: { status: 'active' }, select: { id: true, updatedAt: true } }),
+      prisma.product.findMany({ where: { isPublished: true, inStock: true }, select: { id: true, updatedAt: true } }),
+    ]);
+
+    let urls = staticRoutes.map(r => `  <url>
+    <loc>${BASE_URL}${r.loc}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>${r.changefreq}</changefreq>
+    <priority>${r.priority}</priority>
+  </url>`).join('\n');
+
+    for (const a of articles) {
+      const lastmod = a.updatedAt ? a.updatedAt.toISOString().split('T')[0] : today;
+      urls += `\n  <url>
+    <loc>${BASE_URL}/articles/${a.slug}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>`;
+    }
+
+    for (const d of doctors) {
+      const lastmod = d.updatedAt ? d.updatedAt.toISOString().split('T')[0] : today;
+      urls += `\n  <url>
+    <loc>${BASE_URL}/doctors/${d.id}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>`;
+    }
+
+    for (const p of products) {
+      const lastmod = p.updatedAt ? p.updatedAt.toISOString().split('T')[0] : today;
+      urls += `\n  <url>
+    <loc>${BASE_URL}/products/${p.id}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>`;
+    }
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls}
+</urlset>`;
+
+    sitemapCache = { xml, generatedAt: now };
+    res.set('Content-Type', 'application/xml');
+    res.send(xml);
+  } catch (err) {
+    console.error('[Sitemap] Generation failed:', err);
+    res.status(500).send('Sitemap generation error');
+  }
+});
+
 // ─── API Documentation ──────────────────────────────
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customCss: '.swagger-ui .topbar { display: none }',

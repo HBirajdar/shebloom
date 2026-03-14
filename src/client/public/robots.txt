@@ -7,7 +7,7 @@ Disallow: /debug
 Disallow: /setup
 Disallow: /api/
 
-# Sitemap
+# Sitemap (dynamic, served from the API server)
 Sitemap: https://vedaclue.com/sitemap.xml
 
 # Crawl delay

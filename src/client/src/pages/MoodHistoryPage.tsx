@@ -1,12 +1,12 @@
-// @ts-nocheck
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { moodAPI } from '../services/api';
 
-const MOOD_COLORS = { GREAT: '#10B981', GOOD: '#34D399', OKAY: '#FBBF24', LOW: '#F97316', BAD: '#EF4444' };
-const MOOD_EMOJIS = { GREAT: '🤩', GOOD: '😊', OKAY: '😐', LOW: '😔', BAD: '😭' };
-const MOOD_LABELS = { GREAT: 'Great', GOOD: 'Good', OKAY: 'Okay', LOW: 'Low', BAD: 'Bad' };
+const MOOD_COLORS: Record<string, string> = { GREAT: '#10B981', GOOD: '#34D399', OKAY: '#FBBF24', LOW: '#F97316', BAD: '#EF4444' };
+const MOOD_EMOJIS: Record<string, string> = { GREAT: '🤩', GOOD: '😊', OKAY: '😐', LOW: '😔', BAD: '😭' };
+const MOOD_LABELS: Record<string, string> = { GREAT: 'Great', GOOD: 'Good', OKAY: 'Okay', LOW: 'Low', BAD: 'Bad' };
 const MOOD_ORDER = ['GREAT', 'GOOD', 'OKAY', 'LOW', 'BAD'];
 const DAYS_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const DAYS_FULL = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
