@@ -5628,7 +5628,7 @@ export default function AdminPage() {
       </aside>
 
       {/* ═══ Main Content Area ═══ */}
-      <div className="flex-1 lg:pl-60 xl:pl-64 pb-8">
+      <div className="flex-1 w-full lg:pl-60 xl:pl-64 pb-8 min-w-0">
 
         {/* Mobile Header — hidden on desktop */}
         <div className="lg:hidden sticky top-0 z-20 bg-gradient-to-r from-rose-600 to-pink-600 text-white shadow-lg">

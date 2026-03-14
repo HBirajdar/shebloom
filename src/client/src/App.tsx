@@ -108,12 +108,29 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Wrapper that applies mobile 430px constraint for user-facing pages
+// but lets admin/doctor dashboards use full viewport width
+function AppShell({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const isFullWidth = location.pathname === '/admin' || location.pathname === '/doctor-dashboard';
+
+  if (isFullWidth) {
+    return <div className="min-h-screen bg-gray-50">{children}</div>;
+  }
+
+  return (
+    <div className="max-w-[430px] mx-auto min-h-screen bg-white relative overflow-hidden shadow-2xl">
+      {children}
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <Suspense fallback={<LoadingScreen />}>
       <PageTracker />
       <ErrorBoundary>
-      <div className="max-w-[430px] mx-auto min-h-screen bg-white relative overflow-hidden shadow-2xl">
+      <AppShell>
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Navigate to="/onboarding" replace />} />
@@ -170,7 +187,7 @@ export default function App() {
         </Routes>
         <CookieConsent />
         <NpsPopup />
-      </div>
+      </AppShell>
       </ErrorBoundary>
     </Suspense>
   );
