@@ -59,7 +59,12 @@ export default function SelfCarePage() {
   const [dbSelfCare, setDbSelfCare] = useState<string[] | null>(null);
   const [dbTitle, setDbTitle] = useState<string | null>(null);
   useEffect(() => {
+    let cancelled = false;
+    // Reset to hardcoded fallback immediately on phase change
+    setDbAffirmation(null); setDbBreath(null); setDbJournal(null); setDbSelfCare(null); setDbTitle(null);
+    setCheckedCare([]); // Reset checked items when phase changes
     wellnessContentAPI.getBulk(['affirmation', 'self_care_breath', 'journal_prompt', 'self_care'], { phase }).then(r => {
+      if (cancelled) return;
       const data = r?.data?.data;
       if (!data) return;
       if (Array.isArray(data.affirmation) && data.affirmation.length > 0) {
@@ -75,7 +80,8 @@ export default function SelfCarePage() {
       if (Array.isArray(data.self_care) && data.self_care.length > 0) {
         setDbSelfCare(data.self_care.map((i: any) => i.body));
       }
-    }).catch(() => {}); // Non-critical — hardcoded fallback
+    }).catch(() => {});
+    return () => { cancelled = true; };
   }, [phase]);
 
   const pw = {

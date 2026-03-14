@@ -85,6 +85,33 @@ export default function PregnancyPage() {
   const [showAllAppointments, setShowAllAppointments] = useState(false);
   const [showAllTabItems, setShowAllTabItems] = useState(false);
 
+  // ─── DB content (Redis → DB → hardcoded fallback) ─────
+  const [dbWeekData, setDbWeekData] = useState<Record<number, any>>({});
+  useEffect(() => {
+    if (!hasPregnancy) return;
+    let cancelled = false;
+    wellnessContentAPI.getByType('pregnancy_week', { week }).then(r => {
+      if (cancelled) return;
+      const items = r?.data?.data;
+      if (!Array.isArray(items) || items.length === 0) return;
+      const meta = items.find((i: any) => i.key?.endsWith('_meta'));
+      const baby = items.filter((i: any) => i.category === 'baby').sort((a: any, b: any) => a.sortOrder - b.sortOrder).map((i: any) => i.body);
+      const mom = items.filter((i: any) => i.category === 'mom').sort((a: any, b: any) => a.sortOrder - b.sortOrder).map((i: any) => i.body);
+      const tips = items.filter((i: any) => i.category === 'tips').sort((a: any, b: any) => a.sortOrder - b.sortOrder).map((i: any) => i.body);
+      const nutrition = items.filter((i: any) => i.category === 'nutrition').sort((a: any, b: any) => a.sortOrder - b.sortOrder).map((i: any) => i.body);
+      const exercise = items.filter((i: any) => i.category === 'exercise').sort((a: any, b: any) => a.sortOrder - b.sortOrder).map((i: any) => i.body);
+      if (baby.length || mom.length || tips.length) {
+        setDbWeekData(prev => ({ ...prev, [week]: {
+          size: meta?.title || meta?.metadata?.size || '',
+          emoji: meta?.emoji || '', len: meta?.metadata?.length || '',
+          wt: meta?.metadata?.weight || '', tri: meta?.metadata?.trimester || 1,
+          baby, mom, tips, nutrition, exercise,
+        }}));
+      }
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [week, hasPregnancy]);
+
   useEffect(() => {
     pregnancyAPI.get().then(r => {
       const data = r.data?.data;
@@ -192,30 +219,6 @@ export default function PregnancyPage() {
     );
   }
 
-  // ─── DB content (Redis → DB → hardcoded fallback) ─────
-  const [dbWeekData, setDbWeekData] = useState<Record<number, any>>({});
-  useEffect(() => {
-    wellnessContentAPI.getByType('pregnancy_week', { week }).then(r => {
-      const items = r?.data?.data;
-      if (!Array.isArray(items) || items.length === 0) return;
-      // Parse DB items into weekData-compatible shape
-      const meta = items.find((i: any) => i.key?.endsWith('_meta'));
-      const baby = items.filter((i: any) => i.category === 'baby').sort((a: any, b: any) => a.sortOrder - b.sortOrder).map((i: any) => i.body);
-      const mom = items.filter((i: any) => i.category === 'mom').sort((a: any, b: any) => a.sortOrder - b.sortOrder).map((i: any) => i.body);
-      const tips = items.filter((i: any) => i.category === 'tips').sort((a: any, b: any) => a.sortOrder - b.sortOrder).map((i: any) => i.body);
-      const nutrition = items.filter((i: any) => i.category === 'nutrition').sort((a: any, b: any) => a.sortOrder - b.sortOrder).map((i: any) => i.body);
-      const exercise = items.filter((i: any) => i.category === 'exercise').sort((a: any, b: any) => a.sortOrder - b.sortOrder).map((i: any) => i.body);
-      if (baby.length || mom.length || tips.length) {
-        setDbWeekData(prev => ({ ...prev, [week]: {
-          size: meta?.title || meta?.metadata?.size || '',
-          emoji: meta?.emoji || '', len: meta?.metadata?.length || '',
-          wt: meta?.metadata?.weight || '', tri: meta?.metadata?.trimester || 1,
-          baby, mom, tips, nutrition, exercise,
-        }}));
-      }
-    }).catch(() => {}); // Non-critical — hardcoded fallback
-  }, [week]);
-
   const d = dbWeekData[week] || weekData[week] || weekData[16];
   const pct = Math.round((week / 40) * 100);
   const daysLeft = (40 - week) * 7;
@@ -298,7 +301,7 @@ export default function PregnancyPage() {
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
             {weeks.map(w => (
-              <button key={w} onClick={() => setWeek(w)}
+              <button key={w} onClick={() => { setWeek(w); setShowAllTabItems(false); }}
                 className={'flex-shrink-0 w-12 h-12 rounded-2xl text-xs font-bold transition-all active:scale-90 flex flex-col items-center justify-center ' +
                   (w === week ? 'bg-purple-500 text-white shadow-lg shadow-purple-200' :
                   w < week ? 'bg-purple-50 text-purple-400' : 'bg-gray-50 text-gray-400')}>

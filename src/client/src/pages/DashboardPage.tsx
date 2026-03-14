@@ -235,26 +235,32 @@ export default function DashboardPage() {
   // Phase tip (rotating) — goal-aware: periods get no fertility refs, wellness gets health tips
   const [dbTips, setDbTips] = useState<string[] | null>(null);
   useEffect(() => {
-    // Fetch tips from DB (Redis → DB → empty), fallback to hardcoded
+    let cancelled = false;
+    setDbTips(null); // Reset to hardcoded fallback immediately
+    setTipIdx(0);    // Reset index to prevent out-of-bounds
     if (goal === 'wellness') {
       wellnessContentAPI.getByType('wellness_tip', { goal: 'wellness' }).then(r => {
+        if (cancelled) return;
         const items = r?.data?.data;
         if (Array.isArray(items) && items.length > 0) setDbTips(items.map((i: any) => i.body));
-      }).catch(() => {}); // Non-critical — hardcoded fallback
+      }).catch(() => {});
     } else {
       const tipGoal = goal === 'periods' ? 'periods' : 'fertility';
       wellnessContentAPI.getByType('phase_tip', { phase, goal: tipGoal }).then(r => {
+        if (cancelled) return;
         const items = r?.data?.data;
         if (Array.isArray(items) && items.length > 0) setDbTips(items.map((i: any) => i.body));
-      }).catch(() => {}); // Non-critical — hardcoded fallback
+      }).catch(() => {});
     }
+    return () => { cancelled = true; };
   }, [phase, goal]);
   const hardcodedTips = goal === 'wellness' ? wellnessTips : goal === 'periods' ? (periodTips[phase] || periodTips.follicular) : (phaseTips[phase] || phaseTips.follicular);
   const tips = dbTips || hardcodedTips;
   useEffect(() => {
+    setTipIdx(0);
     const t = setInterval(() => setTipIdx(i => (i + 1) % tips.length), 4000);
     return () => clearInterval(t);
-  }, [phase, tips.length, goal]);
+  }, [tips]);
 
   useEffect(() => { fetchSubscription(); }, []);
 

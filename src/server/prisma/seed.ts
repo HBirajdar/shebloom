@@ -1118,7 +1118,7 @@ async function main() {
   // ─── WELLNESS CONTENT ─────────────────────────────
   const wcCount = await prisma.wellnessContent.count()
   if (wcCount === 0) {
-    console.log('Inserting wellness content (~377 items)...')
+    console.log('Inserting wellness content (~391 items)...')
 
     const wcData: Array<{
       type: string; key: string; phase?: string; goal?: string; dosha?: string;

@@ -139,11 +139,13 @@ export default function WellnessPage() {
   const [dbTipWisdom, setDbTipWisdom] = useState<string | null>(null);
   const [dbChallenges, setDbChallenges] = useState<any[] | null>(null);
   useEffect(() => {
-    // Fetch phase-specific content in one bulk call
+    let cancelled = false;
+    // Reset to hardcoded fallback immediately on phase change
+    setDbRoutine(null); setDbYoga(null); setDbTipWisdom(null); setDbChallenges(null);
     wellnessContentAPI.getBulk(['phase_routine', 'phase_yoga', 'phase_tip_wisdom', 'challenge'], { phase: safePhase }).then(r => {
+      if (cancelled) return;
       const data = r?.data?.data;
       if (!data) return;
-      // Routines: group by category (morning/afternoon/evening)
       if (Array.isArray(data.phase_routine) && data.phase_routine.length > 0) {
         const grouped: Record<string, string[]> = { morning: [], afternoon: [], evening: [] };
         data.phase_routine.forEach((item: any) => {
@@ -151,18 +153,15 @@ export default function WellnessPage() {
         });
         if (grouped.morning.length || grouped.afternoon.length || grouped.evening.length) setDbRoutine(grouped);
       }
-      // Yoga poses
       if (Array.isArray(data.phase_yoga) && data.phase_yoga.length > 0) {
         setDbYoga(data.phase_yoga.map((item: any) => ({
           name: item.title || item.body, emoji: item.emoji || '',
           dur: item.metadata?.duration || '5 min', benefit: item.body,
         })));
       }
-      // Tip wisdom
       if (Array.isArray(data.phase_tip_wisdom) && data.phase_tip_wisdom.length > 0) {
         setDbTipWisdom(data.phase_tip_wisdom[0].body);
       }
-      // Challenges
       if (Array.isArray(data.challenge) && data.challenge.length > 0) {
         setDbChallenges(data.challenge.map((item: any) => ({
           id: item.key?.replace('challenge_', '') || item.key,
@@ -171,7 +170,8 @@ export default function WellnessPage() {
           bg: item.metadata?.bg || '#F5F3FF', badge: item.metadata?.badge || '🏅',
         })));
       }
-    }).catch(() => {}); // Non-critical — hardcoded fallback
+    }).catch(() => {});
+    return () => { cancelled = true; };
   }, [safePhase]);
 
   // Merged pd: DB content takes priority, hardcoded is fallback

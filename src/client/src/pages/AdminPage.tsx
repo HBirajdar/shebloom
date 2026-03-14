@@ -4840,10 +4840,11 @@ export default function AdminPage() {
     finally { setWellnessLoading(false); }
   };
   // ─── Wellness Content CRUD ─────────────────────────
-  const fetchWellnessContent = async (page = 1) => {
+  const fetchWellnessContent = async (page = 1, typeFilter?: string) => {
     setWcLoading(true);
     try {
-      const res = await wellnessContentAPI.adminList({ type: wcTypeFilter || undefined, page, limit: 50 });
+      const filterType = typeFilter !== undefined ? typeFilter : wcTypeFilter;
+      const res = await wellnessContentAPI.adminList({ type: filterType || undefined, page, limit: 50 });
       const d = res?.data?.data;
       setWcItems(d?.items || []);
       setWcTotal(d?.total || 0);
@@ -4852,13 +4853,18 @@ export default function AdminPage() {
     finally { setWcLoading(false); }
   };
   const handleWcSave = async () => {
-    if (!wcForm.type || !wcForm.key || !wcForm.body) { toast.error('Type, key, and body are required'); return; }
+    if (!wcForm.type || !wcForm.key || !wcForm.body?.trim()) { toast.error('Type, key, and body are required'); return; }
+    let parsedMetadata: any;
+    if (wcForm.metadata) {
+      try { parsedMetadata = JSON.parse(wcForm.metadata); }
+      catch { toast.error('Metadata must be valid JSON'); return; }
+    }
     try {
       const payload = {
         ...wcForm,
-        week: wcForm.week ? parseInt(wcForm.week) : undefined,
-        sortOrder: parseInt(wcForm.sortOrder) || 0,
-        metadata: wcForm.metadata ? JSON.parse(wcForm.metadata) : undefined,
+        week: wcForm.week ? parseInt(wcForm.week, 10) : undefined,
+        sortOrder: parseInt(wcForm.sortOrder, 10) || 0,
+        metadata: parsedMetadata,
       };
       if (wcEdit) {
         await wellnessContentAPI.adminUpdate(wcEdit.id, payload);
@@ -7964,7 +7970,7 @@ export default function AdminPage() {
             </div>
             <div className="flex gap-2 mb-3 flex-wrap">
               {['', 'phase_tip', 'wellness_tip', 'phase_routine', 'phase_yoga', 'phase_tip_wisdom', 'challenge', 'affirmation', 'self_care_breath', 'journal_prompt', 'self_care', 'dosha_remedy', 'pregnancy_week'].map(t => (
-                <button key={t} onClick={() => { setWcTypeFilter(t); setTimeout(() => fetchWellnessContent(1), 0); }}
+                <button key={t} onClick={() => { setWcTypeFilter(t); fetchWellnessContent(1, t); }}
                   className={'px-2 py-1 rounded-full text-[9px] font-bold ' + (wcTypeFilter === t ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600')}>
                   {t || 'All'}
                 </button>

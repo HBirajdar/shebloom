@@ -6,6 +6,13 @@ import wcService from '../services/wellness-content.service';
 
 const r = Router();
 
+// Safe parseInt with NaN guard
+function safeInt(val: any): number | undefined {
+  if (val === undefined || val === null || val === '') return undefined;
+  const n = parseInt(String(val), 10);
+  return Number.isNaN(n) ? undefined : n;
+}
+
 // ═══════════════════════════════════════════════════════
 // PUBLIC ROUTES (authenticated — content delivery)
 // ═══════════════════════════════════════════════════════
@@ -17,7 +24,7 @@ r.get('/', authenticate, async (q: AuthRequest, s: Response, n: NextFunction) =>
     if (!type) { errorResponse(s, 'type parameter is required', 400); return; }
     const data = await wcService.getByType(type, {
       phase, goal, dosha,
-      week: week !== undefined ? parseInt(week) : undefined,
+      week: safeInt(week),
       category,
     });
     successResponse(s, data, 'Wellness content fetched');
@@ -29,10 +36,12 @@ r.get('/bulk', authenticate, async (q: AuthRequest, s: Response, n: NextFunction
   try {
     const { types, phase, goal, dosha, week } = q.query as any;
     if (!types) { errorResponse(s, 'types parameter is required', 400); return; }
-    const typeList = (types as string).split(',').map((t: string) => t.trim());
+    const typeList = (types as string).split(',').map((t: string) => t.trim()).filter(Boolean);
+    if (typeList.length === 0) { errorResponse(s, 'At least one type is required', 400); return; }
+    if (typeList.length > 20) { errorResponse(s, 'Maximum 20 types per bulk request', 400); return; }
     const data = await wcService.getBulk(typeList, {
       phase, goal, dosha,
-      week: week !== undefined ? parseInt(week) : undefined,
+      week: safeInt(week),
     });
     successResponse(s, data, 'Bulk wellness content fetched');
   } catch (e) { n(e); }
@@ -48,10 +57,10 @@ r.get('/admin', authenticate, requireAdmin, async (q: AuthRequest, s: Response, 
     const { type, phase, goal, dosha, week, isActive, page, limit } = q.query as any;
     const data = await wcService.adminList({
       type, phase, goal, dosha,
-      week: week !== undefined ? parseInt(week) : undefined,
+      week: safeInt(week),
       isActive: isActive !== undefined ? isActive === 'true' : undefined,
-      page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 50,
+      page: safeInt(page) || 1,
+      limit: safeInt(limit) || 50,
     });
     successResponse(s, data, 'Admin wellness content list');
   } catch (e) { n(e); }
@@ -61,7 +70,7 @@ r.get('/admin', authenticate, requireAdmin, async (q: AuthRequest, s: Response, 
 r.post('/admin', authenticate, requireAdmin, async (q: AuthRequest, s: Response, n: NextFunction) => {
   try {
     const { type, key, body } = q.body;
-    if (!type || !key || !body) { errorResponse(s, 'type, key, and body are required', 400); return; }
+    if (!type || !key || !body?.trim()) { errorResponse(s, 'type, key, and body are required', 400); return; }
     const data = await wcService.create(q.body);
     successResponse(s, data, 'Wellness content created');
   } catch (e: any) {

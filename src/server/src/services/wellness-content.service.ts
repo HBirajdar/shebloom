@@ -2,7 +2,22 @@ import prisma from '../config/database';
 import { cacheGet, cacheSet, cacheDelPattern } from '../config/redis';
 
 const CACHE_TTL = 3600; // 1 hour
+const CACHE_EMPTY_TTL = 300; // 5 min for empty results (prevents cache stampede)
 const CACHE_PREFIX = 'wc:';
+
+const VALID_TYPES = new Set([
+  'phase_tip', 'wellness_tip', 'phase_routine', 'phase_yoga', 'phase_tip_wisdom',
+  'challenge', 'affirmation', 'self_care_breath', 'journal_prompt', 'self_care',
+  'dosha_remedy', 'pregnancy_week',
+]);
+
+const MAX_BULK_TYPES = 20;
+
+function safeInt(val: any, fallback?: number): number | undefined {
+  if (val === undefined || val === null || val === '') return fallback;
+  const n = parseInt(String(val), 10);
+  return Number.isNaN(n) ? fallback : n;
+}
 
 function cacheKey(type: string, filters: Record<string, string | number | undefined>): string {
   const parts = [CACHE_PREFIX, type];
@@ -10,6 +25,7 @@ function cacheKey(type: string, filters: Record<string, string | number | undefi
   if (filters.goal) parts.push(String(filters.goal));
   if (filters.dosha) parts.push(String(filters.dosha));
   if (filters.week !== undefined) parts.push(String(filters.week));
+  if (filters.category) parts.push(String(filters.category));
   return parts.join(':');
 }
 
@@ -25,9 +41,9 @@ class WellnessContentService {
     const key = cacheKey(type, filters);
 
     try {
-      // Layer 1: Redis cache
+      // Layer 1: Redis cache (including cached empty results)
       const cached = await cacheGet<any[]>(key);
-      if (cached && cached.length > 0) return cached;
+      if (cached !== null && cached !== undefined) return cached;
 
       // Layer 2: Database
       const where: any = { type, isActive: true };
@@ -47,10 +63,9 @@ class WellnessContentService {
         },
       });
 
-      if (rows.length > 0) {
-        await cacheSet(key, rows, CACHE_TTL);
-        return rows;
-      }
+      // Cache both non-empty and empty results (empty with shorter TTL)
+      await cacheSet(key, rows, rows.length > 0 ? CACHE_TTL : CACHE_EMPTY_TTL);
+      return rows;
     } catch (e) {
       console.warn('[WellnessContent] DB/cache failed, frontend will use hardcoded fallback:', (e as any)?.message);
     }
@@ -66,9 +81,10 @@ class WellnessContentService {
     dosha?: string;
     week?: number;
   } = {}): Promise<Record<string, any[]>> {
+    // Limit types to prevent DoS
+    const safeTypes = types.slice(0, MAX_BULK_TYPES);
     const result: Record<string, any[]> = {};
-    // Fetch all types in parallel
-    await Promise.all(types.map(async (type) => {
+    await Promise.all(safeTypes.map(async (type) => {
       result[type] = await this.getByType(type, filters);
     }));
     return result;
@@ -93,8 +109,8 @@ class WellnessContentService {
     if (params.week !== undefined) where.week = params.week;
     if (params.isActive !== undefined) where.isActive = params.isActive;
 
-    const page = params.page || 1;
-    const limit = Math.min(params.limit || 50, 200);
+    const page = Math.max(params.page || 1, 1);
+    const limit = Math.min(Math.max(params.limit || 50, 1), 200);
     const skip = (page - 1) * limit;
 
     const [items, total] = await Promise.all([
@@ -119,14 +135,14 @@ class WellnessContentService {
         phase: data.phase || null,
         goal: data.goal || null,
         dosha: data.dosha || null,
-        week: data.week !== undefined ? parseInt(data.week) : null,
+        week: safeInt(data.week, undefined) ?? null,
         category: data.category || null,
         emoji: data.emoji || null,
         title: data.title || null,
         body: data.body,
         metadata: data.metadata || null,
-        sortOrder: parseInt(data.sortOrder) || 0,
-        isActive: data.isActive !== false,
+        sortOrder: safeInt(data.sortOrder, 0) ?? 0,
+        isActive: data.isActive === true || data.isActive === 'true',
         sourceReference: data.sourceReference || 'Admin-created',
       },
     });
@@ -145,14 +161,14 @@ class WellnessContentService {
     if (data.phase !== undefined) update.phase = data.phase || null;
     if (data.goal !== undefined) update.goal = data.goal || null;
     if (data.dosha !== undefined) update.dosha = data.dosha || null;
-    if (data.week !== undefined) update.week = data.week !== null ? parseInt(data.week) : null;
+    if (data.week !== undefined) update.week = data.week !== null ? (safeInt(data.week, undefined) ?? null) : null;
     if (data.category !== undefined) update.category = data.category || null;
     if (data.emoji !== undefined) update.emoji = data.emoji || null;
     if (data.title !== undefined) update.title = data.title || null;
     if (data.body !== undefined) update.body = data.body;
     if (data.metadata !== undefined) update.metadata = data.metadata;
-    if (data.sortOrder !== undefined) update.sortOrder = parseInt(data.sortOrder) || 0;
-    if (data.isActive !== undefined) update.isActive = data.isActive;
+    if (data.sortOrder !== undefined) update.sortOrder = safeInt(data.sortOrder, 0) ?? 0;
+    if (data.isActive !== undefined) update.isActive = data.isActive === true || data.isActive === 'true';
 
     const row = await prisma.wellnessContent.update({ where: { id }, data: update });
     await this.invalidateCache(existing.type);
@@ -187,6 +203,11 @@ class WellnessContentService {
     } catch {
       // Redis unavailable — cache will expire naturally
     }
+  }
+
+  // ─── Validate type (used by routes) ─────────────────────
+  isValidType(type: string): boolean {
+    return VALID_TYPES.has(type);
   }
 }
 
