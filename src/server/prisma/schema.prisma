@@ -142,6 +142,7 @@ model User {
   referralsSent      Referral[]       @relation("referrer")
   referralsReceived  Referral[]       @relation("referred")
   badges             UserBadge[]
+  notificationPrefs  NotificationPreference?
 
   @@index([role])
   @@index([createdAt])
@@ -281,6 +282,10 @@ model Cycle {
   ovulationDate DateTime?
   fertileStart  DateTime?
   fertileEnd    DateTime?
+  flow          String?   // light, medium, heavy, spotting
+  painLevel     Int?      // 0-10
+  mood          String[]  // array of mood tags
+  symptoms      String[]  // array of symptom tags
   isPredicted   Boolean   @default(false)
   notes         String?
   createdAt     DateTime  @default(now())
@@ -697,6 +702,35 @@ model Notification {
 
   @@index([userId, isRead])
   @@map("notifications")
+}
+
+// ─── NOTIFICATION PREFERENCES ────────────────────────
+
+model NotificationPreference {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  pushEnabled          Boolean  @default(true)
+  // Cycle reminders
+  periodReminder       Boolean  @default(true)
+  periodReminderDays   Int      @default(2)
+  ovulationReminder    Boolean  @default(true)
+  // Water reminders
+  waterReminder        Boolean  @default(true)
+  waterIntervalHours   Float    @default(2)
+  waterStartHour       Int      @default(8)
+  waterEndHour         Int      @default(22)
+  // Mood check-in
+  moodReminder         Boolean  @default(true)
+  moodReminderHour     Int      @default(20)
+  // Appointment reminders
+  appointmentReminder  Boolean  @default(true)
+  appointmentLeadMins  Int      @default(60)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
 }
 
 // ─── WELLNESS ───────────────────────────────────────
