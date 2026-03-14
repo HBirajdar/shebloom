@@ -669,7 +669,7 @@ export class CycleService {
     return cycles;
   }
 
-  async logPeriod(userId: string, data: { startDate: string; endDate?: string; notes?: string }) {
+  async logPeriod(userId: string, data: { startDate: string; endDate?: string; notes?: string; flow?: string; painLevel?: number; mood?: string[]; symptoms?: string[] }) {
     // Prevent duplicate period logging on the same date
     const existingCycle = await prisma.cycle.findFirst({
       where: { userId, startDate: new Date(data.startDate) },
@@ -682,6 +682,10 @@ export class CycleService {
         startDate: new Date(data.startDate),
         endDate: data.endDate ? new Date(data.endDate) : undefined,
         notes: data.notes,
+        flow: data.flow,
+        painLevel: data.painLevel != null ? Number(data.painLevel) : undefined,
+        mood: data.mood || [],
+        symptoms: data.symptoms || [],
       },
     });
     await cacheDel(`cycles:${userId}`);
