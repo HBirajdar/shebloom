@@ -315,7 +315,7 @@ function FinanceTab() {
           </div>
 
           {/* Product & Appointment Revenue */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             <div className="bg-white rounded-2xl p-4 shadow-sm">
               <p className="text-[9px] font-bold text-gray-400 uppercase">Product Sales</p>
               <p className="text-lg font-extrabold text-gray-900 mt-1">₹{(a.productRevenue?.totalSales || 0).toLocaleString()}</p>
@@ -502,7 +502,7 @@ function FinanceTab() {
                   </button>
                 ))}
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 <div>
                   <label className="text-[9px] text-gray-500">Value *</label>
                   <input type="number" value={couponForm.discountValue} onChange={e => setCouponForm({ ...couponForm, discountValue: e.target.value })} placeholder={couponForm.discountType === 'PERCENTAGE' ? '20' : '100'}
@@ -531,7 +531,7 @@ function FinanceTab() {
                   </button>
                 ))}
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 <div>
                   <label className="text-[9px] text-gray-500">Max Uses (total)</label>
                   <input type="number" value={couponForm.maxUses} onChange={e => setCouponForm({ ...couponForm, maxUses: e.target.value })} placeholder="Unlimited"
@@ -543,7 +543,7 @@ function FinanceTab() {
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm font-bold focus:border-emerald-400 focus:outline-none" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 <div>
                   <label className="text-[9px] text-gray-500">Valid From</label>
                   <input type="date" value={couponForm.validFrom} onChange={e => setCouponForm({ ...couponForm, validFrom: e.target.value })}
@@ -736,7 +736,7 @@ function InsightsTab() {
     <h3 className="text-base font-extrabold text-gray-900">{'\u{1F4CA}'} Business Insights</h3>
 
     {/* Revenue Cards */}
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
       {[
         { l: 'MRR', v: '\u20B9' + (rev.mrr || 0).toLocaleString(), c: 'border-l-emerald-500', sub: 'Monthly Recurring' },
         { l: 'ARR', v: '\u20B9' + (rev.arr || 0).toLocaleString(), c: 'border-l-blue-500', sub: 'Annual Recurring' },
@@ -828,7 +828,7 @@ function InsightsTab() {
     {/* Retention */}
     <div className="bg-white rounded-2xl p-5 shadow-sm">
       <h4 className="text-sm font-bold text-gray-800 mb-3">Retention (cohort: {ret.cohortSize || 0} users)</h4>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         <div className="bg-emerald-50 rounded-xl p-3 text-center">
           <p className="text-2xl font-extrabold text-emerald-700">{ret.day1 || 0}%</p>
           <p className="text-[9px] font-bold text-emerald-500">Day 1 Retention</p>
@@ -881,7 +881,7 @@ function InsightsTab() {
     </div>
 
     {/* Top Features & Locked Features */}
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
       <div className="bg-white rounded-2xl p-4 shadow-sm">
         <h4 className="text-[10px] font-bold text-gray-500 mb-2 uppercase">Top Features Used</h4>
         {topFeatures.length > 0 ? topFeatures.slice(0, 5).map((f: any, i: number) => (
@@ -975,7 +975,7 @@ function UserDetailTab({ userId, onBack }: { userId: string; onBack: () => void 
     </div>
 
     {/* Engagement Score & Spending */}
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
       <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
         <p className="text-2xl font-extrabold text-rose-600">{data.engagementScore}</p>
         <p className="text-[8px] font-bold text-gray-500">Engagement</p>
@@ -1581,7 +1581,7 @@ function ForecastTab() {
   return (<>
     <h3 className="text-base font-extrabold text-gray-900">{'\u{1F52E}'} Revenue Forecast</h3>
 
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
       <div className="bg-gradient-to-br from-rose-500 to-pink-500 rounded-2xl p-4 text-white">
         <div className="text-[9px] font-bold text-white/60">CURRENT MRR</div>
         <div className="text-2xl font-extrabold">{'\u20B9'}{data.currentMRR?.toLocaleString('en-IN')}</div>
@@ -1817,7 +1817,7 @@ function JourneysTab() {
       </div>
     </div>
 
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
       <div className="bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl p-4 text-white">
         <div className="text-[9px] font-bold text-white/60">SESSIONS</div>
         <div className="text-2xl font-extrabold">{data.totalSessions}</div>
@@ -1987,7 +1987,7 @@ function ReferralsTab() {
       </div>
     </div>
 
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
       <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
         <div className="text-2xl font-extrabold text-gray-800">{(data.totalPageViews || 0).toLocaleString()}</div>
         <div className="text-[9px] text-gray-400">Total Page Views</div>
@@ -2076,7 +2076,7 @@ function StreaksTab({ onViewUser }: { onViewUser: (id: string) => void }) {
     <h3 className="text-base font-extrabold text-gray-900">{'\u{1F525}'} Engagement Streaks</h3>
     <p className="text-[10px] text-gray-500 -mt-2">Users with consecutive daily activity (like Duolingo streaks)</p>
 
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
       <div className="bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl p-4 text-white">
         <div className="text-[9px] font-bold text-white/60">USERS WITH STREAKS</div>
         <div className="text-2xl font-extrabold">{data.total}</div>
@@ -2379,7 +2379,7 @@ function LtvTab({ onViewUser }: { onViewUser: (id: string) => void }) {
   return (<>
     <h3 className="text-base font-extrabold text-gray-900">{'\u{1F4B5}'} Lifetime Value (LTV)</h3>
 
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
       <div className="bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl p-4 text-white">
         <div className="text-[9px] font-bold text-white/60">AVG LTV (ALL)</div>
         <div className="text-2xl font-extrabold">{'\u20B9'}{s.avgLTV?.toLocaleString('en-IN')}</div>
@@ -3228,12 +3228,12 @@ function SubscriptionAdminTab() {
 
   const PlanForm = ({ data, onChange }: { data: any; onChange: (d: any) => void }) => (
     <div className="space-y-3 text-sm">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         <div><label className="text-xs text-gray-500 font-semibold">Name *</label><input className="w-full border rounded-lg px-3 py-2" value={data.name || ''} onChange={e => onChange({ ...data, name: e.target.value })} /></div>
         <div><label className="text-xs text-gray-500 font-semibold">Slug *</label><input className="w-full border rounded-lg px-3 py-2" value={data.slug || ''} onChange={e => onChange({ ...data, slug: e.target.value })} /></div>
       </div>
       <div><label className="text-xs text-gray-500 font-semibold">Description</label><textarea className="w-full border rounded-lg px-3 py-2" rows={2} value={data.description || ''} onChange={e => onChange({ ...data, description: e.target.value })} /></div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
         <div><label className="text-xs text-gray-500 font-semibold">Interval *</label>
           <select className="w-full border rounded-lg px-3 py-2" value={data.interval || 'MONTHLY'} onChange={e => onChange({ ...data, interval: e.target.value })}>
             <option value="MONTHLY">Monthly</option><option value="YEARLY">Yearly</option><option value="LIFETIME">Lifetime</option>
@@ -3241,14 +3241,14 @@ function SubscriptionAdminTab() {
         <div><label className="text-xs text-gray-500 font-semibold">Base Price ({'\u20B9'})</label><input type="number" className="w-full border rounded-lg px-3 py-2" value={data.basePrice ?? ''} onChange={e => onChange({ ...data, basePrice: e.target.value })} /></div>
         <div><label className="text-xs text-gray-500 font-semibold">Emoji</label><input className="w-full border rounded-lg px-3 py-2" value={data.emoji || ''} onChange={e => onChange({ ...data, emoji: e.target.value })} /></div>
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
         <div><label className="text-xs text-gray-500 font-semibold">Trial Days</label><input type="number" className="w-full border rounded-lg px-3 py-2" value={data.trialDays ?? 0} onChange={e => onChange({ ...data, trialDays: e.target.value })} /></div>
         <div><label className="text-xs text-gray-500 font-semibold">Grace Days</label><input type="number" className="w-full border rounded-lg px-3 py-2" value={data.gracePeriodDays ?? 3} onChange={e => onChange({ ...data, gracePeriodDays: e.target.value })} /></div>
         <div><label className="text-xs text-gray-500 font-semibold">Sort Order</label><input type="number" className="w-full border rounded-lg px-3 py-2" value={data.sortOrder ?? 0} onChange={e => onChange({ ...data, sortOrder: e.target.value })} /></div>
       </div>
       <div><label className="text-xs text-gray-500 font-semibold">Goal Pricing (JSON)</label><textarea className="w-full border rounded-lg px-3 py-2 font-mono text-xs" rows={2} placeholder='{"track_periods": 99, "fertility": 199}' value={typeof data.goalPricing === 'string' ? data.goalPricing : JSON.stringify(data.goalPricing || '')} onChange={e => onChange({ ...data, goalPricing: e.target.value })} /></div>
       <div><label className="text-xs text-gray-500 font-semibold">Highlights (JSON array)</label><textarea className="w-full border rounded-lg px-3 py-2 font-mono text-xs" rows={2} placeholder='["Feature 1", "Feature 2"]' value={typeof data.highlights === 'string' ? data.highlights : JSON.stringify(data.highlights || [])} onChange={e => onChange({ ...data, highlights: e.target.value })} /></div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         <div><label className="text-xs text-gray-500 font-semibold">Badge</label><input className="w-full border rounded-lg px-3 py-2" placeholder="POPULAR / BEST VALUE" value={data.badge || ''} onChange={e => onChange({ ...data, badge: e.target.value })} /></div>
         <div className="flex items-center gap-4 pt-5">
           <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={data.isActive !== false} onChange={e => onChange({ ...data, isActive: e.target.checked })} /> Active</label>
@@ -3261,14 +3261,14 @@ function SubscriptionAdminTab() {
 
   const PromoForm = ({ data, onChange }: { data: any; onChange: (d: any) => void }) => (
     <div className="space-y-3 text-sm">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         <div><label className="text-xs text-gray-500 font-semibold">Name *</label><input className="w-full border rounded-lg px-3 py-2" value={data.name || ''} onChange={e => onChange({ ...data, name: e.target.value })} /></div>
         <div><label className="text-xs text-gray-500 font-semibold">Type</label>
           <select className="w-full border rounded-lg px-3 py-2" value={data.type || 'FLASH_SALE'} onChange={e => onChange({ ...data, type: e.target.value })}>
             <option value="WELCOME_BONUS">Welcome Bonus</option><option value="FLASH_SALE">Flash Sale</option><option value="SEASONAL">Seasonal</option><option value="REFERRAL">Referral</option>
           </select></div>
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
         <div><label className="text-xs text-gray-500 font-semibold">Discount Type</label>
           <select className="w-full border rounded-lg px-3 py-2" value={data.discountType || 'PERCENTAGE'} onChange={e => onChange({ ...data, discountType: e.target.value })}>
             <option value="PERCENTAGE">Percentage</option><option value="FLAT">Flat ({'\u20B9'})</option>
@@ -3276,11 +3276,11 @@ function SubscriptionAdminTab() {
         <div><label className="text-xs text-gray-500 font-semibold">Discount Value</label><input type="number" className="w-full border rounded-lg px-3 py-2" value={data.discountValue ?? ''} onChange={e => onChange({ ...data, discountValue: e.target.value })} /></div>
         <div><label className="text-xs text-gray-500 font-semibold">Max Discount ({'\u20B9'})</label><input type="number" className="w-full border rounded-lg px-3 py-2" value={data.maxDiscountAmount ?? ''} onChange={e => onChange({ ...data, maxDiscountAmount: e.target.value })} /></div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         <div><label className="text-xs text-gray-500 font-semibold">Start Date</label><input type="datetime-local" className="w-full border rounded-lg px-3 py-2" value={data.startDate ? new Date(data.startDate).toISOString().slice(0, 16) : ''} onChange={e => onChange({ ...data, startDate: e.target.value })} /></div>
         <div><label className="text-xs text-gray-500 font-semibold">End Date</label><input type="datetime-local" className="w-full border rounded-lg px-3 py-2" value={data.endDate ? new Date(data.endDate).toISOString().slice(0, 16) : ''} onChange={e => onChange({ ...data, endDate: e.target.value })} /></div>
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
         <div><label className="text-xs text-gray-500 font-semibold">Max Redemptions</label><input type="number" className="w-full border rounded-lg px-3 py-2" value={data.maxRedemptions ?? ''} onChange={e => onChange({ ...data, maxRedemptions: e.target.value })} /></div>
         <div><label className="text-xs text-gray-500 font-semibold">Max Per User</label><input type="number" className="w-full border rounded-lg px-3 py-2" value={data.maxPerUser ?? 1} onChange={e => onChange({ ...data, maxPerUser: e.target.value })} /></div>
         <div><label className="text-xs text-gray-500 font-semibold">New User Window (days)</label><input type="number" className="w-full border rounded-lg px-3 py-2" value={data.newUserWindowDays ?? 30} onChange={e => onChange({ ...data, newUserWindowDays: e.target.value })} /></div>
@@ -3452,7 +3452,7 @@ function SubscriptionAdminTab() {
       {/* ─── ANALYTICS ─────────────────────── */}
       {!loading && subView === 'analytics' && analytics && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {[
               { label: 'Active Subs', value: analytics.activeSubs, color: 'green' },
               { label: 'Trial Users', value: analytics.trialSubs, color: 'blue' },
@@ -3516,7 +3516,7 @@ function SubscriptionAdminTab() {
           {/* Trial & Grace Period */}
           <div className="bg-white rounded-2xl p-4 shadow-sm border space-y-3">
             <p className="text-sm font-bold text-gray-800">{'\u{1F4C5}'} Trial & Grace Period</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               <div>
                 <label className="text-[10px] text-gray-500 font-bold uppercase">Default Trial (days)</label>
                 <input type="number" min={0} max={90} value={subConfig.subscriptionTrialDays ?? 7}
@@ -4012,7 +4012,7 @@ function AyurvedaAdminTab() {
       <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-3 border-amber-400 border-t-transparent rounded-full" /></div>
     ) : subTab === 'analytics' && analytics ? (
       <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {[
             { label: 'Total Users', value: analytics.totalUsers, emoji: '👥' },
             { label: 'Assessed', value: analytics.assessedUsers, emoji: '☯️' },
@@ -4168,7 +4168,7 @@ function EmailCampaignsTab() {
     </div>
 
     {stats && (
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
         {[{ l: 'Total Sent', v: stats.totalSent || 0 }, { l: 'Open Rate', v: `${stats.openRate || 0}%` }, { l: 'Click Rate', v: `${stats.clickRate || 0}%` }].map(s => (
           <div key={s.l} className="bg-white rounded-2xl p-4 shadow-sm text-center">
             <p className="text-lg font-extrabold text-gray-900">{s.v}</p>
@@ -4193,7 +4193,7 @@ function EmailCampaignsTab() {
         <FormField label="Campaign Name" value={form.name} onChange={v => setForm({...form, name: v})} placeholder="Welcome Series" />
         <FormField label="Subject Line" value={form.subject} onChange={v => setForm({...form, subject: v})} placeholder="Welcome to VedaClue!" />
         <FormField label="Email Body (HTML)" value={form.body} onChange={v => setForm({...form, body: v})} placeholder="<h1>Welcome!</h1><p>..." multiline />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           <div>
             <label className="text-[10px] font-bold text-gray-500 uppercase">Trigger</label>
             <select value={form.trigger} onChange={e => setForm({...form, trigger: e.target.value})} className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm">
@@ -5597,36 +5597,36 @@ export default function AdminPage() {
     <div className="min-h-screen pb-8 bg-gray-50">
       {/* Header */}
       <div className="sticky top-0 z-20 bg-gradient-to-r from-rose-600 to-pink-600 text-white shadow-lg">
-        <div className="px-5 py-3.5 flex items-center justify-between">
+        <div className="px-5 lg:px-8 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-white/20 backdrop-blur flex items-center justify-center text-lg">
+            <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg bg-white/20 backdrop-blur flex items-center justify-center text-lg lg:text-xl">
               {'\u{1F6E1}\uFE0F'}
             </div>
             <div>
-              <h1 className="text-sm font-extrabold tracking-tight">VedaClue Admin</h1>
-              <p className="text-[9px] text-white/60 font-medium">Control Panel</p>
+              <h1 className="text-sm lg:text-base font-extrabold tracking-tight">VedaClue Admin</h1>
+              <p className="text-[9px] lg:text-[11px] text-white/60 font-medium">Control Panel</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={fetchDashboard} className="text-[10px] font-bold bg-white/15 hover:bg-white/25 backdrop-blur px-3.5 py-2 rounded-full active:scale-95 transition-all">
+            <button onClick={fetchDashboard} className="text-[10px] lg:text-xs font-bold bg-white/15 hover:bg-white/25 backdrop-blur px-3.5 py-2 rounded-full active:scale-95 transition-all">
               {'\u{1F504}'} Refresh
             </button>
-            <button onClick={handleLock} className="text-[10px] font-bold bg-white/15 hover:bg-white/25 backdrop-blur px-3.5 py-2 rounded-full active:scale-95 transition-all">
+            <button onClick={handleLock} className="text-[10px] lg:text-xs font-bold bg-white/15 hover:bg-white/25 backdrop-blur px-3.5 py-2 rounded-full active:scale-95 transition-all">
               {'\u{1F512}'} Lock
             </button>
           </div>
         </div>
-        <div className="px-3 pb-2.5 flex gap-2 overflow-x-auto scrollbar-hide">
+        <div className="px-3 lg:px-8 pb-2.5 flex gap-2 overflow-x-auto scrollbar-hide lg:flex-wrap">
           {tabs.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={'px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap transition-all ' + (tab === t.id ? 'bg-white text-rose-600 shadow-sm' : 'text-white/60 hover:text-white/90 hover:bg-white/10')}>
+              className={'px-3 py-1.5 rounded-full text-[10px] lg:text-xs font-bold whitespace-nowrap transition-all ' + (tab === t.id ? 'bg-white text-rose-600 shadow-sm' : 'text-white/60 hover:text-white/90 hover:bg-white/10')}>
               {t.icon} {t.label}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="px-5 pt-5 space-y-4 max-w-[430px] mx-auto">
+      <div className="px-5 lg:px-8 pt-5 space-y-4 max-w-[430px] lg:max-w-5xl xl:max-w-7xl mx-auto">
 
         {/* Loading spinner */}
         {dashLoading && (
@@ -5646,7 +5646,7 @@ export default function AdminPage() {
               <p className="text-[10px] text-white/60 mt-1">Here is your dashboard overview</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4">
               {[
                 { l: 'Products', v: products.length, p: pubProducts, c: '#059669', border: 'border-l-emerald-500' },
                 { l: 'Articles', v: articles.length, p: pubArticles, c: '#2563EB', border: 'border-l-blue-500', review: reviewArticles },
@@ -5666,6 +5666,7 @@ export default function AdminPage() {
             </div>
 
             {/* Recent items preview */}
+            <div className="lg:grid lg:grid-cols-2 lg:gap-4 space-y-4 lg:space-y-0">
             {articles.length > 0 && (
               <div className="bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
                 <h3 className="text-sm font-bold text-gray-800 mb-3">Recent Articles</h3>
@@ -5699,6 +5700,7 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
+            </div>
 
             <div className="bg-white rounded-2xl p-5 shadow-sm">
               <h3 className="text-sm font-bold text-gray-800 mb-3">Quick Actions</h3>
@@ -5756,7 +5758,7 @@ export default function AdminPage() {
               <p className="text-center text-gray-400 text-sm py-8">No users found</p>
             ) : (
               <>
-                <div className="space-y-3">
+                <div className="space-y-3 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0">
                 {users.map(u => (
                   <div key={u.id} className="bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all">
                     <div className="flex items-center gap-3">
@@ -5818,7 +5820,7 @@ export default function AdminPage() {
             </div>
             <AdminSearchBar value={productSearch} onChange={setProductSearch} placeholder="Search by name, category..." />
             {products.length === 0 && <p className="text-center text-gray-400 text-sm py-8">No products yet. Click + Add to create one.</p>}
-            <div className="space-y-3">
+            <div className="space-y-3 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0">
             {products.filter(p => {
               if (!productSearch.trim()) return true;
               const q = productSearch.toLowerCase();
@@ -5868,7 +5870,7 @@ export default function AdminPage() {
             </div>
             <AdminSearchBar value={articleSearch} onChange={setArticleSearch} placeholder="Search by title, category, author..." />
             {articles.length === 0 && <p className="text-center text-gray-400 text-sm py-8">No articles yet. Click + Write to create one.</p>}
-            <div className="space-y-3">
+            <div className="space-y-3 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0">
             {articles.filter(a => {
               if (!articleSearch.trim()) return true;
               const q = articleSearch.toLowerCase();
@@ -5926,7 +5928,7 @@ export default function AdminPage() {
             </div>
             <AdminSearchBar value={doctorSearch} onChange={setDoctorSearch} placeholder="Search by name, specialization, hospital..." />
             {doctors.length === 0 && <p className="text-center text-gray-400 text-sm py-8">No doctors yet. Click + Add to create one.</p>}
-            <div className="space-y-3">
+            <div className="space-y-3 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0">
             {doctors.filter(d => {
               if (!doctorSearch.trim()) return true;
               const q = doctorSearch.toLowerCase();
@@ -6000,7 +6002,7 @@ export default function AdminPage() {
               <p className="text-center text-gray-400 text-sm py-8">No appointments found</p>
             ) : (
               <>
-                <div className="space-y-3">
+                <div className="space-y-3 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0">
                 {appts.filter(a => {
                   if (!appointmentSearch.trim()) return true;
                   const q = appointmentSearch.toLowerCase();
@@ -6057,7 +6059,7 @@ export default function AdminPage() {
               <p className="text-center text-gray-400 text-sm py-8">Failed to load analytics</p>
             ) : (<>
               {/* Stats cards */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 {[
                   { l: 'Total Users', v: analytics.totalUsers, c: '#0891B2', border: 'border-l-cyan-500', icon: '\u{1F465}' },
                   { l: 'Active Users', v: analytics.activeUsers, c: '#059669', border: 'border-l-emerald-500', icon: '\u{1F7E2}' },
@@ -6257,7 +6259,7 @@ export default function AdminPage() {
               )}
 
               {/* Completion rate */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 <div className="bg-white rounded-2xl p-4 text-center shadow-sm border-l-4 border-l-blue-500">
                   <p className="text-[9px] font-bold text-blue-600 uppercase">Total Appts</p>
                   <p className="text-xl font-extrabold text-gray-900">{doctorAnalytics.totalAppointments}</p>
@@ -6320,7 +6322,7 @@ export default function AdminPage() {
             ) : orders.length === 0 ? (
               <div className="text-center py-10"><span className="text-4xl">{'\u{1F4E6}'}</span><p className="text-sm text-gray-400 mt-2">No orders yet</p></div>
             ) : (<>
-              <div className="space-y-3">
+              <div className="space-y-3 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0">
               {orders.filter((order: any) => {
                 if (!orderSearch.trim()) return true;
                 const q = orderSearch.toLowerCase();
@@ -6457,14 +6459,14 @@ export default function AdminPage() {
           {/* ════════ ADD PRODUCT ════════ */}
           {tab === 'add_product' && (<>
             <div className="flex items-center gap-3 mb-2"><button onClick={() => setTab('products')} className="text-gray-400 text-lg hover:text-gray-600 transition-colors">{'\u2190'}</button><h3 className="text-base font-extrabold text-gray-900">New Product</h3></div>
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4 lg:max-w-2xl">
             <ImageUpload label="Product Image" value={np.imageUrl} onChange={url => setNp({...np, imageUrl: url})} />
             <MultiImageUpload label="Gallery Images" values={np.galleryImages} onChange={urls => setNp({...np, galleryImages: urls})} maxImages={5} />
             <FormField label="Name *" value={np.name} onChange={v => setNp({...np, name: v})} placeholder="Bhringraj Hair Oil" />
             <FormField label="Description *" value={np.description} onChange={v => setNp({...np, description: v})} placeholder="Product description..." multiline />
-            <div className="grid grid-cols-2 gap-3"><FormNumField label="Price *" value={np.price} onChange={v => setNp({...np, price: v})} /><FormNumField label="Sale Price" value={np.discountPrice} onChange={v => setNp({...np, discountPrice: v})} /></div>
-            <div className="grid grid-cols-2 gap-3"><FormNumField label="Stock" value={np.stock} onChange={v => setNp({...np, stock: v})} /><FormField label="Unit" value={np.unit} onChange={v => setNp({...np, unit: v})} placeholder="piece" /></div>
-            <div className="grid grid-cols-2 gap-3"><FormField label="Size" value={np.size} onChange={v => setNp({...np, size: v})} placeholder="200ml" /><FormField label="Emoji" value={np.emoji} onChange={v => setNp({...np, emoji: v})} placeholder="\u{1F33F}" /></div>
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"><FormNumField label="Price *" value={np.price} onChange={v => setNp({...np, price: v})} /><FormNumField label="Sale Price" value={np.discountPrice} onChange={v => setNp({...np, discountPrice: v})} /></div>
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"><FormNumField label="Stock" value={np.stock} onChange={v => setNp({...np, stock: v})} /><FormField label="Unit" value={np.unit} onChange={v => setNp({...np, unit: v})} placeholder="piece" /></div>
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"><FormField label="Size" value={np.size} onChange={v => setNp({...np, size: v})} placeholder="200ml" /><FormField label="Emoji" value={np.emoji} onChange={v => setNp({...np, emoji: v})} placeholder="\u{1F33F}" /></div>
             <FormField label="Ingredients (comma-sep)" value={np.ingredients} onChange={v => setNp({...np, ingredients: v})} placeholder="Bhringraj, Amla..." multiline />
             <FormField label="Benefits (comma-sep)" value={np.benefits} onChange={v => setNp({...np, benefits: v})} placeholder="Reduces hairfall..." multiline />
             <FormField label="Tags (comma-sep)" value={np.tags} onChange={v => setNp({...np, tags: v})} placeholder="ayurveda, natural..." />
@@ -6493,14 +6495,14 @@ export default function AdminPage() {
           {/* ════════ EDIT PRODUCT ════════ */}
           {tab === 'edit_product' && editProduct && (<>
             <div className="flex items-center gap-3 mb-2"><button onClick={() => { setEditProduct(null); setTab('products'); }} className="text-gray-400 text-lg hover:text-gray-600 transition-colors">{'\u2190'}</button><h3 className="text-base font-extrabold text-gray-900">Edit Product</h3></div>
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4 lg:max-w-2xl">
             <ImageUpload label="Product Image" value={ep.imageUrl} onChange={url => setEp({...ep, imageUrl: url})} />
             <MultiImageUpload label="Gallery Images" values={ep.galleryImages} onChange={urls => setEp({...ep, galleryImages: urls})} maxImages={5} />
             <FormField label="Name *" value={ep.name} onChange={v => setEp({...ep, name: v})} placeholder="Product Name" />
             <FormField label="Description *" value={ep.description} onChange={v => setEp({...ep, description: v})} placeholder="Description..." multiline />
-            <div className="grid grid-cols-2 gap-3"><FormNumField label="Price *" value={ep.price} onChange={v => setEp({...ep, price: v})} /><FormNumField label="Sale Price" value={ep.discountPrice} onChange={v => setEp({...ep, discountPrice: v})} /></div>
-            <div className="grid grid-cols-2 gap-3"><FormNumField label="Stock" value={ep.stock} onChange={v => setEp({...ep, stock: v})} /><FormField label="Unit" value={ep.unit} onChange={v => setEp({...ep, unit: v})} placeholder="piece" /></div>
-            <div className="grid grid-cols-2 gap-3"><FormField label="Size" value={ep.size} onChange={v => setEp({...ep, size: v})} placeholder="200ml" /><FormField label="Emoji" value={ep.emoji} onChange={v => setEp({...ep, emoji: v})} placeholder="\u{1F33F}" /></div>
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"><FormNumField label="Price *" value={ep.price} onChange={v => setEp({...ep, price: v})} /><FormNumField label="Sale Price" value={ep.discountPrice} onChange={v => setEp({...ep, discountPrice: v})} /></div>
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"><FormNumField label="Stock" value={ep.stock} onChange={v => setEp({...ep, stock: v})} /><FormField label="Unit" value={ep.unit} onChange={v => setEp({...ep, unit: v})} placeholder="piece" /></div>
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"><FormField label="Size" value={ep.size} onChange={v => setEp({...ep, size: v})} placeholder="200ml" /><FormField label="Emoji" value={ep.emoji} onChange={v => setEp({...ep, emoji: v})} placeholder="\u{1F33F}" /></div>
             <FormField label="Ingredients (comma-sep)" value={ep.ingredients} onChange={v => setEp({...ep, ingredients: v})} placeholder="Bhringraj, Amla..." multiline />
             <FormField label="Benefits (comma-sep)" value={ep.benefits} onChange={v => setEp({...ep, benefits: v})} placeholder="Reduces hairfall..." multiline />
             <FormField label="Tags (comma-sep)" value={ep.tags} onChange={v => setEp({...ep, tags: v})} placeholder="ayurveda, natural..." />
@@ -6529,11 +6531,11 @@ export default function AdminPage() {
           {/* ════════ ADD ARTICLE ════════ */}
           {tab === 'add_article' && (<>
             <div className="flex items-center gap-3 mb-2"><button onClick={() => setTab('articles')} className="text-gray-400 text-lg hover:text-gray-600 transition-colors">{'\u2190'}</button><h3 className="text-base font-extrabold text-gray-900">Write Article</h3></div>
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4 lg:max-w-2xl">
             <ImageUpload label="Cover Image" value={na.imageUrl} onChange={url => setNa({...na, imageUrl: url})} />
             <FormField label="Title *" value={na.title} onChange={v => setNa({...na, title: v})} placeholder="Understanding PCOD..." />
             <FormField label="Excerpt" value={na.excerpt} onChange={v => setNa({...na, excerpt: v})} placeholder="Short summary..." />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               <FormField label="Category" value={na.category} onChange={v => setNa({...na, category: v})} placeholder="PCOD, Wellness..." />
               <FormField label="Read Time" value={na.readTime} onChange={v => setNa({...na, readTime: v})} placeholder="5 min" />
             </div>
@@ -6552,11 +6554,11 @@ export default function AdminPage() {
           {/* ════════ EDIT ARTICLE ════════ */}
           {tab === 'edit_article' && editArticle && (<>
             <div className="flex items-center gap-3 mb-2"><button onClick={() => { setEditArticle(null); setTab('articles'); }} className="text-gray-400 text-lg hover:text-gray-600 transition-colors">{'\u2190'}</button><h3 className="text-base font-extrabold text-gray-900">Edit Article</h3></div>
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4 lg:max-w-2xl">
             <ImageUpload label="Cover Image" value={ea.imageUrl} onChange={url => setEa({...ea, imageUrl: url})} />
             <FormField label="Title *" value={ea.title} onChange={v => setEa({...ea, title: v})} placeholder="Title" />
             <FormField label="Excerpt" value={ea.excerpt} onChange={v => setEa({...ea, excerpt: v})} placeholder="Short summary..." />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               <FormField label="Category" value={ea.category} onChange={v => setEa({...ea, category: v})} placeholder="Category" />
               <FormField label="Read Time" value={ea.readTime} onChange={v => setEa({...ea, readTime: v})} placeholder="5 min" />
             </div>
@@ -6575,12 +6577,12 @@ export default function AdminPage() {
           {/* ════════ ADD DOCTOR ════════ */}
           {tab === 'add_doctor' && (<>
             <div className="flex items-center gap-3 mb-2"><button onClick={() => setTab('doctors')} className="text-gray-400 text-lg hover:text-gray-600 transition-colors">{'\u2190'}</button><h3 className="text-base font-extrabold text-gray-900">Add Doctor</h3></div>
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4 lg:max-w-2xl">
             <ImageUpload label="Doctor Photo" value={nd.avatarUrl} onChange={url => setNd({...nd, avatarUrl: url})} />
             <FormField label="Full Name *" value={nd.name} onChange={v => setNd({...nd, name: v})} placeholder="Dr. Shruthi R" />
             <FormField label="Specialization *" value={nd.specialization} onChange={v => setNd({...nd, specialization: v})} placeholder="Gynecologist" />
             <FormField label="Qualification" value={nd.qualification} onChange={v => setNd({...nd, qualification: v})} placeholder="MBBS, MS" />
-            <div className="grid grid-cols-3 gap-3"><FormNumField label="Experience (yrs)" value={nd.experience} onChange={v => setNd({...nd, experience: v})} /><FormNumField label="Fee ₹" value={nd.fee} onChange={v => setNd({...nd, fee: v})} /><FormField label="Commission %" value={nd.commissionRate} onChange={v => setNd({...nd, commissionRate: v})} placeholder="Default" /></div>
+            <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3"><FormNumField label="Experience (yrs)" value={nd.experience} onChange={v => setNd({...nd, experience: v})} /><FormNumField label="Fee ₹" value={nd.fee} onChange={v => setNd({...nd, fee: v})} /><FormField label="Commission %" value={nd.commissionRate} onChange={v => setNd({...nd, commissionRate: v})} placeholder="Default" /></div>
             <FormField label="Hospital" value={nd.hospitalName} onChange={v => setNd({...nd, hospitalName: v})} placeholder="Hospital name" />
             <FormField label="Location" value={nd.location} onChange={v => setNd({...nd, location: v})} placeholder="City, State" />
             <FormField label="Tags (comma-sep)" value={nd.tags} onChange={v => setNd({...nd, tags: v})} placeholder="PCOD, IVF..." />
@@ -6598,12 +6600,12 @@ export default function AdminPage() {
           {/* ════════ EDIT DOCTOR ════════ */}
           {tab === 'edit_doctor' && editDoctor && (<>
             <div className="flex items-center gap-3 mb-2"><button onClick={() => { setEditDoctor(null); setTab('doctors'); }} className="text-gray-400 text-lg hover:text-gray-600 transition-colors">{'\u2190'}</button><h3 className="text-base font-extrabold text-gray-900">Edit Doctor</h3></div>
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4 lg:max-w-2xl">
             <ImageUpload label="Doctor Photo" value={ed.avatarUrl} onChange={url => setEd({...ed, avatarUrl: url})} />
             <FormField label="Full Name *" value={ed.name} onChange={v => setEd({...ed, name: v})} placeholder="Dr. Shruthi R" />
             <FormField label="Specialization *" value={ed.specialization} onChange={v => setEd({...ed, specialization: v})} placeholder="Gynecologist" />
             <FormField label="Qualification" value={ed.qualification} onChange={v => setEd({...ed, qualification: v})} placeholder="MBBS, MS" />
-            <div className="grid grid-cols-3 gap-3"><FormNumField label="Experience (yrs)" value={ed.experience} onChange={v => setEd({...ed, experience: v})} /><FormNumField label="Fee ₹" value={ed.fee} onChange={v => setEd({...ed, fee: v})} /><FormField label="Commission %" value={ed.commissionRate} onChange={v => setEd({...ed, commissionRate: v})} placeholder="Default" /></div>
+            <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3"><FormNumField label="Experience (yrs)" value={ed.experience} onChange={v => setEd({...ed, experience: v})} /><FormNumField label="Fee ₹" value={ed.fee} onChange={v => setEd({...ed, fee: v})} /><FormField label="Commission %" value={ed.commissionRate} onChange={v => setEd({...ed, commissionRate: v})} placeholder="Default" /></div>
             <FormField label="Hospital" value={ed.hospitalName} onChange={v => setEd({...ed, hospitalName: v})} placeholder="Hospital name" />
             <FormField label="Location" value={ed.location} onChange={v => setEd({...ed, location: v})} placeholder="City, State" />
             <FormField label="Tags (comma-sep)" value={ed.tags} onChange={v => setEd({...ed, tags: v})} placeholder="PCOD, IVF..." />
@@ -7043,7 +7045,7 @@ export default function AdminPage() {
               <button onClick={() => { resetProgramForm(); setTab('programs'); }} className="text-gray-400 text-lg active:scale-90">←</button>
               <h3 className="text-base font-extrabold text-gray-900">{editProgram ? 'Edit Program' : 'Create Program'}</h3>
             </div>
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4 lg:max-w-2xl">
               <div className="grid grid-cols-[60px_1fr] gap-3">
                 <div>
                   <label className="text-[10px] font-bold text-gray-500 uppercase">Emoji</label>
@@ -7066,7 +7068,7 @@ export default function AdminPage() {
                 </div>
               </div>
               {/* Duration & Difficulty */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
                 <FormField label="Duration Label" value={pfDuration} onChange={setPfDuration} placeholder="30 days" />
                 <div>
                   <label className="text-[10px] font-bold text-gray-500 uppercase">Days</label>
@@ -7094,7 +7096,7 @@ export default function AdminPage() {
                   </label>
                 </div>
                 {!pfIsFree && (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                     <FormField label="Price (₹)" value={pfPrice} onChange={setPfPrice} placeholder="999" />
                     <FormField label="Sale Price (₹)" value={pfDiscountPrice} onChange={setPfDiscountPrice} placeholder="499" />
                   </div>
@@ -7124,7 +7126,7 @@ export default function AdminPage() {
               <p className="text-[10px] font-extrabold text-emerald-700 uppercase">+ Add Content Item</p>
               <FormField label="Title" value={cfTitle} onChange={setCfTitle} placeholder="e.g. Introduction to PCOD" />
               <FormField label="Description" value={cfDescription} onChange={setCfDescription} placeholder="Brief description..." />
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 <div>
                   <label className="text-[10px] font-bold text-gray-500 uppercase">Type</label>
                   <select value={cfType} onChange={e => setCfType(e.target.value)}
@@ -7329,7 +7331,7 @@ export default function AdminPage() {
               <h3 className="text-base font-extrabold text-gray-900">{editWellness ? 'Edit Activity' : 'Add Activity'}</h3>
             </div>
 
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4 lg:max-w-2xl">
               <FormField label="Title" value={wfTitle} onChange={setWfTitle} placeholder="e.g. Morning Sun Salutation" />
               <FormField label="Description" value={wfDescription} onChange={setWfDescription} placeholder="Brief description..." multiline />
 
@@ -7347,7 +7349,7 @@ export default function AdminPage() {
               </div>
 
               {/* Duration & Difficulty */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 <div>
                   <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Duration (min)</label>
                   <input type="number" value={wfDuration} onChange={e => setWfDuration(e.target.value)} min="1" max="120"
@@ -7415,7 +7417,7 @@ export default function AdminPage() {
 
             {/* Analytics overview cards */}
             {sellerAnalytics && (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
                   <p className="text-2xl font-extrabold text-purple-600">{sellerAnalytics.sellers?.total || 0}</p>
                   <p className="text-[9px] text-gray-400">Total Sellers</p>
@@ -7593,7 +7595,7 @@ export default function AdminPage() {
               <button onClick={() => setTab('sellers')} className="text-gray-400 text-lg active:scale-90">{'\u2190'}</button>
               <h3 className="text-base font-extrabold text-gray-900">+ Add New Seller</h3>
             </div>
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4 lg:max-w-2xl">
               <p className="text-[10px] text-gray-400">Admin manually onboards trusted sellers. No public registration.</p>
               <FormField label="User ID (existing user account)" value={addSellerForm.userId} onChange={v => setAddSellerForm(f => ({ ...f, userId: v }))} placeholder="Paste user UUID" />
               <FormField label="Business Name *" value={addSellerForm.businessName} onChange={v => setAddSellerForm(f => ({ ...f, businessName: v }))} placeholder="e.g. Kama Ayurveda" />
@@ -7608,29 +7610,29 @@ export default function AdminPage() {
                   <option value="LLP">LLP</option>
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 <FormField label="GSTIN" value={addSellerForm.gstin} onChange={v => setAddSellerForm(f => ({ ...f, gstin: v }))} placeholder="22AAAAA0000A1Z5" />
                 <FormField label="PAN" value={addSellerForm.panNumber} onChange={v => setAddSellerForm(f => ({ ...f, panNumber: v }))} placeholder="ABCDE1234F" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 <FormField label="Contact Email" value={addSellerForm.contactEmail} onChange={v => setAddSellerForm(f => ({ ...f, contactEmail: v }))} placeholder="seller@example.com" />
                 <FormField label="Contact Phone" value={addSellerForm.contactPhone} onChange={v => setAddSellerForm(f => ({ ...f, contactPhone: v }))} placeholder="+91..." />
               </div>
               <FormField label="Business Address" value={addSellerForm.businessAddress} onChange={v => setAddSellerForm(f => ({ ...f, businessAddress: v }))} placeholder="Full address" multiline />
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
                 <FormField label="City" value={addSellerForm.city} onChange={v => setAddSellerForm(f => ({ ...f, city: v }))} placeholder="Mumbai" />
                 <FormField label="State" value={addSellerForm.state} onChange={v => setAddSellerForm(f => ({ ...f, state: v }))} placeholder="Maharashtra" />
                 <FormField label="Pincode" value={addSellerForm.pincode} onChange={v => setAddSellerForm(f => ({ ...f, pincode: v }))} placeholder="400001" />
               </div>
               <div className="border-t border-gray-100 pt-3">
                 <p className="text-[10px] font-bold text-gray-500 uppercase mb-2">Certificates & Licenses</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   <FormField label="FSSAI Number" value={addSellerForm.fssaiNumber} onChange={v => setAddSellerForm(f => ({ ...f, fssaiNumber: v }))} placeholder="14-digit FSSAI" />
                   <FormField label="AYUSH License" value={addSellerForm.ayushLicense} onChange={v => setAddSellerForm(f => ({ ...f, ayushLicense: v }))} placeholder="License number" />
                   <FormField label="Drug License" value={addSellerForm.drugLicense} onChange={v => setAddSellerForm(f => ({ ...f, drugLicense: v }))} placeholder="DL number" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 <FormNumField label="Commission Rate (%)" value={addSellerForm.commissionRate} onChange={v => setAddSellerForm(f => ({ ...f, commissionRate: v }))} />
                 <FormNumField label="TDS Rate (%)" value={addSellerForm.tdsRate} onChange={v => setAddSellerForm(f => ({ ...f, tdsRate: v }))} />
               </div>
@@ -7736,7 +7738,7 @@ export default function AdminPage() {
             {/* Commission control */}
             <div className="bg-white rounded-2xl p-4 shadow-sm">
               <h4 className="text-xs font-bold text-gray-700 mb-2">💰 Commission & TDS</h4>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 <div>
                   <label className="text-[9px] text-gray-400">Commission Rate (%)</label>
                   <input type="number" defaultValue={sellerDetail.commissionRate} id={`comm-${sellerDetail.id}`}
@@ -7989,7 +7991,7 @@ export default function AdminPage() {
               ))}
             </div>
             {wcLoading ? <p className="text-sm text-gray-400">Loading...</p> : (
-              <div className="space-y-2">
+              <div className="space-y-2 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-3 lg:space-y-0">
                 {wcItems.map(item => (
                   <div key={item.id} className="bg-white rounded-xl p-3 shadow-sm">
                     <div className="flex items-start justify-between gap-2">
@@ -8037,7 +8039,7 @@ export default function AdminPage() {
               <h3 className="text-base font-extrabold text-gray-900">{wcEdit ? 'Edit' : 'Add'} Wellness Content</h3>
             </div>
             <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 <div>
                   <label className="text-[9px] font-bold text-gray-500 block mb-1">Type *</label>
                   <select value={wcForm.type} onChange={e => setWcForm({ ...wcForm, type: e.target.value })}
@@ -8054,7 +8056,7 @@ export default function AdminPage() {
                     className="w-full px-3 py-2 border rounded-xl text-xs" placeholder="unique_key" />
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
                 <div>
                   <label className="text-[9px] font-bold text-gray-500 block mb-1">Phase</label>
                   <select value={wcForm.phase} onChange={e => setWcForm({ ...wcForm, phase: e.target.value })}
@@ -8138,13 +8140,13 @@ export default function AdminPage() {
             <h3 className="text-base font-extrabold text-gray-900">{'\u2699\uFE0F'} Settings</h3>
 
             {/* Change Password */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4 lg:max-w-2xl">
               <h4 className="text-sm font-bold text-gray-700">{'\u{1F512}'} Change Admin PIN</h4>
               <p className="text-[10px] text-gray-400">The admin PIN is managed server-side via the ADMIN_PIN_HASH environment variable. To change it, generate a new bcrypt hash and update the environment variable on the server.</p>
             </div>
 
             {/* Email Whitelist */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4 lg:max-w-2xl">
               <h4 className="text-sm font-bold text-gray-700">{'\u{1F4E7}'} Email Whitelist</h4>
               <p className="text-[10px] text-gray-400">Emails allowed to register or access admin features.</p>
               <div className="flex gap-2">
