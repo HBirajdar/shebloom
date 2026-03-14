@@ -3,11 +3,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { api } from '../services/api';
-import DoctorCarousel from '../components/DoctorCarousel';
-import type { Doctor as CarouselDoctor } from '../components/DoctorCarousel';
 
-const CATS = ['All', 'Ayurveda', 'Gynecologist', 'Obstetrician', 'Fertility', 'Dermatologist', 'Nutritionist', 'Homeopathy'];
-const CITIES = ['All', 'Mumbai', 'Delhi', 'Bangalore', 'Chennai'];
+const CATS = ['All', 'Ayurveda', 'Gynecology', 'Fertility', 'Nutrition', 'Dermatologist', 'Homeopathy'];
 
 export default function DoctorsPage() {
   const nav = useNavigate();
@@ -22,14 +19,15 @@ export default function DoctorsPage() {
   const [sel, setSel] = useState<any>(null);
   const [doctorsLoading, setDoctorsLoading] = useState(true);
 
-  // Fetch doctors from API, fall back to zustand defaults
+  const CITIES = ['All', 'Mumbai', 'Delhi', 'Bangalore', 'Chennai'];
+
+  // Fetch doctors from API
   const [apiDoctors, setApiDoctors] = useState<any[] | null>(null);
   useEffect(() => {
     api.get('/doctors')
       .then(r => {
         const items = r.data.data || r.data.doctors || [];
         if (items.length > 0) {
-          // Map API doctor fields to match the format expected by UI
           const mapped = items.map((d: any) => ({
             ...d,
             name: d.fullName || d.name || '',
@@ -54,17 +52,8 @@ export default function DoctorsPage() {
       .finally(() => setDoctorsLoading(false));
   }, []);
 
-  // Only use API doctors — never fall back to store (which has unpublished ones)
-  // While loading, show empty to prevent flash of all doctors
   const doctors = apiDoctors || [];
-
   const published = doctors.filter(d => d.isPublished);
-  // Only show chief from API results (already filtered by isPublished on server)
-  const chief = apiDoctors ? published.find(d => d.isChief) : null;
-
-  // Promoted (non-chief) doctors shown first after chief
-  const promoted = published.filter(d => d.isPromoted && !d.isChief);
-  const regular = published.filter(d => !d.isPromoted && !d.isChief);
 
   const applyFilters = (list: any[]) => list.filter(d => {
     const matchQ = !q || (d.name || '').toLowerCase().includes(q.toLowerCase()) ||
@@ -86,11 +75,9 @@ export default function DoctorsPage() {
     return 0;
   });
 
-  const filteredPromoted = sortDoctors(applyFilters(promoted));
-  const filteredRegular = sortDoctors(applyFilters(regular));
-  const totalShown = filteredPromoted.length + filteredRegular.length;
+  const filtered = sortDoctors(applyFilters(published));
 
-  // Count active filters
+  // Count active filters (advanced only — not category chips)
   const activeFilterCount = [
     city !== 'All',
     maxFee < 1000,
@@ -110,49 +97,58 @@ export default function DoctorsPage() {
         <title>Find Doctors | VedaClue</title>
         <meta name="description" content="Book appointments with verified Ayurvedic and women's health specialists" />
       </Helmet>
+
       {/* Header */}
       <div className="sticky top-0 z-10 backdrop-blur-xl border-b border-rose-100 px-5 py-3 flex items-center gap-3" style={{ backgroundColor: 'rgba(255,241,242,0.85)' }}>
         <button onClick={() => nav('/dashboard')} className="w-9 h-9 rounded-2xl bg-white/80 flex items-center justify-center text-sm active:scale-95 transition-all shadow-sm">{'\u2190'}</button>
-        <h1 className="text-base font-extrabold text-gray-900 flex-1">Doctors {'\uD83D\uDC69\u200D\u2695\uFE0F'}</h1>
-        {activeFilterCount > 0 && (
-          <span className="w-5 h-5 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">{activeFilterCount}</span>
-        )}
+        <h1 className="text-base font-extrabold text-gray-900 flex-1">Doctors</h1>
       </div>
 
-      <div className="px-5 pt-4 space-y-4">
+      <div className="px-5 pt-4 space-y-3">
         {/* Search bar */}
-        <input value={q} onChange={e => setQ(e.target.value)} placeholder="\uD83D\uDD0D Search doctors, specialization, tags..."
-          className="w-full px-4 py-3.5 rounded-2xl border-2 border-gray-100 text-sm outline-none bg-white focus:border-rose-400 focus:bg-white transition-colors shadow-lg" />
+        <div className="relative">
+          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm">{'\uD83D\uDD0D'}</span>
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search doctors, specialization..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-gray-200 text-sm outline-none bg-white focus:border-rose-400 transition-colors shadow-sm" />
+        </div>
 
-        {/* Specialty chips */}
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5">
+        {/* Category chips */}
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5 scrollbar-hide">
           {CATS.map(c => (
             <button key={c} onClick={() => setCat(c)}
-              className={'px-3 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all active:scale-95 ' + (cat === c ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md shadow-rose-200' : 'bg-white border border-gray-100 text-gray-500')}>
+              className={'px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all active:scale-95 ' + (cat === c ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm' : 'bg-white border border-gray-200 text-gray-500')}>
               {c}
             </button>
           ))}
         </div>
 
-        {/* Filter toggle button */}
-        <button onClick={() => setShowFilters(!showFilters)}
-          className={'w-full py-2.5 rounded-2xl text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-2 ' +
-            (showFilters ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-white text-gray-600 border border-gray-100 shadow-sm')}>
-          {'\u2699\uFE0F'} Filters {activeFilterCount > 0 ? `(${activeFilterCount} active)` : ''}
-          <span className="text-[10px]">{showFilters ? '\u25B2' : '\u25BC'}</span>
-        </button>
+        {/* Advanced filters toggle */}
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowFilters(!showFilters)}
+            className={'px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all active:scale-95 flex items-center gap-1.5 ' +
+              (activeFilterCount > 0 ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-white text-gray-500 border border-gray-200')}>
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+            Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+          </button>
+          {activeFilterCount > 0 && (
+            <button onClick={clearFilters} className="text-[11px] text-rose-500 font-semibold active:scale-95">Clear all</button>
+          )}
+          {!doctorsLoading && (
+            <span className="ml-auto text-[11px] text-gray-400">{filtered.length} doctor{filtered.length !== 1 ? 's' : ''}</span>
+          )}
+        </div>
 
-        {/* Filter panel (collapsible) */}
+        {/* Advanced filter panel (collapsed by default) */}
         {showFilters && (
-          <div className="bg-white rounded-3xl p-4 shadow-lg border border-gray-100 space-y-4 animate-in slide-in-from-top">
+          <div className="bg-white rounded-2xl p-4 shadow-md border border-gray-100 space-y-3">
             {/* City filter */}
             <div>
-              <label className="text-[9px] font-bold text-gray-500 uppercase mb-1.5 block">City</label>
+              <label className="text-[10px] font-bold text-gray-500 uppercase mb-1.5 block">City</label>
               <div className="flex gap-1.5 flex-wrap">
                 {CITIES.map(c => (
                   <button key={c} onClick={() => setCity(c)}
-                    className={'px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all ' +
-                      (city === c ? 'bg-rose-500 text-white shadow-sm' : 'bg-gray-50 text-gray-500 border border-gray-100')}>
+                    className={'px-3 py-1 rounded-full text-[10px] font-semibold transition-all ' +
+                      (city === c ? 'bg-rose-500 text-white' : 'bg-gray-50 text-gray-500 border border-gray-100')}>
                     {c}
                   </button>
                 ))}
@@ -161,86 +157,47 @@ export default function DoctorsPage() {
 
             {/* Max Fee slider */}
             <div>
-              <label className="text-[9px] font-bold text-gray-500 uppercase mb-1 block">Max Fee: {'\u20B9'}{maxFee}</label>
+              <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Max Fee: {'\u20B9'}{maxFee}</label>
               <input type="range" min={100} max={1000} step={50} value={maxFee} onChange={e => setMaxFee(+e.target.value)}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-rose-500" />
-              <div className="flex justify-between text-[8px] text-gray-400 mt-0.5">
-                <span>{'\u20B9'}100</span><span>{'\u20B9'}1000</span>
-              </div>
+                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-rose-500" />
             </div>
 
             {/* Min Rating slider */}
             <div>
-              <label className="text-[9px] font-bold text-gray-500 uppercase mb-1 block">{'\u2605'} Min Rating: {minRating}+</label>
+              <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Min Rating: {minRating}+</label>
               <input type="range" min={0} max={5} step={0.5} value={minRating} onChange={e => setMinRating(+e.target.value)}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-500" />
-              <div className="flex justify-between text-[8px] text-gray-400 mt-0.5">
-                <span>Any</span><span>5.0</span>
-              </div>
+                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-500" />
             </div>
 
-            {/* Free for needy checkbox */}
-            <label className="flex items-center gap-2.5 cursor-pointer">
+            {/* Free for needy */}
+            <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={freeOnly} onChange={e => setFreeOnly(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300 text-rose-500 focus:ring-rose-400 accent-rose-500" />
-              <span className="text-xs text-gray-700 font-medium">Show only free consultations</span>
+                className="w-3.5 h-3.5 rounded border-gray-300 accent-rose-500" />
+              <span className="text-xs text-gray-600">Free consultations only</span>
             </label>
 
-            {/* Sort by pills */}
+            {/* Sort */}
             <div>
-              <label className="text-[9px] font-bold text-gray-500 uppercase mb-1.5 block">Sort by</label>
+              <label className="text-[10px] font-bold text-gray-500 uppercase mb-1.5 block">Sort by</label>
               <div className="flex gap-1.5 flex-wrap">
                 {([
-                  { k: 'rating', l: '\u2605 Rating' },
-                  { k: 'fee_low', l: '\u20B9 Fee (Low)' },
-                  { k: 'fee_high', l: '\u20B9 Fee (High)' },
-                  { k: 'experience', l: '\uD83D\uDCBC Experience' },
+                  { k: 'rating', l: 'Rating' },
+                  { k: 'fee_low', l: 'Fee (Low)' },
+                  { k: 'fee_high', l: 'Fee (High)' },
+                  { k: 'experience', l: 'Experience' },
                 ] as { k: typeof sortBy; l: string }[]).map(s => (
                   <button key={s.k} onClick={() => setSortBy(s.k)}
-                    className={'px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all ' +
-                      (sortBy === s.k ? 'bg-purple-500 text-white shadow-sm' : 'bg-gray-50 text-gray-500 border border-gray-100')}>
+                    className={'px-3 py-1 rounded-full text-[10px] font-semibold transition-all ' +
+                      (sortBy === s.k ? 'bg-purple-500 text-white' : 'bg-gray-50 text-gray-500 border border-gray-100')}>
                     {s.l}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Clear / Apply buttons */}
-            <div className="flex gap-2 pt-1">
-              <button onClick={clearFilters} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-500 active:scale-95">Clear All</button>
-              <button onClick={() => setShowFilters(false)} className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs font-bold active:scale-95 shadow-md shadow-rose-200">Apply</button>
-            </div>
-          </div>
-        )}
-
-        {/* Active filter chips */}
-        {activeFilterCount > 0 && (
-          <div className="flex gap-1.5 flex-wrap">
-            {city !== 'All' && (
-              <button onClick={() => setCity('All')} className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 text-[10px] font-bold active:scale-95">
-                City: {city} {'\u2715'}
-              </button>
-            )}
-            {maxFee < 1000 && (
-              <button onClick={() => setMaxFee(1000)} className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold active:scale-95">
-                {'\u20B9'}{'\u2264'}{maxFee} {'\u2715'}
-              </button>
-            )}
-            {minRating > 0 && (
-              <button onClick={() => setMinRating(0)} className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold active:scale-95">
-                {'\u2605'}{minRating}+ {'\u2715'}
-              </button>
-            )}
-            {freeOnly && (
-              <button onClick={() => setFreeOnly(false)} className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-pink-100 text-pink-700 text-[10px] font-bold active:scale-95">
-                Free only {'\u2715'}
-              </button>
-            )}
-            {sortBy !== 'rating' && (
-              <button onClick={() => setSortBy('rating')} className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-100 text-purple-700 text-[10px] font-bold active:scale-95">
-                Sort: {sortBy === 'fee_low' ? 'Fee \u2191' : sortBy === 'fee_high' ? 'Fee \u2193' : 'Exp'} {'\u2715'}
-              </button>
-            )}
+            <button onClick={() => setShowFilters(false)} className="w-full py-2 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs font-bold active:scale-95 shadow-sm">
+              Apply
+            </button>
           </div>
         )}
 
@@ -252,108 +209,50 @@ export default function DoctorsPage() {
           </div>
         )}
 
-        {/* Chief Doctor Hero Card */}
-        {!doctorsLoading && chief && (
-          <button onClick={() => setSel(chief)} className="w-full text-left active:scale-[0.98] transition-transform">
-            <div className="rounded-3xl p-5 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #065F46, #059669, #10B981)' }}>
-              <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full" />
-              <div className="absolute -right-4 -bottom-10 w-24 h-24 bg-white/5 rounded-full" />
-              <div className="flex items-center gap-4 relative z-10">
-                <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center text-2xl text-white font-extrabold border-2 border-white/30 shadow-lg backdrop-blur-sm overflow-hidden">
-                  {(chief.photoUrl || chief.avatarUrl) ? <img src={chief.photoUrl || chief.avatarUrl} alt={chief.name} className="w-full h-full object-cover" /> : chief.name.charAt(0)}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-[9px] bg-white/20 px-2 py-0.5 rounded-full font-bold backdrop-blur-sm">{'\uD83D\uDC51'} Chief Doctor</p>
-                    {chief.feeFreeForPoor && <p className="text-[9px] bg-white/20 px-2 py-0.5 rounded-full font-bold">{'\u2764\uFE0F'} Free for needy</p>}
-                  </div>
-                  <h2 className="text-lg font-extrabold mt-1">{chief.name}</h2>
-                  <p className="text-xs text-white/80">{chief.specialization} {'\u2022'} {chief.qualification}</p>
-                  <p className="text-xs text-white/70 mt-0.5">{chief.experience} years {'\u2022'} {'\u2605'} {chief.rating} {chief.city ? `\u2022 ${chief.city}` : ''}</p>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-1.5 mt-3 relative z-10">
-                {chief.tags.map((t: string) => (
-                  <span key={t} className="text-[9px] bg-white/15 px-2 py-0.5 rounded-full text-white/90 font-medium backdrop-blur-sm">{t}</span>
-                ))}
-              </div>
-              {chief.availability && (
-                <p className="text-[10px] text-white/80 mt-2 relative z-10">{'\uD83D\uDD50'} {chief.availability}</p>
-              )}
-              <p className="text-[10px] text-white/70 mt-1 relative z-10 leading-relaxed">{chief.about}</p>
-            </div>
-          </button>
-        )}
-
-        {/* Featured Doctors Carousel */}
-        {!doctorsLoading && filteredPromoted.length > 0 && (
-          <DoctorCarousel
-            title="Featured Doctors"
-            doctors={filteredPromoted.map((d: any): CarouselDoctor => ({
-              id: d.id,
-              fullName: d.name,
-              specialization: d.specialization,
-              rating: d.rating,
-              totalReviews: d.reviews || 0,
-              experienceYears: d.experience,
-              avatarUrl: d.avatarUrl,
-              photoUrl: d.photoUrl,
-              hospitalName: d.city || undefined,
-              consultationFee: d.fee,
-              isVerified: true,
-              isChief: d.isChief,
-            }))}
-            onBookNow={(doc) => {
-              const original = filteredPromoted.find((d: any) => d.id === doc.id);
-              if (original) setSel(original);
-            }}
-          />
-        )}
-
-        {/* Results count */}
-        {!doctorsLoading && <p className="text-xs text-gray-400 font-bold">Showing {totalShown} doctor{totalShown !== 1 ? 's' : ''}{cat !== 'All' ? ` in ${cat}` : ''}{city !== 'All' ? ` in ${city}` : ''}</p>}
-
-        {/* Regular Doctor cards */}
-        {!doctorsLoading && filteredRegular.map(d => (
-          <button key={d.id} onClick={() => setSel(d)} className="w-full bg-white rounded-3xl p-4 shadow-lg text-left active:scale-[0.98] transition-transform">
-            <div className="flex gap-3">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm overflow-hidden">
+        {/* Doctor cards — compact list */}
+        {!doctorsLoading && filtered.map(d => (
+          <button key={d.id} onClick={() => setSel(d)} className="w-full bg-white rounded-2xl px-3 py-2.5 shadow-sm border border-gray-100 text-left active:scale-[0.98] transition-transform">
+            <div className="flex items-center gap-3">
+              {/* Avatar */}
+              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0 overflow-hidden">
                 {(d.photoUrl || d.avatarUrl) ? <img src={d.photoUrl || d.avatarUrl} alt={d.name} className="w-full h-full object-cover" /> : d.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2)}
               </div>
+
+              {/* Info */}
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-gray-800 text-sm">{d.name}</p>
-                <p className="text-[10px] text-gray-500">{d.specialization} {d.city ? `\u2022 ${d.city}` : ''} {'\u2022'} {d.experience} yrs</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs text-amber-500 font-bold">{'\u2605'} {d.rating}</span>
-                  <span className="text-[10px] text-gray-400">({d.reviews} reviews)</span>
+                <div className="flex items-center gap-1.5">
+                  <p className="font-bold text-gray-800 text-sm truncate">{d.name}</p>
+                  {d.isChief && <span className="text-[9px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full flex-shrink-0">{'\uD83D\uDC51'} Chief</span>}
+                  {d.isPromoted && !d.isChief && <span className="text-[9px] font-bold bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full flex-shrink-0">{'\u2B50'} Featured</span>}
+                  {!d.isChief && !d.isPromoted && d.isPublished && <span className="text-emerald-500 text-[10px] flex-shrink-0" title="Verified">{'\u2713'}</span>}
                 </div>
-                <div className="flex gap-1 mt-1.5 flex-wrap">
-                  {d.tags.map((t: string) => <span key={t} className="text-[9px] px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full font-medium">{'\uD83C\uDFF7\uFE0F'} {t}</span>)}
+                <p className="text-[11px] text-gray-500 truncate">{d.specialization}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-[11px] text-amber-500 font-semibold">{'\u2B50'} {d.rating}</span>
+                  <span className="text-[10px] text-gray-400">({d.reviews})</span>
                 </div>
-                {d.availability && <p className="text-[10px] text-gray-400 mt-1">{'\uD83D\uDD50'} {d.availability}</p>}
-                {d.languages && <p className="text-[10px] text-gray-400">{'\uD83D\uDDE3\uFE0F'} {d.languages.join(', ')}</p>}
               </div>
-              <div className="text-right flex-shrink-0">
-                <p className="text-lg font-extrabold text-emerald-600">{'\u20B9'}{d.fee}</p>
-                <p className="text-[9px] text-gray-400">/visit</p>
-                {d.feeFreeForPoor && <p className="text-[8px] text-rose-500 font-bold mt-0.5">{'\u2764\uFE0F'} Free for needy</p>}
+
+              {/* Fee + Book */}
+              <div className="flex flex-col items-end flex-shrink-0 gap-1">
+                <p className="text-sm font-extrabold text-emerald-600">{'\u20B9'}{d.fee}</p>
+                <span className="text-[10px] font-bold text-white bg-gradient-to-r from-rose-500 to-pink-500 px-3 py-1 rounded-full">Book Now</span>
               </div>
-            </div>
-            <div className="mt-3 flex justify-end">
-              <span className="text-[10px] font-bold text-rose-500">Book Appointment {'\u2192'}</span>
             </div>
           </button>
         ))}
 
         {/* Empty state */}
-        {!doctorsLoading && totalShown === 0 && (
-          <div className="text-center py-12 bg-white rounded-3xl shadow-lg">
-            <span className="text-4xl">{'\uD83D\uDD0D'}</span>
-            <p className="text-sm font-bold text-gray-600 mt-3">No doctors match your filters</p>
-            <p className="text-xs text-gray-400 mt-1">Try adjusting your search or filters</p>
-            <button onClick={clearFilters} className="mt-4 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs font-bold active:scale-95 shadow-md shadow-rose-200">
-              Clear Filters
-            </button>
+        {!doctorsLoading && filtered.length === 0 && (
+          <div className="text-center py-16">
+            <span className="text-5xl block mb-4">{'\uD83C\uDF38'}</span>
+            <p className="text-sm font-bold text-gray-700 mb-1">Doctors coming soon</p>
+            <p className="text-xs text-gray-400 mb-4">We'll notify you when specialists are available</p>
+            {activeFilterCount > 0 && (
+              <button onClick={clearFilters} className="px-5 py-2 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs font-bold active:scale-95 shadow-sm">
+                Clear Filters
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -398,7 +297,7 @@ export default function DoctorsPage() {
             <div className="flex flex-wrap gap-1.5 mb-3">
               {sel.tags?.map((t: string) => <span key={t} className="text-[9px] px-2 py-1 bg-purple-50 text-purple-600 rounded-full font-bold">{t}</span>)}
             </div>
-            {sel.languages && <p className="text-[10px] text-gray-500 mb-4">{'\uD83D\uDDE3\uFE0F'} {sel.languages.join(', ')}</p>}
+            {sel.languages && sel.languages.length > 0 && <p className="text-[10px] text-gray-500 mb-4">{'\uD83D\uDDE3\uFE0F'} {sel.languages.join(', ')}</p>}
             <button onClick={() => nav(`/appointments?doctorId=${sel.id}`)} className="w-full py-3.5 rounded-2xl text-white font-bold active:scale-95 transition-transform shadow-md shadow-rose-200 bg-gradient-to-r from-rose-500 to-pink-500">
               Book Appointment {'\u2192'}
             </button>

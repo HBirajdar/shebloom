@@ -40,31 +40,6 @@ const ACHIEVEMENTS_DEF = [
   { id: 'water', emoji: '💧', title: 'Hydration Hero', desc: 'Hit 8 glasses in a day', key: 'sb_water_goal' },
 ];
 
-const sections = [
-  { title: 'Health', items: [
-    { i: '📊', l: 'My Health Reports', action: 'reports' },
-    { i: '📅', l: 'Cycle Settings', action: 'cycle' },
-    { i: '🌿', l: 'Ayurveda Shop', action: 'ayurveda' },
-    { i: '\u{1F4E6}', l: 'My Orders', action: 'my-orders' },
-    { i: '👩‍⚕️', l: 'My Doctors', action: 'doctors' },
-    { i: '💬', l: 'Community', action: 'community' },
-    { i: '🎯', l: 'Wellness Programs', action: 'programs' },
-  ]},
-  { title: 'Support', items: [
-    { i: '❓', l: 'Help Center', action: 'help' },
-    { i: '⭐', l: 'Rate VedaClue', action: 'rate' },
-    { i: '🤝', l: 'Share App', action: 'share' },
-  ]},
-  { title: 'Legal & Info', items: [
-    { i: '🌸', l: 'About VedaClue', action: 'about-us' },
-    { i: '🔒', l: 'Privacy Policy', action: 'privacy-policy' },
-    { i: '📜', l: 'Terms & Conditions', action: 'terms-conditions' },
-    { i: '📦', l: 'Shipping Policy', action: 'shipping-policy' },
-    { i: '💰', l: 'Refund & Cancellation', action: 'refund-policy' },
-    { i: '📧', l: 'Contact Us', action: 'contact' },
-  ]},
-];
-
 // ─── Auth Provider helpers ───────────────────────────
 function normalizeProvider(p?: string): 'email' | 'mobile' | 'google' | 'apple' | 'unknown' {
   if (!p) return 'unknown';
@@ -92,6 +67,7 @@ export default function ProfilePage() {
   const [showAdminHint, setShowAdminHint] = useState(false);
   const [secretTaps, setSecretTaps] = useState(0);
   const [activeTab, setActiveTab] = useState<'overview' | 'achievements' | 'settings'>('overview');
+  const [showLegal, setShowLegal] = useState(false);
 
   // Edit form fields
   const [name, setName] = useState('');
@@ -307,11 +283,18 @@ export default function ProfilePage() {
       'about-us': '/about-us', 'privacy-policy': '/privacy-policy',
       'terms-conditions': '/terms-conditions', 'shipping-policy': '/shipping-policy',
       'refund-policy': '/refund-policy', help: '/help',
+      appointments: '/appointments', referrals: '/referrals',
+      notifications: '/notifications', language: '/language',
+      'data-privacy': '/data-privacy',
     };
     if (action === 'edit') openEdit();
     else if (action === 'contact') window.location.href = 'mailto:vedaclue@gmail.com';
     else if (routes[action]) nav(routes[action]);
     else if (action === 'share' && navigator.share) navigator.share({ title: 'VedaClue', text: 'Your women\'s wellness companion', url: window.location.origin });
+    else if (action === 'dosha') {
+      if (dosha) nav('/dosha');
+      else nav('/onboarding');
+    }
     else toast('Coming soon!');
   };
 
@@ -322,6 +305,30 @@ export default function ProfilePage() {
 
   // Provider badge
   const providerBadge = { email: { label: 'Email Login', icon: '📧', color: '#3B82F6' }, mobile: { label: 'Mobile Login', icon: '📱', color: '#10B981' }, google: { label: 'Google Login', icon: '🌐', color: '#EF4444' }, apple: { label: 'Apple Login', icon: '🍎', color: '#374151' }, unknown: { label: 'Standard Login', icon: '🔑', color: '#6B7280' } }[provider];
+
+  // ─── Menu Item Component ───────────────────────────
+  const MenuItem = ({ emoji, label, onClick }: { emoji: string; label: string; badge?: string; onClick: () => void }) => (
+    <button onClick={onClick} className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 active:bg-gray-100 transition-colors">
+      <div className="flex items-center gap-3">
+        <span className="text-base">{emoji}</span>
+        <span className="text-sm font-medium text-gray-700">{label}</span>
+      </div>
+      <span className="text-gray-300 text-sm">&rarr;</span>
+    </button>
+  );
+
+  const MenuItemWithBadge = ({ emoji, label, badge, badgeColor, onClick }: { emoji: string; label: string; badge?: string; badgeColor?: string; onClick: () => void }) => (
+    <button onClick={onClick} className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 active:bg-gray-100 transition-colors">
+      <div className="flex items-center gap-3">
+        <span className="text-base">{emoji}</span>
+        <span className="text-sm font-medium text-gray-700">{label}</span>
+        {badge && (
+          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${badgeColor || 'bg-gray-100 text-gray-500'}`}>{badge}</span>
+        )}
+      </div>
+      <span className="text-gray-300 text-sm">&rarr;</span>
+    </button>
+  );
 
   return (
     <div className="min-h-screen pb-28 bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
@@ -352,7 +359,6 @@ export default function ProfilePage() {
               <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[9px] font-bold" style={{ background: 'rgba(255,255,255,0.2)' }}>
                 <span>{providerBadge.icon}</span>{providerBadge.label}
               </span>
-              <button onClick={openEdit} className="block mt-2 px-3 py-1 bg-white/20 rounded-full text-[10px] font-bold active:scale-95 transition-transform">✏️ Edit Profile</button>
             </div>
           </div>
           {hasRealData && (
@@ -380,118 +386,134 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className="px-5 pt-4 space-y-4">
+      <div className="px-5 pt-4 space-y-0">
 
         {activeTab === 'overview' && (<>
-          {/* Subscription Status Card */}
-          <div className={`rounded-2xl p-4 shadow-sm mb-3 ${isPremium ? 'bg-gradient-to-r from-amber-50 to-rose-50 border border-amber-200' : 'bg-gray-50 border border-gray-200'}`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-extrabold uppercase tracking-wider text-gray-500">Subscription</p>
-                <p className="text-sm font-extrabold text-gray-900">
-                  {isPremium ? `${subscription?.plan?.emoji || '\u{1F48E}'} ${subscription?.plan?.name || 'Premium'}` : '\u{1F331} Free Plan'}
-                </p>
-                {isPremium && subscription && (
-                  <p className="text-[10px] text-gray-500">
-                    {subscription.status === 'TRIAL' && subscription.trialEndDate ? `Trial \u2022 ends ${new Date(subscription.trialEndDate).toLocaleDateString()}` :
-                     subscription.status === 'CANCELLED' && subscription.currentPeriodEnd ? `Cancelled \u2022 until ${new Date(subscription.currentPeriodEnd).toLocaleDateString()}` :
-                     subscription.currentPeriodEnd ? `Active \u2022 renews ${new Date(subscription.currentPeriodEnd).toLocaleDateString()}` : 'Active'}
-                  </p>
-                )}
-              </div>
-              <button onClick={() => nav('/pricing')} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${isPremium ? 'bg-white text-gray-700 border' : 'bg-gradient-to-r from-rose-500 to-amber-500 text-white'}`}>
-                {isPremium ? 'Manage' : 'Upgrade'}
+
+          {/* ─── Section 1: My Account ─── */}
+          <div className="mt-2">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">👤 My Account</p>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-50">
+              <MenuItem emoji="✏️" label="Edit Profile" onClick={openEdit} />
+              <MenuItem emoji="📱" label="Change Phone" onClick={() => openEdit()} />
+              <MenuItem emoji="🔔" label="Notifications" onClick={() => handleItem('notifications')} />
+            </div>
+          </div>
+
+          {/* ─── Section 2: My Health ─── */}
+          <div className="mt-6">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">🌿 My Health</p>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-50">
+              <MenuItem emoji="📅" label="Cycle Settings" onClick={() => handleItem('cycle')} />
+              <MenuItemWithBadge
+                emoji={doshaInfo?.emoji || '✨'}
+                label={dosha ? `My Dosha` : 'Discover Your Dosha'}
+                badge={dosha || undefined}
+                badgeColor={dosha ? 'bg-purple-50 text-purple-600' : undefined}
+                onClick={() => handleItem('dosha')}
+              />
+              {/* Subscription — compact inline */}
+              <button onClick={() => nav('/pricing')} className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                <div className="flex items-center gap-3">
+                  <span className="text-base">{isPremium ? '💎' : '🌱'}</span>
+                  <span className="text-sm font-medium text-gray-700">My Subscription</span>
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${isPremium ? 'bg-amber-50 text-amber-600' : 'bg-gray-100 text-gray-500'}`}>
+                    {isPremium ? 'PRO' : 'Free'}
+                  </span>
+                </div>
+                <span className="text-gray-300 text-sm">&rarr;</span>
               </button>
+              <MenuItem emoji="🏆" label="My Badges & Streaks" onClick={() => setActiveTab('achievements')} />
             </div>
-          </div>
 
-          {doshaInfo ? (
-            <div className="rounded-2xl p-4 shadow-sm" style={{ backgroundColor: doshaInfo.bg }}>
-              <div className="flex items-center gap-3 mb-2">
-                <span className="text-3xl">{doshaInfo.emoji}</span>
+            {/* Subscription Status Card — compact */}
+            <div className={`rounded-2xl p-4 shadow-sm mt-3 ${isPremium ? 'bg-gradient-to-r from-amber-50 to-rose-50 border border-amber-200' : 'bg-gray-50 border border-gray-200'}`}>
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] font-extrabold uppercase tracking-wider" style={{ color: doshaInfo.color }}>Your Dosha</p>
-                  <p className="text-lg font-extrabold text-gray-900">{dosha} Prakriti</p>
+                  <p className="text-sm font-extrabold text-gray-900">
+                    {isPremium ? `${subscription?.plan?.emoji || '💎'} ${subscription?.plan?.name || 'Premium'}` : '🌱 Free Plan'}
+                  </p>
+                  {isPremium && subscription?.currentPeriodEnd && (
+                    <p className="text-[10px] text-gray-500">
+                      {subscription.status === 'CANCELLED' ? 'Expires' : 'Renews'} {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+                    </p>
+                  )}
                 </div>
-              </div>
-              <p className="text-xs text-gray-600 leading-relaxed mb-2">{doshaInfo.desc}</p>
-              <div className="space-y-1">
-                {doshaInfo.tips.map(t => (
-                  <div key={t} className="flex items-center gap-2">
-                    <span className="text-xs" style={{ color: doshaInfo.color }}>✓</span>
-                    <p className="text-[10px] text-gray-600">{t}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="bg-white rounded-3xl p-4 shadow-lg border border-purple-100">
-              <div className="flex items-center gap-3">
-                <span className="text-3xl">✨</span>
-                <div className="flex-1">
-                  <p className="text-sm font-extrabold text-gray-800">Discover Your Dosha</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Take the Ayurvedic quiz in onboarding</p>
-                </div>
-                <button onClick={() => nav('/onboarding')} className="px-3 py-1.5 rounded-xl text-white text-[10px] font-bold active:scale-95 transition-transform" style={{ background: 'linear-gradient(135deg,#7C3AED,#A78BFA)' }}>
-                  Take Quiz
+                <button onClick={() => nav('/pricing')} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${isPremium ? 'bg-white text-gray-700 border' : 'bg-gradient-to-r from-rose-500 to-amber-500 text-white'}`}>
+                  {isPremium ? 'Manage' : 'Upgrade to Premium →'}
                 </button>
               </div>
-            </div>
-          )}
-
-          <div className="bg-white rounded-3xl p-4 shadow-lg">
-            <h3 className="text-xs font-extrabold text-gray-800 mb-3">📈 Stats</h3>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { e: '🔥', v: streakDays, l: 'Day Streak', c: '#F97316' },
-                { e: '💧', v: Number(localStorage.getItem('sb_water') || '0'), l: 'Glasses Today', c: '#3B82F6' },
-                { e: '😴', v: Number(localStorage.getItem('sb_sleep') || '0'), l: 'Hours Sleep', c: '#7C3AED' },
-              ].map(s => (
-                <div key={s.l} className="text-center bg-gray-50 rounded-xl p-3">
-                  <span className="text-xl block">{s.e}</span>
-                  <p className="text-lg font-extrabold mt-1" style={{ color: s.c }}>{s.v}</p>
-                  <p className="text-[8px] text-gray-400 font-bold">{s.l}</p>
-                </div>
-              ))}
             </div>
           </div>
 
-          {sections.map(sec => (
-            <div key={sec.title} className="bg-white rounded-3xl overflow-hidden shadow-lg">
-              <p className="text-[10px] font-extrabold text-gray-400 px-5 pt-3 uppercase tracking-wider">{sec.title}</p>
-              {sec.items.map((item, i) => (
-                <button key={item.l} onClick={() => handleItem(item.action)}
-                  className={'w-full flex items-center gap-3 px-5 py-3.5 text-left active:bg-gray-50 transition-colors ' + (i < sec.items.length - 1 ? 'border-b border-gray-50' : '')}>
-                  <span className="text-lg">{item.i}</span>
-                  <span className="flex-1 text-sm font-semibold text-gray-700">{item.l}</span>
-                  <span className="text-gray-300">›</span>
-                </button>
-              ))}
+          {/* ─── Section 3: My Activity ─── */}
+          <div className="mt-6">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">🛍️ My Activity</p>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-50">
+              <MenuItem emoji="📦" label="My Orders" onClick={() => handleItem('my-orders')} />
+              <MenuItem emoji="👩‍⚕️" label="Appointments" onClick={() => handleItem('appointments')} />
+              <MenuItem emoji="🎯" label="Programs" onClick={() => handleItem('programs')} />
+              <MenuItem emoji="🤝" label="Referrals" onClick={() => handleItem('referrals')} />
             </div>
-          ))}
+          </div>
 
-          {(user?.role === 'DOCTOR' || user?.role === 'ADMIN') && (
-            <button onClick={() => nav('/doctor-dashboard')} className="w-full flex items-center gap-3 px-5 py-3.5 bg-white rounded-3xl shadow-lg text-left active:bg-gray-50 transition-colors">
-              <span className="text-lg">{'\u{1FA7A}'}</span>
-              <span className="flex-1 text-sm font-semibold text-gray-700">Doctor Portal</span>
-              <span className="text-gray-300">{'\u{203A}'}</span>
+          {/* ─── Section 4: App Settings ─── */}
+          <div className="mt-6">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">⚙️ App Settings</p>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-50">
+              <MenuItem emoji="🌐" label="Language Preference" onClick={() => handleItem('language')} />
+              <MenuItem emoji="🔒" label="Data & Privacy" onClick={() => handleItem('data-privacy')} />
+            </div>
+          </div>
+
+          {/* ─── Section 5: Legal & Info — COLLAPSED ─── */}
+          <div className="mt-6">
+            <button
+              onClick={() => setShowLegal(v => !v)}
+              className="w-full flex items-center justify-between px-1 mb-2"
+            >
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">📋 Legal & Info</p>
+              <span className={`text-gray-400 text-xs transition-transform ${showLegal ? 'rotate-90' : ''}`}>›</span>
             </button>
+            {showLegal && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-50">
+                <MenuItem emoji="🌸" label="About VedaClue" onClick={() => handleItem('about-us')} />
+                <MenuItem emoji="🔒" label="Privacy Policy" onClick={() => handleItem('privacy-policy')} />
+                <MenuItem emoji="📜" label="Terms & Conditions" onClick={() => handleItem('terms-conditions')} />
+                <MenuItem emoji="❓" label="Help Center" onClick={() => handleItem('help')} />
+                <MenuItem emoji="📧" label="Contact Us" onClick={() => handleItem('contact')} />
+              </div>
+            )}
+          </div>
+
+          {/* ─── Doctor Portal (role-based) ─── */}
+          {(user?.role === 'DOCTOR' || user?.role === 'ADMIN') && (
+            <div className="mt-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <MenuItem emoji="🩺" label="Doctor Portal" onClick={() => nav('/doctor-dashboard')} />
+              </div>
+            </div>
           )}
-          <button onClick={() => setShowLogout(true)} className="w-full py-4 bg-white border-2 border-rose-200 text-rose-600 rounded-2xl font-bold text-sm active:scale-95 transition-transform">Sign Out</button>
+
+          {/* ─── Sign Out ─── */}
+          <div className="mt-8">
+            <button onClick={() => setShowLogout(true)} className="w-full py-4 bg-white border-2 border-rose-200 text-rose-600 rounded-2xl font-bold text-sm active:scale-95 transition-transform">Sign Out</button>
+          </div>
+
           <div className="text-center py-4">
             <button onClick={() => { const n = secretTaps + 1; setSecretTaps(n); if (n >= 5 && user?.role === 'ADMIN') { setShowAdminHint(true); setSecretTaps(0); } else if (n >= 5) { setSecretTaps(0); }}} className="text-[10px] text-gray-300 select-none">VedaClue v2.1</button>
           </div>
         </>)}
 
         {activeTab === 'achievements' && (<>
-          <div className="bg-gradient-to-r from-amber-50 to-rose-50 rounded-2xl p-4 border border-amber-100">
+          <div className="bg-gradient-to-r from-amber-50 to-rose-50 rounded-2xl p-4 border border-amber-100 mt-2">
             <p className="text-xs font-extrabold text-amber-800">🏆 Your Achievements</p>
             <p className="text-[10px] text-amber-700 mt-0.5">{earnedAchievements.length}/{ACHIEVEMENTS_DEF.length} badges earned</p>
             <div className="w-full bg-amber-100 rounded-full h-2 mt-2">
               <div className="bg-gradient-to-r from-amber-400 to-rose-400 h-2 rounded-full transition-all" style={{ width: `${(earnedAchievements.length / ACHIEVEMENTS_DEF.length) * 100}%` }} />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 mt-4">
             {ACHIEVEMENTS_DEF.map(a => {
               const earned = earnedAchievements.some(e => e.id === a.id);
               return (
@@ -509,7 +531,7 @@ export default function ProfilePage() {
         </>)}
 
         {activeTab === 'settings' && (<>
-          <div className="bg-white rounded-3xl p-4 shadow-lg">
+          <div className="bg-white rounded-3xl p-4 shadow-lg mt-2">
             <h3 className="text-xs font-extrabold text-gray-800 mb-3">📅 Cycle Settings</h3>
             {[
               { l: 'Cycle Length', v: `${cycleLength} days` },
@@ -526,7 +548,7 @@ export default function ProfilePage() {
             ))}
           </div>
 
-          <div className="bg-white rounded-3xl p-4 shadow-lg">
+          <div className="bg-white rounded-3xl p-4 shadow-lg mt-4">
             <h3 className="text-xs font-extrabold text-gray-800 mb-3">🔒 Privacy</h3>
             <button onClick={() => toast('Data export coming soon!')} className="w-full text-left flex items-center justify-between py-2.5 border-b border-gray-50 active:bg-gray-50">
               <span className="text-xs text-gray-600">Export my data</span><span className="text-gray-300 text-lg">›</span>
@@ -536,7 +558,7 @@ export default function ProfilePage() {
             </button>
           </div>
 
-          <button onClick={() => setShowLogout(true)} className="w-full py-4 bg-white border-2 border-rose-200 text-rose-600 rounded-2xl font-bold text-sm active:scale-95 transition-transform">Sign Out</button>
+          <button onClick={() => setShowLogout(true)} className="w-full py-4 bg-white border-2 border-rose-200 text-rose-600 rounded-2xl font-bold text-sm active:scale-95 transition-transform mt-4">Sign Out</button>
         </>)}
       </div>
 
