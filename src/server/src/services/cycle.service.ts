@@ -687,6 +687,7 @@ export class CycleService {
     await cacheDel(`cycles:${userId}`);
     await cacheDel(`predictions:${userId}`);
     await cacheDel(`fertility:${userId}`);
+    await cacheDel('insights:' + userId);
     return cycle;
   }
 
@@ -1472,6 +1473,7 @@ export class CycleService {
     const result = await prisma.symptomLog.create({ data: { userId, ...data } });
     await cacheDel(`predictions:${userId}`);
     await cacheDel(`ayurveda:${userId}`);
+    await cacheDel('insights:' + userId);
     return result;
   }
 
@@ -1479,6 +1481,7 @@ export class CycleService {
     const result = await prisma.moodLog.create({ data: { userId, mood: data.mood, notes: data.notes } });
     await cacheDel(`predictions:${userId}`);
     await cacheDel(`ayurveda:${userId}`);
+    await cacheDel('insights:' + userId);
     return result;
   }
 

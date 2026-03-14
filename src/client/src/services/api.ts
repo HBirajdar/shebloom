@@ -135,6 +135,12 @@ export const moodAPI = {
   history: (days: number) => api.get('/mood/history?days=' + days),
 };
 
+export const insightsAPI = {
+  get: () => api.get('/insights'),
+  patterns: () => api.get('/insights/patterns'),
+  moodTrends: (days?: number) => api.get('/insights/mood-trends', { params: { days } }),
+};
+
 export const doctorAPI = {
   search: (p: any) => api.get('/doctors', { params: p }),
   get: (id: string) => api.get('/doctors/' + id),

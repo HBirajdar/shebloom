@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useCycleStore } from '../stores/cycleStore';
 import type { UserGoal } from '../stores/cycleStore';
-import { cycleAPI, moodAPI, userAPI, wellnessAPI, notificationAPI, doctorAPI, articleAPI, weatherAPI } from '../services/api';
+import { cycleAPI, moodAPI, userAPI, wellnessAPI, notificationAPI, doctorAPI, articleAPI, weatherAPI, insightsAPI } from '../services/api';
 import { useSubscriptionStore } from '../stores/subscriptionStore';
 import BottomNav from '../components/BottomNav';
 import DoctorCarousel from '../components/DoctorCarousel';
@@ -186,6 +186,8 @@ export default function DashboardPage() {
   const [ayurvedaData, setAyurvedaData] = useState<any>(null);
   const [showDisclaimer, setShowDisclaimer] = useState(true);
   const [showReferences, setShowReferences] = useState(false);
+  const [insightsData, setInsightsData] = useState<any>(null);
+  const [showAllPatterns, setShowAllPatterns] = useState(false);
 
   const theme = phaseThemes[phase] || phaseThemes.follicular;
   // Use individual luteal phase from API (Lenton 1984), fallback to old estimate
@@ -271,6 +273,10 @@ export default function DashboardPage() {
       if (d?.components?.sleep?.logged) setSleepHours(d.components.sleep.hours || 7);
       if (d?.components?.exercise?.logged) setExerciseDone(true);
     }).catch(() => toast.error('Failed to load data'));
+    // Load personalized insights (patterns, tips, predictions, mood trends)
+    insightsAPI.get().then(r => {
+      setInsightsData(r?.data?.data || null);
+    }).catch(() => {});
     // Load real notification count
     notificationAPI.list().then(r => {
       setNotifCount(r.data.unreadCount || 0);
@@ -881,8 +887,95 @@ export default function DashboardPage() {
           onBookNow={(doctor) => nav('/doctors')}
         />
 
-        {/* ─── Phase Insight + Daily Tip (goal-aware) ─── */}
-        {hasRealData && (goal === 'periods' || goal === 'fertility') && (
+        {/* ─── Personalized Insights (data-driven tips from history) ─── */}
+        {insightsData?.tips?.length > 0 && hasRealData && goal !== 'pregnancy' && (
+          <div className="bg-white rounded-3xl p-4 shadow-lg">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">✨</span>
+              <h3 className="text-xs font-extrabold text-gray-800">For You — Based on Your History</h3>
+            </div>
+            <div className="space-y-2">
+              {insightsData.tips.map((t: any, i: number) => (
+                <div key={i} className="flex items-start gap-2.5 bg-gray-50 rounded-xl p-3">
+                  <span className="text-base mt-0.5">{t.emoji}</span>
+                  <div className="flex-1">
+                    <p className="text-[11px] text-gray-700 leading-relaxed">{t.tip}</p>
+                    <span className="text-[8px] font-bold uppercase tracking-wider text-gray-400 mt-1 block">
+                      {t.category === 'pattern' ? 'Based on your patterns' : t.category === 'symptom' ? 'For your symptoms' : t.category === 'wellness' ? 'Wellness tip' : 'Phase tip'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ─── Your Patterns (cross-cycle pattern detection) ─── */}
+        {insightsData?.patterns?.length > 0 && hasRealData && goal !== 'pregnancy' && (
+          <div className="bg-white rounded-3xl p-4 shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🔮</span>
+                <h3 className="text-xs font-extrabold text-gray-800">Your Patterns</h3>
+              </div>
+              <span className="text-[9px] font-bold text-purple-500 bg-purple-50 px-2 py-0.5 rounded-full">
+                {insightsData.patterns[0]?.totalCycles} cycles analyzed
+              </span>
+            </div>
+            <div className="space-y-2">
+              {(showAllPatterns ? insightsData.patterns : insightsData.patterns.slice(0, 3)).map((p: any, i: number) => (
+                <div key={i} className="flex items-start gap-2.5 rounded-xl p-2.5" style={{
+                  backgroundColor: p.type === 'mood' ? '#FDF2F8' : '#F5F3FF',
+                }}>
+                  <span className="text-base mt-0.5">{p.type === 'mood' ? '😔' : '📋'}</span>
+                  <div className="flex-1">
+                    <p className="text-[11px] text-gray-700 leading-relaxed">{p.message}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="flex-1 bg-gray-200 rounded-full h-1.5">
+                        <div className="h-1.5 rounded-full" style={{
+                          width: (p.rate * 100) + '%',
+                          backgroundColor: p.rate >= 0.8 ? '#EF4444' : '#F59E0B',
+                        }} />
+                      </div>
+                      <span className="text-[9px] font-bold text-gray-500">{Math.round(p.rate * 100)}%</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {insightsData.patterns.length > 3 && !showAllPatterns && (
+                <button onClick={() => setShowAllPatterns(true)} className="w-full text-center text-[10px] font-bold text-purple-600 py-1 active:scale-95 transition-transform">
+                  Show {insightsData.patterns.length - 3} more patterns
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ─── Predictions (upcoming symptoms/mood forecasts) ─── */}
+        {insightsData?.predictions?.length > 0 && hasRealData && goal !== 'pregnancy' && (
+          <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-3xl p-4 shadow-sm border border-indigo-100">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">🔮</span>
+              <h3 className="text-xs font-extrabold text-indigo-800">Upcoming Predictions</h3>
+            </div>
+            <div className="space-y-2">
+              {insightsData.predictions.map((pred: any, i: number) => (
+                <div key={i} className="bg-white/80 rounded-xl p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-[11px] text-gray-700 leading-relaxed flex-1">{pred.prediction}</p>
+                    <span className={'text-[8px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ' + (pred.confidence === 'high' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700')}>
+                      {pred.confidence}
+                    </span>
+                  </div>
+                  <p className="text-[9px] text-gray-400 mt-1">{pred.basedOn}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ─── Phase Insight + Daily Tip (goal-aware) — fallback when no personalized insights ─── */}
+        {hasRealData && (goal === 'periods' || goal === 'fertility') && !insightsData?.tips?.length && (
           <div className="rounded-2xl p-4 border" style={{ backgroundColor: theme.bg, borderColor: theme.color + '20' }}>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-lg">{theme.emoji}</span>
@@ -895,7 +988,7 @@ export default function DashboardPage() {
           </div>
         )}
         {/* Wellness gets health-focused daily insight instead of phase card */}
-        {goal === 'wellness' && (
+        {goal === 'wellness' && !insightsData?.tips?.length && (
           <div className="rounded-2xl p-4 border" style={{ backgroundColor: '#ECFDF5', borderColor: '#10B98120' }}>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-lg">🌿</span>
@@ -983,6 +1076,39 @@ export default function DashboardPage() {
             </p>
           </div>
         </div>
+
+        {/* ─── Mood Trends (from insights engine) ─── */}
+        {insightsData?.moodTrends && insightsData.moodTrends.phaseAvg && Object.values(insightsData.moodTrends.phaseAvg).some((v: any) => v > 0) && hasRealData && goal !== 'pregnancy' && (
+          <div className="bg-white rounded-3xl p-4 shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-extrabold text-gray-800">📊 Mood by Phase</h3>
+              <button onClick={() => nav('/mood/history')} className="text-[9px] font-bold text-rose-500 active:scale-95 transition-transform">Full history →</button>
+            </div>
+            <div className="grid grid-cols-4 gap-2 mb-2">
+              {(['menstrual', 'follicular', 'ovulation', 'luteal'] as const).map(p => {
+                const avg = insightsData.moodTrends.phaseAvg[p] || 0;
+                const isBest = p === insightsData.moodTrends.bestPhase;
+                const isWorst = p === insightsData.moodTrends.worstPhase;
+                const barColor = avg >= 4 ? '#10B981' : avg >= 3 ? '#F59E0B' : avg >= 2 ? '#F97316' : avg > 0 ? '#EF4444' : '#E5E7EB';
+                return (
+                  <div key={p} className="text-center">
+                    <div className="h-16 flex items-end justify-center mb-1">
+                      <div className="w-6 rounded-t-md transition-all" style={{
+                        height: avg > 0 ? Math.max(8, (avg / 5) * 60) + 'px' : '4px',
+                        backgroundColor: barColor,
+                      }} />
+                    </div>
+                    <p className="text-[8px] font-bold text-gray-500 capitalize">{p.slice(0, 4)}</p>
+                    {avg > 0 && <p className="text-[8px] font-bold" style={{ color: barColor }}>{avg.toFixed(1)}</p>}
+                    {isBest && avg > 0 && <span className="text-[7px]">😊</span>}
+                    {isWorst && avg > 0 && <span className="text-[7px]">😔</span>}
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-[10px] text-gray-500 text-center leading-relaxed">{insightsData.moodTrends.insight}</p>
+          </div>
+        )}
 
         {/* ─── Water Tracker ─── */}
         <div className="bg-white rounded-3xl p-4 shadow-lg">

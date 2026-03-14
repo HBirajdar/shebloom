@@ -8,6 +8,7 @@ import rateLimit from 'express-rate-limit';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/response.utils';
 import contentService from '../services/content.service';
+import { getPersonalizedInsights } from '../services/insights.service';
 
 const aiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, keyGenerator: (req) => (req as any).user?.id || req.ip, message: { success: false, error: 'Too many AI requests. Please try again later.' } });
 
@@ -82,10 +83,19 @@ const KEYWORD_RESPONSES: Array<{ keywords: RegExp; response: string }> = [
   },
 ];
 
+interface HealthContext {
+  patterns?: { name: string; phase: string; rate: number; type: string }[];
+  dosha?: string | null;
+  moodTrends?: { bestPhase: string; worstPhase: string; insight: string };
+  predictions?: { prediction: string }[];
+  tips?: { tip: string; category: string }[];
+}
+
 function generateAIResponse(
   message: string, cycleDay: number, phase: string, goal: string,
   dbResponses?: { regex: RegExp; responseText: string }[],
   dbPhaseAdvice?: Record<string, string[]>,
+  healthCtx?: HealthContext,
 ): string {
   const msgLower = message.toLowerCase();
 
@@ -105,8 +115,17 @@ function generateAIResponse(
     return `Hello! I'm your Vedaclue wellness guide. I can see you're on cycle day ${cycleDay} in your ${phase.toLowerCase()} phase. How can I support your wellness journey today?`;
   }
 
-  // Phase-specific tip request
+  // Phase-specific tip request — prefer personalized tips from insights engine
   if (/tip|advice|suggest|recommend|what (should|can) i/i.test(msgLower)) {
+    if (healthCtx?.tips?.length) {
+      const personalTip = healthCtx.tips[0];
+      let response = `Based on your health history: ${personalTip.tip}`;
+      if (healthCtx.patterns?.length) {
+        const topPattern = healthCtx.patterns[0];
+        response += `\n\nI've also noticed you tend to get ${topPattern.name} during your ${topPattern.phase} phase (${Math.round(topPattern.rate * 100)}% of your cycles). Keep that in mind as you plan your self-care.`;
+      }
+      return response;
+    }
     const adviceSource = dbPhaseAdvice || PHASE_ADVICE;
     const tips = adviceSource[phase.toUpperCase()] || adviceSource.FOLLICULAR;
     return tips[Math.floor(Math.random() * tips.length)];
@@ -123,10 +142,21 @@ function generateAIResponse(
     return phaseInfo[phase.toUpperCase()] || `You're on cycle day ${cycleDay} in your ${phase} phase. Each phase brings unique strengths — embrace where you are right now!`;
   }
 
-  // Default phase-aware response
+  // Default phase-aware response — enriched with health context
   const adviceSource2 = dbPhaseAdvice || PHASE_ADVICE;
   const phaseTips = adviceSource2[phase.toUpperCase()] || adviceSource2.FOLLICULAR;
-  return `Great question! On cycle day ${cycleDay}, here's what I'd focus on: ${phaseTips[Math.floor(Math.random() * phaseTips.length)]} Is there anything specific about your ${phase.toLowerCase()} phase you'd like to explore?`;
+  let defaultReply = `Great question! On cycle day ${cycleDay}, here's what I'd focus on: ${phaseTips[Math.floor(Math.random() * phaseTips.length)]}`;
+
+  // Append personalized context if available
+  if (healthCtx?.dosha) {
+    defaultReply += `\n\nAs a ${healthCtx.dosha} constitution, ${healthCtx.dosha === 'Vata' ? 'warmth and routine are your best friends this phase.' : healthCtx.dosha === 'Pitta' ? 'cooling foods and gentle activities suit you best right now.' : 'light, warm meals and stimulating movement will keep you balanced.'}`;
+  }
+  if (healthCtx?.predictions?.length) {
+    defaultReply += `\n\n🔮 Heads up: ${healthCtx.predictions[0].prediction}`;
+  }
+
+  defaultReply += ` Is there anything specific about your ${phase.toLowerCase()} phase you'd like to explore?`;
+  return defaultReply;
 }
 
 // ─── POST /ai/chat ───────────────────────────────────
@@ -148,18 +178,30 @@ r.post('/chat', async (q: AuthRequest, s: Response, n: NextFunction) => {
 
     const { cycleDay = 1, phase = 'FOLLICULAR', goal = 'wellness' } = context || {};
 
-    // Simulate slight AI processing delay
-    await new Promise(res => setTimeout(res, 200));
-
-    // Load DB content (with fallback to hardcoded if DB fails)
+    // Load DB content + user health context in parallel
     let dbResponses: any[] | undefined;
     let dbPhaseAdvice: Record<string, string[]> | undefined;
+    let healthCtx: HealthContext | undefined;
     try {
-      dbResponses = await contentService.getChatResponses();
-      dbPhaseAdvice = await contentService.getPhaseAdvice();
+      const [dbRes, dbPhase, insights] = await Promise.all([
+        contentService.getChatResponses().catch(() => undefined),
+        contentService.getPhaseAdvice().catch(() => undefined),
+        q.user?.id ? getPersonalizedInsights(q.user.id).catch(() => null) : Promise.resolve(null),
+      ]);
+      dbResponses = dbRes;
+      dbPhaseAdvice = dbPhase;
+      if (insights) {
+        healthCtx = {
+          patterns: insights.patterns,
+          dosha: (insights as any).dosha || null,
+          moodTrends: insights.moodTrends,
+          predictions: insights.predictions,
+          tips: insights.tips,
+        };
+      }
     } catch { /* fallback to hardcoded */ }
 
-    const reply = generateAIResponse(message, cycleDay, phase, goal, dbResponses, dbPhaseAdvice);
+    const reply = generateAIResponse(message, cycleDay, phase, goal, dbResponses, dbPhaseAdvice, healthCtx);
 
     successResponse(s, {
       reply,
