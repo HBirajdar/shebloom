@@ -46,10 +46,21 @@ export default function AuthPage() {
     return body?.error || body?.message || `Error ${status}. Please try again.`;
   };
 
-  const go = async (promise: Promise<any>, defaultTo: string) => {
+  const go = async (promiseFn: () => Promise<any>, defaultTo: string) => {
     setLoading(true); setErr('');
     try {
-      const r = await promise;
+      let r: any;
+      // Auto-retry once on 500 (server may be restarting after deploy)
+      try {
+        r = await promiseFn();
+      } catch (retryErr: any) {
+        if (retryErr?.response?.status >= 500) {
+          await new Promise(res => setTimeout(res, 2000));
+          r = await promiseFn();
+        } else {
+          throw retryErr;
+        }
+      }
       const d = r.data.data;
       setAuth(d.user, d.accessToken, d.refreshToken);
       // Apply referral code if saved from onboarding
@@ -118,7 +129,7 @@ export default function AuthPage() {
 
   const handleVerifyOtp = () => {
     if (otp.length !== 6) { setErr('Enter the 6-digit OTP'); return; }
-    go(authAPI.verifyOtp(ph, otp), '/dashboard');
+    go(() => authAPI.verifyOtp(ph, otp), '/dashboard');
   };
 
   const handleForgotPassword = async () => {
@@ -140,9 +151,9 @@ export default function AuthPage() {
     if (tab === 'signup') {
       if (!nm.trim()) { setErr('Enter your full name'); return; }
       if (pw.length < 8) { setErr('Password must be at least 8 characters'); return; }
-      go(authAPI.register({ fullName: nm.trim(), email: em.trim(), password: pw }), '/setup');
+      go(() => authAPI.register({ fullName: nm.trim(), email: em.trim(), password: pw }), '/setup');
     } else {
-      go(authAPI.login({ email: em.trim(), password: pw }), '/dashboard');
+      go(() => authAPI.login({ email: em.trim(), password: pw }), '/dashboard');
     }
   };
 
