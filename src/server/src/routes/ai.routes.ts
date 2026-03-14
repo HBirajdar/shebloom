@@ -25,7 +25,7 @@ const PHASE_ADVICE: Record<string, string[]> = {
     'Magnesium-rich foods like dark chocolate, nuts, and seeds can reduce period cramps and mood swings.',
   ],
   FOLLICULAR: [
-    'Your estrogen is rising — this is your most energetic phase! Great time to start new projects or try a new workout.',
+    'Your estrogen is rising — energy is building! Great time to start new projects or try a new workout.',
     'Fermented foods like yogurt and kimchi support the gut-hormone axis during your follicular phase.',
     'Channel your mental clarity and creativity now — your brain is primed for learning and problem-solving.',
     'Light cardio and strength training work brilliantly in your follicular phase when energy is building.',

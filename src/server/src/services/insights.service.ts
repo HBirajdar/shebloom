@@ -67,7 +67,7 @@ const DOSHA_PHASE_TIPS: Record<string, Record<string, string[]>> = {
     luteal: ['A warm bath with lavender oil helps soothe pre-menstrual Vata imbalance.', 'Avoid cold foods and drinks during your luteal phase to keep Vata steady.'],
   },
   Pitta: {
-    menstrual: ['Sprinkle cooling rose water on your face and wrists to ease Pitta heat during your period.', 'Drink aloe vera juice in the morning to cool internal heat during menstruation.'],
+    menstrual: ['Sprinkle cooling rose water on your face and wrists to ease Pitta heat during your period.', 'Sip cool coconut water or pomegranate juice to pacify Pitta heat during menstruation.'],
     follicular: ['A gentle coconut oil scalp massage balances Pitta during the follicular phase.', 'Enjoy sweet seasonal fruits like melons and grapes to stay cool and nourished.'],
     ovulation: ['Avoid spicy and fermented foods around ovulation to keep Pitta calm.', 'A gentle moonlight walk after dinner helps balance Pitta energy at mid-cycle.'],
     luteal: ['Take a spoonful of gulkand before bed to cool Pitta and promote restful sleep.', 'Swimming or gentle water activities are ideal Pitta-balancing exercise pre-period.'],
@@ -76,7 +76,7 @@ const DOSHA_PHASE_TIPS: Record<string, Record<string, string[]>> = {
     menstrual: ['Start your morning with dry ginger tea to stimulate sluggish Kapha during your period.', 'A brisk 20-minute walk helps move stagnant Kapha energy during menstruation.'],
     follicular: ['Practice surya namaskar (sun salutations) to energize Kapha in the follicular phase.', 'Opt for light, warm meals with plenty of spices to keep Kapha metabolism active.'],
     ovulation: ['Add stimulating spices like black pepper and turmeric to your meals around ovulation.', 'Outdoor exercise in fresh air is the best way to balance Kapha at mid-cycle.'],
-    luteal: ['Warm water with a teaspoon of honey first thing in the morning combats Kapha heaviness.', 'Reduce dairy intake during your luteal phase to prevent Kapha congestion.'],
+    luteal: ['Lukewarm water with a teaspoon of honey first thing in the morning combats Kapha heaviness (never add honey to hot water).', 'Reduce dairy intake during your luteal phase to prevent Kapha congestion.'],
   },
 };
 
@@ -88,7 +88,7 @@ const SYMPTOM_TIPS: Record<string, Record<string, string>> = {
     default: 'A warm compress and gentle stretching can help ease cramps.',
   },
   headache: {
-    Vata: 'Try nasya oil (2 drops per nostril) and rest in a quiet room for Vata headaches.',
+    Vata: 'Try nasya oil (2 drops Anu Taila per nostril) and rest in a quiet room for Vata headaches. Avoid nasya during active menstruation.',
     Pitta: 'Apply peppermint oil to your temples and a cool towel to your forehead.',
     Kapha: 'A eucalyptus steam inhalation followed by a short walk clears Kapha headaches.',
     default: 'Rest in a dark room and stay hydrated to ease your headache.',
@@ -106,9 +106,9 @@ const SYMPTOM_TIPS: Record<string, Record<string, string>> = {
     default: 'Prioritize sleep and consider an iron-rich snack to fight fatigue.',
   },
   'mood swings': {
-    Vata: 'Practice alternate-nostril pranayama, journal your feelings, and spend time outdoors.',
-    Pitta: 'Practice alternate-nostril pranayama, journal your feelings, and spend time outdoors.',
-    Kapha: 'Practice alternate-nostril pranayama, journal your feelings, and spend time outdoors.',
+    Vata: 'Ground yourself with warm oil on your feet, alternate-nostril pranayama, and a consistent daily routine.',
+    Pitta: 'Cool down with Sheetali pranayama, avoid heated arguments, and try a moonlight walk or Brahmi tea.',
+    Kapha: 'Energize with Kapalbhati pranayama (avoid during menstruation), brisk movement, and uplifting activities.',
     default: 'Practice alternate-nostril pranayama, journal your feelings, and spend time outdoors.',
   },
 };

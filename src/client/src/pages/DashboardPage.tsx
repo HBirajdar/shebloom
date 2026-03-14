@@ -33,29 +33,29 @@ const phaseThemes: Record<string, { color: string; gradient: string; bg: string;
 
 const phaseTips: Record<string, string[]> = {
   menstrual: ['🌡️ Warm compress relieves cramps', '🥬 Eat iron-rich foods (spinach, dates)', '😴 Extra rest is completely valid', '🫖 Ginger tea helps inflammation'],
-  follicular: ['⚡ Best phase for intense workouts', '🚀 Start new projects now', '🥑 Load up on healthy fats', '💃 Your social energy is high'],
-  ovulation: ['💜 Peak fertility window — 33% chance', '💧 Check egg-white cervical mucus', '🌸 Libido naturally peaks', '🔥 Try your highest workout intensity'],
+  follicular: ['⚡ Great phase to build up workout intensity', '🚀 Start new projects now', '🥑 Load up on healthy fats', '💃 Your social energy is high'],
+  ovulation: ['💜 Peak fertility window — highest chance 1-2 days before ovulation', '💧 Check egg-white cervical mucus', '🌸 Libido naturally peaks', '🔥 Peak energy — try your most challenging workout'],
   luteal: ['🌰 Magnesium reduces PMS (almonds)', '🍠 Complex carbs stabilize mood', '😴 Body needs extra sleep now', '🚫 Reduce caffeine and salt'],
 };
 
 // Period-only tips (no fertility references)
 const periodTips: Record<string, string[]> = {
   menstrual: ['🌡️ Warm compress relieves cramps', '🥬 Eat iron-rich foods (spinach, dates)', '😴 Extra rest is completely valid', '🫖 Ginger tea helps inflammation'],
-  follicular: ['⚡ Best phase for intense workouts', '🚀 Start new projects now', '🥑 Load up on healthy fats', '💃 Your social energy is high'],
+  follicular: ['⚡ Great phase to build up workout intensity', '🚀 Start new projects now', '🥑 Load up on healthy fats', '💃 Your social energy is high'],
   ovulation: ['🌸 You may feel more confident today', '🔥 Peak energy — try intense workouts', '💧 Stay extra hydrated', '🧘 Great time for challenging goals'],
   luteal: ['🌰 Magnesium reduces PMS (almonds)', '🍠 Complex carbs stabilize mood', '😴 Body needs extra sleep now', '🚫 Reduce caffeine and salt'],
 };
 
 // Wellness-focused tips (daily health, not cycle-specific)
 const wellnessTips = [
-  '💧 Aim for 8 glasses of water — your skin and energy will thank you',
-  '🧘 Even 5 minutes of deep breathing reduces cortisol by 25%',
+  '💧 Stay well hydrated throughout the day — your skin and energy will thank you',
+  '🧘 Even 5 minutes of deep breathing can measurably reduce stress hormones',
   '😴 Blue light before bed delays melatonin — try reading instead',
-  '🏃 A 20-minute walk boosts mood for up to 12 hours',
-  '🥗 Eating greens at lunch prevents the 3pm energy crash',
+  '🏃 A 20-minute walk can boost mood for several hours',
+  '🥗 Nutrient-rich lunches with greens may help sustain afternoon energy',
   '🌅 Morning sunlight for 10 min resets your circadian rhythm',
   '📵 Screen breaks every 45 min reduce eye strain and stress',
-  '🫖 Herbal tea before bed improves sleep quality by 20%',
+  '🫖 Chamomile or lavender tea before bed may help improve sleep quality',
 ];
 
 // ─── Animated SVG Cycle Ring ─────────────────────
@@ -211,13 +211,16 @@ export default function DashboardPage() {
         label: status === 'peak' ? 'Peak' : status === 'high' ? 'High' : status === 'moderate' ? 'Moderate' : score <= 5 ? 'Very Low' : 'Low',
       };
     }
-    // Fallback to local calculation
-    const diff = Math.abs(cycleDay - ovDay);
-    if (diff === 0) return { pct: 33, label: 'Very High' };
-    if (diff === 1) return { pct: 26, label: 'High' };
-    if (diff === 2) return { pct: 18, label: 'Moderate' };
-    if (diff === 3) return { pct: 10, label: 'Low' };
-    if (diff <= 5) return { pct: 5, label: 'Very Low' };
+    // Fallback — directional per Wilcox et al. 1995 (NEJM)
+    // Post-ovulation: egg survives only 12-24h, probability drops to ~0%
+    const daysBeforeOv = ovDay - cycleDay; // positive = before ov, negative = after ov
+    if (daysBeforeOv < 0) return { pct: 1, label: 'Minimal' }; // past ovulation
+    if (daysBeforeOv === 0) return { pct: 8, label: 'Moderate' }; // ovulation day ~8%
+    if (daysBeforeOv === 1) return { pct: 30, label: 'Very High' }; // O-1 peak ~30%
+    if (daysBeforeOv === 2) return { pct: 27, label: 'High' }; // O-2 ~27%
+    if (daysBeforeOv === 3) return { pct: 16, label: 'Moderate' }; // O-3 ~16%
+    if (daysBeforeOv === 4) return { pct: 14, label: 'Low' }; // O-4 ~14%
+    if (daysBeforeOv === 5) return { pct: 10, label: 'Low' }; // O-5 ~10%
     return { pct: 1, label: 'Minimal' };
   }, [cycleDay, ovDay, predictionData]);
 
@@ -606,7 +609,7 @@ export default function DashboardPage() {
           const doshaRemedies: Record<string, { herbs: string[]; diet: string[]; lifestyle: string[]; color: string; emoji: string }> = {
             Vata: {
               herbs: [
-                'Shatavari (Asparagus racemosus) \u2014 Artavajanana, uterine tonic [Charaka Chi. 30]',
+                'Shatavari (Asparagus racemosus) \u2014 Artavajanana, uterine tonic [Charaka Su. 4; Chi. 30]',
                 'Ashwagandha (Withania somnifera) \u2014 reduces cortisol, calms HPA axis [Chandrasekhar 2012]',
                 'Dashmool Kwath \u2014 10-root decoction, pacifies Apana Vata [Charaka]',
                 'Jatamansi (Nardostachys jatamansi) \u2014 calms nervous system, regulates Vata',
@@ -620,7 +623,7 @@ export default function DashboardPage() {
                 'Ashoka bark (Saraca asoca) \u2014 #1 classical uterine tonic [Bhavaprakasha]',
                 'Shatavari (Asparagus racemosus) \u2014 cooling phytoestrogen support',
                 'Amalaki (Emblica officinalis) \u2014 Pitta Rasayana, antioxidant',
-                'Guduchi (Tinospora cordifolia) \u2014 Rasayana, hormone balancer',
+                'Guduchi (Tinospora cordifolia) \u2014 Rasayana, immunomodulator',
               ],
               diet: ['Cooling foods: cucumber, coconut water, pomegranate', 'Avoid spicy, fried & fermented foods during delay', 'Gulkand (rose petal preserve) after meals', 'Sweet fruits: grapes, melons, pears, ripe bananas'],
               lifestyle: ['Moonlight walk in the evening (Chandrasnana)', 'Cooling pranayama: Sheetali, Chandrabhedana', 'Avoid intense exercise, excess sun & heated arguments', 'Sandalwood or rose essential oil for calming Pitta'],
@@ -629,12 +632,12 @@ export default function DashboardPage() {
             Kapha: {
               herbs: [
                 'Lodhra (Symplocos racemosa) \u2014 classical uterine astringent [Sushruta]',
-                'Triphala \u2014 detox, Agni activation, hormone regulation',
+                'Triphala \u2014 detox, Agni activation, digestive regulation',
                 'Manjistha (Rubia cordifolia) \u2014 Rakta Shodhaka, purifies blood',
                 'Punarnava (Boerhavia diffusa) \u2014 reduces Kapha water retention',
               ],
-              diet: ['Light, warm, spiced meals (ginger, black pepper, fenugreek)', 'Honey + warm water every morning (Kapha reducing)', 'Avoid heavy, oily, sweet & dairy-rich foods', 'Bitter greens: methi (fenugreek), karela, drumstick leaves'],
-              lifestyle: ['Vigorous morning exercise before 6 AM [Charaka Su. 7]', 'Dry brushing (Garshana) before warm shower', 'Wake before 6 AM \u2014 avoid daytime sleeping', 'Kapalbhati & Bhastrika pranayama daily'],
+              diet: ['Light, warm, spiced meals (ginger, black pepper, fenugreek)', 'Honey + lukewarm water every morning (never add honey to hot water)', 'Avoid heavy, oily, sweet & dairy-rich foods', 'Bitter greens: methi (fenugreek), karela, drumstick leaves'],
+              lifestyle: ['Vigorous morning exercise before 6 AM [Charaka Su. 5]', 'Dry brushing (Garshana) before warm shower', 'Wake before 6 AM \u2014 avoid daytime sleeping', 'Kapalbhati & Bhastrika pranayama (avoid during active menstruation & pregnancy)'],
               color: '#059669', emoji: '\u{1F33F}',
             },
           };
@@ -701,7 +704,7 @@ export default function DashboardPage() {
                     <p className="text-xs font-extrabold text-rose-700">{'\u{1F33F}'} Ayurvedic Remedies for Delayed Period</p>
                     <p className="text-[9px] text-gray-400 italic">Based on Charaka Samhita, Sushruta Samhita & Ashtanga Hridaya</p>
                     {[
-                      { title: '\u{1F33F} Herbs (Aushadhi)', items: ['Shatavari (Asparagus racemosus) \u2014 primary Artavajanana herb [Charaka Chi. 30]', 'Ashoka bark (Saraca asoca) \u2014 classical uterine tonic [Bhavaprakasha]', 'Ashwagandha (Withania somnifera) \u2014 reduces cortisol & stress-induced delay', 'Dashmool Kwath \u2014 10-root decoction for Apana Vata balance'] },
+                      { title: '\u{1F33F} Herbs (Aushadhi)', items: ['Shatavari (Asparagus racemosus) \u2014 primary Artavajanana herb [Charaka Su. 4; Chi. 30]', 'Ashoka bark (Saraca asoca) \u2014 classical uterine tonic [Bhavaprakasha]', 'Ashwagandha (Withania somnifera) \u2014 reduces cortisol & stress-induced delay', 'Dashmool Kwath \u2014 10-root decoction for Apana Vata balance'] },
                       { title: '\u{1F372} Diet (Ahara)', items: ['Warm ginger-jaggery water (morning & evening)', 'Sesame seeds (Tila) with honey \u2014 1 tsp daily', 'Warm turmeric milk (Haldi Doodh) before bed', 'Fennel seed water \u2014 gentle uterine tonic, safe for most'] },
                       { title: '\u{1F9D8} Lifestyle (Vihara)', items: ['Warm oil Abhyanga (self-massage) [Ashtanga Hridaya Su. 2]', 'Yoga: Baddha Konasana, Malasana, Viparita Karani', 'Pranayama: Anulom Vilom, Bhramari (calms HPA axis)', 'Dinacharya: sleep by 10 PM, reduce screen time'] },
                     ].map(section => (
@@ -723,7 +726,7 @@ export default function DashboardPage() {
                 {/* CRITICAL: Pregnancy + Herb Safety Warning */}
                 <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-3">
                   <p className="text-[10px] font-bold text-red-700 mb-1">{'\u{26A0}\u{FE0F}'} Important Safety Note</p>
-                  <p className="text-[10px] text-red-600 leading-relaxed">If there is any possibility of pregnancy, take a pregnancy test BEFORE starting any herbal regimen. Herbs like Ashoka, Guggulu, and Aloe vera can stimulate uterine contractions. If you are on any prescription medication, consult your doctor before taking herbal supplements.</p>
+                  <p className="text-[10px] text-red-600 leading-relaxed">If there is any possibility of pregnancy, take a pregnancy test BEFORE starting any herbal regimen. Herbs like Ashoka, Ashwagandha (in high doses), Guggulu, and Aloe vera can stimulate uterine contractions. Shatavari should be avoided with estrogen-sensitive conditions (endometriosis, fibroids). Ashwagandha can interact with thyroid and sedative medications. Consult your doctor before combining herbs with any prescription medication.</p>
                 </div>
 
                 {/* When to see a doctor — always show brief note */}
@@ -1072,7 +1075,7 @@ export default function DashboardPage() {
           {/* Mental Health Support Note */}
           <div style={{ background: '#F5F0FF', borderRadius: 8, padding: 10, margin: '8px 0 0' }}>
             <p style={{ fontSize: 10.5, color: '#4A2380', margin: 0, lineHeight: 1.5 }}>
-              💜 Mood changes across your cycle are normal — {phase === 'luteal' ? 'progesterone withdrawal in your current luteal phase can lower serotonin by 25-30% (Rapkin 2012)' : phase === 'follicular' ? 'rising estrogen in your follicular phase typically boosts serotonin and mood' : phase === 'menstrual' ? 'low hormones during menstruation can affect energy and mood' : 'hormonal peaks around ovulation boost confidence but may increase sensitivity'}. If mood symptoms prevent daily functioning for 3+ cycles, screen for PMDD with your doctor.
+              💜 Mood changes across your cycle are normal — {phase === 'luteal' ? 'hormonal shifts in the late luteal phase can affect serotonin signaling and lower mood (Rapkin & Akopians 2012)' : phase === 'follicular' ? 'rising estrogen in your follicular phase typically boosts serotonin and mood' : phase === 'menstrual' ? 'low hormones during menstruation can affect energy and mood' : 'hormonal peaks around ovulation boost confidence but may increase sensitivity'}. If mood symptoms prevent daily functioning for 3+ cycles, screen for PMDD with your doctor.
             </p>
           </div>
         </div>

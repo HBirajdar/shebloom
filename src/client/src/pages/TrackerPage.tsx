@@ -1215,7 +1215,7 @@ export default function TrackerPage() {
                   {formatMonthDay(new Date(prediction.fertileStart))} – {formatMonthDay(new Date(prediction.fertileEnd))}
                 </div>
                 <p className="text-xs text-emerald-500 mt-1">
-                  Your 5 most fertile days based on predicted ovulation
+                  Your 6-day fertile window based on predicted ovulation
                 </p>
               </div>
             )}
@@ -1533,7 +1533,7 @@ export default function TrackerPage() {
                     <span className="text-xs font-bold text-gray-600">Conception Probability</span>
                     <span className="text-sm font-black text-rose-600">{Math.round(prediction.conceptionProbability * 100)}%</span>
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-1">Per Wilcox et al. (1995 BMJ) day-specific rates</p>
+                  <p className="text-[10px] text-gray-400 mt-1">Per Wilcox et al. (1995 NEJM) day-specific rates</p>
                 </div>
               )}
             </div>
@@ -1596,7 +1596,7 @@ export default function TrackerPage() {
                 <div className="text-center py-6">
                   <p className="text-3xl mb-2">🌡️</p>
                   <p className="text-xs text-gray-400">No BBT data yet. Log your first reading!</p>
-                  <p className="text-[10px] text-gray-300 mt-1">BBT confirms ovulation with 97% accuracy (Baird 2005)</p>
+                  <p className="text-[10px] text-gray-300 mt-1">BBT can retrospectively confirm ovulation occurred (sustained thermal shift)</p>
                 </div>
               )}
             </div>
