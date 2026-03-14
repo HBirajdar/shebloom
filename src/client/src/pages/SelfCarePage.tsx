@@ -11,7 +11,7 @@ const phaseWellness: Record<string, { title: string; emoji: string; color: strin
     selfCare: ['Warm bath with essential oils', 'Gentle stretching or yin yoga', 'Hot tea and a good book', 'Say no to one extra commitment', 'Eat your favorite comfort food guilt-free'] },
   follicular: { title: 'Create & Explore', emoji: '\u{1F331}', color: '#059669',
     affirmation: 'I am full of creative energy. Today I start something new.',
-    breath: 'Energizing Breath: Quick inhale-exhale through nose, 30 rounds',
+    breath: 'Energizing Breath (Kapalabhati): Quick inhale-exhale through nose, 30 rounds. Avoid during menstruation or pregnancy.',
     journalPrompt: 'What new project or goal excites me? What would I do if I couldn\'t fail?',
     selfCare: ['Try a new workout or class', 'Plan something social', 'Start a creative project', 'Meal prep healthy foods', 'Explore somewhere new'] },
   ovulation: { title: 'Shine & Connect', emoji: '\u2728', color: '#7C3AED',
@@ -299,7 +299,7 @@ export default function SelfCarePage() {
             </div>
           </div>
 
-          <p className="text-[10px] text-gray-400 text-center mt-2">All helplines are free, confidential, and available 24/7.</p>
+          <p className="text-[10px] text-gray-400 text-center mt-2">All helplines are free and confidential. Hours may vary — iCall operates Mon–Sat, 8am–10pm.</p>
         </>)}
       </div>
     </div>

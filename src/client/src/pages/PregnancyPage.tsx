@@ -16,7 +16,7 @@ const weekData: Record<number, { size: string; emoji: string; len: string; wt: s
     mom: ['Morning sickness at its peak', 'Frequent urination begins', 'Breast size increasing', 'Extreme fatigue is normal'],
     tips: ['Eat small meals every 2–3 hours', 'Ginger tea helps with nausea', 'Get 8–9 hours of sleep', 'First ultrasound may happen now'],
     nutrition: ['Vitamin B6 helps nausea (bananas, nuts)', 'Protein at every meal', 'Avoid unpasteurized dairy', 'Calcium-rich foods (yogurt, cheese)'],
-    exercise: ['Prenatal swimming', 'Light pilates', 'Kegel exercises — start now!', 'Avoid lying flat on your back'] },
+    exercise: ['Prenatal swimming', 'Light pilates', 'Kegel exercises — start now!', 'Rest on your side when possible'] },
   12: { size: 'Lime', emoji: '\u{1F34B}', len: '5.4 cm', wt: '14g', tri: 1,
     baby: ['Reflexes developing — can kick!', 'Fingernails and toenails growing', 'Vocal cords beginning to form', 'Kidneys start producing urine'],
     mom: ['Nausea often starts improving', 'Energy returning gradually', 'Slight baby bump may show', 'Skin may glow or break out'],
@@ -45,13 +45,13 @@ const weekData: Record<number, { size: string; emoji: string; len: string; wt: s
     baby: ['Eyes can open and close', 'Brain developing rapidly', 'Can dream (REM sleep!)', 'Responds to light through belly'],
     mom: ['Third trimester begins!', 'Shortness of breath', 'Trouble sleeping at night', 'Frequent Braxton Hicks'],
     tips: ['Start counting kicks daily (10 in 2hrs)', 'Prepare your hospital bag', 'Discuss birth plan with doctor', 'Take a hospital tour'],
-    nutrition: ['Increase calorie intake by 450/day', 'Vitamin K (broccoli, kale)', 'Evening primrose oil (after 36w)', 'Probiotic foods for gut health'],
+    nutrition: ['Increase calorie intake by 450/day', 'Vitamin K (broccoli, kale)', 'Evening primrose oil (after 36w, discuss with doctor)', 'Probiotic foods for gut health'],
     exercise: ['Gentle walking only', 'Birthing ball exercises', 'Deep breathing practice', 'Perineal massage preparation'] },
   32: { size: 'Coconut', emoji: '\u{1F965}', len: '42 cm', wt: '1.7 kg', tri: 3,
     baby: ['Practicing breathing movements', 'Bones hardening (skull stays soft)', 'All five senses are functional', 'Gaining ~250g per week'],
     mom: ['Frequent bathroom trips', 'Heartburn and indigestion', 'Nesting instinct kicks in', 'Difficulty finding comfortable sleep position'],
     tips: ['Finalize birth plan', 'Install car seat', 'Wash baby clothes & bedding', 'Practice labor breathing exercises'],
-    nutrition: ['Dates (6/day from 36w helps labor)', 'Red raspberry leaf tea', 'High-protein snacks', 'Limit salty foods for swelling'],
+    nutrition: ['Dates (6/day from 36w helps labor)', 'Red raspberry leaf tea (discuss with doctor first)', 'High-protein snacks', 'Limit salty foods for swelling'],
     exercise: ['Squats for labor preparation', 'Cat-cow stretches', 'Ankle circles for swelling', 'Visualization & meditation'] },
   36: { size: 'Honeydew', emoji: '\u{1F348}', len: '47 cm', wt: '2.6 kg', tri: 3,
     baby: ['Head may engage in pelvis', 'Lungs nearly mature', 'Fat layer developing', 'Gaining 30g every day'],
@@ -64,7 +64,7 @@ const weekData: Record<number, { size: string; emoji: string; len: string; wt: s
     mom: ['Cervix dilating', 'Mucus plug may pass', 'Extreme nesting urge', 'Contractions may begin anytime'],
     tips: ['Baby can arrive any day!', 'Time contractions (5-1-1 rule)', 'Stay calm — you are ready', 'Call doctor when water breaks'],
     nutrition: ['Light, easily digestible meals', 'Energy bars for early labor', 'Coconut water for electrolytes', 'Honey for quick energy'],
-    exercise: ['Walking to induce labor naturally', 'Nipple stimulation (with doctor OK)', 'Stair climbing', 'Gentle bouncing on birth ball'] },
+    exercise: ['Walking to stay active and comfortable', 'Nipple stimulation (with doctor OK)', 'Stair climbing', 'Gentle bouncing on birth ball'] },
 };
 
 const weeks = Object.keys(weekData).map(Number);
@@ -191,7 +191,7 @@ export default function PregnancyPage() {
                           setHasPregnancy(true);
                         }
                         setApiLoaded(true);
-                      });
+                      }).catch(() => { toast.error('Could not load pregnancy data. Please refresh.'); setApiLoaded(true); });
                     }).catch(() => toast.error('Invalid date format'));
                   }}
                   className="flex-1 py-3 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform"
@@ -417,7 +417,7 @@ export default function PregnancyPage() {
                 <p>{'\u2022'} Severe abdominal pain / cramping</p>
                 <p>{'\u2022'} High fever (above 100.4\u00B0F / 38\u00B0C)</p>
                 <p>{'\u2022'} Severe headache or vision changes</p>
-                {week >= 28 && <p>{'\u2022'} Baby not moving for 2+ hours</p>}
+                {week >= 28 && <p>{'\u2022'} Fewer than 10 kicks in 2 hours during kick counts</p>}
                 {week >= 37 && <p>{'\u2022'} Regular contractions before 37 weeks</p>}
               </div>
             </div>

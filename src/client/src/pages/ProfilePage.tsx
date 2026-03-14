@@ -93,6 +93,13 @@ export default function ProfilePage() {
   const [showMobileTip, setShowMobileTip] = useState(false);
   const [showEmailTip, setShowEmailTip] = useState(false);
 
+  // Cycle settings editing
+  const [editingCycleSettings, setEditingCycleSettings] = useState(false);
+  const [editCycleLength, setEditCycleLength] = useState(cycleLength);
+  const [editPeriodLength, setEditPeriodLength] = useState(periodLength);
+  const [savingCycleSettings, setSavingCycleSettings] = useState(false);
+  const setCycleData = useCycleStore(s => s.setCycleData);
+
   const [avatarUploading, setAvatarUploading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   if (typeof window !== 'undefined' && !avatarInputRef.current) {
@@ -104,7 +111,7 @@ export default function ProfilePage() {
 
   const [doshaData, setDoshaData] = useState<any>(null);
   useEffect(() => {
-    doshaAPI.getProfile().then(r => setDoshaData(r.data.data)).catch(() => toast.error('Failed to load data'));
+    doshaAPI.getProfile().then(r => setDoshaData(r.data.data)).catch(() => {}); // Non-critical — dosha card just hidden
   }, []);
   const dosha = doshaData?.dosha || localStorage.getItem('sb_dosha') || '';
   const doshaInfo = DOSHA_INFO[dosha];
@@ -143,7 +150,7 @@ export default function ProfilePage() {
           authProvider: p.authProvider || user.authProvider,
         });
       }
-    }).catch(() => toast.error('Failed to load data'));
+    }).catch(() => toast.error('Could not load profile. Check your connection.'));
   }, []);
 
   const openEdit = () => {
@@ -532,20 +539,88 @@ export default function ProfilePage() {
 
         {activeTab === 'settings' && (<>
           <div className="bg-white rounded-3xl p-4 shadow-lg mt-2">
-            <h3 className="text-xs font-extrabold text-gray-800 mb-3">📅 Cycle Settings</h3>
-            {[
-              { l: 'Cycle Length', v: `${cycleLength} days` },
-              { l: 'Period Length', v: `${periodLength} days` },
-              { l: 'Status', v: hasRealData ? 'Active ✅' : 'No data yet' },
-            ].map(s => (
-              <div key={s.l} className="flex justify-between items-center py-2.5 border-b border-gray-50 last:border-0">
-                <span className="text-xs text-gray-600">{s.l}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-extrabold text-gray-900">{s.v}</span>
-                  <button onClick={() => nav('/tracker')} className="text-[9px] text-rose-500 font-bold active:scale-95">Edit</button>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-extrabold text-gray-800">📅 Cycle Settings</h3>
+              {!editingCycleSettings && (
+                <button onClick={() => { setEditCycleLength(cycleLength); setEditPeriodLength(periodLength); setEditingCycleSettings(true); }}
+                  className="text-[10px] text-rose-500 font-bold active:scale-95">Edit</button>
+              )}
+            </div>
+            {editingCycleSettings ? (
+              <div className="space-y-4">
+                {/* Cycle Length */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs text-gray-600">Cycle Length</span>
+                    <span className="text-xs font-extrabold text-gray-900">{editCycleLength} days</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setEditCycleLength(v => Math.max(21, v - 1))}
+                      className="w-9 h-9 rounded-full bg-gray-100 text-gray-600 font-bold text-lg active:scale-90 flex items-center justify-center">−</button>
+                    <input type="range" min={21} max={45} value={editCycleLength}
+                      onChange={e => setEditCycleLength(Number(e.target.value))}
+                      className="flex-1 accent-rose-500 h-2" />
+                    <button onClick={() => setEditCycleLength(v => Math.min(45, v + 1))}
+                      className="w-9 h-9 rounded-full bg-gray-100 text-gray-600 font-bold text-lg active:scale-90 flex items-center justify-center">+</button>
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-[9px] text-gray-400">21 days</span>
+                    <span className="text-[9px] text-gray-400">45 days</span>
+                  </div>
+                </div>
+                {/* Period Length */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs text-gray-600">Period Length</span>
+                    <span className="text-xs font-extrabold text-gray-900">{editPeriodLength} days</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setEditPeriodLength(v => Math.max(2, v - 1))}
+                      className="w-9 h-9 rounded-full bg-gray-100 text-gray-600 font-bold text-lg active:scale-90 flex items-center justify-center">−</button>
+                    <input type="range" min={2} max={10} value={editPeriodLength}
+                      onChange={e => setEditPeriodLength(Number(e.target.value))}
+                      className="flex-1 accent-rose-500 h-2" />
+                    <button onClick={() => setEditPeriodLength(v => Math.min(10, v + 1))}
+                      className="w-9 h-9 rounded-full bg-gray-100 text-gray-600 font-bold text-lg active:scale-90 flex items-center justify-center">+</button>
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-[9px] text-gray-400">2 days</span>
+                    <span className="text-[9px] text-gray-400">10 days</span>
+                  </div>
+                </div>
+                {/* Save / Cancel */}
+                <div className="flex gap-2 pt-1">
+                  <button onClick={() => setEditingCycleSettings(false)}
+                    className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-xs font-bold active:scale-95">Cancel</button>
+                  <button disabled={savingCycleSettings} onClick={async () => {
+                    setSavingCycleSettings(true);
+                    try {
+                      await userAPI.updateProfile({ cycleLength: editCycleLength, periodLength: editPeriodLength });
+                      setCycleData({ cycleLength: editCycleLength, periodLength: editPeriodLength });
+                      toast.success('Cycle settings updated!');
+                      setEditingCycleSettings(false);
+                    } catch { toast.error('Failed to save'); }
+                    setSavingCycleSettings(false);
+                  }}
+                    className="flex-1 py-2.5 rounded-xl bg-rose-500 text-white text-xs font-bold active:scale-95 disabled:opacity-50">
+                    {savingCycleSettings ? 'Saving...' : 'Save'}
+                  </button>
                 </div>
               </div>
-            ))}
+            ) : (
+              <>
+                {[
+                  { l: 'Cycle Length', v: `${cycleLength} days` },
+                  { l: 'Period Length', v: `${periodLength} days` },
+                  { l: 'Status', v: hasRealData ? 'Active ✅' : 'No data yet' },
+                ].map(s => (
+                  <div key={s.l} className="flex justify-between items-center py-2.5 border-b border-gray-50 last:border-0">
+                    <span className="text-xs text-gray-600">{s.l}</span>
+                    <span className="text-xs font-extrabold text-gray-900">{s.v}</span>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
 
           <div className="bg-white rounded-3xl p-4 shadow-lg mt-4">

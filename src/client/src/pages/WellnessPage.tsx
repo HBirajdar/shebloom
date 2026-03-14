@@ -20,7 +20,7 @@ const PHASE_DATA: Record<string, {
   menstrual: {
     color: '#E11D48', bg: '#FFF1F2', emoji: '🩸', name: 'Period',
     routine: {
-      morning: ['🌅 Gentle stretch (5 min)', '🫖 Warm ginger tea', '🧘 Child\'s Pose yoga', '💊 Take iron supplement', '🥬 Iron-rich breakfast (spinach, dates)'],
+      morning: ['🌅 Gentle stretch (5 min)', '🫖 Warm ginger tea', '🧘 Child\'s Pose yoga', '💊 Iron supplement (if doctor-recommended)', '🥬 Iron-rich breakfast (spinach, dates)'],
       afternoon: ['🌡️ Warm compress for cramps', '😴 10-min rest if needed', '🥣 Light, warm meal', '💧 Extra hydration (2.5L)'],
       evening: ['🛁 Warm bath with Epsom salt', '📖 Light journaling', '🫖 Chamomile tea', '🌙 Early bedtime — rest is healing'],
     },
@@ -37,7 +37,7 @@ const PHASE_DATA: Record<string, {
     routine: {
       morning: ['☀️ Sun salutations (10 min)', '🥑 Nutrient-dense breakfast', '🧠 Set weekly intentions', '💪 Start a new healthy habit', '🚀 Best time for bold decisions'],
       afternoon: ['🏃 Ideal for intense workout', '🥗 Antioxidant-rich lunch', '📚 Learn something new', '🤝 Connect with people'],
-      evening: ['🧘 Energizing vinyasa flow', '📓 Journal progress', '😴 8h sleep to maximize estrogen'],
+      evening: ['🧘 Energizing vinyasa flow', '📓 Journal progress', '😴 8h sleep for optimal recovery'],
     },
     yoga: [
       { name: 'Sun Salutation', emoji: '☀️', dur: '10 min', benefit: 'Energizes body' },
@@ -50,7 +50,7 @@ const PHASE_DATA: Record<string, {
   ovulation: {
     color: '#7C3AED', bg: '#F5F3FF', emoji: '✨', name: 'Ovulation',
     routine: {
-      morning: ['💜 High-intensity workout', '🥜 Protein-rich breakfast', '🤸 Challenge your body', '💧 3L water today', '🌟 You\'re at peak confidence'],
+      morning: ['💜 High-intensity workout', '🥜 Protein-rich breakfast', '🤸 Challenge your body', '💧 Stay well hydrated today', '🌟 You\'re at peak confidence'],
       afternoon: ['🥗 Zinc & fiber-rich lunch', '👥 Social energy is high', '🎯 Tackle hardest tasks now', '💼 Best day for negotiations'],
       evening: ['🧘 Hip-opening yoga flow', '🛀 Luxurious self-care', '💜 Connect deeply with loved ones'],
     },
@@ -72,7 +72,7 @@ const PHASE_DATA: Record<string, {
     yoga: [
       { name: 'Yin Yoga', emoji: '🌙', dur: '20 min', benefit: 'Deep tissue release' },
       { name: 'Forward Fold', emoji: '🙇', dur: '5 min', benefit: 'Calms nervous system' },
-      { name: 'Spinal Twist', emoji: '🌀', dur: '3 min', benefit: 'Detox & release' },
+      { name: 'Spinal Twist', emoji: '🌀', dur: '3 min', benefit: 'Aids digestion & spinal mobility' },
       { name: 'Corpse Pose', emoji: '😴', dur: '10 min', benefit: 'Deep restoration' },
     ],
     tip: 'Progesterone peaks then drops — mood changes are real. Practice radical self-compassion.',
@@ -87,7 +87,7 @@ const CHALLENGES = [
 ];
 
 const BREATHING_MODES = [
-  { id: '478', label: '4-7-8 Breathing', desc: 'Calms anxiety instantly', timing: [4, 7, 8, 0], phases: ['Inhale', 'Hold', 'Exhale', ''] },
+  { id: '478', label: '4-7-8 Breathing', desc: 'Calms anxiety effectively', timing: [4, 7, 8, 0], phases: ['Inhale', 'Hold', 'Exhale', ''] },
   { id: 'box', label: 'Box Breathing', desc: 'Reduces stress & focus', timing: [4, 4, 4, 4], phases: ['Inhale', 'Hold', 'Exhale', 'Hold'] },
   { id: 'belly', label: 'Belly Breathing', desc: 'Grounds & centers you', timing: [4, 0, 6, 0], phases: ['Inhale', '', 'Exhale', ''] },
 ];
@@ -203,7 +203,7 @@ export default function WellnessPage() {
       const d = r.data?.data;
       if (d?.components?.water?.glasses !== undefined) setWater(d.components.water.glasses);
       if (d?.components?.sleep?.logged && d.components.sleep.hours) setSleepHours(d.components.sleep.hours);
-    }).catch(() => toast.error('Failed to load wellness data'));
+    }).catch(() => {}); // Non-critical — defaults to zero
   }, []);
 
   // ─── Wellness score ───────────────────────────────────

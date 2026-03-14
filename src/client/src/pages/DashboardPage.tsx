@@ -246,23 +246,23 @@ export default function DashboardPage() {
       const p = res.data.data || res.data;
       const currentUser = useAuthStore.getState().user;
       if (p && currentUser) useAuthStore.getState().setUser({ ...currentUser, fullName: p.fullName || currentUser.fullName, email: p.email || currentUser.email, role: p.role || currentUser.role, avatarUrl: p.avatarUrl || currentUser.avatarUrl, phone: p.phone || currentUser.phone });
-    }).catch(() => toast.error('Failed to load data'));
+    }).catch(() => {});
     cycleAPI.predict().then(r => {
       const d = r.data.data;
       if (d && typeof d.cycleDay === 'number') {
         set({ cycleDay: d.cycleDay, phase: d.phase, daysUntilPeriod: d.daysUntilPeriod, cycleLength: d.cycleLength || 28, periodLength: d.periodLength || 5, hasRealData: true });
         setPredictionData(d); // Store full prediction for advanced features
       } else { set({ hasRealData: false }); }
-    }).catch(() => toast.error('Failed to load data')).finally(() => setDashLoading(false));
+    }).catch(() => toast.error('Could not load cycle data. Check your connection.')).finally(() => setDashLoading(false));
     // Load Ayurvedic insights for personalized dashboard
     cycleAPI.getAyurvedicInsights().then(r => {
       setAyurvedaData(r?.data?.data || null);
-    }).catch(() => toast.error('Failed to load data'));
+    }).catch(() => {}); // Non-critical — dashboard works without Ayurveda
     // Auto-detect location for weather-based Ayurvedic adjustments
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          weatherAPI.saveLocation(pos.coords.latitude, pos.coords.longitude).catch(() => toast.error('Failed to load data'));
+          weatherAPI.saveLocation(pos.coords.latitude, pos.coords.longitude).catch(() => {}); // Non-critical
         },
         () => {}, // User denied — silently skip, will use seasonal fallback
         { timeout: 5000, maximumAge: 30 * 60 * 1000 }
@@ -275,15 +275,15 @@ export default function DashboardPage() {
       if (d?.components?.mood?.logged && d.components.mood.value) setMood(d.components.mood.value);
       if (d?.components?.sleep?.logged) setSleepHours(d.components.sleep.hours || 7);
       if (d?.components?.exercise?.logged) setExerciseDone(true);
-    }).catch(() => toast.error('Failed to load data'));
+    }).catch(() => {}); // Non-critical — wellness defaults to zero
     // Load personalized insights (patterns, tips, predictions, mood trends)
     insightsAPI.get().then(r => {
       setInsightsData(r?.data?.data || null);
-    }).catch(() => {});
+    }).catch(() => {}); // Non-critical — falls back to static tips
     // Load real notification count
     notificationAPI.list().then(r => {
       setNotifCount(r.data.unreadCount || 0);
-    }).catch(() => toast.error('Failed to load data'));
+    }).catch(() => {}); // Non-critical — badge just won't show
     // Load top doctors for carousel
     doctorAPI.search({ isPublished: true, limit: 10 }).then(r => {
       const raw = r?.data?.data || r?.data?.doctors || r?.data || [];
@@ -303,7 +303,7 @@ export default function DashboardPage() {
         isChief: d.isChief || false,
       }));
       setCarouselDoctors(mapped);
-    }).catch(() => toast.error('Failed to load data')).finally(() => setDoctorsLoading(false));
+    }).catch(() => {}).finally(() => setDoctorsLoading(false)); // Non-critical — carousel just hidden
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

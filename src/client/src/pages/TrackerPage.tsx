@@ -2009,17 +2009,14 @@ export default function TrackerPage() {
 
       {/* Log Period Full-Screen Sheet */}
       {showLogSheet && (
-        <div
-          className="fixed inset-0 z-50 flex flex-col"
-          style={{ maxWidth: 430, left: '50%', transform: 'translateX(-50%)' }}
-        >
+        <div className="fixed inset-0 z-50 flex flex-col">
           {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-md"
             onClick={() => setShowLogSheet(false)}
           />
-          {/* Full-height Sheet */}
-          <div className="relative flex flex-col bg-white rounded-t-3xl shadow-2xl z-10 mt-6" style={{ height: 'calc(100% - 24px)' }}>
+          {/* Full-screen Sheet */}
+          <div className="relative flex flex-col bg-white shadow-2xl z-10 w-full h-full">
             {/* Handle */}
             <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
               <div className="w-10 h-1.5 bg-gray-300 rounded-full" />
