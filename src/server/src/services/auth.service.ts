@@ -6,6 +6,7 @@ import prisma from '../config/database';
 import { cacheSet, cacheGet, cacheDel, cacheIncr } from '../config/redis';
 import { logger } from '../config/logger';
 import { AppError } from '../middleware/errorHandler';
+import { sendPasswordResetEmail } from './email.service';
 
 interface RegisterInput { fullName: string; email?: string; password?: string; phone?: string; }
 
@@ -174,9 +175,14 @@ export class AuthService {
 
   async forgotPassword(email: string) {
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) return;
+    if (!user) return; // Silent return to not reveal if email exists
     const token = jwt.sign({ userId: user.id, type: 'reset' }, process.env.JWT_SECRET!, { algorithm: 'HS256', expiresIn: '1h' } as jwt.SignOptions);
     await cacheSet(`reset:${user.id}`, token, 3600);
+    const frontendUrl = process.env.FRONTEND_URL || 'https://vedaclue.com';
+    const resetLink = `${frontendUrl}/reset-password?token=${token}`;
+    await sendPasswordResetEmail(email, user.fullName || 'User', resetLink).catch((err) => {
+      logger.error(`Failed to send reset email to ${email}: ${err.message}`);
+    });
     logger.info(`Password reset for: ${email}`);
   }
 

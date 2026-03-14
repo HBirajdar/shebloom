@@ -272,7 +272,7 @@ export async function sendPasswordResetEmail(email: string, name: string, resetL
   const body =
     h1('Reset Your Password 🔑') +
     p(`Hi <strong>${name}</strong>, we received a request to reset your VedaClue account password.`) +
-    p('Click the button below to set a new password. This link expires in <strong>30 minutes</strong>.') +
+    p('Click the button below to set a new password. This link expires in <strong>1 hour</strong>.') +
     btn('Reset Password', resetLink) +
     divider() +
     warnBox(p('If you didn\'t request a password reset, please ignore this email. Your password will remain unchanged. If you\'re concerned about your account security, contact us immediately.', 'margin:0;font-size:13px;')) +
@@ -284,7 +284,7 @@ export async function sendPasswordResetEmail(email: string, name: string, resetL
     from: FROM,
     subject: 'Reset your VedaClue password',
     html: buildHtml('Password Reset', body),
-    text: `Hi ${name},\n\nReset your VedaClue password using this link (expires in 30 minutes):\n${resetLink}\n\nIf you didn't request this, ignore this email.`,
+    text: `Hi ${name},\n\nReset your VedaClue password using this link (expires in 1 hour):\n${resetLink}\n\nIf you didn't request this, ignore this email.`,
   });
 }
 

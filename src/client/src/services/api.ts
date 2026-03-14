@@ -98,6 +98,7 @@ export const authAPI = {
   verifyOtp: (phone: string, otp: string) => api.post('/auth/otp/verify', { phone, otp }),
   google: (idToken: string) => api.post('/auth/google', { idToken }),
   forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
+  resetPassword: (token: string, password: string) => api.post('/auth/reset-password', { token, password }),
   logout: () => api.post('/auth/logout'),
 };
 
