@@ -1,4 +1,5 @@
 import prisma from '../config/database';
+import { cacheDel } from '../config/redis';
 
 export class UserService {
   async getProfile(userId: string) {
@@ -30,7 +31,11 @@ export class UserService {
     const allowed: Record<string, any> = {};
     for (const k of safeFields) { if (data[k] !== undefined) allowed[k] = data[k]; }
     if (allowed.lastPeriodDate && typeof allowed.lastPeriodDate === 'string') allowed.lastPeriodDate = new Date(allowed.lastPeriodDate);
-    return prisma.userProfile.upsert({ where: { userId }, update: allowed, create: { userId, ...allowed } });
+    const result = await prisma.userProfile.upsert({ where: { userId }, update: allowed, create: { userId, ...allowed } });
+    await cacheDel(`predictions:${userId}`);
+    await cacheDel(`fertility:${userId}`);
+    await cacheDel(`ayurveda:${userId}`);
+    return result;
   }
   async exportData(userId: string) {
     return prisma.user.findUnique({ where: { id: userId }, include: { profile: true, cycles: true, moodLogs: true } });

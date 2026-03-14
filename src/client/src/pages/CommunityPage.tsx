@@ -394,7 +394,7 @@ export default function CommunityPage() {
               <span>🤝</span>
               <h3 className="text-xs font-extrabold text-rose-800">Safe Space. Anonymous. Expert-Verified.</h3>
             </div>
-            <p className="text-[10px] text-rose-700 leading-relaxed">{chief.name} personally reviews and answers questions daily. Be kind, be honest, be supportive.</p>
+            <p className="text-[10px] text-rose-700 leading-relaxed">{chief?.name || 'Doctor'} personally reviews and answers questions daily. Be kind, be honest, be supportive.</p>
           </div>
         )}
 
@@ -647,7 +647,7 @@ export default function CommunityPage() {
           <div className="bg-white w-full max-w-[430px] rounded-t-3xl p-6" onClick={e => e.stopPropagation()}>
             <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4" />
             <h3 className="text-lg font-extrabold text-gray-900 mb-1">Share or Ask 💬</h3>
-            <p className="text-xs text-gray-400 mb-4">{chief.name} reviews all posts daily</p>
+            <p className="text-xs text-gray-400 mb-4">{chief?.name || 'Doctor'} reviews all posts daily</p>
             <div className="flex flex-wrap gap-1.5 mb-3">
               {CATEGORIES.filter(c => c.id !== 'all').map(c => (
                 <button key={c.id} onClick={() => setNewCat(c.id)}

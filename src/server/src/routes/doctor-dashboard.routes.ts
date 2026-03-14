@@ -10,6 +10,12 @@ import { requireDoctor } from '../middleware/roles.middleware';
 import { successResponse, errorResponse } from '../utils/response.utils';
 import { sendPushNotification } from '../services/push.service';
 import doshaService from '../services/dosha.service';
+import Razorpay from 'razorpay';
+
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID || '',
+  key_secret: process.env.RAZORPAY_KEY_SECRET || '',
+});
 
 const r = Router();
 r.use(authenticate, requireDoctor);
@@ -179,6 +185,20 @@ r.patch('/appointments/:id/reject', async (q: AuthRequest, s: Response, n: NextF
       data: { status: 'REJECTED', rejectionReason: reason || 'No reason given' },
       include: { user: { select: { email: true, fullName: true } } },
     });
+
+    // Auto-refund if the appointment was paid
+    if ((appt as any).paymentId && (appt as any).amountPaid > 0) {
+      try {
+        await razorpay.payments.refund((appt as any).paymentId, {
+          amount: Math.round((appt as any).amountPaid * 100),
+          notes: { reason: 'Doctor rejected appointment', appointmentId: appt.id },
+        });
+        await prisma.appointment.update({ where: { id: appt.id }, data: { refundStatus: 'INITIATED' } as any });
+        console.log(`[REFUND] Initiated refund for appointment ${appt.id}, paymentId: ${(appt as any).paymentId}`);
+      } catch (refundErr: any) {
+        console.error(`[CRITICAL] Refund failed for appointment ${appt.id}:`, refundErr.message);
+      }
+    }
 
     // Push notification to patient (best-effort)
     sendPushNotification(appt.userId, 'Appointment Declined', `Your appointment with Dr. ${doctor.fullName} could not be confirmed. ${reason ? 'Reason: ' + reason : 'Please book another slot.'}`, 'appointment', { url: '/appointments' }).catch(() => {});

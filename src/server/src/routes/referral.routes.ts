@@ -241,6 +241,13 @@ r.post('/apply', authenticate, async (req: AuthRequest, res: Response) => {
         return { error: 'Cannot use your own referral code' };
       }
 
+      // Ensure user signed up within the last 7 days
+      const user = await tx.user.findUnique({ where: { id: userId }, select: { createdAt: true } });
+      const daysSinceSignup = (Date.now() - user!.createdAt.getTime()) / 86400000;
+      if (daysSinceSignup > 7) {
+        return { success: false, error: 'Referral code can only be applied within 7 days of signup' };
+      }
+
       // Update the referral atomically
       const updated = await tx.referral.update({
         where: { id: referral.id },

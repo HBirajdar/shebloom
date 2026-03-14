@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { moodAPI } from '../services/api';
 
 const MOOD_COLORS = { GREAT: '#10B981', GOOD: '#34D399', OKAY: '#FBBF24', LOW: '#F97316', BAD: '#EF4444' };
@@ -29,7 +30,7 @@ export default function MoodHistoryPage() {
         const data = r.data?.data || r.data || [];
         setEntries(Array.isArray(data) ? data : []);
       })
-      .catch(() => {})
+      .catch(() => toast.error('Failed to load mood history'))
       .finally(() => setLoading(false));
   }, [period]);
 

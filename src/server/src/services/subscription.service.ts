@@ -130,20 +130,6 @@ class SubscriptionService {
     const plan = await prisma.subscriptionPlan.findUnique({ where: { id: planId } });
     if (!plan || !plan.isActive) throw new Error('Plan not found or inactive');
 
-    // Cancel any existing active subscription
-    const existing = await this.getActiveSubscription(userId);
-    if (existing) {
-      await prisma.userSubscription.update({
-        where: { id: existing.id },
-        data: { status: 'EXPIRED', cancelledAt: new Date(), cancelReason: 'Replaced by new subscription' },
-      });
-      await this.logEvent(existing.id, userId, 'EXPIRED', {
-        previousStatus: existing.status,
-        newStatus: 'EXPIRED',
-        metadata: { reason: 'Replaced by new subscription' },
-      });
-    }
-
     const now = new Date();
     // Prevent trial abuse: only grant trial if user has never had one before
     let hasTrial = plan.trialDays > 0 && opts.pricePaid > 0;
@@ -177,43 +163,73 @@ class SubscriptionService {
     // If free (price 0), activate immediately
     if (opts.pricePaid === 0) status = 'ACTIVE';
 
-    const sub = await prisma.userSubscription.create({
-      data: {
-        userId,
-        planId,
-        status,
-        trialStartDate,
-        trialEndDate,
-        currentPeriodStart: periodStart,
-        currentPeriodEnd: periodEnd,
-        razorpaySubscriptionId: opts.razorpaySubscriptionId || null,
-        razorpayCustomerId: opts.razorpayCustomerId || null,
-        pricePaid: opts.pricePaid,
-        originalPrice: opts.originalPrice,
-        couponCode: opts.couponCode || null,
-        couponDiscount: opts.couponDiscount || 0,
-        promotionId: opts.promotionId || null,
-        promotionDiscount: opts.promotionDiscount || 0,
-        goal: opts.goal || null,
-        isAutoRenew: plan.interval !== 'LIFETIME',
-      },
-      include: { plan: true },
-    });
+    // Wrap all DB writes in a transaction to prevent data loss on partial failure
+    const sub = await prisma.$transaction(async (tx) => {
+      // Cancel any existing active subscription
+      const existing = await tx.userSubscription.findFirst({
+        where: { userId, status: { in: ['TRIAL', 'ACTIVE', 'PAST_DUE'] }, currentPeriodEnd: { gte: now } },
+        include: { plan: true },
+      });
+      if (existing) {
+        await tx.userSubscription.update({
+          where: { id: existing.id },
+          data: { status: 'EXPIRED', cancelledAt: now, cancelReason: 'Replaced by new subscription' },
+        });
+        await tx.subscriptionEvent.create({
+          data: { subscriptionId: existing.id, userId, eventType: 'EXPIRED', previousStatus: existing.status, newStatus: 'EXPIRED', metadata: { reason: 'Replaced by new subscription' } },
+        });
+      }
 
-    // Log events
-    await this.logEvent(sub.id, userId, 'CREATED', { newStatus: status, amount: opts.pricePaid, ipAddress: opts.ipAddress, userAgent: opts.userAgent });
-    if (hasTrial) {
-      await this.logEvent(sub.id, userId, 'TRIAL_STARTED', { newStatus: 'TRIAL' });
-    } else {
-      await this.logEvent(sub.id, userId, 'ACTIVATED', { newStatus: 'ACTIVE', amount: opts.pricePaid });
-    }
-    if (opts.promotionId) {
-      await this.logEvent(sub.id, userId, 'PROMO_APPLIED', { metadata: { promotionId: opts.promotionId, discount: opts.promotionDiscount } });
-      await prisma.subscriptionPromotion.update({ where: { id: opts.promotionId }, data: { currentRedemptions: { increment: 1 } } });
-    }
-    if (opts.couponCode) {
-      await this.logEvent(sub.id, userId, 'COUPON_APPLIED', { metadata: { couponCode: opts.couponCode, discount: opts.couponDiscount } });
-    }
+      const newSub = await tx.userSubscription.create({
+        data: {
+          userId,
+          planId,
+          status,
+          trialStartDate,
+          trialEndDate,
+          currentPeriodStart: periodStart,
+          currentPeriodEnd: periodEnd,
+          razorpaySubscriptionId: opts.razorpaySubscriptionId || null,
+          razorpayCustomerId: opts.razorpayCustomerId || null,
+          pricePaid: opts.pricePaid,
+          originalPrice: opts.originalPrice,
+          couponCode: opts.couponCode || null,
+          couponDiscount: opts.couponDiscount || 0,
+          promotionId: opts.promotionId || null,
+          promotionDiscount: opts.promotionDiscount || 0,
+          goal: opts.goal || null,
+          isAutoRenew: plan.interval !== 'LIFETIME',
+        },
+        include: { plan: true },
+      });
+
+      // Log events
+      await tx.subscriptionEvent.create({
+        data: { subscriptionId: newSub.id, userId, eventType: 'CREATED', newStatus: status, amount: opts.pricePaid, ipAddress: opts.ipAddress, userAgent: opts.userAgent },
+      });
+      if (hasTrial) {
+        await tx.subscriptionEvent.create({
+          data: { subscriptionId: newSub.id, userId, eventType: 'TRIAL_STARTED', newStatus: 'TRIAL' },
+        });
+      } else {
+        await tx.subscriptionEvent.create({
+          data: { subscriptionId: newSub.id, userId, eventType: 'ACTIVATED', newStatus: 'ACTIVE', amount: opts.pricePaid },
+        });
+      }
+      if (opts.promotionId) {
+        await tx.subscriptionEvent.create({
+          data: { subscriptionId: newSub.id, userId, eventType: 'PROMO_APPLIED', metadata: { promotionId: opts.promotionId, discount: opts.promotionDiscount } },
+        });
+        await tx.subscriptionPromotion.update({ where: { id: opts.promotionId }, data: { currentRedemptions: { increment: 1 } } });
+      }
+      if (opts.couponCode) {
+        await tx.subscriptionEvent.create({
+          data: { subscriptionId: newSub.id, userId, eventType: 'COUPON_APPLIED', metadata: { couponCode: opts.couponCode, discount: opts.couponDiscount } },
+        });
+      }
+
+      return newSub;
+    });
 
     await this.invalidateCache(userId);
     return sub;
@@ -381,8 +397,12 @@ class SubscriptionService {
       where: { status: 'PAST_DUE', graceEndDate: { lt: now } },
     });
     for (const sub of pastDue) {
-      await prisma.userSubscription.update({ where: { id: sub.id }, data: { status: 'EXPIRED' } });
-      await this.logEvent(sub.id, sub.userId, 'EXPIRED', { previousStatus: 'PAST_DUE', newStatus: 'EXPIRED' });
+      await prisma.$transaction(async (tx) => {
+        await tx.userSubscription.update({ where: { id: sub.id }, data: { status: 'EXPIRED' } });
+        await tx.subscriptionEvent.create({
+          data: { subscriptionId: sub.id, userId: sub.userId, eventType: 'EXPIRED', previousStatus: 'PAST_DUE', newStatus: 'EXPIRED' },
+        });
+      });
       await this.invalidateCache(sub.userId);
     }
 
@@ -391,8 +411,12 @@ class SubscriptionService {
       where: { status: 'CANCELLED', currentPeriodEnd: { lt: now } },
     });
     for (const sub of cancelled) {
-      await prisma.userSubscription.update({ where: { id: sub.id }, data: { status: 'EXPIRED' } });
-      await this.logEvent(sub.id, sub.userId, 'EXPIRED', { previousStatus: 'CANCELLED', newStatus: 'EXPIRED' });
+      await prisma.$transaction(async (tx) => {
+        await tx.userSubscription.update({ where: { id: sub.id }, data: { status: 'EXPIRED' } });
+        await tx.subscriptionEvent.create({
+          data: { subscriptionId: sub.id, userId: sub.userId, eventType: 'EXPIRED', previousStatus: 'CANCELLED', newStatus: 'EXPIRED' },
+        });
+      });
       await this.invalidateCache(sub.userId);
     }
 
@@ -401,9 +425,15 @@ class SubscriptionService {
       where: { status: 'TRIAL', trialEndDate: { lt: now } },
     });
     for (const sub of trials) {
-      await prisma.userSubscription.update({ where: { id: sub.id }, data: { status: 'EXPIRED' } });
-      await this.logEvent(sub.id, sub.userId, 'TRIAL_ENDED', { previousStatus: 'TRIAL', newStatus: 'EXPIRED' });
-      await this.logEvent(sub.id, sub.userId, 'EXPIRED', { previousStatus: 'TRIAL', newStatus: 'EXPIRED' });
+      await prisma.$transaction(async (tx) => {
+        await tx.userSubscription.update({ where: { id: sub.id }, data: { status: 'EXPIRED' } });
+        await tx.subscriptionEvent.create({
+          data: { subscriptionId: sub.id, userId: sub.userId, eventType: 'TRIAL_ENDED', previousStatus: 'TRIAL', newStatus: 'EXPIRED' },
+        });
+        await tx.subscriptionEvent.create({
+          data: { subscriptionId: sub.id, userId: sub.userId, eventType: 'EXPIRED', previousStatus: 'TRIAL', newStatus: 'EXPIRED' },
+        });
+      });
       await this.invalidateCache(sub.userId);
     }
 

@@ -97,7 +97,7 @@ r.get('/appointment/:appointmentId', async (req: AuthRequest, res: Response, nex
       },
     });
     if (!p) { errorResponse(res, 'No prescription for this appointment', 404); return; }
-    if (p.userId !== req.user!.id && req.user!.role !== 'ADMIN') {
+    if (p.userId !== req.user!.id && p.doctorId !== req.user!.id && req.user!.role !== 'ADMIN') {
       errorResponse(res, 'Unauthorized', 403); return;
     }
     successResponse(res, p);

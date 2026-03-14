@@ -223,6 +223,7 @@ r.post('/posts/:id/like', authenticate, async (q: AuthRequest, res: Response, n:
 
     const post = await prisma.communityPost.findUnique({ where: { id: postId } });
     if (!post) { errorResponse(res, 'Post not found', 404); return; }
+    if (post.userId === userId) { errorResponse(res, 'Cannot like your own post', 400); return; }
 
     const existing = await prisma.communityLike.findUnique({
       where: { userId_postId: { userId, postId } },
@@ -252,6 +253,7 @@ r.post('/replies/:id/like', authenticate, async (q: AuthRequest, res: Response, 
 
     const reply = await prisma.communityReply.findUnique({ where: { id: replyId } });
     if (!reply) { errorResponse(res, 'Reply not found', 404); return; }
+    if (reply.userId === userId) { errorResponse(res, 'Cannot like your own reply', 400); return; }
 
     const existing = await prisma.communityLike.findUnique({
       where: { userId_replyId: { userId, replyId } },
@@ -281,6 +283,7 @@ r.post('/posts/:id/report', authenticate, async (q: AuthRequest, res: Response, 
 
     const post = await prisma.communityPost.findUnique({ where: { id: postId } });
     if (!post) { errorResponse(res, 'Post not found', 404); return; }
+    if (post.userId === userId) { errorResponse(res, 'Cannot report your own post', 400); return; }
 
     const existing = await prisma.communityReport.findFirst({ where: { userId, postId } });
     if (existing) { errorResponse(res, 'You have already reported this post'); return; }

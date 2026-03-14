@@ -915,6 +915,16 @@ r.patch('/orders/:id/status', async (req: Request, res: Response, next: NextFunc
       data: { orderStatus: req.body.status },
       include: { user: { select: { email: true, fullName: true } } },
     });
+    // Restore stock for cancelled/returned orders
+    if (['CANCELLED', 'RETURNED'].includes(req.body.status)) {
+      const orderItems = await prisma.orderItem.findMany({ where: { orderId: req.params.id } });
+      for (const item of orderItems) {
+        await prisma.product.update({
+          where: { id: item.productId },
+          data: { stock: { increment: item.quantity } },
+        });
+      }
+    }
     successResponse(res, order);
   } catch (e: any) {
     if (e.code === 'P2025') { errorResponse(res, 'Order not found', 404); return; }

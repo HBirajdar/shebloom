@@ -670,6 +670,12 @@ export class CycleService {
   }
 
   async logPeriod(userId: string, data: { startDate: string; endDate?: string; notes?: string }) {
+    // Prevent duplicate period logging on the same date
+    const existingCycle = await prisma.cycle.findFirst({
+      where: { userId, startDate: new Date(data.startDate) },
+    });
+    if (existingCycle) throw new Error('A period is already logged for this date');
+
     const cycle = await prisma.cycle.create({
       data: {
         userId,
@@ -1463,11 +1469,17 @@ export class CycleService {
   // EXISTING METHODS (preserved)
   // ════════════════════════════════════════════════════════════════
   async logSymptoms(userId: string, data: { symptoms: string[]; severity?: number; notes?: string }) {
-    return prisma.symptomLog.create({ data: { userId, ...data } });
+    const result = await prisma.symptomLog.create({ data: { userId, ...data } });
+    await cacheDel(`predictions:${userId}`);
+    await cacheDel(`ayurveda:${userId}`);
+    return result;
   }
 
   async logMood(userId: string, data: { mood: any; notes?: string }) {
-    return prisma.moodLog.create({ data: { userId, mood: data.mood, notes: data.notes } });
+    const result = await prisma.moodLog.create({ data: { userId, mood: data.mood, notes: data.notes } });
+    await cacheDel(`predictions:${userId}`);
+    await cacheDel(`ayurveda:${userId}`);
+    return result;
   }
 
   async getMoodHistory(userId: string, days = 30) {

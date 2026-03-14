@@ -4,12 +4,16 @@
 // ══════════════════════════════════════════════════════
 
 import { Router, Response, NextFunction } from 'express';
+import rateLimit from 'express-rate-limit';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/response.utils';
 import contentService from '../services/content.service';
 
+const aiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, keyGenerator: (req) => (req as any).user?.id || req.ip, message: { success: false, error: 'Too many AI requests. Please try again later.' } });
+
 const r = Router();
 r.use(authenticate);
+r.use(aiLimiter);
 
 // ─── Rule-based wellness AI (no external API key needed) ─
 const PHASE_ADVICE: Record<string, string[]> = {

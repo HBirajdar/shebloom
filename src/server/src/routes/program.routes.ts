@@ -205,7 +205,9 @@ r.post('/:id/enroll-paid', authenticate, async (q: AuthRequest, s: Response, n: 
       const expectedSig = crypto.createHmac('sha256', keySecret)
         .update(razorpayOrderId + '|' + razorpayPaymentId)
         .digest('hex');
-      if (expectedSig !== razorpaySignature) {
+      const sigBuffer = Buffer.from(razorpaySignature || '', 'hex');
+      const expectedBuffer = Buffer.from(expectedSig, 'hex');
+      if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
         errorResponse(s, 'Payment verification failed', 400); return;
       }
     }

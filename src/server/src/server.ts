@@ -1,3 +1,4 @@
+// TODO: Initialize Sentry for error tracking (npm install @sentry/node)
 // ══════════════════════════════════════════════════════
 // src/server/src/server.ts — Entry Point (Resilient)
 // ══════════════════════════════════════════════════════

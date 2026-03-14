@@ -562,32 +562,37 @@ r.get('/audit-log/summary', requireAdmin, async (_req: Request, res: Response, n
     // Only count actual payment events (not order creation)
     const paidEvents = ['ORDER_PAID', 'ORDER_COD', 'WEBHOOK_CAPTURED', 'APPOINTMENT_PAID'];
 
-    const [todayLogs, weekLogs, monthLogs, allLogs] = await Promise.all([
-      prisma.paymentAuditLog.findMany({ where: { eventType: { in: paidEvents }, createdAt: { gte: todayStart } } }),
-      prisma.paymentAuditLog.findMany({ where: { eventType: { in: paidEvents }, createdAt: { gte: weekStart } } }),
-      prisma.paymentAuditLog.findMany({ where: { eventType: { in: paidEvents }, createdAt: { gte: monthStart } } }),
-      prisma.paymentAuditLog.findMany({ where: { eventType: { in: paidEvents } } }),
-    ]);
-
-    const summarize = (logs: any[]) => ({
-      revenue: logs.reduce((s, l) => s + (l.totalAmount || 0), 0),
-      platformFees: logs.reduce((s, l) => s + (l.platformFee || 0), 0),
-      couponDiscounts: logs.reduce((s, l) => s + (l.couponDiscount || 0), 0),
-      deliveryCharges: logs.reduce((s, l) => s + (l.deliveryCharge || 0), 0),
-      codCharges: logs.reduce((s, l) => s + (l.codCharge || 0), 0),
-      count: logs.length,
+    const aggregateRevenue = (dateFilter?: object) => prisma.paymentAuditLog.aggregate({
+      where: { eventType: { in: paidEvents }, ...dateFilter },
+      _sum: { totalAmount: true, platformFee: true, couponDiscount: true, deliveryCharge: true, codCharge: true },
+      _count: true,
     });
 
-    // Event type breakdown (all time)
+    const [todayAgg, weekAgg, monthAgg, allAgg, eventBreakdownRaw] = await Promise.all([
+      aggregateRevenue({ createdAt: { gte: todayStart } }),
+      aggregateRevenue({ createdAt: { gte: weekStart } }),
+      aggregateRevenue({ createdAt: { gte: monthStart } }),
+      aggregateRevenue(),
+      prisma.paymentAuditLog.groupBy({ by: ['eventType'], _count: true }),
+    ]);
+
+    const formatAgg = (agg: any) => ({
+      revenue: agg._sum.totalAmount || 0,
+      platformFees: agg._sum.platformFee || 0,
+      couponDiscounts: agg._sum.couponDiscount || 0,
+      deliveryCharges: agg._sum.deliveryCharge || 0,
+      codCharges: agg._sum.codCharge || 0,
+      count: agg._count,
+    });
+
     const eventCounts: Record<string, number> = {};
-    const allEvents = await prisma.paymentAuditLog.findMany({ select: { eventType: true } });
-    for (const e of allEvents) eventCounts[e.eventType] = (eventCounts[e.eventType] || 0) + 1;
+    for (const e of eventBreakdownRaw) eventCounts[e.eventType] = e._count;
 
     successResponse(res, {
-      today: summarize(todayLogs),
-      week: summarize(weekLogs),
-      month: summarize(monthLogs),
-      allTime: summarize(allLogs),
+      today: formatAgg(todayAgg),
+      week: formatAgg(weekAgg),
+      month: formatAgg(monthAgg),
+      allTime: formatAgg(allAgg),
       eventBreakdown: eventCounts,
     });
   } catch (e) { next(e); }

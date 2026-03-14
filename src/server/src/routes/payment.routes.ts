@@ -69,10 +69,13 @@ r.post('/webhook', async (req: Request, res: Response) => {
             try {
               await prisma.$transaction(async (tx) => {
                 for (const item of order.items) {
-                  await tx.product.updateMany({
+                  const stockResult = await tx.product.updateMany({
                     where: { id: item.productId, stock: { gte: item.quantity } },
                     data: { stock: { decrement: item.quantity } },
                   });
+                  if (stockResult.count === 0) {
+                    throw new Error(`Insufficient stock for product ${item.productId}`);
+                  }
                 }
                 if (order.couponCode) {
                   const coupon = await tx.coupon.findUnique({ where: { code: order.couponCode! } });
@@ -160,10 +163,12 @@ async function recordCouponRedemption(couponCode: string, userId: string, discou
   if (!couponCode) return;
   const coupon = await prisma.coupon.findUnique({ where: { code: couponCode } });
   if (!coupon) return;
-  await prisma.couponRedemption.create({
-    data: { couponId: coupon.id, userId, orderId, appointmentId, discount },
+  await prisma.$transaction(async (tx) => {
+    await tx.couponRedemption.create({
+      data: { couponId: coupon.id, userId, orderId, appointmentId, discount },
+    });
+    await tx.coupon.update({ where: { id: coupon.id }, data: { currentUses: { increment: 1 } } });
   });
-  await prisma.coupon.update({ where: { id: coupon.id }, data: { currentUses: { increment: 1 } } });
 }
 
 // Helper: write immutable payment audit log entry
@@ -399,10 +404,13 @@ r.post('/verify', async (q: AuthRequest, s: Response, n: NextFunction) => {
       try {
         await prisma.$transaction(async (tx) => {
           for (const item of order.items) {
-            await tx.product.updateMany({
+            const stockResult = await tx.product.updateMany({
               where: { id: item.productId, stock: { gte: item.quantity } },
               data: { stock: { decrement: item.quantity } },
             });
+            if (stockResult.count === 0) {
+              throw new Error(`Insufficient stock for product ${item.productId}`);
+            }
           }
           if (order.couponCode) {
             const coupon = await tx.coupon.findUnique({ where: { code: order.couponCode! } });
@@ -531,10 +539,13 @@ r.post('/cod', async (q: AuthRequest, s: Response, n: NextFunction) => {
     try {
       await prisma.$transaction(async (tx) => {
         for (const item of orderItems) {
-          await tx.product.updateMany({
+          const stockResult = await tx.product.updateMany({
             where: { id: item.productId, stock: { gte: item.quantity } },
             data: { stock: { decrement: item.quantity } },
           });
+          if (stockResult.count === 0) {
+            throw new Error(`Insufficient stock for product ${item.productId}`);
+          }
         }
         if (couponResult.couponCode) {
           const coupon = await tx.coupon.findUnique({ where: { code: couponResult.couponCode! } });

@@ -67,10 +67,26 @@ r.post('/track/batch', authenticate, async (req: AuthRequest, res: Response) => 
     if (!Array.isArray(events) || events.length === 0) {
       return errorResponse(res, 'events array is required', 400);
     }
+    const ALLOWED_EVENTS = [
+      'page_view', 'paywall_viewed', 'paywall_dismissed',
+      'checkout_started', 'checkout_completed', 'checkout_abandoned',
+      'plan_selected', 'coupon_applied', 'coupon_failed',
+      'feature_locked', 'upgrade_prompt_shown', 'upgrade_prompt_clicked',
+      'subscription_page_viewed', 'trial_started',
+      'product_viewed', 'product_added_to_cart', 'cart_viewed',
+      'article_viewed', 'search_performed', 'feature_used',
+      'appointment_started', 'appointment_abandoned',
+      'session_start', 'session_end',
+      'nps_submitted', 'referral_click', 'share_clicked',
+      'streak_milestone', 'ab_variant_shown',
+    ];
     const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || null;
     const ua = req.headers['user-agent'] || null;
-    // Limit batch size
-    const batch = events.slice(0, 50);
+    // Limit batch size and filter out events with invalid event names
+    const batch = events.slice(0, 50).filter((e: any) => e.event && ALLOWED_EVENTS.includes(e.event));
+    if (batch.length === 0) {
+      return res.json({ ok: true });
+    }
     await prisma.userEvent.createMany({
       data: batch.map((e: any) => ({
         userId: req.user?.id || null,

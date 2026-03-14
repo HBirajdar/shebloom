@@ -141,41 +141,46 @@ class DoshaService {
       profile = await prisma.userProfile.create({ data: { userId } });
     }
 
-    // Deactivate previous assessments
-    await prisma.doshaAssessment.updateMany({
-      where: { userId, isActive: true },
-      data: { isActive: false },
-    });
-
-    // Create new assessment
-    const assessment = await prisma.doshaAssessment.create({
-      data: {
-        userId,
-        profileId: profile.id,
-        assessmentType,
-        answers: scoredAnswers,
-        primaryDosha: result.primaryDosha,
-        secondaryDosha: result.secondaryDosha,
-        vataScore: result.vataScore,
-        pittaScore: result.pittaScore,
-        kaphaScore: result.kaphaScore,
-        confidence: result.confidence,
-        isActive: true,
-      },
-    });
-
-    // Update profile with latest dosha
+    // Wrap all dosha DB writes in a transaction for consistency
     const doshaString = doshaTypeToString(result.primaryDosha);
-    await prisma.userProfile.update({
-      where: { id: profile.id },
-      data: {
-        dosha: doshaString,
-        doshaType: result.primaryDosha,
-        vataScore: result.vataScore,
-        pittaScore: result.pittaScore,
-        kaphaScore: result.kaphaScore,
-        doshaConfidence: result.confidence,
-      },
+    const { assessment } = await prisma.$transaction(async (tx) => {
+      // Deactivate previous assessments
+      await tx.doshaAssessment.updateMany({
+        where: { userId, isActive: true },
+        data: { isActive: false },
+      });
+
+      // Create new assessment
+      const newAssessment = await tx.doshaAssessment.create({
+        data: {
+          userId,
+          profileId: profile.id,
+          assessmentType,
+          answers: scoredAnswers,
+          primaryDosha: result.primaryDosha,
+          secondaryDosha: result.secondaryDosha,
+          vataScore: result.vataScore,
+          pittaScore: result.pittaScore,
+          kaphaScore: result.kaphaScore,
+          confidence: result.confidence,
+          isActive: true,
+        },
+      });
+
+      // Update profile with latest dosha
+      await tx.userProfile.update({
+        where: { id: profile.id },
+        data: {
+          dosha: doshaString,
+          doshaType: result.primaryDosha,
+          vataScore: result.vataScore,
+          pittaScore: result.pittaScore,
+          kaphaScore: result.kaphaScore,
+          doshaConfidence: result.confidence,
+        },
+      });
+
+      return { assessment: newAssessment };
     });
 
     return {

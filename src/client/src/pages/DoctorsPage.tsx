@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { api } from '../services/api';
 import DoctorCarousel from '../components/DoctorCarousel';
 import type { Doctor as CarouselDoctor } from '../components/DoctorCarousel';
@@ -49,7 +50,7 @@ export default function DoctorsPage() {
           setApiDoctors(mapped);
         }
       })
-      .catch(() => {})
+      .catch(() => toast.error('Failed to load doctors'))
       .finally(() => setDoctorsLoading(false));
   }, []);
 

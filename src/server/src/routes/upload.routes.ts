@@ -1,10 +1,14 @@
 import { Router, Response, NextFunction } from 'express';
+import rateLimit from 'express-rate-limit';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { requireAdmin } from '../middleware/roles.middleware';
 import { imageUpload, videoUpload, multiUpload, isCloudinaryActive } from '../middleware/upload.middleware';
 import { successResponse, errorResponse } from '../utils/response.utils';
 
+const uploadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, keyGenerator: (req) => (req as any).user?.id || req.ip, message: { success: false, error: 'Too many uploads. Please try again later.' } });
+
 const r = Router();
+r.use(uploadLimiter);
 
 // Helper: get the public URL from an uploaded file
 // Cloudinary files have a full URL in file.path

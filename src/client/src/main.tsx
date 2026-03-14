@@ -1,3 +1,4 @@
+// TODO: Initialize Sentry for frontend error tracking (npm install @sentry/react)
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';

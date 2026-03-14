@@ -1,10 +1,16 @@
 import { Router, Response, NextFunction } from 'express';
 import crypto from 'crypto';
+import Razorpay from 'razorpay';
 import prisma from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { requireAdmin } from '../middleware/roles.middleware';
 import { sendBookingConfirmation, sendDoctorNotification, sendCancellationEmail } from '../services/email.service';
 import { successResponse, errorResponse } from '../utils/response.utils';
+
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID || '',
+  key_secret: process.env.RAZORPAY_KEY_SECRET || '',
+});
 
 const r = Router();
 r.use(authenticate);
@@ -236,6 +242,20 @@ r.patch('/:id/cancel', async (q: AuthRequest, s: Response, n: NextFunction) => {
       where: { id: q.params.id },
       data: { status: 'CANCELLED', cancellationReason: q.body.reason },
     });
+
+    // Auto-refund if the appointment was paid
+    if ((existing as any).paymentId && (existing as any).amountPaid > 0) {
+      try {
+        await razorpay.payments.refund((existing as any).paymentId, {
+          amount: Math.round((existing as any).amountPaid * 100),
+          notes: { reason: 'User cancelled appointment', appointmentId: appt.id },
+        });
+        await prisma.appointment.update({ where: { id: appt.id }, data: { refundStatus: 'INITIATED' } as any });
+        console.log(`[REFUND] Initiated refund for cancelled appointment ${appt.id}`);
+      } catch (refundErr: any) {
+        console.error(`[CRITICAL] Refund failed for appointment ${appt.id}:`, refundErr.message);
+      }
+    }
 
     // Send cancellation email (fire-and-forget)
     try {

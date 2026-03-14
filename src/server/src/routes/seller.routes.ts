@@ -665,79 +665,93 @@ r.get('/admin/analytics/overview', requireAdmin, async (_q: AuthRequest, s: Resp
 
     const [
       totalSellers, approvedSellers, pendingSellers,
-      allTx, monthTx,
-      topSellersTx,
+      allTimeAgg, monthAgg,
+      topSellersGrouped,
+      topProductsGrouped,
+      salesByStateGrouped,
     ] = await Promise.all([
       prisma.seller.count(),
       prisma.seller.count({ where: { status: 'APPROVED' } }),
       prisma.seller.count({ where: { status: 'PENDING' } }),
-      prisma.sellerTransaction.findMany(),
-      prisma.sellerTransaction.findMany({ where: { orderDate: { gte: monthStart } } }),
-      prisma.sellerTransaction.findMany({
-        select: { sellerId: true, grossAmount: true, commissionAmount: true, netAmount: true, quantity: true },
+      prisma.sellerTransaction.aggregate({
+        _sum: { grossAmount: true, commissionAmount: true, tdsAmount: true, netAmount: true },
+        _count: true,
+      }),
+      prisma.sellerTransaction.aggregate({
+        where: { orderDate: { gte: monthStart } },
+        _sum: { grossAmount: true, commissionAmount: true },
+        _count: true,
+      }),
+      prisma.sellerTransaction.groupBy({
+        by: ['sellerId'],
+        _sum: { grossAmount: true, commissionAmount: true, netAmount: true, quantity: true },
+        _count: true,
+        orderBy: { _sum: { grossAmount: 'desc' } },
+        take: 10,
+      }),
+      prisma.sellerTransaction.groupBy({
+        by: ['productId', 'productName'],
+        _sum: { grossAmount: true, quantity: true },
+        orderBy: { _sum: { grossAmount: 'desc' } },
+        take: 10,
+      }),
+      prisma.sellerTransaction.groupBy({
+        by: ['buyerState'],
+        _sum: { grossAmount: true },
+        _count: true,
+        orderBy: { _sum: { grossAmount: 'desc' } },
       }),
     ]);
 
-    // Top sellers by gross sales
-    const sellerMap = new Map<string, { sellerId: string; grossSales: number; commission: number; netEarnings: number; orders: number; units: number }>();
-    for (const t of topSellersTx) {
-      const ex = sellerMap.get(t.sellerId) || { sellerId: t.sellerId, grossSales: 0, commission: 0, netEarnings: 0, orders: 0, units: 0 };
-      ex.grossSales += t.grossAmount;
-      ex.commission += t.commissionAmount;
-      ex.netEarnings += t.netAmount;
-      ex.orders += 1;
-      ex.units += t.quantity;
-      sellerMap.set(t.sellerId, ex);
-    }
-    const topSellers = Array.from(sellerMap.values()).sort((a, b) => b.grossSales - a.grossSales).slice(0, 10);
+    const topSellers = topSellersGrouped.map((g: any) => ({
+      sellerId: g.sellerId,
+      grossSales: g._sum.grossAmount || 0,
+      commission: g._sum.commissionAmount || 0,
+      netEarnings: g._sum.netAmount || 0,
+      orders: g._count,
+      units: g._sum.quantity || 0,
+    }));
 
     // Fetch seller names
-    const sellerIds = topSellers.map(ts => ts.sellerId);
+    const sellerIds = topSellers.map((ts: any) => ts.sellerId);
     const sellerNames = await prisma.seller.findMany({
       where: { id: { in: sellerIds } },
       select: { id: true, businessName: true },
     });
     const nameMap = new Map(sellerNames.map(sn => [sn.id, sn.businessName]));
 
-    // Top products platform-wide
-    const productMap = new Map<string, { productId: string; productName: string; unitsSold: number; grossSales: number }>();
-    for (const t of allTx) {
-      const ex = productMap.get(t.productId) || { productId: t.productId, productName: t.productName, unitsSold: 0, grossSales: 0 };
-      ex.unitsSold += t.quantity;
-      ex.grossSales += t.grossAmount;
-      productMap.set(t.productId, ex);
-    }
-    const topProducts = Array.from(productMap.values()).sort((a, b) => b.grossSales - a.grossSales).slice(0, 10);
+    const topProducts = topProductsGrouped.map((g: any) => ({
+      productId: g.productId,
+      productName: g.productName,
+      unitsSold: g._sum.quantity || 0,
+      grossSales: g._sum.grossAmount || 0,
+    }));
 
-    // Area-wise platform sales
-    const stateMap = new Map<string, { state: string; orders: number; revenue: number }>();
-    for (const t of allTx) {
-      const st = t.buyerState || 'Unknown';
-      const ex = stateMap.get(st) || { state: st, orders: 0, revenue: 0 };
-      ex.orders += 1;
-      ex.revenue += t.grossAmount;
-      stateMap.set(st, ex);
-    }
+    const salesByState = salesByStateGrouped.map((g: any) => ({
+      state: g.buyerState || 'Unknown',
+      orders: g._count,
+      revenue: g._sum.grossAmount || 0,
+    }));
 
     successResponse(s, {
       sellers: { total: totalSellers, approved: approvedSellers, pending: pendingSellers },
       revenue: {
         allTime: {
-          grossSales: allTx.reduce((s, t) => s + t.grossAmount, 0),
-          platformCommission: allTx.reduce((s, t) => s + t.commissionAmount, 0),
-          tdsCollected: allTx.reduce((s, t) => s + t.tdsAmount, 0),
-          sellerPayable: allTx.reduce((s, t) => s + t.netAmount, 0),
-          totalOrders: allTx.length,
+          grossSales: allTimeAgg._sum.grossAmount || 0,
+          platformCommission: allTimeAgg._sum.commissionAmount || 0,
+          tdsCollected: allTimeAgg._sum.tdsAmount || 0,
+          sellerPayable: allTimeAgg._sum.netAmount || 0,
+          totalOrders: allTimeAgg._count,
         },
         thisMonth: {
-          grossSales: monthTx.reduce((s, t) => s + t.grossAmount, 0),
-          platformCommission: monthTx.reduce((s, t) => s + t.commissionAmount, 0),
-          totalOrders: monthTx.length,
+          grossSales: monthAgg._sum.grossAmount || 0,
+          platformCommission: monthAgg._sum.commissionAmount || 0,
+          totalOrders: monthAgg._count,
         },
       },
-      topSellers: topSellers.map(ts => ({ ...ts, businessName: nameMap.get(ts.sellerId) || 'Unknown' })),
+      topSellers: topSellers.map((ts: any) => ({ ...ts, businessName: nameMap.get(ts.sellerId) || 'Unknown' })),
       topProducts,
-      salesByState: Array.from(stateMap.values()).sort((a, b) => b.revenue - a.revenue),
+      salesByState,
     });
   } catch (e) { n(e); }
 });

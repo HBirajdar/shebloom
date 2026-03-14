@@ -240,23 +240,23 @@ export default function DashboardPage() {
       const p = res.data.data || res.data;
       const currentUser = useAuthStore.getState().user;
       if (p && currentUser) useAuthStore.getState().setUser({ ...currentUser, fullName: p.fullName || currentUser.fullName, email: p.email || currentUser.email, role: p.role || currentUser.role, avatarUrl: p.avatarUrl || currentUser.avatarUrl, phone: p.phone || currentUser.phone });
-    }).catch(() => {});
+    }).catch(() => toast.error('Failed to load data'));
     cycleAPI.predict().then(r => {
       const d = r.data.data;
       if (d && typeof d.cycleDay === 'number') {
         set({ cycleDay: d.cycleDay, phase: d.phase, daysUntilPeriod: d.daysUntilPeriod, cycleLength: d.cycleLength || 28, periodLength: d.periodLength || 5, hasRealData: true });
         setPredictionData(d); // Store full prediction for advanced features
       } else { set({ hasRealData: false }); }
-    }).catch(() => {}).finally(() => setDashLoading(false));
+    }).catch(() => toast.error('Failed to load data')).finally(() => setDashLoading(false));
     // Load Ayurvedic insights for personalized dashboard
     cycleAPI.getAyurvedicInsights().then(r => {
       setAyurvedaData(r?.data?.data || null);
-    }).catch(() => {});
+    }).catch(() => toast.error('Failed to load data'));
     // Auto-detect location for weather-based Ayurvedic adjustments
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          weatherAPI.saveLocation(pos.coords.latitude, pos.coords.longitude).catch(() => {});
+          weatherAPI.saveLocation(pos.coords.latitude, pos.coords.longitude).catch(() => toast.error('Failed to load data'));
         },
         () => {}, // User denied — silently skip, will use seasonal fallback
         { timeout: 5000, maximumAge: 30 * 60 * 1000 }
@@ -269,11 +269,11 @@ export default function DashboardPage() {
       if (d?.components?.mood?.logged && d.components.mood.value) setMood(d.components.mood.value);
       if (d?.components?.sleep?.logged) setSleepHours(d.components.sleep.hours || 7);
       if (d?.components?.exercise?.logged) setExerciseDone(true);
-    }).catch(() => {});
+    }).catch(() => toast.error('Failed to load data'));
     // Load real notification count
     notificationAPI.list().then(r => {
       setNotifCount(r.data.unreadCount || 0);
-    }).catch(() => {});
+    }).catch(() => toast.error('Failed to load data'));
     // Load top doctors for carousel
     doctorAPI.search({ isPublished: true, limit: 10 }).then(r => {
       const raw = r?.data?.data || r?.data?.doctors || r?.data || [];
@@ -293,30 +293,30 @@ export default function DashboardPage() {
         isChief: d.isChief || false,
       }));
       setCarouselDoctors(mapped);
-    }).catch(() => {}).finally(() => setDoctorsLoading(false));
+    }).catch(() => toast.error('Failed to load data')).finally(() => setDoctorsLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const logMood = (key: string) => {
     setMood(key);
     setShowMoodSheet(false);
-    moodAPI.log({ mood: key }).then(() => toast.success('Mood logged! 😊')).catch(() => {});
+    moodAPI.log({ mood: key }).then(() => toast.success('Mood logged! 😊')).catch(() => toast.error('Failed to save. Try again.'));
   };
 
   const logWater = (glasses: number) => {
     setWater(glasses);
-    wellnessAPI.log({ type: 'water', value: glasses }).catch(() => {});
+    wellnessAPI.log({ type: 'water', value: glasses }).catch(() => toast.error('Failed to save. Try again.'));
   };
 
   const logSleep = (hours: number) => {
     setSleepHours(hours);
     setShowSleepPicker(false);
-    wellnessAPI.log({ type: 'sleep', value: hours }).then(() => toast.success(`${hours}h sleep logged! 😴`)).catch(() => {});
+    wellnessAPI.log({ type: 'sleep', value: hours }).then(() => toast.success(`${hours}h sleep logged! 😴`)).catch(() => toast.error('Failed to save. Try again.'));
   };
 
   const logExercise = () => {
     setExerciseDone(true);
-    wellnessAPI.log({ type: 'exercise', value: 1 }).then(() => toast.success('Exercise logged! 💪')).catch(() => {});
+    wellnessAPI.log({ type: 'exercise', value: 1 }).then(() => toast.success('Exercise logged! 💪')).catch(() => toast.error('Failed to save. Try again.'));
   };
 
   const goalLabels: Record<UserGoal, { emoji: string; label: string; short: string }> = {

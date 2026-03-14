@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { cycleAPI } from '../services/api';
 
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -31,7 +32,7 @@ export default function CycleHistoryPage() {
         const data = r.data?.data || r.data || [];
         setCycles(Array.isArray(data) ? data : []);
       })
-      .catch(() => {})
+      .catch(() => toast.error('Failed to load cycle history'))
       .finally(() => setLoading(false));
   }, []);
 

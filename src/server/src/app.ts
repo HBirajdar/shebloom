@@ -195,7 +195,7 @@ app.get('/api/v1/health', (_req, res) => {
     success: true,
     message: 'VedaClue API running',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
+    ...(process.env.NODE_ENV !== 'production' ? { environment: process.env.NODE_ENV } : {}),
   });
 });
 
