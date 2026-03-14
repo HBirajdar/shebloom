@@ -197,7 +197,7 @@ export default function WellnessPage() {
       const d = r.data?.data;
       if (d?.components?.water?.glasses !== undefined) setWater(d.components.water.glasses);
       if (d?.components?.sleep?.logged && d.components.sleep.hours) setSleepHours(d.components.sleep.hours);
-    }).catch(() => {});
+    }).catch(() => toast.error('Failed to load wellness data'));
   }, []);
 
   // ─── Wellness score ───────────────────────────────────

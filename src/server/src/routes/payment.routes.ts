@@ -6,6 +6,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import prisma from '../config/database';
+import { logger } from '../config/logger';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { successResponse, errorResponse } from '../utils/response.utils';
 import { sendOrderConfirmation } from '../services/email.service';
@@ -20,7 +21,7 @@ r.post('/webhook', async (req: Request, res: Response) => {
   try {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
     if (!webhookSecret) {
-      console.error('[Payment] RAZORPAY_WEBHOOK_SECRET not configured — rejecting webhook');
+      logger.error('[Payment] RAZORPAY_WEBHOOK_SECRET not configured — rejecting webhook');
       res.status(400).json({ error: 'Webhook not configured' });
       return;
     }
@@ -88,7 +89,7 @@ r.post('/webhook', async (req: Request, res: Response) => {
                 }
               });
             } catch (e: any) {
-              console.error('[CRITICAL] Webhook stock/coupon transaction failed for order', order.id, ':', e.message);
+              logger.error('[CRITICAL] Webhook stock/coupon transaction failed for order', order.id, ':', e.message);
             }
             // Audit log: webhook captured
             auditLog({
@@ -106,6 +107,7 @@ r.post('/webhook', async (req: Request, res: Response) => {
 
     res.status(200).json({ received: true });
   } catch (e) {
+    logger.error('[Payment Webhook Error]', (e as any)?.message);
     res.status(200).json({ received: true }); // Always return 200 to Razorpay
   }
 });
@@ -183,7 +185,7 @@ async function auditLog(entry: {
   commissionRate?: number; ipAddress?: string; userAgent?: string; metadata?: any;
 }) {
   await prisma.paymentAuditLog.create({ data: entry as any }).catch((e) => {
-    console.error('[AuditLog] Failed to write:', e.message);
+    logger.error('[AuditLog] Failed to write:', e.message);
   });
 }
 
@@ -242,10 +244,10 @@ async function createSellerTransactions(orderId: string, orderItems: any[], deli
           totalSales: { increment: grossAmount },
           totalOrders: { increment: 1 },
         },
-      }).catch((e: any) => console.error('[SellerStats] Update failed for seller', sellerId, ':', e.message));
+      }).catch((e: any) => logger.error('[SellerStats] Update failed for seller', sellerId, ':', e.message));
     }
   } catch (e: any) {
-    console.error('[SellerTransaction] Failed:', e.message);
+    logger.error('[SellerTransaction] Failed:', e.message);
   }
 }
 
@@ -423,7 +425,7 @@ r.post('/verify', async (q: AuthRequest, s: Response, n: NextFunction) => {
           }
         });
       } catch (e: any) {
-        console.error('[CRITICAL] Verify stock/coupon transaction failed for order', order.id, ':', e.message);
+        logger.error('[CRITICAL] Verify stock/coupon transaction failed for order', order.id, ':', e.message);
       }
       // Audit log: order paid
       auditLog({
@@ -439,7 +441,7 @@ r.post('/verify', async (q: AuthRequest, s: Response, n: NextFunction) => {
       try {
         await createSellerTransactions(order.id, order.items, order.deliveryAddress, 'razorpay');
       } catch (e: any) {
-        console.error('[CRITICAL] Seller transaction creation failed for order', order.id, e.message);
+        logger.error('[CRITICAL] Seller transaction creation failed for order', order.id, e.message);
       }
     }
 
@@ -558,7 +560,8 @@ r.post('/cod', async (q: AuthRequest, s: Response, n: NextFunction) => {
         }
       });
     } catch (e: any) {
-      console.error('[CRITICAL] COD stock/coupon transaction failed for order', order.id, ':', e.message);
+      logger.error('[CRITICAL] COD stock/coupon transaction failed for order', order.id, ':', e.message);
+      await prisma.order.update({ where: { id: order.id }, data: { orderStatus: 'FAILED' } }).catch(() => {});
     }
 
     // Audit log: COD order placed
@@ -574,7 +577,7 @@ r.post('/cod', async (q: AuthRequest, s: Response, n: NextFunction) => {
     try {
       await createSellerTransactions(order.id, order.items, deliveryAddress, 'COD');
     } catch (e: any) {
-      console.error('[CRITICAL] Seller transaction creation failed for order', order.id, e.message);
+      logger.error('[CRITICAL] Seller transaction creation failed for order', order.id, e.message);
     }
 
     // Send order confirmation email
@@ -653,7 +656,7 @@ r.post('/appointment-order', async (q: AuthRequest, s: Response, n: NextFunction
         },
       });
     } catch (rzpErr: any) {
-      console.error('[Razorpay] Order creation failed:', rzpErr?.error || rzpErr?.message || rzpErr);
+      logger.error('[Razorpay] Order creation failed:', rzpErr?.error || rzpErr?.message || rzpErr);
       errorResponse(s, rzpErr?.error?.description || 'Payment gateway error. Please try again later.', 502); return;
     }
 
@@ -725,7 +728,7 @@ r.post('/verify-appointment', async (q: AuthRequest, s: Response, n: NextFunctio
         const result = await applyCoupon(couponCode, uid, doctor?.consultationFee || 0, 'CONSULTATION', undefined, doctorId);
         couponDiscount = result.discount;
       }
-      await recordCouponRedemption(couponCode, uid, couponDiscount).catch((e: any) => console.error('[Coupon] Appointment redemption recording failed:', e.message));
+      await recordCouponRedemption(couponCode, uid, couponDiscount).catch((e: any) => logger.error('[Coupon] Appointment redemption recording failed:', e.message));
     }
 
     // Audit log: appointment paid

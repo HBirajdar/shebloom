@@ -200,7 +200,7 @@ r.get('/:id/reviews', async (req: Request, res: Response, next: NextFunction) =>
 // GET /products/all — admin only, all products
 r.get('/all', authenticate, requireAdmin, async (_req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const products = await prisma.product.findMany({ orderBy: { createdAt: 'desc' } });
+    const products = await prisma.product.findMany({ orderBy: { createdAt: 'desc' }, take: 200 });
     successResponse(res, products);
   } catch (e) { next(e); }
 });

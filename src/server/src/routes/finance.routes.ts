@@ -488,7 +488,7 @@ r.get('/product-payouts', requireAdmin, async (req: Request, res: Response, next
   try {
     const where: any = {};
     if (req.query.status) where.status = req.query.status;
-    const payouts = await prisma.productPayout.findMany({ where, orderBy: { createdAt: 'desc' } });
+    const payouts = await prisma.productPayout.findMany({ where, orderBy: { createdAt: 'desc' }, take: 100 });
     successResponse(res, payouts);
   } catch (e) { next(e); }
 });

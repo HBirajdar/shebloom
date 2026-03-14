@@ -102,7 +102,7 @@ export default function NpsPopup() {
 
   return (
     <div
-      className={`fixed bottom-4 right-4 z-50 w-[360px] max-w-[calc(100vw-2rem)] transition-all duration-300 ${
+      className={`fixed bottom-24 right-4 z-50 w-[360px] max-w-[calc(100vw-2rem)] transition-all duration-300 ${
         fadeOut ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0 animate-slide-up'
       }`}
       style={{ animation: fadeOut ? undefined : 'slideUp 0.4s ease-out' }}

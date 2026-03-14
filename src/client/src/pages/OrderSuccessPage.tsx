@@ -1,9 +1,11 @@
 // @ts-nocheck
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Navigate } from 'react-router-dom';
 
 export default function OrderSuccessPage() {
   const navigate = useNavigate();
   const { state } = useLocation();
+
+  if (!state?.orderId && !state?.orderNumber) return <Navigate to="/my-orders" replace />;
 
   const orderNumber = state?.orderNumber || 'N/A';
   const totalAmount = state?.totalAmount || 0;

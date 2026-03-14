@@ -63,7 +63,7 @@ export default function NotificationsPage() {
           created_at: formatDate(n.createdAt || n.created_at || new Date().toISOString()),
         })));
       })
-      .catch(() => setNotifications([]))
+      .catch(() => { setNotifications([]); toast.error('Failed to load notifications'); })
       .finally(() => setLoading(false));
   }, []);
 

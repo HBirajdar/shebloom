@@ -153,7 +153,7 @@ export default function CycleHistoryPage() {
                     const dt = new Date(c.startDate);
                     const label = `${MONTHS_SHORT[dt.getMonth()]}`;
                     return (
-                      <g key={i}>
+                      <g key={c.id || i}>
                         <text x="0" y={y + 14} fill="#6B7280" fontSize="9" fontWeight="600">{label}</text>
                         <defs>
                           <linearGradient id={`bar-${i}`} x1="0%" y1="0%" x2="100%">
@@ -183,7 +183,7 @@ export default function CycleHistoryPage() {
                 const progressPct = Math.min(100, (cycleLen / 35) * 100);
 
                 return (
-                  <div key={idx} className="bg-white rounded-3xl shadow-lg p-4">
+                  <div key={cycle.id || idx} className="bg-white rounded-3xl shadow-lg p-4">
                     <div className="flex items-start justify-between mb-1">
                       <div className="flex items-center gap-2">
                         <span className="text-base">🩸</span>

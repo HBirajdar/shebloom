@@ -127,7 +127,7 @@ export default function ProfilePage() {
 
   const [doshaData, setDoshaData] = useState<any>(null);
   useEffect(() => {
-    doshaAPI.getProfile().then(r => setDoshaData(r.data.data)).catch(() => {});
+    doshaAPI.getProfile().then(r => setDoshaData(r.data.data)).catch(() => toast.error('Failed to load data'));
   }, []);
   const dosha = doshaData?.dosha || localStorage.getItem('sb_dosha') || '';
   const doshaInfo = DOSHA_INFO[dosha];
@@ -166,7 +166,7 @@ export default function ProfilePage() {
           authProvider: p.authProvider || user.authProvider,
         });
       }
-    }).catch(() => {});
+    }).catch(() => toast.error('Failed to load data'));
   }, []);
 
   const openEdit = () => {

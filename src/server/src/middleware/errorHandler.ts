@@ -42,9 +42,5 @@ export const errorHandler = (err: Error, req: Request, res: Response, _next: Nex
   res.status(500).json({ success: false, error: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message });
 };
 
-export const notFoundHandler = (req: Request, res: Response): void => {
-  res.status(404).json({ success: false, error: `Route ${req.method} ${req.path} not found` });
-};
-
 export const asyncHandler = (fn: Function) => (req: Request, res: Response, next: NextFunction) =>
   Promise.resolve(fn(req, res, next)).catch(next);

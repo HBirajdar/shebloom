@@ -52,7 +52,7 @@ r.get('/', async (q: Request, res: Response, n: NextFunction) => {
 // GET /all — admin only, all doctors including unpublished
 r.get('/all', authenticate, requireAdmin, async (_req: AuthRequest, res: Response, n: NextFunction) => {
   try {
-    const doctors = await prisma.doctor.findMany({ orderBy: { createdAt: 'desc' } });
+    const doctors = await prisma.doctor.findMany({ orderBy: { createdAt: 'desc' }, take: 200 });
     successResponse(res, doctors.map(mapDoctor));
   } catch (e) { n(e); }
 });

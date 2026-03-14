@@ -90,41 +90,48 @@ r.post('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
     if (isNaN(scheduledDate.getTime())) return s.status(400).json({ success: false, error: 'Invalid date for scheduledAt' });
     if (scheduledDate < new Date()) return s.status(400).json({ success: false, error: 'Cannot book appointments in the past' });
 
-    // Prevent double-booking: check if doctor already has an appointment within 30 min window
-    if (doctorId) {
-      const windowStart = new Date(scheduledDate.getTime() - 30 * 60000);
-      const windowEnd = new Date(scheduledDate.getTime() + 30 * 60000);
-      const conflict = await prisma.appointment.findFirst({
-        where: {
-          doctorId,
-          scheduledAt: { gte: windowStart, lte: windowEnd },
-          status: { notIn: ['CANCELLED', 'COMPLETED'] },
-        },
-      });
-      if (conflict) return s.status(409).json({ success: false, error: 'This time slot is already booked. Please choose another time.' });
-    }
-
     // Generate Jitsi room (use crypto for unpredictable room ID)
     const jitsiRoomId = `VedaClue-${resolvedDoctorName.replace(/\s+/g, '-')}-${crypto.randomBytes(8).toString('hex')}`;
     const videoLink = `https://meet.jit.si/${jitsiRoomId}`;
 
-    const appt = await prisma.appointment.create({
-      data: {
-        userId: q.user!.id,
-        doctorId: doctor ? doctorId : null,
-        doctorName: resolvedDoctorName,
-        scheduledAt: new Date(scheduledAt),
-        amountPaid: serverAmountPaid,
-        originalFee: serverOriginalFee,
-        couponCode: couponResult.couponCode || null,
-        couponDiscount: serverCouponDiscount,
-        platformFee: serverPlatformFee,
-        paymentId: paymentId || null,
-        notes: [reason, notes].filter(Boolean).join(' | ') || null,
-        meetingLink: videoLink,
-      },
-      include: { doctor: { select: { id: true, fullName: true, specialization: true, avatarUrl: true, consultationFee: true } } },
+    // Prevent double-booking: wrap check-then-insert in a transaction to prevent race conditions
+    const appt = await prisma.$transaction(async (tx) => {
+      if (doctorId) {
+        const windowStart = new Date(scheduledDate.getTime() - 30 * 60000);
+        const windowEnd = new Date(scheduledDate.getTime() + 30 * 60000);
+        const conflict = await tx.appointment.findFirst({
+          where: {
+            doctorId,
+            scheduledAt: { gte: windowStart, lte: windowEnd },
+            status: { notIn: ['CANCELLED', 'COMPLETED'] },
+          },
+        });
+        if (conflict) throw new Error('DOUBLE_BOOKING');
+      }
+
+      return tx.appointment.create({
+        data: {
+          userId: q.user!.id,
+          doctorId: doctor ? doctorId : null,
+          doctorName: resolvedDoctorName,
+          scheduledAt: new Date(scheduledAt),
+          amountPaid: serverAmountPaid,
+          originalFee: serverOriginalFee,
+          couponCode: couponResult.couponCode || null,
+          couponDiscount: serverCouponDiscount,
+          platformFee: serverPlatformFee,
+          paymentId: paymentId || null,
+          notes: [reason, notes].filter(Boolean).join(' | ') || null,
+          meetingLink: videoLink,
+        },
+        include: { doctor: { select: { id: true, fullName: true, specialization: true, avatarUrl: true, consultationFee: true } } },
+      });
+    }).catch((e: any) => {
+      if (e.message === 'DOUBLE_BOOKING') return null;
+      throw e;
     });
+
+    if (!appt) return s.status(409).json({ success: false, error: 'This time slot is already booked. Please choose another time.' });
 
     // Send emails (fire-and-forget, never crash)
     try {
@@ -189,6 +196,7 @@ r.get('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
       where: { userId: q.user!.id },
       include: { doctor: { select: { id: true, fullName: true, specialization: true, avatarUrl: true, consultationFee: true } } },
       orderBy: { scheduledAt: 'desc' },
+      take: 50,
     });
     const result = data.map((a: any) => ({
       ...a,

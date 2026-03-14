@@ -208,13 +208,15 @@ r.post('/create', async (q: AuthRequest, s: Response, n: NextFunction) => {
         ipAddress, userAgent,
       });
 
-      // Record coupon usage if applied
+      // Record coupon usage if applied (atomic transaction)
       if (couponCode && couponDiscount > 0) {
-        const coupon = await prisma.coupon.findUnique({ where: { code: couponCode.toUpperCase().trim() } });
-        if (coupon) {
-          await prisma.couponRedemption.create({ data: { couponId: coupon.id, userId: q.user!.id, subscriptionId: sub.id, discount: couponDiscount } });
-          await prisma.coupon.update({ where: { id: coupon.id }, data: { currentUses: { increment: 1 } } });
-        }
+        await prisma.$transaction(async (tx) => {
+          const coupon = await tx.coupon.findUnique({ where: { code: couponCode.toUpperCase().trim() } });
+          if (coupon) {
+            await tx.couponRedemption.create({ data: { couponId: coupon.id, userId: q.user!.id, subscriptionId: sub.id, discount: couponDiscount } });
+            await tx.coupon.update({ where: { id: coupon.id }, data: { currentUses: { increment: 1 } } });
+          }
+        });
       }
 
       successResponse(s, { subscription: sub, paymentRequired: false }, 'Subscription activated');

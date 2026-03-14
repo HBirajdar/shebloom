@@ -288,7 +288,7 @@ model Cycle {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId, startDate])
+  @@unique([userId, startDate])
   @@map("cycles")
 }
 
@@ -1097,8 +1097,7 @@ model CouponRedemption {
 
   coupon     Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
 
-  @@index([couponId])
-  @@index([userId])
+  @@index([couponId, userId])
   @@map("coupon_redemptions")
 }
 
@@ -1952,7 +1951,7 @@ model UserSubscription {
   plan                   SubscriptionPlan   @relation(fields: [planId], references: [id])
   events                 SubscriptionEvent[]
 
-  @@index([userId, status])
+  @@index([userId, status, currentPeriodEnd])
   @@index([status])
   @@index([razorpaySubscriptionId])
   @@index([currentPeriodEnd])

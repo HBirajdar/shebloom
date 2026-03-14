@@ -27,7 +27,7 @@ export default function CookieConsent() {
 
   return (
     <div
-      className={'fixed bottom-20 left-0 right-0 z-[9999] flex justify-center transition-opacity duration-300 ' + (fading ? 'opacity-0' : 'opacity-100')}
+      className={'fixed bottom-24 left-0 right-0 z-[9999] flex justify-center transition-opacity duration-300 ' + (fading ? 'opacity-0' : 'opacity-100')}
       style={{ fontFamily: 'Nunito, sans-serif' }}
     >
       <div className="max-w-[430px] w-full mx-auto px-4">

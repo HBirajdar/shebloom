@@ -36,6 +36,7 @@ export default function AppointmentHistoryPage() {
       setAppointments(sorted);
     } catch {
       setAppointments([]);
+      toast.error('Failed to load appointment history');
     } finally {
       setLoading(false);
     }

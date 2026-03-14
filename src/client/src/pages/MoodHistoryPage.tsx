@@ -171,7 +171,7 @@ export default function MoodHistoryPage() {
 
                 return (
                   <div
-                    key={idx}
+                    key={entry.id || entry.date || idx}
                     className="bg-white rounded-3xl shadow-lg p-4 border-l-4 transition-all"
                     style={{ borderLeftColor: color, backgroundColor: color + '08' }}
                   >
