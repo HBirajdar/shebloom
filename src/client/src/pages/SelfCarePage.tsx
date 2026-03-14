@@ -32,7 +32,6 @@ export default function SelfCarePage() {
   const [view, setView] = useState<'today' | 'breathe' | 'journal' | 'sos'>('today');
   const [breathState, setBreathState] = useState<'idle' | 'inhale' | 'hold' | 'exhale'>('idle');
   const [breathCount, setBreathCount] = useState(0);
-  const [breathTimer, setBreathTimer] = useState(0);
   const [journalText, setJournalText] = useState('');
   const [gratitude, setGratitude] = useState(['', '', '']);
   const [moodScore, setMoodScore] = useState(0);
@@ -49,7 +48,6 @@ export default function SelfCarePage() {
   });
   const [sosName, setSosName] = useState('');
   const [sosPhone, setSosPhone] = useState('');
-  const timerRef = useRef<any>(null);
 
   const pw = phaseWellness[phase] || phaseWellness.menstrual;
 
@@ -67,9 +65,9 @@ export default function SelfCarePage() {
       count++;
       if (count > 12) { setBreathState('idle'); setBreathCount(0); return; }
       setBreathCount(count);
-      setBreathState('inhale'); setBreathTimer(4);
-      breathTimers.current.push(setTimeout(() => { setBreathState('hold'); setBreathTimer(4); }, 4000));
-      breathTimers.current.push(setTimeout(() => { setBreathState('exhale'); setBreathTimer(4); }, 8000));
+      setBreathState('inhale');
+      breathTimers.current.push(setTimeout(() => { setBreathState('hold'); }, 4000));
+      breathTimers.current.push(setTimeout(() => { setBreathState('exhale'); }, 8000));
       breathTimers.current.push(setTimeout(cycle, 12000));
     };
     cycle();
@@ -189,7 +187,7 @@ export default function SelfCarePage() {
                   <p className="text-2xl font-extrabold text-gray-900">
                     {breathState === 'idle' ? '\u{1F32C}\uFE0F' : breathState === 'inhale' ? 'Inhale' : breathState === 'hold' ? 'Hold' : 'Exhale'}
                   </p>
-                  {breathState !== 'idle' && <p className="text-xs text-gray-500 mt-1">Round {breathCount}/4</p>}
+                  {breathState !== 'idle' && <p className="text-xs text-gray-500 mt-1">Round {breathCount}/12</p>}
                 </div>
               </div>
             </div>

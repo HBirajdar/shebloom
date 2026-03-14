@@ -811,7 +811,7 @@ export default function WellnessPage() {
           {/* Mode selector */}
           <div className="space-y-2">
             {BREATHING_MODES.map(m => (
-              <button key={m.id} onClick={() => { setBreathMode(m.id); setBreathActive(false); setBreathPhaseIdx(0); setBreathRounds(0); }}
+              <button key={m.id} onClick={() => { setBreathMode(m.id); setBreathActive(false); setBreathPhaseIdx(0); setBreathRounds(0); setBreathSeconds(0); }}
                 className={'w-full text-left p-4 rounded-2xl border-2 transition-all active:scale-[0.99] ' + (breathMode === m.id ? 'border-purple-400 bg-purple-50 shadow-sm' : 'border-gray-200 bg-white')}>
                 <div className="flex items-center justify-between">
                   <div>

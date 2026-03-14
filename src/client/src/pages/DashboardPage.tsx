@@ -1241,7 +1241,7 @@ export default function DashboardPage() {
               <p className="text-[10px] text-blue-600 leading-relaxed">{ayurvedaData.guidance.modernCorrelation?.slice(0, 150)}...</p>
             </div>
 
-            <button onClick={() => { nav('/tracker'); setTimeout(() => {}, 100); }}
+            <button onClick={() => nav('/tracker')}
               className="w-full text-center py-2 rounded-xl text-[10px] font-bold active:scale-95 transition-transform"
               style={{
                 backgroundColor: ayurvedaData.dosha === 'Vata' ? '#F5F3FF' : ayurvedaData.dosha === 'Pitta' ? '#FFF7ED' : '#ECFDF5',

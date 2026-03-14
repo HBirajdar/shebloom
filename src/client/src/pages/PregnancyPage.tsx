@@ -72,30 +72,6 @@ const triNames = ['', '1st Trimester', '2nd Trimester', '3rd Trimester'];
 const triColors = ['', 'text-emerald-600 bg-emerald-50', 'text-blue-600 bg-blue-50', 'text-purple-600 bg-purple-50'];
 
 // ─── Baby Growth SVG ─────────────────────────────
-const GrowthBar = ({ week }: { week: number }) => {
-  const pct = (week / 40) * 100;
-  const milestones = [
-    { w: 12, l: '1st Tri', c: '#10B981' },
-    { w: 26, l: '2nd Tri', c: '#3B82F6' },
-    { w: 40, l: '3rd Tri', c: '#8B5CF6' },
-  ];
-  return (
-    <div>
-      <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden">
-        <div className="h-full rounded-full transition-all duration-700 bg-gradient-to-r from-emerald-400 via-blue-400 to-purple-500" style={{ width: pct + '%' }} />
-        {milestones.map(m => (
-          <div key={m.w} className="absolute top-0 h-full w-0.5 bg-white/50" style={{ left: (m.w / 40 * 100) + '%' }} />
-        ))}
-      </div>
-      <div className="flex justify-between mt-1">
-        {milestones.map(m => (
-          <span key={m.w} className="text-[8px] font-bold" style={{ color: m.c }}>{m.l}</span>
-        ))}
-      </div>
-    </div>
-  );
-};
-
 export default function PregnancyPage() {
   const nav = useNavigate();
   const [week, setWeek] = useState(16);
@@ -418,7 +394,7 @@ export default function PregnancyPage() {
                 <p>{'\u2022'} High fever (above 100.4\u00B0F / 38\u00B0C)</p>
                 <p>{'\u2022'} Severe headache or vision changes</p>
                 {week >= 28 && <p>{'\u2022'} Fewer than 10 kicks in 2 hours during kick counts</p>}
-                {week >= 37 && <p>{'\u2022'} Regular contractions before 37 weeks</p>}
+                {week < 37 && <p>{'\u2022'} Regular contractions before 37 weeks (preterm labor)</p>}
               </div>
             </div>
           )}

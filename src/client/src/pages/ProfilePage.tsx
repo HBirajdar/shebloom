@@ -279,6 +279,7 @@ export default function ProfilePage() {
         toast.success('Avatar updated!');
       } catch { toast.error('Upload failed'); }
       setAvatarUploading(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
     };
     avatarInputRef.current.click();
   };
