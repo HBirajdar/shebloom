@@ -174,6 +174,77 @@ const FormCheckbox = ({ label, checked, onChange }: { label: string; checked: bo
     <span className="text-[11px] font-bold text-gray-600 group-hover:text-gray-800 transition-colors">{label}</span>
   </label>
 );
+// ─── Confirmation Modal ─────────────────────────────
+interface ConfirmModalState {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  variant: 'red' | 'yellow' | 'blue' | 'green';
+  onConfirm: () => void | Promise<void>;
+}
+
+const ConfirmModal = ({ modal, onClose }: { modal: ConfirmModalState; onClose: () => void }) => {
+  const [loading, setLoading] = useState(false);
+  const variantStyles: Record<string, string> = {
+    red: 'from-red-500 to-rose-500',
+    yellow: 'from-amber-500 to-yellow-500',
+    blue: 'from-blue-500 to-indigo-500',
+    green: 'from-emerald-500 to-green-500',
+  };
+  const variantIcons: Record<string, string> = {
+    red: '\u26A0\uFE0F',
+    yellow: '\u26A0\uFE0F',
+    blue: '\u2139\uFE0F',
+    green: '\u2705',
+  };
+  const variantBg: Record<string, string> = {
+    red: 'bg-red-50',
+    yellow: 'bg-amber-50',
+    blue: 'bg-blue-50',
+    green: 'bg-emerald-50',
+  };
+
+  const handleConfirm = useCallback(async () => {
+    setLoading(true);
+    try {
+      await modal.onConfirm();
+    } finally {
+      setLoading(false);
+      onClose();
+    }
+  }, [modal, onClose]);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-6 text-center max-w-sm w-full shadow-2xl animate-fade-in" onClick={e => e.stopPropagation()}>
+        <div className={`w-14 h-14 mx-auto rounded-full ${variantBg[modal.variant]} flex items-center justify-center mb-3`}>
+          <span className="text-2xl">{variantIcons[modal.variant]}</span>
+        </div>
+        <h3 className="text-base font-extrabold text-gray-900">{modal.title}</h3>
+        <p className="text-sm text-gray-500 mt-1.5 leading-relaxed">{modal.message}</p>
+        <div className="flex gap-3 mt-5">
+          <button onClick={onClose} disabled={loading}
+            className="flex-1 py-3 bg-gray-100 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-200 transition-all disabled:opacity-50">
+            Cancel
+          </button>
+          <button onClick={handleConfirm} disabled={loading}
+            className={`flex-1 py-3 bg-gradient-to-r ${variantStyles[modal.variant]} rounded-xl text-sm font-bold text-white shadow-sm hover:shadow transition-all disabled:opacity-50`}>
+            {loading ? 'Processing...' : modal.confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'NO_SHOW' | 'CANCELLED';
 
 type TabId = 'overview' | 'users' | 'products' | 'articles' | 'doctors' | 'appointments' | 'analytics' | 'settings' | 'callbacks' | 'add_product' | 'add_article' | 'add_doctor' | 'edit_product' | 'edit_article' | 'edit_doctor' | 'analytics_products' | 'analytics_doctors' | 'prescriptions' | 'orders' | 'ayurveda' | 'payouts' | 'finance' | 'audit_log' | 'wellness' | 'add_wellness' | 'edit_wellness' | 'programs' | 'add_program' | 'edit_program' | 'program_content' | 'sellers' | 'seller_detail' | 'seller_payouts' | 'add_seller' | 'community' | 'content' | 'subscriptions' | 'leads' | 'insights' | 'user_detail' | 'live_feed' | 'churn_risk' | 'segments' | 'alerts' | 'forecast' | 'cohorts' | 'exports' | 'journeys' | 'geo' | 'referrals' | 'streaks' | 'campaigns' | 'nps' | 'ltv' | 'ab_tests' | 'email_campaigns' | 'badges' | 'anomalies' | 'health_score' | 'content_perf' | 'wellness_content' | 'edit_wellness_content';
@@ -193,6 +264,10 @@ function FinanceTab() {
     validFrom: '', validUntil: '', isActive: true, firstOrderOnly: false,
     specificDoctorIds: '' as string, specificProductIds: '' as string,
   });
+  const [confirmAction, setConfirmAction] = useState<ConfirmModalState | null>(null);
+  const askConfirm = (title: string, message: string, confirmLabel: string, variant: ConfirmModalState['variant'], onConfirm: () => void | Promise<void>) => {
+    setConfirmAction({ title, message, confirmLabel, variant, onConfirm });
+  };
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -245,10 +320,11 @@ function FinanceTab() {
     } catch (e: any) { toast.error(e?.response?.data?.message || 'Failed'); }
   };
 
-  const deleteCoupon = async (id: string) => {
-    if (!confirm('Delete this coupon?')) return;
-    try { await financeAPI.deleteCoupon(id); toast.success('Deleted'); fetchAll(); }
-    catch { toast.error('Failed'); }
+  const deleteCoupon = (id: string) => {
+    askConfirm('Delete Coupon?', 'This will permanently delete this coupon. This cannot be undone.', 'Delete', 'red', async () => {
+      try { await financeAPI.deleteCoupon(id); toast.success('Coupon deleted successfully'); fetchAll(); }
+      catch { toast.error('Failed to delete coupon'); }
+    });
   };
 
   if (loading) return <div className="text-center py-10 text-gray-400 text-xs">Loading finance data...</div>;
@@ -590,6 +666,7 @@ function FinanceTab() {
           </div>
         </div>
       )}
+      {confirmAction && <ConfirmModal modal={confirmAction} onClose={() => setConfirmAction(null)} />}
     </div>
   );
 }
@@ -2542,6 +2619,11 @@ function CommunityTab() {
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
   const [postDetail, setPostDetail] = useState<any>(null);
 
+  const [confirmAction, setConfirmAction] = useState<ConfirmModalState | null>(null);
+  const askConfirm = (title: string, message: string, confirmLabel: string, variant: ConfirmModalState['variant'], onConfirm: () => void | Promise<void>) => {
+    setConfirmAction({ title, message, confirmLabel, variant, onConfirm });
+  };
+
   // Poll creation
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '']);
@@ -2594,9 +2676,10 @@ function CommunityTab() {
       if (expandedPost === id) fetchDetail(id);
     } catch { /* silent */ }
   };
-  const handleDeletePost = async (id: string) => {
-    if (!confirm('Permanently delete this post and all its replies?')) return;
-    try { await communityAPI.deletePost(id); fetchPosts(); setExpandedPost(null); } catch { /* silent */ }
+  const handleDeletePost = (id: string) => {
+    askConfirm('Delete Post?', 'This will permanently delete this post and all its replies. This cannot be undone.', 'Delete', 'red', async () => {
+      try { await communityAPI.deletePost(id); fetchPosts(); setExpandedPost(null); } catch { /* silent */ }
+    });
   };
   const handlePinPost = async (id: string) => {
     try { await communityAPI.pinPost(id); fetchPosts(); } catch { /* silent */ }
@@ -2607,9 +2690,10 @@ function CommunityTab() {
       if (expandedPost) fetchDetail(expandedPost);
     } catch { /* silent */ }
   };
-  const handleDeleteReply = async (id: string) => {
-    if (!confirm('Permanently delete this reply?')) return;
-    try { await communityAPI.deleteReply(id); if (expandedPost) fetchDetail(expandedPost); } catch { /* silent */ }
+  const handleDeleteReply = (id: string) => {
+    askConfirm('Delete Reply?', 'This will permanently delete this reply. This cannot be undone.', 'Delete', 'red', async () => {
+      try { await communityAPI.deleteReply(id); if (expandedPost) fetchDetail(expandedPost); } catch { /* silent */ }
+    });
   };
   const handleReportAction = async (reportId: string, status: string) => {
     try { await communityAPI.updateReport(reportId, { status }); fetchReports(); } catch { /* silent */ }
@@ -2887,6 +2971,7 @@ function CommunityTab() {
           </button>
         </div>
       )}
+      {confirmAction && <ConfirmModal modal={confirmAction} onClose={() => setConfirmAction(null)} />}
     </>
   );
 }
@@ -3130,6 +3215,10 @@ function SubscriptionAdminTab() {
   const [extendId, setExtendId] = useState('');
   const [extendDays, setExtendDays] = useState(30);
   const [subConfig, setSubConfig] = useState<any>({});
+  const [confirmAction, setConfirmAction] = useState<ConfirmModalState | null>(null);
+  const askConfirm = (title: string, message: string, confirmLabel: string, variant: ConfirmModalState['variant'], onConfirm: () => void | Promise<void>) => {
+    setConfirmAction({ title, message, confirmLabel, variant, onConfirm });
+  };
   const [configSaving, setConfigSaving] = useState(false);
 
   useEffect(() => { loadData(); }, [subView]);
@@ -3206,14 +3295,16 @@ function SubscriptionAdminTab() {
     } catch (e: any) { alert(e.message || 'Sync failed'); }
   };
 
-  const deletePlan = async (id: string) => {
-    if (!confirm('Deactivate this plan?')) return;
-    try { await subscriptionAPI.adminDeletePlan(id); loadData(); } catch {}
+  const deletePlan = (id: string) => {
+    askConfirm('Deactivate Plan?', 'This will deactivate this subscription plan.', 'Deactivate', 'yellow', async () => {
+      try { await subscriptionAPI.adminDeletePlan(id); loadData(); } catch {}
+    });
   };
 
-  const deletePromo = async (id: string) => {
-    if (!confirm('Delete this promotion?')) return;
-    try { await subscriptionAPI.adminDeletePromotion(id); loadData(); } catch {}
+  const deletePromo = (id: string) => {
+    askConfirm('Delete Promotion?', 'This will permanently delete this promotion. This cannot be undone.', 'Delete', 'red', async () => {
+      try { await subscriptionAPI.adminDeletePromotion(id); loadData(); } catch {}
+    });
   };
 
   const handleExtend = async (id: string) => {
@@ -3567,6 +3658,7 @@ function SubscriptionAdminTab() {
           </button>
         </div>
       )}
+      {confirmAction && <ConfirmModal modal={confirmAction} onClose={() => setConfirmAction(null)} />}
     </div>
   );
 }
@@ -4135,6 +4227,10 @@ function EmailCampaignsTab() {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ name: '', subject: '', body: '', trigger: 'manual', segment: 'all' });
   const [saving, setSaving] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<ConfirmModalState | null>(null);
+  const askConfirm = (title: string, message: string, confirmLabel: string, variant: ConfirmModalState['variant'], onConfirm: () => void | Promise<void>) => {
+    setConfirmAction({ title, message, confirmLabel, variant, onConfirm });
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -4154,7 +4250,7 @@ function EmailCampaignsTab() {
   };
   const handleToggle = async (id: string) => { try { await emailCampaignAPI.toggle(id); load(); } catch { toast.error('Failed'); } };
   const handleSend = async (id: string) => { try { await emailCampaignAPI.send(id); load(); toast.success('Sent!'); } catch { toast.error('Failed'); } };
-  const handleDelete = async (id: string) => { if (!confirm('Delete?')) return; try { await emailCampaignAPI.delete(id); load(); } catch { toast.error('Failed'); } };
+  const handleDelete = (id: string) => { askConfirm('Delete Campaign?', 'This will permanently delete this email campaign.', 'Delete', 'red', async () => { try { await emailCampaignAPI.delete(id); load(); toast.success('Campaign deleted'); } catch { toast.error('Failed to delete campaign'); } }); };
   const handleTrigger = async (trigger: string) => { try { await emailCampaignAPI.trigger(trigger); toast.success(`Triggered: ${trigger}`); } catch (e: any) { toast.error(e?.response?.data?.error || 'Failed'); } };
 
   const TRIGGERS = ['welcome', 'trial_expiring', 'inactive_7d', 'abandoned_checkout', 'manual'];
@@ -4227,6 +4323,7 @@ function EmailCampaignsTab() {
       </div>
     ))}
     {campaigns.length === 0 && <p className="text-center text-gray-400 text-sm py-8">No email campaigns yet</p>}
+    {confirmAction && <ConfirmModal modal={confirmAction} onClose={() => setConfirmAction(null)} />}
   </div>);
 }
 
@@ -4452,7 +4549,10 @@ export default function AdminPage() {
   // Tab + UI
   const [tab, setTab] = useState<TabId>('overview');
   const [selectedUserId, setSelectedUserId] = useState<string>('');
-  const [confirmDel, setConfirmDel] = useState<{ id: string; type: string } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<ConfirmModalState | null>(null);
+  const askConfirm = (title: string, message: string, confirmLabel: string, variant: ConfirmModalState['variant'], onConfirm: () => void | Promise<void>) => {
+    setConfirmAction({ title, message, confirmLabel, variant, onConfirm });
+  };
 
   // Edit states
   const [editProduct, setEditProduct] = useState<AdminProduct | null>(null);
@@ -4723,12 +4823,14 @@ export default function AdminPage() {
     } catch (e: any) { toast.error(e.message || 'Failed to update callback'); }
   };
 
-  const handleDeleteCallback = async (id: string) => {
-    try {
-      await apiService.adminDeleteCallback(id);
-      setCallbacks(prev => prev.filter(c => c.id !== id));
-      toast.success('Callback deleted');
-    } catch (e: any) { toast.error(e.message || 'Failed to delete callback'); }
+  const handleDeleteCallback = (id: string) => {
+    askConfirm('Delete Callback?', 'This will permanently delete this callback request.', 'Delete', 'red', async () => {
+      try {
+        await apiService.adminDeleteCallback(id);
+        setCallbacks(prev => prev.filter(c => c.id !== id));
+        toast.success('Callback deleted successfully');
+      } catch (e: any) { toast.error(e.message || 'Failed to delete callback'); }
+    });
   };
 
   const fetchProductAnalytics = async () => {
@@ -4775,12 +4877,20 @@ export default function AdminPage() {
     finally { setOrdersLoading(false); }
   };
 
-  const handleUpdateOrderStatus = async (id: string, status: string) => {
-    try {
-      await apiService.adminUpdateOrderStatus(id, status);
-      toast.success('Order status updated');
-      fetchOrders();
-    } catch (e: any) { toast.error('Failed to update order status'); }
+  const handleUpdateOrderStatus = (id: string, status: string) => {
+    askConfirm(
+      'Update Order Status?',
+      `Change order status to '${status}'?`,
+      'Update',
+      'blue',
+      async () => {
+        try {
+          await apiService.adminUpdateOrderStatus(id, status);
+          toast.success(`Order status updated to ${status}`);
+          fetchOrders();
+        } catch (e: any) { toast.error('Failed to update order status'); }
+      }
+    );
   };
 
   // Payout fetchers
@@ -4819,14 +4929,15 @@ export default function AdminPage() {
       fetchPayoutList();
     } catch { toast.error('Failed to update payout'); }
   };
-  const handleDeletePayout = async (id: string) => {
-    if (!confirm('Delete this pending payout?')) return;
-    try {
-      await apiService.deletePayout(id);
-      toast.success('Payout deleted');
-      fetchPayoutSummary();
-      fetchPayoutList();
-    } catch { toast.error('Failed to delete payout'); }
+  const handleDeletePayout = (id: string) => {
+    askConfirm('Delete Payout?', 'This will permanently delete this pending payout. This cannot be undone.', 'Delete', 'red', async () => {
+      try {
+        await apiService.deletePayout(id);
+        toast.success('Payout deleted successfully');
+        fetchPayoutSummary();
+        fetchPayoutList();
+      } catch { toast.error('Failed to delete payout'); }
+    });
   };
 
   // ─── Wellness fetcher ─────────────────────────────────
@@ -4879,20 +4990,29 @@ export default function AdminPage() {
       setTab('wellness_content');
     } catch (e: any) { toast.error(e.message || 'Save failed'); }
   };
-  const handleWcDelete = async (id: string) => {
-    if (!confirm('Delete this content item?')) return;
-    try {
-      await wellnessContentAPI.adminDelete(id);
-      toast.success('Deleted');
-      fetchWellnessContent(wcPage);
-    } catch { toast.error('Delete failed'); }
+  const handleWcDelete = (id: string, key?: string) => {
+    askConfirm('Delete Content?', `This will permanently delete '${key || 'this item'}'. This cannot be undone.`, 'Delete', 'red', async () => {
+      try {
+        await wellnessContentAPI.adminDelete(id);
+        toast.success(`'${key || 'Content'}' deleted successfully`);
+        fetchWellnessContent(wcPage);
+      } catch { toast.error('Failed to delete content'); }
+    });
   };
-  const handleWcToggle = async (id: string) => {
-    try {
-      await wellnessContentAPI.adminToggle(id);
-      toast.success('Toggled');
-      fetchWellnessContent(wcPage);
-    } catch { toast.error('Toggle failed'); }
+  const handleWcToggle = (id: string, key?: string, isActive?: boolean) => {
+    askConfirm(
+      isActive ? 'Pause Content?' : 'Activate Content?',
+      isActive ? `This will hide '${key || 'this item'}' from all users.` : `This will make '${key || 'this item'}' visible to all users.`,
+      isActive ? 'Pause' : 'Activate',
+      isActive ? 'yellow' : 'green',
+      async () => {
+        try {
+          await wellnessContentAPI.adminToggle(id);
+          toast.success(isActive ? `'${key || 'Content'}' paused` : `'${key || 'Content'}' is now active`);
+          fetchWellnessContent(wcPage);
+        } catch { toast.error('Failed to toggle content'); }
+      }
+    );
   };
 
   const resetWellnessForm = () => {
@@ -5261,23 +5381,37 @@ export default function AdminPage() {
     finally { setActionLoading(null); }
   };
 
-  const handleToggleProductPublish = async (id: string) => {
-    setActionLoading(id);
-    try {
-      const res = await apiService.adminToggleProductPublish(id);
-      setProducts(prev => prev.map(p => p.id === id ? res.data : p));
-    } catch (e: any) { toast.error(e.message || 'Failed'); }
-    finally { setActionLoading(null); }
+  const handleToggleProductPublish = (id: string) => {
+    const p = products.find(x => x.id === id);
+    const isPublished = p?.isPublished;
+    askConfirm(
+      isPublished ? 'Unpublish Product?' : 'Publish Product?',
+      isPublished ? `This will hide '${p?.name}' from all users.` : `This will make '${p?.name}' visible to all users.`,
+      isPublished ? 'Unpublish' : 'Publish',
+      isPublished ? 'yellow' : 'green',
+      async () => {
+        setActionLoading(id);
+        try {
+          const res = await apiService.adminToggleProductPublish(id);
+          setProducts(prev => prev.map(p => p.id === id ? res.data : p));
+          toast.success(isPublished ? `'${p?.name}' unpublished` : `'${p?.name}' is now live`);
+        } catch (e: any) { toast.error(e.message || 'Failed to toggle product'); }
+        finally { setActionLoading(null); }
+      }
+    );
   };
 
-  const handleDeleteProduct = async (id: string) => {
-    setActionLoading(id);
-    try {
-      await apiService.adminDeleteProduct(id);
-      setProducts(prev => prev.filter(p => p.id !== id));
-      toast.success('Deleted');
-    } catch (e: any) { toast.error(e.message || 'Failed to delete'); }
-    finally { setActionLoading(null); }
+  const handleDeleteProduct = (id: string) => {
+    const p = products.find(x => x.id === id);
+    askConfirm('Delete Product?', `This will permanently delete '${p?.name || 'this product'}'. This cannot be undone.`, 'Delete', 'red', async () => {
+      setActionLoading(id);
+      try {
+        await apiService.adminDeleteProduct(id);
+        setProducts(prev => prev.filter(p => p.id !== id));
+        toast.success(`'${p?.name || 'Product'}' deleted successfully`);
+      } catch (e: any) { toast.error(e.message || 'Failed to delete product'); }
+      finally { setActionLoading(null); }
+    });
   };
 
   const handleAddArticle = async () => {
@@ -5321,23 +5455,37 @@ export default function AdminPage() {
     finally { setActionLoading(null); }
   };
 
-  const handleToggleArticlePublish = async (id: string) => {
-    setActionLoading(id);
-    try {
-      const res = await apiService.adminToggleArticlePublish(id);
-      setArticles(prev => prev.map(a => a.id === id ? res.data : a));
-    } catch (e: any) { toast.error(e.message || 'Failed'); }
-    finally { setActionLoading(null); }
+  const handleToggleArticlePublish = (id: string) => {
+    const a = articles.find(x => x.id === id);
+    const isPublished = a?.isPublished;
+    askConfirm(
+      isPublished ? 'Unpublish Article?' : 'Publish Article?',
+      isPublished ? `This will hide '${a?.title}' from all users.` : `This will make '${a?.title}' visible to all users.`,
+      isPublished ? 'Unpublish' : 'Publish',
+      isPublished ? 'yellow' : 'green',
+      async () => {
+        setActionLoading(id);
+        try {
+          const res = await apiService.adminToggleArticlePublish(id);
+          setArticles(prev => prev.map(a => a.id === id ? res.data : a));
+          toast.success(isPublished ? `'${a?.title}' unpublished` : `'${a?.title}' is now published`);
+        } catch (e: any) { toast.error(e.message || 'Failed to toggle article'); }
+        finally { setActionLoading(null); }
+      }
+    );
   };
 
-  const handleDeleteArticle = async (id: string) => {
-    setActionLoading(id);
-    try {
-      await apiService.adminDeleteArticle(id);
-      setArticles(prev => prev.filter(a => a.id !== id));
-      toast.success('Deleted');
-    } catch (e: any) { toast.error(e.message || 'Failed to delete'); }
-    finally { setActionLoading(null); }
+  const handleDeleteArticle = (id: string) => {
+    const a = articles.find(x => x.id === id);
+    askConfirm('Delete Article?', `This will permanently delete '${a?.title || 'this article'}'. This cannot be undone.`, 'Delete', 'red', async () => {
+      setActionLoading(id);
+      try {
+        await apiService.adminDeleteArticle(id);
+        setArticles(prev => prev.filter(a => a.id !== id));
+        toast.success(`'${a?.title || 'Article'}' deleted successfully`);
+      } catch (e: any) { toast.error(e.message || 'Failed to delete article'); }
+      finally { setActionLoading(null); }
+    });
   };
 
   const handleAddDoctor = async () => {
@@ -5384,32 +5532,57 @@ export default function AdminPage() {
     finally { setActionLoading(null); }
   };
 
-  const handleToggleDoctorPublish = async (id: string) => {
-    setActionLoading(id);
-    try {
-      const res = await apiService.adminToggleDoctorPublish(id);
-      setDoctors(prev => prev.map(d => d.id === id ? res.data : d));
-    } catch (e: any) { toast.error(e.message || 'Failed'); }
-    finally { setActionLoading(null); }
+  const handleToggleDoctorPublish = (id: string) => {
+    const d = doctors.find(x => x.id === id);
+    const isPublished = d?.isPublished;
+    askConfirm(
+      isPublished ? 'Hide Doctor?' : 'Show Doctor?',
+      isPublished ? `This will hide Dr. '${d?.name}' from users.` : `Dr. '${d?.name}' will be visible to users.`,
+      isPublished ? 'Hide' : 'Show',
+      isPublished ? 'yellow' : 'green',
+      async () => {
+        setActionLoading(id);
+        try {
+          const res = await apiService.adminToggleDoctorPublish(id);
+          setDoctors(prev => prev.map(d => d.id === id ? res.data : d));
+          toast.success(isPublished ? `Dr. '${d?.name}' hidden` : `Dr. '${d?.name}' is now visible`);
+        } catch (e: any) { toast.error(e.message || 'Failed to toggle doctor'); }
+        finally { setActionLoading(null); }
+      }
+    );
   };
 
-  const handleToggleDoctorPromote = async (id: string) => {
-    setActionLoading(id);
-    try {
-      const res = await apiService.adminToggleDoctorPromote(id);
-      setDoctors(prev => prev.map(d => d.id === id ? res.data : d));
-    } catch (e: any) { toast.error(e.message || 'Failed'); }
-    finally { setActionLoading(null); }
+  const handleToggleDoctorPromote = (id: string) => {
+    const d = doctors.find(x => x.id === id);
+    const isPromoted = d?.isPromoted;
+    askConfirm(
+      isPromoted ? 'Remove Promotion?' : 'Promote Doctor?',
+      isPromoted ? `Remove featured badge from Dr. '${d?.name}'?` : `Promote Dr. '${d?.name}' to featured?`,
+      isPromoted ? 'Remove' : 'Promote',
+      'blue',
+      async () => {
+        setActionLoading(id);
+        try {
+          const res = await apiService.adminToggleDoctorPromote(id);
+          setDoctors(prev => prev.map(d => d.id === id ? res.data : d));
+          toast.success(isPromoted ? `Dr. '${d?.name}' promotion removed` : `Dr. '${d?.name}' is now featured`);
+        } catch (e: any) { toast.error(e.message || 'Failed to toggle promotion'); }
+        finally { setActionLoading(null); }
+      }
+    );
   };
 
-  const handleDeleteDoctor = async (id: string) => {
-    setActionLoading(id);
-    try {
-      await apiService.adminDeleteDoctor(id);
-      setDoctors(prev => prev.filter(d => d.id !== id));
-      toast.success('Deleted');
-    } catch (e: any) { toast.error(e.message || 'Failed to delete'); }
-    finally { setActionLoading(null); }
+  const handleDeleteDoctor = (id: string) => {
+    const d = doctors.find(x => x.id === id);
+    askConfirm('Delete Doctor?', `This will permanently delete Dr. '${d?.name || 'this doctor'}'. This cannot be undone.`, 'Delete', 'red', async () => {
+      setActionLoading(id);
+      try {
+        await apiService.adminDeleteDoctor(id);
+        setDoctors(prev => prev.filter(d => d.id !== id));
+        toast.success(`Dr. '${d?.name || 'Doctor'}' deleted successfully`);
+      } catch (e: any) { toast.error(e.message || 'Failed to delete doctor'); }
+      finally { setActionLoading(null); }
+    });
   };
 
   // Edit openers
@@ -5463,20 +5636,38 @@ export default function AdminPage() {
   };
 
   // User management handlers
-  const handleUpdateUserRole = async (id: string, role: string) => {
-    try {
-      const res = await apiService.updateUser(id, { role });
-      setUsers(prev => prev.map(u => u.id === id ? res.data : u));
-      toast.success('Role updated');
-    } catch (e: any) { toast.error(e.message || 'Failed to update role'); }
+  const handleUpdateUserRole = (id: string, role: string) => {
+    const u = users.find(x => x.id === id);
+    askConfirm(
+      'Change User Role?',
+      `Change '${u?.fullName || u?.email || 'this user'}' role to ${role}?`,
+      'Change Role',
+      'blue',
+      async () => {
+        try {
+          const res = await apiService.updateUser(id, { role });
+          setUsers(prev => prev.map(u => u.id === id ? res.data : u));
+          toast.success(`Role updated to ${role}`);
+        } catch (e: any) { toast.error(e.message || 'Failed to update role'); }
+      }
+    );
   };
 
-  const handleToggleUserActive = async (id: string, currentlyActive: boolean) => {
-    try {
-      const res = await apiService.updateUser(id, { isActive: !currentlyActive });
-      setUsers(prev => prev.map(u => u.id === id ? res.data : u));
-      toast.success(currentlyActive ? 'User banned' : 'User activated');
-    } catch (e: any) { toast.error(e.message || 'Failed'); }
+  const handleToggleUserActive = (id: string, currentlyActive: boolean) => {
+    const u = users.find(x => x.id === id);
+    askConfirm(
+      currentlyActive ? 'Ban User?' : 'Activate User?',
+      currentlyActive ? `This will ban '${u?.fullName || u?.email || 'this user'}' from the platform.` : `This will reactivate '${u?.fullName || u?.email || 'this user'}'.`,
+      currentlyActive ? 'Ban User' : 'Activate',
+      currentlyActive ? 'red' : 'green',
+      async () => {
+        try {
+          const res = await apiService.updateUser(id, { isActive: !currentlyActive });
+          setUsers(prev => prev.map(u => u.id === id ? res.data : u));
+          toast.success(currentlyActive ? `'${u?.fullName || 'User'}' has been banned` : `'${u?.fullName || 'User'}' activated`);
+        } catch (e: any) { toast.error(e.message || 'Failed to update user'); }
+      }
+    );
   };
 
   // Appointment status handler
@@ -5507,16 +5698,32 @@ export default function AdminPage() {
 
   const toggleMaintenance = () => {
     const v = !maintenanceMode;
-    setMaintenanceMode(v);
-    localStorage.setItem('sb_maintenance', String(v));
-    toast.success(v ? 'Maintenance mode ON' : 'Maintenance mode OFF');
+    askConfirm(
+      v ? 'Enable Maintenance?' : 'Disable Maintenance?',
+      v ? 'This will show a maintenance page to all users.' : 'Users will be able to access the platform again.',
+      v ? 'Enable' : 'Disable',
+      v ? 'yellow' : 'green',
+      async () => {
+        setMaintenanceMode(v);
+        localStorage.setItem('sb_maintenance', String(v));
+        toast.success(v ? 'Maintenance mode ON' : 'Maintenance mode OFF');
+      }
+    );
   };
 
   const toggleRegistrations = () => {
     const v = !registrationsOpen;
-    setRegistrationsOpen(v);
-    localStorage.setItem('sb_registrations_off', String(!v));
-    toast.success(v ? 'Registrations enabled' : 'Registrations disabled');
+    askConfirm(
+      v ? 'Enable Registrations?' : 'Disable Registrations?',
+      v ? 'New users will be able to register.' : 'No new users will be able to register.',
+      v ? 'Enable' : 'Disable',
+      v ? 'green' : 'yellow',
+      async () => {
+        setRegistrationsOpen(v);
+        localStorage.setItem('sb_registrations_off', String(!v));
+        toast.success(v ? 'Registrations enabled' : 'Registrations disabled');
+      }
+    );
   };
 
   // ─── Tab config ─────────────────────────────────────
@@ -5903,7 +6110,7 @@ export default function AdminPage() {
                     disabled={actionLoading === p.id}>
                     {actionLoading === p.id ? '...' : (p.isPublished ? 'Unpublish' : 'Publish')}
                   </button>
-                  <button onClick={() => setConfirmDel({ id: p.id, type: 'product' })} className="px-3 py-2 rounded-xl bg-red-50 text-red-400 text-[10px] font-bold active:scale-95 hover:bg-red-100 transition-all">{'\u{1F5D1}'}</button>
+                  <button onClick={() => handleDeleteProduct(p.id)} className="px-3 py-2 rounded-xl bg-red-50 text-red-400 text-[10px] font-bold active:scale-95 hover:bg-red-100 transition-all">{'\u{1F5D1}'}</button>
                 </div>
               </div>
             ))}
@@ -5961,7 +6168,7 @@ export default function AdminPage() {
                       {actionLoading === a.id ? '...' : (a.isPublished ? 'Unpublish' : 'Publish')}
                     </button>
                   )}
-                  <button onClick={() => setConfirmDel({ id: a.id, type: 'article' })} className="px-3 py-2 rounded-xl bg-red-50 text-red-400 text-[10px] font-bold active:scale-95 hover:bg-red-100 transition-all">{'\u{1F5D1}'}</button>
+                  <button onClick={() => handleDeleteArticle(a.id)} className="px-3 py-2 rounded-xl bg-red-50 text-red-400 text-[10px] font-bold active:scale-95 hover:bg-red-100 transition-all">{'\u{1F5D1}'}</button>
                 </div>
               </div>
             ))}
@@ -6022,7 +6229,7 @@ export default function AdminPage() {
                       {d.isPromoted ? '\u2B50' : '\u2606'}
                     </button>
                   )}
-                  {!d.isChief && <button onClick={() => setConfirmDel({ id: d.id, type: 'doctor' })} className="px-3 py-2 rounded-xl bg-red-50 text-red-400 text-[10px] font-bold active:scale-95 hover:bg-red-100 transition-all">{'\u{1F5D1}'}</button>}
+                  {!d.isChief && <button onClick={() => handleDeleteDoctor(d.id)} className="px-3 py-2 rounded-xl bg-red-50 text-red-400 text-[10px] font-bold active:scale-95 hover:bg-red-100 transition-all">{'\u{1F5D1}'}</button>}
                 </div>
               </div>
             ))}
@@ -7068,11 +7275,10 @@ export default function AdminPage() {
                         setPfPrerequisites(p.prerequisites || ''); setPfDoctorName(p.doctorName || '');
                         setTab('edit_program');
                       }} className="flex-1 py-2 rounded-xl bg-blue-50 text-blue-600 text-[10px] font-bold active:scale-95">Edit</button>
-                      <button onClick={async () => {
-                        if (!confirm('Delete this program and all its content?')) return;
+                      <button onClick={() => askConfirm('Delete Program?', `This will permanently delete '${p.title}' and all its content. This cannot be undone.`, 'Delete', 'red', async () => {
                         await apiService.deleteProgram(p.id);
-                        toast.success('Deleted'); fetchPrograms();
-                      }} className="py-2 px-3 rounded-xl bg-rose-50 text-rose-600 text-[10px] font-bold active:scale-95">Del</button>
+                        toast.success(`'${p.title}' deleted`); fetchPrograms();
+                      })} className="py-2 px-3 rounded-xl bg-rose-50 text-rose-600 text-[10px] font-bold active:scale-95">Del</button>
                     </div>
                   </div>
                 ))}
@@ -7261,12 +7467,11 @@ export default function AdminPage() {
                               {c.isFree && <span className="text-[8px] font-bold bg-green-100 text-green-600 px-1.5 py-0.5 rounded">Free</span>}
                             </div>
                           </div>
-                          <button onClick={async () => {
-                            if (!confirm('Delete this content?')) return;
+                          <button onClick={() => askConfirm('Delete Content?', `This will permanently delete '${c.title}'. This cannot be undone.`, 'Delete', 'red', async () => {
                             await apiService.deleteProgramContent(c.id);
-                            toast.success('Deleted');
+                            toast.success(`'${c.title}' deleted`);
                             fetchProgramContents(contentProgramId);
-                          }} className="text-rose-400 text-xs active:scale-90">🗑️</button>
+                          })} className="text-rose-400 text-xs active:scale-90">🗑️</button>
                         </div>
                       ))}
                     </div>
@@ -7351,11 +7556,10 @@ export default function AdminPage() {
                       }} className="flex-1 py-2 rounded-xl bg-blue-50 text-blue-600 text-[10px] font-bold active:scale-95 transition-all">
                         Edit
                       </button>
-                      <button onClick={async () => {
-                        if (!confirm('Delete this activity?')) return;
+                      <button onClick={() => askConfirm('Delete Activity?', `This will permanently delete '${a.title}'. This cannot be undone.`, 'Delete', 'red', async () => {
                         await apiService.deleteWellness(a.id);
-                        toast.success('Deleted'); fetchWellness();
-                      }} className="py-2 px-3 rounded-xl bg-rose-50 text-rose-600 text-[10px] font-bold active:scale-95 transition-all">
+                        toast.success(`'${a.title}' deleted`); fetchWellness();
+                      })} className="py-2 px-3 rounded-xl bg-rose-50 text-rose-600 text-[10px] font-bold active:scale-95 transition-all">
                         Delete
                       </button>
                     </div>
@@ -8017,14 +8221,13 @@ export default function AdminPage() {
               <h3 className="text-base lg:text-lg font-extrabold text-gray-900">🌿 Wellness Content ({wcTotal})</h3>
               <div className="flex gap-2">
                 {wcTotal === 0 && (
-                  <button onClick={async () => {
-                    if (!confirm('Seed all default wellness content (~391 items)?')) return;
+                  <button onClick={() => askConfirm('Seed Wellness Content?', 'This will create ~391 default wellness content items.', 'Seed', 'blue', async () => {
                     try {
                       const res = await wellnessContentAPI.adminSeed();
                       toast.success(res.data?.message || 'Seeded!');
                       fetchWellnessContent(1);
                     } catch (e: any) { toast.error(e?.response?.data?.error || 'Seed failed'); }
-                  }} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-xl">Seed Data</button>
+                  })} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-xl">Seed Data</button>
                 )}
                 <button onClick={() => { setWcEdit(null); setWcForm({ type: '', key: '', phase: '', goal: '', dosha: '', week: '', category: '', emoji: '', title: '', body: '', metadata: '', sortOrder: '0', isActive: true, sourceReference: '' }); setTab('edit_wellness_content' as TabId); }}
                   className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-xl">+ Add</button>
@@ -8057,10 +8260,10 @@ export default function AdminPage() {
                         {item.sourceReference && <p className="text-[8px] text-gray-300 mt-0.5">{item.sourceReference}</p>}
                       </div>
                       <div className="flex gap-1 flex-shrink-0">
-                        <button onClick={() => handleWcToggle(item.id)} className="text-[9px] px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200">{item.isActive ? '⏸️' : '▶️'}</button>
+                        <button onClick={() => handleWcToggle(item.id, item.title || item.key, item.isActive)} className="text-[9px] px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200">{item.isActive ? '⏸️' : '▶️'}</button>
                         <button onClick={() => { setWcEdit(item); setWcForm({ type: item.type, key: item.key, phase: item.phase || '', goal: item.goal || '', dosha: item.dosha || '', week: item.week !== null ? String(item.week) : '', category: item.category || '', emoji: item.emoji || '', title: item.title || '', body: item.body, metadata: item.metadata ? JSON.stringify(item.metadata) : '', sortOrder: String(item.sortOrder || 0), isActive: item.isActive, sourceReference: item.sourceReference || '' }); setTab('edit_wellness_content' as TabId); }}
                           className="text-[9px] px-2 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100">✏️</button>
-                        <button onClick={() => handleWcDelete(item.id)} className="text-[9px] px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100">🗑️</button>
+                        <button onClick={() => handleWcDelete(item.id, item.title || item.key)} className="text-[9px] px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100">🗑️</button>
                       </div>
                     </div>
                   </div>
@@ -8252,28 +8455,8 @@ export default function AdminPage() {
         </>)}
       </div>
 
-      {/* Delete confirmation modal */}
-      {/* Delete confirmation modal */}
-      {confirmDel && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6" onClick={() => setConfirmDel(null)}>
-          <div className="bg-white rounded-2xl p-6 text-center max-w-xs lg:max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="w-16 h-16 mx-auto rounded-full bg-red-50 flex items-center justify-center mb-3">
-              <span className="text-3xl">{'\u26A0\uFE0F'}</span>
-            </div>
-            <h3 className="text-base font-extrabold text-gray-900">Delete {confirmDel.type}?</h3>
-            <p className="text-[11px] lg:text-sm text-gray-500 mt-1">This action cannot be undone.</p>
-            <div className="flex gap-3 mt-5">
-              <button onClick={() => setConfirmDel(null)} className="flex-1 py-3 bg-gray-100 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-200 transition-all">Cancel</button>
-              <button onClick={() => {
-                if (confirmDel.type === 'product') handleDeleteProduct(confirmDel.id);
-                if (confirmDel.type === 'article') handleDeleteArticle(confirmDel.id);
-                if (confirmDel.type === 'doctor') handleDeleteDoctor(confirmDel.id);
-                setConfirmDel(null);
-              }} className="flex-1 py-3 bg-gradient-to-r from-red-500 to-rose-500 rounded-xl text-sm font-bold text-white shadow-sm hover:shadow transition-all">Delete</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Confirmation Modal */}
+      {confirmAction && <ConfirmModal modal={confirmAction} onClose={() => setConfirmAction(null)} />}
 
       </div>
     </div>
