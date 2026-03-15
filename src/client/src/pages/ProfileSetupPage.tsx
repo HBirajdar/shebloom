@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../stores/authStore';
 import { useCycleStore } from '../stores/cycleStore';
 import type { UserGoal } from '../stores/cycleStore';
-import { userAPI } from '../services/api';
+import { userAPI, cycleAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
 const goals: { id: UserGoal; icon: string; label: string; desc: string }[] = [
@@ -13,6 +12,16 @@ const goals: { id: UserGoal; icon: string; label: string; desc: string }[] = [
   { id: 'wellness', icon: '\u{1F9D8}', label: 'Wellness', desc: 'Overall health & self-care' },
 ];
 const topics = ['Period Tracking','Pregnancy','PCOD/PCOS','Yoga','Mental Health','Nutrition','Self Care','Fertility','Fitness','Sleep','Supplements','Ayurveda'];
+
+interface PastPeriod {
+  startDate: string;
+  endDate: string;
+  errors: { startDate?: string; endDate?: string };
+}
+
+function emptyPeriod(): PastPeriod {
+  return { startDate: '', endDate: '', errors: {} };
+}
 
 export default function ProfileSetupPage() {
   const nav = useNavigate();
@@ -26,8 +35,157 @@ export default function ProfileSetupPage() {
   const [sel, setSel] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
+  // Past periods state
+  const [pastPeriods, setPastPeriods] = useState<PastPeriod[]>([emptyPeriod()]);
+  const [periodsSaving, setPeriodsSaving] = useState(false);
+
   const toggle = (t: string) => setSel(p => p.includes(t) ? p.filter(x => x !== t) : [...p, t]);
   const ovDay = cycle - 14;
+
+  const showPastPeriodsStep = goal !== 'pregnancy' && goal !== '';
+  const totalSteps = showPastPeriodsStep ? 4 : 3;
+  const interestsStep = showPastPeriodsStep ? 3 : 2;
+  const lastStep = totalSteps - 1;
+
+  // ── Past periods helpers ──────────────────────────────
+  const today = new Date().toISOString().slice(0, 10);
+  const twelveMonthsAgo = new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10);
+
+  const updatePeriod = (idx: number, field: 'startDate' | 'endDate', value: string) => {
+    setPastPeriods(prev => prev.map((p, i) => i === idx ? { ...p, [field]: value, errors: { ...p.errors, [field]: undefined } } : p));
+  };
+
+  const removePeriod = (idx: number) => {
+    setPastPeriods(prev => prev.length === 1 ? [emptyPeriod()] : prev.filter((_, i) => i !== idx));
+  };
+
+  const addPeriod = () => {
+    if (pastPeriods.length < 3) setPastPeriods(prev => [...prev, emptyPeriod()]);
+  };
+
+  const validatePastPeriods = (): boolean => {
+    // Filter out completely empty cards (user added but didn't fill)
+    const filled = pastPeriods.filter(p => p.startDate);
+    if (filled.length === 0) return true; // nothing to validate, will skip
+
+    let valid = true;
+    const updated = pastPeriods.map((p, idx) => {
+      const errors: { startDate?: string; endDate?: string } = {};
+
+      // Skip validation for empty cards
+      if (!p.startDate && !p.endDate) return { ...p, errors };
+
+      if (!p.startDate) {
+        errors.startDate = 'Start date is required';
+        valid = false;
+      } else {
+        if (p.startDate > today) {
+          errors.startDate = 'Date cannot be in the future';
+          valid = false;
+        }
+        if (p.startDate < twelveMonthsAgo) {
+          errors.startDate = 'Must be within last 12 months';
+          valid = false;
+        }
+      }
+
+      if (p.endDate) {
+        if (p.endDate > today) {
+          errors.endDate = 'Date cannot be in the future';
+          valid = false;
+        }
+        if (p.startDate && p.endDate <= p.startDate) {
+          errors.endDate = 'Must be after start date';
+          valid = false;
+        }
+      }
+
+      return { ...p, errors };
+    });
+
+    // Check for overlaps between filled periods
+    const filledWithDates = updated.filter(p => p.startDate);
+    for (let i = 0; i < filledWithDates.length; i++) {
+      const a = filledWithDates[i];
+      const aStart = new Date(a.startDate).getTime();
+      const aEnd = a.endDate ? new Date(a.endDate).getTime() : aStart + 5 * 86400000;
+      for (let j = i + 1; j < filledWithDates.length; j++) {
+        const b = filledWithDates[j];
+        const bStart = new Date(b.startDate).getTime();
+        const bEnd = b.endDate ? new Date(b.endDate).getTime() : bStart + 5 * 86400000;
+        if (aStart <= bEnd && bStart <= aEnd) {
+          // Find actual index in original array and set error
+          const idxA = updated.indexOf(a);
+          const idxB = updated.indexOf(b);
+          updated[idxA].errors.startDate = 'Overlaps with another period';
+          updated[idxB].errors.startDate = 'Overlaps with another period';
+          valid = false;
+        }
+      }
+    }
+
+    // Check for duplicate start dates
+    const startDates = filledWithDates.map(p => p.startDate);
+    const dupes = startDates.filter((d, i) => startDates.indexOf(d) !== i);
+    if (dupes.length > 0) {
+      updated.forEach(p => {
+        if (dupes.includes(p.startDate)) {
+          p.errors.startDate = 'Duplicate start date';
+          valid = false;
+        }
+      });
+    }
+
+    setPastPeriods(updated);
+    return valid;
+  };
+
+  const savePastPeriods = async () => {
+    const filled = pastPeriods.filter(p => p.startDate);
+    if (filled.length === 0) return; // nothing to save
+
+    setPeriodsSaving(true);
+    // Sort oldest first so cycleLength auto-computes correctly
+    const sorted = [...filled].sort((a, b) => a.startDate.localeCompare(b.startDate));
+
+    let saved = 0;
+    for (const p of sorted) {
+      try {
+        await cycleAPI.log({
+          startDate: new Date(p.startDate).toISOString(),
+          endDate: p.endDate ? new Date(p.endDate).toISOString() : new Date(new Date(p.startDate).getTime() + (period - 1) * 86400000).toISOString(),
+          flow: 'medium',
+        });
+        saved++;
+      } catch {
+        // Don't block onboarding on failure
+      }
+    }
+    if (saved > 0) toast.success(`${saved} period${saved > 1 ? 's' : ''} imported!`);
+    else toast.error('Could not save periods — you can add them later');
+    setPeriodsSaving(false);
+  };
+
+  // ── Step navigation ───────────────────────────────────
+  const handleNext = async () => {
+    // Leaving past periods step → validate & save
+    if (showPastPeriodsStep && step === 2) {
+      if (!validatePastPeriods()) return;
+      await savePastPeriods();
+      setStep(step + 1);
+      return;
+    }
+
+    if (step < lastStep) {
+      setStep(step + 1);
+    } else {
+      await finish();
+    }
+  };
+
+  const handleSkipPeriods = () => {
+    setStep(step + 1);
+  };
 
   const finish = async () => {
     setBusy(true);
@@ -51,7 +209,13 @@ export default function ProfileSetupPage() {
     setBusy(false);
   };
 
-  const totalSteps = goal === 'pregnancy' ? 3 : 3;
+  const isBusy = busy || periodsSaving;
+
+  // Button label
+  let btnLabel = 'Continue';
+  if (step === lastStep) btnLabel = 'Get Started \u{1F680}';
+  if (showPastPeriodsStep && step === 2) btnLabel = pastPeriods.some(p => p.startDate) ? 'Save & Continue' : 'Continue';
+  if (isBusy) btnLabel = 'Saving...';
 
   return (
     <div className="min-h-screen p-6" style={{ background: 'linear-gradient(180deg, #FFF1F2 0%, #F5F3FF 50%, #FAFAF9 100%)' }}>
@@ -65,6 +229,7 @@ export default function ProfileSetupPage() {
         <span className="text-[10px] text-gray-400 font-bold">{step + 1}/{totalSteps}</span>
       </div>
 
+      {/* Step 0: Goal Selection */}
       {step === 0 && (
         <div>
           <h2 className="text-2xl font-extrabold text-gray-900 mb-1">What brings you here?</h2>
@@ -82,6 +247,7 @@ export default function ProfileSetupPage() {
         </div>
       )}
 
+      {/* Step 1: Cycle Details (non-pregnancy) */}
       {step === 1 && goal !== 'pregnancy' && (
         <div>
           <h2 className="text-2xl font-extrabold text-gray-900 mb-1">Cycle Details</h2>
@@ -110,6 +276,7 @@ export default function ProfileSetupPage() {
         </div>
       )}
 
+      {/* Step 1: Pregnancy Week */}
       {step === 1 && goal === 'pregnancy' && (
         <div>
           <h2 className="text-2xl font-extrabold text-gray-900 mb-1">How far along?</h2>
@@ -128,7 +295,69 @@ export default function ProfileSetupPage() {
         </div>
       )}
 
-      {step === 2 && (
+      {/* Step 2: Past Periods (non-pregnancy only) */}
+      {step === 2 && showPastPeriodsStep && (
+        <div>
+          <h2 className="text-2xl font-extrabold text-gray-900 mb-1">Get instant predictions {'\u{1F338}'}</h2>
+          <p className="text-gray-500 text-sm mb-2">Add your recent periods so we can predict your cycle right away — no waiting!</p>
+          <p className="text-[10px] text-purple-600 font-semibold mb-5">Tip: Even approximate dates help!</p>
+
+          <div className="space-y-3">
+            {pastPeriods.map((pp, idx) => (
+              <div key={idx} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 relative">
+                {/* Remove button */}
+                {(pastPeriods.length > 1 || pp.startDate || pp.endDate) && (
+                  <button onClick={() => removePeriod(idx)}
+                    className="absolute top-3 right-3 w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-400 transition active:scale-90 text-xs font-bold">
+                    ✕
+                  </button>
+                )}
+
+                <p className="text-xs font-bold text-gray-500 mb-3">Period {idx + 1}</p>
+
+                {/* Start Date */}
+                <div className="mb-3">
+                  <label className="text-xs font-semibold text-gray-700 block mb-1">Start Date *</label>
+                  <input
+                    type="date"
+                    value={pp.startDate}
+                    max={today}
+                    min={twelveMonthsAgo}
+                    onChange={e => updatePeriod(idx, 'startDate', e.target.value)}
+                    className={'w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition ' + (pp.errors.startDate ? 'border-red-400 focus:border-red-500' : 'border-gray-200 focus:border-rose-400')}
+                  />
+                  {pp.errors.startDate && <p className="text-[10px] text-red-500 mt-1 font-medium">{pp.errors.startDate}</p>}
+                </div>
+
+                {/* End Date */}
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 block mb-1">End Date <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <input
+                    type="date"
+                    value={pp.endDate}
+                    max={today}
+                    min={pp.startDate || twelveMonthsAgo}
+                    onChange={e => updatePeriod(idx, 'endDate', e.target.value)}
+                    className={'w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition ' + (pp.errors.endDate ? 'border-red-400 focus:border-red-500' : 'border-gray-200 focus:border-rose-400')}
+                  />
+                  {pp.errors.endDate && <p className="text-[10px] text-red-500 mt-1 font-medium">{pp.errors.endDate}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Add another */}
+          {pastPeriods.length < 3 && (
+            <button onClick={addPeriod}
+              className="w-full mt-3 py-2.5 rounded-2xl border-2 border-dashed border-gray-200 text-sm font-semibold text-gray-400 hover:border-rose-300 hover:text-rose-400 transition active:scale-95">
+              + Add another period
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Interests Step (Step 2 for pregnancy, Step 3 for others) */}
+      {step === interestsStep && (
         <div>
           <h2 className="text-2xl font-extrabold text-gray-900 mb-1">Your Interests</h2>
           <p className="text-gray-500 text-sm mb-6">We'll personalize your articles & tips</p>
@@ -144,11 +373,19 @@ export default function ProfileSetupPage() {
         </div>
       )}
 
-      <button onClick={() => step < 2 ? setStep(step + 1) : finish()} disabled={busy || (step === 0 && !goal)}
+      {/* Main Action Button */}
+      <button onClick={handleNext} disabled={isBusy || (step === 0 && !goal)}
         className="w-full mt-8 py-3.5 text-white rounded-2xl font-bold shadow-lg disabled:opacity-50 active:scale-95 transition-transform"
         style={{ background: 'linear-gradient(135deg, #E11D48, #EC4899)' }}>
-        {busy ? 'Saving...' : step < 2 ? 'Continue' : 'Get Started \u{1F680}'}
+        {btnLabel}
       </button>
+
+      {/* Skip link for past periods step */}
+      {showPastPeriodsStep && step === 2 && !periodsSaving && (
+        <button onClick={handleSkipPeriods} className="w-full mt-3 py-2 text-sm text-gray-400 font-semibold hover:text-gray-600 transition">
+          Skip for now
+        </button>
+      )}
     </div>
   );
 }
