@@ -553,10 +553,12 @@ r.post('/doctors', async (req: Request, res: Response, next: NextFunction) => {
         fullName: b.name, specialization: b.specialization || '',
         qualifications, experienceYears: Number(b.experience) || 0,
         consultationFee: Number(b.fee) || 0, bio: b.about || '',
-        tags: Array.isArray(b.tags) ? b.tags : [], languages: Array.isArray(b.languages) ? b.languages : [],
+        tags: Array.isArray(b.tags) ? b.tags : [],
+        languages: Array.isArray(b.languages) ? b.languages.map((l: string) => (typeof l === 'string' ? l.toUpperCase() : l)).filter(Boolean) : [],
         avatarUrl: b.avatarUrl || null, isPublished: true, isChief: b.isChief ?? false, isPromoted: b.isPromoted ?? false,
         rating: 5.0, totalReviews: 0, isAvailable: true, isVerified: true,
         status: 'active', hospitalName: b.hospitalName || null, location: b.location || null,
+        commissionRate: b.commissionRate ? Number(b.commissionRate) : null,
         approvedBy: (req as any).user?.id || 'admin', approvedAt: new Date(), publishedAt: new Date(),
       },
     });
@@ -614,7 +616,7 @@ r.put('/doctors/:id', async (req: Request, res: Response, next: NextFunction) =>
     if (b.fee !== undefined) data.consultationFee = Number(b.fee);
     if (b.about !== undefined) data.bio = b.about;
     if (b.tags !== undefined) data.tags = Array.isArray(b.tags) ? b.tags : [];
-    if (b.languages !== undefined) data.languages = Array.isArray(b.languages) ? b.languages : [];
+    if (b.languages !== undefined) data.languages = Array.isArray(b.languages) ? b.languages.map((l: string) => (typeof l === 'string' ? l.toUpperCase() : l)).filter(Boolean) : [];
     if (b.avatarUrl !== undefined) data.avatarUrl = b.avatarUrl || null;
     if (typeof b.isChief === 'boolean') data.isChief = b.isChief;
     if (typeof b.isPromoted === 'boolean') data.isPromoted = b.isPromoted;
