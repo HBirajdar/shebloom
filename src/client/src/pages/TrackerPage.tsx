@@ -298,7 +298,7 @@ export default function TrackerPage() {
       if (!markers[key].includes(type)) markers[key].push(type)
     }
 
-    // Mark logged period days
+    // Mark logged period days (capped at 15 days — no period lasts longer medically)
     cycles.forEach(cycle => {
       if (!cycle.startDate) return
       const start = startOfDay(new Date(cycle.startDate))
@@ -306,9 +306,11 @@ export default function TrackerPage() {
         ? startOfDay(new Date(cycle.endDate))
         : addDays(start, (cycle.periodLength || 5) - 1)
       let d = new Date(start)
-      while (d <= end) {
+      let count = 0
+      while (d <= end && count < 15) {
         markDay(new Date(d), 'period')
         d = addDays(d, 1)
+        count++
       }
     })
 
@@ -377,9 +379,11 @@ export default function TrackerPage() {
           ? startOfDay(new Date(c.endDate))
           : addDays(start, (c.periodLength || 5) - 1)
         let d = new Date(start)
-        while (d <= end) {
+        let count = 0
+        while (d <= end && count < 15) {
           days.add(d.toISOString().slice(0, 10))
           d = addDays(d, 1)
+          count++
         }
       }
     })
@@ -2217,10 +2221,10 @@ export default function TrackerPage() {
         ) : null}
       </div>
 
-      {/* Log Period Button — fixed above BottomNav */}
+      {/* Log Period Button — fixed above BottomNav (70px nav + 8px gap) */}
       <div
-        className="fixed bottom-16 px-4 pb-2 z-20 w-full"
-        style={{ maxWidth: 430, left: '50%', transform: 'translateX(-50%)' }}
+        className="fixed px-4 pb-2 z-30 w-full"
+        style={{ bottom: 78, maxWidth: 430, left: '50%', transform: 'translateX(-50%)' }}
       >
         <button
           onClick={() => setShowLogSheet(true)}

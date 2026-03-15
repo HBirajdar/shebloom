@@ -677,7 +677,13 @@ export class CycleService {
     if (existingCycle) throw new Error('A period is already logged for this date');
 
     const startDate = new Date(data.startDate);
-    const endDate = data.endDate ? new Date(data.endDate) : undefined;
+    let endDate = data.endDate ? new Date(data.endDate) : undefined;
+
+    // Cap endDate to startDate + 15 days max (no period lasts longer)
+    if (endDate) {
+      const maxEnd = new Date(startDate.getTime() + 15 * 86400000);
+      if (endDate > maxEnd) endDate = maxEnd;
+    }
 
     // Auto-compute periodLength from start/end dates
     let periodLength: number | undefined;
