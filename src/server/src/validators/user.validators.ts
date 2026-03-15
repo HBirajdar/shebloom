@@ -5,7 +5,7 @@ export const updateUserSchema = z.object({
   avatarUrl: z.string().url().max(2048).optional(),
   photoUrl: z.string().url().max(2048).optional(),
   dateOfBirth: z.string().optional(),
-  language: z.enum(['ENGLISH','HINDI','TAMIL','KANNADA','TELUGU','MARATHI']).optional(),
+  language: z.enum(['ENGLISH','HINDI','TAMIL','KANNADA','TELUGU','MARATHI','BENGALI','GUJARATI']).optional(),
 }).strict();
 export const updateProfileSchema = z.object({
   cycleLength: z.number().int().min(20).max(45).optional(),

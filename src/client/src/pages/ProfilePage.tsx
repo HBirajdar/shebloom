@@ -68,6 +68,9 @@ export default function ProfilePage() {
   const [secretTaps, setSecretTaps] = useState(0);
   const [activeTab, setActiveTab] = useState<'overview' | 'achievements' | 'settings'>('overview');
   const [showLegal, setShowLegal] = useState(false);
+  const [showLanguage, setShowLanguage] = useState(false);
+  const [currentLang, setCurrentLang] = useState('ENGLISH');
+  const [savingLang, setSavingLang] = useState(false);
 
   // Edit form fields
   const [name, setName] = useState('');
@@ -149,6 +152,7 @@ export default function ProfilePage() {
           phone: p.phone || user.phone,
           authProvider: p.authProvider || user.authProvider,
         });
+        if (p.language) setCurrentLang(p.language);
       }
     }).catch(() => toast.error('Could not load profile. Check your connection.'));
   }, []);
@@ -292,7 +296,7 @@ export default function ProfilePage() {
       'terms-conditions': '/terms-conditions', 'shipping-policy': '/shipping-policy',
       'refund-policy': '/refund-policy', help: '/help',
       appointments: '/appointments', referrals: '/referrals',
-      notifications: '/notifications', language: '/language',
+      notifications: '/notifications',
       'data-privacy': '/data-privacy',
     };
     if (action === 'edit') openEdit();
@@ -303,6 +307,7 @@ export default function ProfilePage() {
       if (dosha) nav('/dosha');
       else nav('/onboarding');
     }
+    else if (action === 'language') setShowLanguage(true);
     else toast('Coming soon!');
   };
 
@@ -840,6 +845,56 @@ export default function ProfilePage() {
               <button onClick={() => setShowAdminHint(false)} className="flex-1 py-3 bg-gray-100 rounded-xl font-semibold text-sm active:scale-95">Cancel</button>
               <button onClick={() => { setShowAdminHint(false); nav('/admin'); }} className="flex-1 py-3 bg-emerald-500 text-white rounded-xl font-semibold text-sm active:scale-95 transition-transform">Enter</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Language Preference Sheet ────────────────── */}
+      {showLanguage && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end justify-center" onClick={() => setShowLanguage(false)}>
+          <div className="bg-white w-full max-w-[430px] rounded-t-3xl p-5 pb-8" onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
+            <h3 className="text-lg font-extrabold text-gray-900 mb-1">Language Preference</h3>
+            <p className="text-xs text-gray-400 mb-4">Choose your preferred language for content</p>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { code: 'ENGLISH', label: 'English', native: 'English' },
+                { code: 'HINDI', label: 'Hindi', native: 'हिन्दी' },
+                { code: 'TAMIL', label: 'Tamil', native: 'தமிழ்' },
+                { code: 'KANNADA', label: 'Kannada', native: 'ಕನ್ನಡ' },
+                { code: 'TELUGU', label: 'Telugu', native: 'తెలుగు' },
+                { code: 'MARATHI', label: 'Marathi', native: 'मराठी' },
+                { code: 'BENGALI', label: 'Bengali', native: 'বাংলা' },
+                { code: 'GUJARATI', label: 'Gujarati', native: 'ગુજરાતી' },
+              ] as const).map(lang => (
+                <button
+                  key={lang.code}
+                  disabled={savingLang}
+                  onClick={async () => {
+                    if (lang.code === currentLang) return;
+                    setSavingLang(true);
+                    try {
+                      await userAPI.update({ language: lang.code });
+                      setCurrentLang(lang.code);
+                      toast.success(`Language set to ${lang.label}`);
+                    } catch { toast.error('Failed to update language'); }
+                    setSavingLang(false);
+                  }}
+                  className={`flex flex-col items-center py-3 rounded-2xl border-2 transition-all active:scale-95 ${
+                    currentLang === lang.code
+                      ? 'border-rose-500 bg-rose-50'
+                      : 'border-gray-100 bg-gray-50 hover:border-gray-200'
+                  }`}
+                >
+                  <span className="text-sm font-bold text-gray-800">{lang.native}</span>
+                  <span className="text-[10px] text-gray-400 mt-0.5">{lang.label}</span>
+                  {currentLang === lang.code && <span className="text-rose-500 text-xs mt-1">✓</span>}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setShowLanguage(false)} className="w-full mt-4 py-3 bg-gray-100 rounded-xl font-semibold text-sm active:scale-95">
+              Done
+            </button>
           </div>
         </div>
       )}
