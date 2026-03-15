@@ -1,8 +1,21 @@
 import { Router, Response, NextFunction, Request } from 'express';
 import prisma from '../config/database';
+import { authenticate, AuthRequest } from '../middleware/auth';
 const r = Router();
 
-r.get('/', async (_q: Request, s: Response, _n: NextFunction) => {
+// Health check — public (no auth), but only returns status, no counts
+r.get('/health', async (_q: Request, s: Response, _n: NextFunction) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    s.json({ status: 'ok', db: 'connected', version: '2.2', timestamp: new Date().toISOString() });
+  } catch {
+    s.status(500).json({ status: 'error', db: 'disconnected' });
+  }
+});
+
+// Full debug info — admin only
+r.get('/', authenticate, async (q: AuthRequest, s: Response, _n: NextFunction) => {
+  if (q.user!.role !== 'ADMIN') { s.status(403).json({ error: 'Admin only' }); return; }
   try {
     const userCount = await prisma.user.count();
     const cycleCount = await prisma.cycle.count();

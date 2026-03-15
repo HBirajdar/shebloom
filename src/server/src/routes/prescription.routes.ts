@@ -121,8 +121,13 @@ r.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
       },
     });
     if (!p) { errorResponse(res, 'Prescription not found', 404); return; }
-    // Only owner or admin can view
-    if (p.userId !== req.user!.id && req.user!.role !== 'ADMIN') {
+    // Only patient, their doctor, or admin can view
+    let isDoctor = false;
+    if (req.user!.role === 'DOCTOR') {
+      const doc = await prisma.doctor.findUnique({ where: { userId: req.user!.id }, select: { id: true } });
+      isDoctor = doc != null && doc.id === p.doctorId;
+    }
+    if (p.userId !== req.user!.id && req.user!.role !== 'ADMIN' && !isDoctor) {
       errorResponse(res, 'Unauthorized', 403); return;
     }
     successResponse(res, p);

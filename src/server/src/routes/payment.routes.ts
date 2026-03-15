@@ -92,6 +92,11 @@ r.post('/webhook', async (req: Request, res: Response) => {
               });
             } catch (e: any) {
               logger.error('[CRITICAL] Webhook stock/coupon transaction failed for order', order.id, ':', e.message);
+              // Mark order for manual review so admin can resolve stock/coupon issues
+              await prisma.order.update({
+                where: { id: order.id },
+                data: { orderStatus: 'NEEDS_REVIEW' },
+              }).catch(() => {});
             }
             // Audit log: webhook captured
             auditLog({
@@ -471,6 +476,12 @@ r.post('/cod', async (q: AuthRequest, s: Response, n: NextFunction) => {
 
     if (!config.codEnabled) { errorResponse(s, 'Cash on Delivery is not available', 400); return; }
     if (!items?.length) { errorResponse(s, 'Cart is empty', 400); return; }
+
+    // Idempotency: prevent double-submit within 30 seconds
+    const recentCod = await prisma.order.findFirst({
+      where: { userId: uid, paymentMethod: 'COD', createdAt: { gte: new Date(Date.now() - 30000) } },
+    });
+    if (recentCod) { errorResponse(s, 'Order already placed. Please wait before trying again.', 429); return; }
     if (!deliveryAddress?.fullName || !deliveryAddress?.phone || !deliveryAddress?.addressLine1 || !deliveryAddress?.city || !deliveryAddress?.state || !deliveryAddress?.pincode) {
       errorResponse(s, 'Complete delivery address required', 400); return;
     }

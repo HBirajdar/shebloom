@@ -18,7 +18,15 @@ r.get('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
 });
 
 r.post('/log', async (q: AuthRequest, s: Response, n: NextFunction) => {
-  try { successResponse(s, await svc.logPeriod(q.user!.id, q.body), 'Period logged', 201); } catch (e) { n(e); }
+  try {
+    const { startDate, endDate, flow, painLevel } = q.body;
+    if (!startDate) { errorResponse(s, 'startDate is required', 400); return; }
+    if (isNaN(new Date(startDate).getTime())) { errorResponse(s, 'Invalid startDate', 400); return; }
+    if (endDate && isNaN(new Date(endDate).getTime())) { errorResponse(s, 'Invalid endDate', 400); return; }
+    if (flow && !['heavy', 'medium', 'light', 'spotting'].includes(flow)) { errorResponse(s, 'Invalid flow value', 400); return; }
+    if (painLevel != null && (Number(painLevel) < 0 || Number(painLevel) > 10)) { errorResponse(s, 'painLevel must be 0-10', 400); return; }
+    successResponse(s, await svc.logPeriod(q.user!.id, q.body), 'Period logged', 201);
+  } catch (e) { n(e); }
 });
 
 r.get('/predict', async (q: AuthRequest, s: Response, n: NextFunction) => {

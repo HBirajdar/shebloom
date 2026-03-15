@@ -89,6 +89,14 @@ r.post('/log', authenticate, async (q: AuthRequest, s: Response, n: NextFunction
       errorResponse(s, 'type and value are required', 400);
       return;
     }
+    if (!['water', 'sleep', 'exercise'].includes(type)) {
+      errorResponse(s, 'type must be water, sleep, or exercise', 400);
+      return;
+    }
+    if (typeof value !== 'number' || isNaN(value) || value < 0 || value > 100) {
+      errorResponse(s, 'value must be a number 0-100', 400);
+      return;
+    }
 
     if (type === 'water') {
       const todayStart = new Date();

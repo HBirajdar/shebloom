@@ -82,8 +82,13 @@ r.post('/track/batch', authenticate, async (req: AuthRequest, res: Response) => 
     ];
     const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || null;
     const ua = req.headers['user-agent'] || null;
-    // Limit batch size and filter out events with invalid event names
-    const batch = events.slice(0, 50).filter((e: any) => e.event && ALLOWED_EVENTS.includes(e.event));
+    // Limit batch size, filter invalid events, and cap metadata size
+    const batch = events.slice(0, 50).filter((e: any) => e.event && ALLOWED_EVENTS.includes(e.event)).map((e: any) => {
+      // Cap metadata to prevent oversized JSON storage
+      if (e.metadata && JSON.stringify(e.metadata).length > 2048) e.metadata = null;
+      if (e.label && typeof e.label === 'string') e.label = e.label.slice(0, 255);
+      return e;
+    });
     if (batch.length === 0) {
       return res.json({ ok: true });
     }

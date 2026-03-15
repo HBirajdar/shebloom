@@ -316,7 +316,8 @@ r.post('/:id/reviews', async (q: AuthRequest, res: Response, next: NextFunction)
     const productId = q.params.id;
     const { rating, title, comment, images } = q.body;
 
-    if (!rating || rating < 1 || rating > 5) { errorResponse(res, 'Rating must be 1-5', 400); return; }
+    const ratingNum = Number(rating);
+    if (!rating || isNaN(ratingNum) || !Number.isInteger(ratingNum) || ratingNum < 1 || ratingNum > 5) { errorResponse(res, 'Rating must be an integer 1-5', 400); return; }
 
     const product = await prisma.product.findUnique({ where: { id: productId } });
     if (!product) { errorResponse(res, 'Product not found', 404); return; }
