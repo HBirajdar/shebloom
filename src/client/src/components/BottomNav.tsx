@@ -1,11 +1,12 @@
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 const TABS = [
-  { id: 'home', path: '/dashboard', emoji: '🏠', label: 'Home' },
-  { id: 'track', path: '/tracker', emoji: '📅', label: 'Tracker' },
-  { id: 'wellness', path: '/wellness', emoji: '🌿', label: 'Wellness' },
-  { id: 'doctors', path: '/doctors', emoji: '👩\u200D⚕️', label: 'Doctors' },
-  { id: 'profile', path: '/profile', emoji: '👤', label: 'Profile' },
+  { id: 'home', path: '/dashboard', emoji: '🏠', labelKey: 'nav.home' },
+  { id: 'track', path: '/tracker', emoji: '📅', labelKey: 'nav.tracker' },
+  { id: 'wellness', path: '/wellness', emoji: '🌿', labelKey: 'nav.wellness' },
+  { id: 'doctors', path: '/doctors', emoji: '👩‍⚕️', labelKey: 'nav.doctors' },
+  { id: 'profile', path: '/profile', emoji: '👤', labelKey: 'nav.profile' },
 ];
 
 interface BottomNavProps {
@@ -15,6 +16,7 @@ interface BottomNavProps {
 export default function BottomNav({ communityBadge }: BottomNavProps) {
   const nav = useNavigate();
   const { pathname } = useLocation();
+  const { t } = useTranslation();
 
   const isActive = (path: string) => pathname === path || pathname.startsWith(path + '/');
 
@@ -36,7 +38,7 @@ export default function BottomNav({ communityBadge }: BottomNavProps) {
                   </span>
                 </div>
                 <span className={`font-bold transition-colors ${active ? 'text-rose-500' : 'text-gray-500'}`} style={{ fontSize: 10 }}>
-                  {tab.label}
+                  {t(tab.labelKey)}
                 </span>
               </button>
             );

@@ -8,6 +8,7 @@ import UpgradePrompt from '../components/UpgradePrompt'
 import PremiumBadge from '../components/PremiumBadge'
 import toast from 'react-hot-toast'
 import BottomNav from '../components/BottomNav'
+import { useTranslation } from 'react-i18next'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const DAYS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
@@ -33,6 +34,7 @@ function formatMonthDay(date: Date) {
 }
 
 export default function TrackerPage() {
+  const { t: tr } = useTranslation()
   const navigate = useNavigate()
   const cycleStore = useCycleStore()
   const goal = useCycleStore(s => s.goal)
@@ -499,7 +501,7 @@ export default function TrackerPage() {
         symptoms: logSymptoms,
         notes: logNotes,
       })
-      toast.success('Period logged! 🌸')
+      toast.success(tr('tracker.periodLogged') + ' 🌸')
       setShowLogSheet(false)
       setLogFlow('')
       setLogPain(0)
@@ -536,7 +538,7 @@ export default function TrackerPage() {
   const handleDeleteCycle = async (cycleId: string) => {
     try {
       await cycleAPI.delete(cycleId)
-      toast.success('Period entry deleted')
+      toast.success(tr('tracker.periodDeleted'))
       setDeleteConfirm(null)
       setExpandedCycle(null)
       await refreshCycleData()
@@ -569,7 +571,7 @@ export default function TrackerPage() {
         symptoms: editSymptoms,
         notes: editNotes,
       })
-      toast.success('Period entry updated')
+      toast.success(tr('tracker.periodUpdated'))
       setEditingCycle(null)
       await refreshCycleData()
     } catch {
@@ -774,7 +776,7 @@ export default function TrackerPage() {
                   : 'bg-white/60 text-gray-400'
               }`}
             >
-              {t.icon} {t.key.charAt(0).toUpperCase() + t.key.slice(1)}
+              {t.icon} {t.key === 'calendar' ? tr('tracker.calendar') : t.key === 'insights' ? tr('tracker.insights') : t.key.charAt(0).toUpperCase() + t.key.slice(1)}
             </button>
           ))}
         </div>
@@ -1078,7 +1080,7 @@ export default function TrackerPage() {
                 {/* Header */}
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h3 className="text-sm font-extrabold text-white tracking-wide">Cycle Timeline</h3>
+                    <h3 className="text-sm font-extrabold text-white tracking-wide">{tr('tracker.cycleTimeline')}</h3>
                     <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
                       {prediction?.cycleLength || 28}-day cycle
                     </p>
@@ -1247,13 +1249,13 @@ export default function TrackerPage() {
                     <div className="flex-1">
                       <p className="text-sm font-extrabold text-gray-800">Get instant predictions</p>
                       <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                        Add your last 2–3 periods so we can predict your cycle right away — no waiting!
+                        {tr('tracker.importDesc')}
                       </p>
                       <button
                         onClick={() => setShowImportSheet(true)}
                         className="mt-2.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs font-bold px-4 py-2 rounded-xl active:scale-95 transition-transform shadow-sm"
                       >
-                        + Import Past Periods
+                        + {tr('tracker.importPastPeriods')}
                       </button>
                     </div>
                   </div>
@@ -1263,10 +1265,10 @@ export default function TrackerPage() {
 
             {/* Past Period History */}
             <div className="mt-3 px-4">
-              <h3 className="text-sm font-bold text-gray-700 mb-2">Period History</h3>
+              <h3 className="text-sm font-bold text-gray-700 mb-2">{tr('tracker.periodHistory')}</h3>
               {sortedCycles.length === 0 ? (
                 <div className="bg-white rounded-2xl p-6 text-center text-gray-400 text-sm shadow-sm border border-gray-100">
-                  No periods logged yet. Tap + Log Period to get started!
+                  {tr('tracker.noPeriods')}
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">
@@ -1340,14 +1342,14 @@ export default function TrackerPage() {
                                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-indigo-50 text-indigo-600 text-xs font-semibold hover:bg-indigo-100 transition"
                               >
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                Edit
+                                {tr('common.edit')}
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); setDeleteConfirm(cycle.id) }}
                                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-red-50 text-red-500 text-xs font-semibold hover:bg-red-100 transition"
                               >
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                Delete
+                                {tr('common.delete')}
                               </button>
                             </div>
                           </div>
@@ -1367,7 +1369,7 @@ export default function TrackerPage() {
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <div className={`text-xs font-bold uppercase tracking-wide ${phaseInfo.accent}`}>
-                    Current Phase
+                    {tr('tracker.currentPhase')}
                   </div>
                   <div className="text-lg font-black text-gray-900 mt-0.5">{phaseInfo.name}</div>
                 </div>
@@ -1686,7 +1688,7 @@ export default function TrackerPage() {
               <div className="flex items-start gap-3">
                 <span className="text-2xl">📥</span>
                 <div className="flex-1">
-                  <p className="text-sm font-extrabold text-gray-800">Import Past Periods</p>
+                  <p className="text-sm font-extrabold text-gray-800">{tr('tracker.importPastPeriods')}</p>
                   <p className="text-xs text-gray-500 mt-1 leading-relaxed">
                     Add previous period dates to improve prediction accuracy. The more data, the better your forecasts.
                   </p>
@@ -2231,7 +2233,7 @@ export default function TrackerPage() {
           className="w-full bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold text-base py-4 rounded-2xl shadow-lg shadow-rose-200 active:scale-95 transition-transform flex items-center justify-center gap-2"
         >
           <span className="text-lg font-black">+</span>
-          Log Period
+          {tr('tracker.logPeriod')}
         </button>
       </div>
 
@@ -2254,7 +2256,7 @@ export default function TrackerPage() {
             {/* Header — fixed at top */}
             <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 flex-shrink-0">
               <div>
-                <h2 className="text-xl font-black text-gray-900">Log Period</h2>
+                <h2 className="text-xl font-black text-gray-900">{tr('tracker.logPeriod')}</h2>
                 <p className="text-xs text-gray-400 mt-0.5">Track your cycle accurately</p>
               </div>
               <button
@@ -2604,7 +2606,7 @@ export default function TrackerPage() {
             </div>
             <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 flex-shrink-0">
               <div>
-                <h2 className="text-xl font-black text-gray-900">Import Past Periods</h2>
+                <h2 className="text-xl font-black text-gray-900">{tr('tracker.importPastPeriods')}</h2>
                 <p className="text-xs text-gray-400 mt-0.5">Add up to 3 recent periods for better predictions</p>
               </div>
               <button onClick={() => !importSaving && setShowImportSheet(false)} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors">✕</button>
@@ -2677,11 +2679,11 @@ export default function TrackerPage() {
               <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mb-3">
                 <svg className="w-7 h-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
               </div>
-              <h3 className="text-lg font-black text-gray-900 mb-1">Delete Period Entry?</h3>
-              <p className="text-sm text-gray-500 mb-5">This will permanently remove this entry and recalculate all your cycle statistics.</p>
+              <h3 className="text-lg font-black text-gray-900 mb-1">{tr('tracker.deleteConfirm')}</h3>
+              <p className="text-sm text-gray-500 mb-5">{tr('tracker.deleteConfirmDesc')}</p>
               <div className="flex gap-3 w-full">
-                <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-3 rounded-2xl bg-gray-100 text-gray-700 font-bold text-sm hover:bg-gray-200 transition">Cancel</button>
-                <button onClick={() => handleDeleteCycle(deleteConfirm)} className="flex-1 py-3 rounded-2xl bg-red-500 text-white font-bold text-sm hover:bg-red-600 transition">Delete</button>
+                <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-3 rounded-2xl bg-gray-100 text-gray-700 font-bold text-sm hover:bg-gray-200 transition">{tr('common.cancel')}</button>
+                <button onClick={() => handleDeleteCycle(deleteConfirm)} className="flex-1 py-3 rounded-2xl bg-red-500 text-white font-bold text-sm hover:bg-red-600 transition">{tr('common.delete')}</button>
               </div>
             </div>
           </div>

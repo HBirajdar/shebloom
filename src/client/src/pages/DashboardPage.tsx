@@ -11,6 +11,7 @@ import BottomNav from '../components/BottomNav';
 import DoctorCarousel from '../components/DoctorCarousel';
 import type { Doctor as CarouselDoctor } from '../components/DoctorCarousel';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 
 /* ═══════════════════════════════════════════════════════
    VEDACLUE DASHBOARD — Enterprise Grade
@@ -162,6 +163,7 @@ const WellnessRing = ({ score }: { score: number }) => {
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════
 export default function DashboardPage() {
+  const { t } = useTranslation();
   const nav = useNavigate();
   const user = useAuthStore(s => s.user);
   const { cycleDay, phase, daysUntilPeriod, cycleLength, periodLength, goal, pregnancyWeek, hasRealData } = useCycleStore();
@@ -225,7 +227,7 @@ export default function DashboardPage() {
   }, [cycleDay, ovDay, predictionData]);
 
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+  const greeting = hour < 12 ? t('dashboard.goodMorning') : hour < 17 ? t('dashboard.goodAfternoon') : t('dashboard.goodEvening');
 
   // Wellness score
   const wellnessScore = Math.round(
@@ -518,7 +520,7 @@ export default function DashboardPage() {
                 <div className="p-5">
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <p className="text-[9px] text-gray-400 uppercase tracking-widest font-bold">Today's Wellness</p>
+                      <p className="text-[9px] text-gray-400 uppercase tracking-widest font-bold">{t('dashboard.todayWellness')}</p>
                       <p className="text-sm font-extrabold text-gray-800">Daily Health Score</p>
                     </div>
                     {hasRealData && (
@@ -1150,7 +1152,7 @@ export default function DashboardPage() {
         <div className="bg-white rounded-3xl p-4 shadow-lg">
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-xs font-bold text-gray-800">💧 Hydration</h3>
-            <div className="flex items-center gap-1.5"><span className="text-xs font-extrabold text-blue-600">{water}</span><span className="text-[10px] text-gray-400">/ 8 glasses</span></div>
+            <div className="flex items-center gap-1.5"><span className="text-xs font-extrabold text-blue-600">{water}</span><span className="text-[10px] text-gray-400">/ 8 {t('dashboard.glasses')}</span></div>
           </div>
           <div className="flex gap-1.5">
             {Array.from({ length: 8 }).map((_, i) => (
@@ -1166,7 +1168,7 @@ export default function DashboardPage() {
 
         {/* ─── Wellness Score (hidden for wellness goal — already in hero) ─── */}
         {goal !== 'wellness' && <div className="bg-white rounded-3xl p-4 shadow-lg">
-          <h3 className="text-xs font-bold text-gray-800 mb-3">⚡ Today's Wellness Score</h3>
+          <h3 className="text-xs font-bold text-gray-800 mb-3">⚡ {t('dashboard.wellnessScore')}</h3>
           <div className="flex items-center gap-4">
             <WellnessRing score={wellnessScore} />
             <div className="flex-1 space-y-1.5">

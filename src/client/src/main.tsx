@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { HelmetProvider } from 'react-helmet-async';
 import App from './App';
+import './i18n';
 import './styles/index.css';
 
 // ─── Service Worker registration ─────────────────────────────────

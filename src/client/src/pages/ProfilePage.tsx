@@ -9,6 +9,8 @@ import { api } from '../services/api';
 import { useSubscriptionStore } from '../stores/subscriptionStore';
 import BottomNav from '../components/BottomNav';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
+import { switchLanguage } from '../i18n';
 
 /* ═══════════════════════════════════════════════════════
    VEDACLUE PROFILE — Smart Auth Provider Field Locking
@@ -52,6 +54,7 @@ function normalizeProvider(p?: string): 'email' | 'mobile' | 'google' | 'apple' 
 }
 
 export default function ProfilePage() {
+  const { t } = useTranslation();
   const nav = useNavigate();
   const user = useAuthStore(s => s.user);
   const setUser = useAuthStore(s => s.setUser);
@@ -152,7 +155,7 @@ export default function ProfilePage() {
           phone: p.phone || user.phone,
           authProvider: p.authProvider || user.authProvider,
         });
-        if (p.language) setCurrentLang(p.language);
+        if (p.language) { setCurrentLang(p.language); switchLanguage(p.language); }
       }
     }).catch(() => toast.error('Could not load profile. Check your connection.'));
   }, []);
@@ -390,10 +393,10 @@ export default function ProfilePage() {
           )}
         </div>
         <div className="px-5 bg-white border-b border-gray-100 flex gap-0">
-          {[{ id: 'overview', label: 'Overview' }, { id: 'achievements', label: 'Badges' }, { id: 'settings', label: 'Settings' }].map(t => (
-            <button key={t.id} onClick={() => setActiveTab(t.id as any)}
-              className={'flex-1 py-3 text-[11px] font-bold border-b-2 transition-all ' + (activeTab === t.id ? 'border-rose-500 text-rose-600' : 'border-transparent text-gray-400')}>
-              {t.label}
+          {[{ id: 'overview', labelKey: 'profile.overview' }, { id: 'achievements', labelKey: 'profile.achievements' }, { id: 'settings', labelKey: 'profile.settings' }].map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id as any)}
+              className={'flex-1 py-3 text-[11px] font-bold border-b-2 transition-all ' + (activeTab === tab.id ? 'border-rose-500 text-rose-600' : 'border-transparent text-gray-400')}>
+              {t(tab.labelKey)}
             </button>
           ))}
         </div>
@@ -407,9 +410,9 @@ export default function ProfilePage() {
           <div className="mt-2">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">👤 My Account</p>
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-50">
-              <MenuItem emoji="✏️" label="Edit Profile" onClick={openEdit} />
+              <MenuItem emoji="✏️" label={t('profile.editProfile')} onClick={openEdit} />
               <MenuItem emoji="📱" label="Change Phone" onClick={() => openEdit()} />
-              <MenuItem emoji="🔔" label="Notifications" onClick={() => handleItem('notifications')} />
+              <MenuItem emoji="🔔" label={t('profile.notifications')} onClick={() => handleItem('notifications')} />
             </div>
           </div>
 
@@ -463,10 +466,10 @@ export default function ProfilePage() {
           <div className="mt-6">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">🛍️ My Activity</p>
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-50">
-              <MenuItem emoji="📦" label="My Orders" onClick={() => handleItem('my-orders')} />
-              <MenuItem emoji="👩‍⚕️" label="Appointments" onClick={() => handleItem('appointments')} />
+              <MenuItem emoji="📦" label={t('profile.myOrders')} onClick={() => handleItem('my-orders')} />
+              <MenuItem emoji="👩‍⚕️" label={t('profile.appointments')} onClick={() => handleItem('appointments')} />
               <MenuItem emoji="🎯" label="Programs" onClick={() => handleItem('programs')} />
-              <MenuItem emoji="🤝" label="Referrals" onClick={() => handleItem('referrals')} />
+              <MenuItem emoji="🤝" label={t('profile.referFriend')} onClick={() => handleItem('referrals')} />
             </div>
           </div>
 
@@ -474,8 +477,8 @@ export default function ProfilePage() {
           <div className="mt-6">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">⚙️ App Settings</p>
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-50">
-              <MenuItem emoji="🌐" label="Language Preference" onClick={() => handleItem('language')} />
-              <MenuItem emoji="🔒" label="Data & Privacy" onClick={() => handleItem('data-privacy')} />
+              <MenuItem emoji="🌐" label={t('profile.language')} onClick={() => handleItem('language')} />
+              <MenuItem emoji="🔒" label={t('profile.dataPrivacy')} onClick={() => handleItem('data-privacy')} />
             </div>
           </div>
 
@@ -490,11 +493,11 @@ export default function ProfilePage() {
             </button>
             {showLegal && (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-50">
-                <MenuItem emoji="🌸" label="About VedaClue" onClick={() => handleItem('about-us')} />
-                <MenuItem emoji="🔒" label="Privacy Policy" onClick={() => handleItem('privacy-policy')} />
-                <MenuItem emoji="📜" label="Terms & Conditions" onClick={() => handleItem('terms-conditions')} />
-                <MenuItem emoji="❓" label="Help Center" onClick={() => handleItem('help')} />
-                <MenuItem emoji="📧" label="Contact Us" onClick={() => handleItem('contact')} />
+                <MenuItem emoji="🌸" label={t('profile.aboutUs')} onClick={() => handleItem('about-us')} />
+                <MenuItem emoji="🔒" label={t('profile.privacyPolicy')} onClick={() => handleItem('privacy-policy')} />
+                <MenuItem emoji="📜" label={t('profile.termsConditions')} onClick={() => handleItem('terms-conditions')} />
+                <MenuItem emoji="❓" label={t('profile.help')} onClick={() => handleItem('help')} />
+                <MenuItem emoji="📧" label={t('profile.contactUs')} onClick={() => handleItem('contact')} />
               </div>
             )}
           </div>
@@ -826,11 +829,11 @@ export default function ProfilePage() {
       {showLogout && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-6" onClick={() => setShowLogout(false)}>
           <div className="bg-white w-full max-w-[340px] rounded-3xl p-6 text-center" onClick={e => e.stopPropagation()}>
-            <p className="text-4xl mb-3">👋</p><h3 className="text-lg font-extrabold">Sign Out?</h3>
-            <p className="text-xs text-gray-400 mt-1">Your data will be here when you return.</p>
+            <p className="text-4xl mb-3">👋</p><h3 className="text-lg font-extrabold">{t('profile.signOutConfirm')}</h3>
+            <p className="text-xs text-gray-400 mt-1">{t('profile.signOutDesc')}</p>
             <div className="flex gap-3 mt-5">
-              <button onClick={() => setShowLogout(false)} className="flex-1 py-3 bg-gray-100 rounded-xl font-semibold text-sm active:scale-95">Cancel</button>
-              <button onClick={() => { clear(); nav('/auth'); }} className="flex-1 py-3 bg-rose-500 text-white rounded-xl font-semibold text-sm active:scale-95 transition-transform">Sign Out</button>
+              <button onClick={() => setShowLogout(false)} className="flex-1 py-3 bg-gray-100 rounded-xl font-semibold text-sm active:scale-95">{t('common.cancel')}</button>
+              <button onClick={() => { clear(); nav('/auth'); }} className="flex-1 py-3 bg-rose-500 text-white rounded-xl font-semibold text-sm active:scale-95 transition-transform">{t('profile.signOut')}</button>
             </div>
           </div>
         </div>
@@ -876,6 +879,7 @@ export default function ProfilePage() {
                     try {
                       await userAPI.update({ language: lang.code });
                       setCurrentLang(lang.code);
+                      switchLanguage(lang.code);
                       toast.success(`Language set to ${lang.label}`);
                     } catch { toast.error('Failed to update language'); }
                     setSavingLang(false);
