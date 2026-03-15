@@ -153,6 +153,7 @@ export default function App() {
           <Route path="/appointments" element={<ProtectedRoute><AppointmentsPage /></ProtectedRoute>} />
           <Route path="/appointments/history" element={<ProtectedRoute><AppointmentHistoryPage /></ProtectedRoute>} />
           <Route path="/ayurveda" element={<ProtectedRoute><AyurvedaPage /></ProtectedRoute>} />
+          <Route path="/dosha" element={<ProtectedRoute><DoshaAssessmentPage /></ProtectedRoute>} />
           <Route path="/dosha-assessment" element={<ProtectedRoute><DoshaAssessmentPage /></ProtectedRoute>} />
           <Route path="/shop/history" element={<ProtectedRoute><ShopHistoryPage /></ProtectedRoute>} />
           <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
