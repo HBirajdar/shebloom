@@ -231,6 +231,128 @@ async function bootstrap() {
     }
   });
 
+  // 4f. Push notifications — water, period, mood reminders (every hour)
+  cron.schedule('0 * * * *', async () => {
+    try {
+      const now = new Date();
+      const currentHour = now.getUTCHours(); // Server runs in UTC — prefs store IST-ish hours
+      // For simplicity, treat stored hours as UTC (Railway servers are UTC)
+
+      // Get all users who have push enabled + a push subscription
+      const users = await prisma.user.findMany({
+        where: { fcmToken: { not: null }, isActive: true },
+        select: { id: true },
+      });
+      if (users.length === 0) return;
+
+      const userIds = users.map(u => u.id);
+
+      // Batch-load preferences and profiles
+      const [allPrefs, allProfiles, allWaterLogs] = await Promise.all([
+        prisma.notificationPreference.findMany({ where: { userId: { in: userIds } } }),
+        prisma.userProfile.findMany({ where: { userId: { in: userIds } } }),
+        prisma.waterLog.findMany({
+          where: {
+            userId: { in: userIds },
+            logDate: { gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) },
+          },
+        }),
+      ]);
+
+      const prefsMap = Object.fromEntries(allPrefs.map(p => [p.userId, p]));
+      const profileMap = Object.fromEntries(allProfiles.map(p => [p.userId, p]));
+      const waterMap = Object.fromEntries(allWaterLogs.map(w => [w.userId, w]));
+
+      const { sendPushNotification: pushNotif } = await import('./services/push.service');
+      let sent = 0;
+
+      for (const uid of userIds) {
+        const prefs = prefsMap[uid];
+        if (prefs && !prefs.pushEnabled) continue;
+        // Default prefs if none exist
+        const waterEnabled = prefs?.waterReminder ?? true;
+        const waterStart = prefs?.waterStartHour ?? 8;
+        const waterEnd = prefs?.waterEndHour ?? 22;
+        const waterInterval = prefs?.waterIntervalHours ?? 2;
+        const moodEnabled = prefs?.moodReminder ?? true;
+        const moodHour = prefs?.moodReminderHour ?? 20;
+        const periodEnabled = prefs?.periodReminder ?? true;
+        const periodDays = prefs?.periodReminderDays ?? 2;
+        const ovulationEnabled = prefs?.ovulationReminder ?? true;
+
+        // ─── Water reminder ─────────────────────────
+        if (waterEnabled && currentHour >= waterStart && currentHour <= waterEnd) {
+          // Only send if current hour aligns with interval
+          if ((currentHour - waterStart) % Math.round(waterInterval) === 0) {
+            const waterLog = waterMap[uid];
+            const glasses = waterLog?.glasses ?? 0;
+            const target = waterLog?.targetGlasses ?? 8;
+            if (glasses < target) {
+              // Check no water reminder sent in last interval
+              const recent = await prisma.notification.findFirst({
+                where: { userId: uid, type: 'water_reminder', createdAt: { gte: new Date(now.getTime() - waterInterval * 3600000) } },
+              });
+              if (!recent) {
+                await pushNotif(uid, 'Hydration Reminder 💧', `You've had ${glasses} of ${target} glasses today. Time for a sip!`, 'water_reminder', { url: '/wellness' });
+                sent++;
+              }
+            }
+          }
+        }
+
+        // ─── Mood check-in ──────────────────────────
+        if (moodEnabled && currentHour === moodHour) {
+          const recent = await prisma.notification.findFirst({
+            where: { userId: uid, type: 'mood_reminder', createdAt: { gte: new Date(now.getTime() - 20 * 3600000) } },
+          });
+          if (!recent) {
+            await pushNotif(uid, 'Mood Check-in 😊', 'How are you feeling right now? Tap to log your mood.', 'mood_reminder', { url: '/wellness' });
+            sent++;
+          }
+        }
+
+        // ─── Period prediction ───────────────────────
+        const profile = profileMap[uid];
+        if (profile?.lastPeriodDate && periodEnabled) {
+          const cycleLength = profile.cycleLength || 28;
+          const lastPeriod = new Date(profile.lastPeriodDate);
+          const nextPeriod = new Date(lastPeriod.getTime() + cycleLength * 86400000);
+          const daysUntil = Math.floor((nextPeriod.getTime() - now.getTime()) / 86400000);
+
+          if (daysUntil === periodDays && currentHour === 9) {
+            const recent = await prisma.notification.findFirst({
+              where: { userId: uid, type: 'period_prediction', createdAt: { gte: new Date(now.getTime() - 86400000) } },
+            });
+            if (!recent) {
+              await pushNotif(uid, 'Period Coming Soon 🩸', `Your period is expected in ${periodDays} day${periodDays > 1 ? 's' : ''}. Stay prepared!`, 'period_prediction', { url: '/tracker' });
+              sent++;
+            }
+          }
+
+          // Ovulation day
+          if (ovulationEnabled) {
+            const daysSince = Math.floor((now.getTime() - lastPeriod.getTime()) / 86400000);
+            const cycleDay = (daysSince % cycleLength) + 1;
+            const ovulationDay = cycleLength - 14;
+            if (cycleDay === ovulationDay && currentHour === 9) {
+              const recent = await prisma.notification.findFirst({
+                where: { userId: uid, type: 'ovulation_push', createdAt: { gte: new Date(now.getTime() - 86400000) } },
+              });
+              if (!recent) {
+                await pushNotif(uid, 'Ovulation Day ✨', "Today is your predicted ovulation day — your peak fertility window!", 'ovulation_push', { url: '/tracker' });
+                sent++;
+              }
+            }
+          }
+        }
+      }
+
+      if (sent > 0) logger.info(`Cron: sent ${sent} push notification(s)`);
+    } catch (err: any) {
+      logger.warn('Cron push notifications failed: ' + (err.message || '').slice(0, 200));
+    }
+  });
+
   logger.info('Cron: all scheduled jobs registered');
 }
 

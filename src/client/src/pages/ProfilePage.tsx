@@ -11,6 +11,8 @@ import BottomNav from '../components/BottomNav';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { switchLanguage } from '../i18n';
+import { usePushNotifications } from '../hooks/usePushNotifications';
+import { notificationAPI } from '../services/api';
 
 /* ═══════════════════════════════════════════════════════
    VEDACLUE PROFILE — Smart Auth Provider Field Locking
@@ -74,6 +76,24 @@ export default function ProfilePage() {
   const [showLanguage, setShowLanguage] = useState(false);
   const [currentLang, setCurrentLang] = useState('ENGLISH');
   const [savingLang, setSavingLang] = useState(false);
+
+  // Push notifications
+  const { permission: pushPerm, isSubscribed: pushSub, loading: pushLoading, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushNotifications();
+  const [notifPrefs, setNotifPrefs] = useState<any>(null);
+  const [notifSaving, setNotifSaving] = useState(false);
+
+  useEffect(() => {
+    notificationAPI.getPreferences().then(r => setNotifPrefs(r.data?.data || r.data)).catch(() => {});
+  }, []);
+
+  const toggleNotifPref = async (key: string, value: any) => {
+    setNotifSaving(true);
+    try {
+      const res = await notificationAPI.updatePreferences({ [key]: value });
+      setNotifPrefs(res.data?.data || res.data);
+    } catch { toast.error('Failed to save'); }
+    setNotifSaving(false);
+  };
 
   // Edit form fields
   const [name, setName] = useState('');
@@ -479,6 +499,105 @@ export default function ProfilePage() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-50">
               <MenuItem emoji="🌐" label={t('profile.language')} onClick={() => handleItem('language')} />
               <MenuItem emoji="🔒" label={t('profile.dataPrivacy')} onClick={() => handleItem('data-privacy')} />
+            </div>
+          </div>
+
+          {/* ─── Section 4b: Notification Settings ─── */}
+          <div className="mt-6">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">🔔 Notifications</p>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
+              {/* Master push toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-gray-800">Push Notifications</p>
+                  <p className="text-[10px] text-gray-400">{pushSub ? 'Enabled on this device' : pushPerm === 'denied' ? 'Blocked by browser' : 'Not enabled'}</p>
+                </div>
+                <button
+                  disabled={pushLoading || pushPerm === 'denied'}
+                  onClick={async () => {
+                    if (pushSub) { await pushUnsubscribe(); toast.success('Notifications disabled'); }
+                    else { const ok = await pushSubscribe(); if (ok) toast.success('Notifications enabled! 🎉'); }
+                  }}
+                  className={`w-12 h-7 rounded-full transition-colors relative ${pushSub ? 'bg-rose-500' : 'bg-gray-200'} ${pushPerm === 'denied' ? 'opacity-40' : ''}`}
+                >
+                  <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${pushSub ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </button>
+              </div>
+
+              {pushSub && notifPrefs && (
+                <>
+                  <div className="border-t border-gray-100 pt-3" />
+
+                  {/* Period reminders */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">🩸</span>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-700">Period Reminders</p>
+                        <p className="text-[10px] text-gray-400">{notifPrefs.periodReminderDays} days before</p>
+                      </div>
+                    </div>
+                    <button
+                      disabled={notifSaving}
+                      onClick={() => toggleNotifPref('periodReminder', !notifPrefs.periodReminder)}
+                      className={`w-10 h-6 rounded-full transition-colors relative ${notifPrefs.periodReminder ? 'bg-rose-500' : 'bg-gray-200'}`}
+                    >
+                      <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${notifPrefs.periodReminder ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                    </button>
+                  </div>
+
+                  {/* Ovulation */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">✨</span>
+                      <p className="text-xs font-semibold text-gray-700">Ovulation Day</p>
+                    </div>
+                    <button
+                      disabled={notifSaving}
+                      onClick={() => toggleNotifPref('ovulationReminder', !notifPrefs.ovulationReminder)}
+                      className={`w-10 h-6 rounded-full transition-colors relative ${notifPrefs.ovulationReminder ? 'bg-rose-500' : 'bg-gray-200'}`}
+                    >
+                      <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${notifPrefs.ovulationReminder ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                    </button>
+                  </div>
+
+                  {/* Water reminders */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">💧</span>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-700">Water Reminders</p>
+                        <p className="text-[10px] text-gray-400">Every {notifPrefs.waterIntervalHours}h ({notifPrefs.waterStartHour}:00 – {notifPrefs.waterEndHour}:00)</p>
+                      </div>
+                    </div>
+                    <button
+                      disabled={notifSaving}
+                      onClick={() => toggleNotifPref('waterReminder', !notifPrefs.waterReminder)}
+                      className={`w-10 h-6 rounded-full transition-colors relative ${notifPrefs.waterReminder ? 'bg-rose-500' : 'bg-gray-200'}`}
+                    >
+                      <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${notifPrefs.waterReminder ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                    </button>
+                  </div>
+
+                  {/* Mood check-in */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">😊</span>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-700">Mood Check-in</p>
+                        <p className="text-[10px] text-gray-400">Daily at {notifPrefs.moodReminderHour}:00</p>
+                      </div>
+                    </div>
+                    <button
+                      disabled={notifSaving}
+                      onClick={() => toggleNotifPref('moodReminder', !notifPrefs.moodReminder)}
+                      className={`w-10 h-6 rounded-full transition-colors relative ${notifPrefs.moodReminder ? 'bg-rose-500' : 'bg-gray-200'}`}
+                    >
+                      <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${notifPrefs.moodReminder ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

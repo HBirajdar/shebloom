@@ -47,6 +47,55 @@ r.post('/unsubscribe', async (req: AuthRequest, res: Response) => {
   } catch (e: any) { errorResponse(res, e.message, 500); }
 });
 
+// ─── GET /preferences ────────────────────────────────
+r.get('/preferences', async (req: AuthRequest, res: Response) => {
+  try {
+    let prefs = await prisma.notificationPreference.findUnique({ where: { userId: req.user!.id } });
+    if (!prefs) {
+      prefs = await prisma.notificationPreference.create({ data: { userId: req.user!.id } });
+    }
+    successResponse(res, prefs);
+  } catch (e: any) { errorResponse(res, e.message, 500); }
+});
+
+// ─── PUT /preferences ────────────────────────────────
+r.put('/preferences', async (req: AuthRequest, res: Response) => {
+  try {
+    const allowed = [
+      'pushEnabled', 'periodReminder', 'periodReminderDays',
+      'ovulationReminder', 'waterReminder', 'waterIntervalHours',
+      'waterStartHour', 'waterEndHour', 'moodReminder', 'moodReminderHour',
+      'appointmentReminder', 'appointmentLeadMins',
+    ];
+    const data: any = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) data[key] = req.body[key];
+    }
+    // Validate ranges
+    if (data.periodReminderDays !== undefined && (data.periodReminderDays < 1 || data.periodReminderDays > 7)) {
+      errorResponse(res, 'periodReminderDays must be 1-7', 400); return;
+    }
+    if (data.waterIntervalHours !== undefined && (data.waterIntervalHours < 0.5 || data.waterIntervalHours > 6)) {
+      errorResponse(res, 'waterIntervalHours must be 0.5-6', 400); return;
+    }
+    if (data.waterStartHour !== undefined && (data.waterStartHour < 0 || data.waterStartHour > 23)) {
+      errorResponse(res, 'waterStartHour must be 0-23', 400); return;
+    }
+    if (data.waterEndHour !== undefined && (data.waterEndHour < 0 || data.waterEndHour > 23)) {
+      errorResponse(res, 'waterEndHour must be 0-23', 400); return;
+    }
+    if (data.moodReminderHour !== undefined && (data.moodReminderHour < 0 || data.moodReminderHour > 23)) {
+      errorResponse(res, 'moodReminderHour must be 0-23', 400); return;
+    }
+    const prefs = await prisma.notificationPreference.upsert({
+      where: { userId: req.user!.id },
+      update: data,
+      create: { userId: req.user!.id, ...data },
+    });
+    successResponse(res, prefs, 'Preferences updated');
+  } catch (e: any) { errorResponse(res, e.message, 500); }
+});
+
 // ─── Smart notification generator ───────────────────
 async function generateSmartNotifications(userId: string) {
   try {

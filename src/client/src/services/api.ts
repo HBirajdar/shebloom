@@ -225,6 +225,8 @@ export const notificationAPI = {
   getVapidKey: () => api.get('/notifications/vapid-key'),
   subscribe: (subscription: any) => api.post('/notifications/subscribe', { subscription }),
   unsubscribe: () => api.post('/notifications/unsubscribe'),
+  getPreferences: () => api.get('/notifications/preferences'),
+  updatePreferences: (d: any) => api.put('/notifications/preferences', d),
 };
 
 export const cartAPI = {

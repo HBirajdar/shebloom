@@ -12,6 +12,7 @@ import DoctorCarousel from '../components/DoctorCarousel';
 import type { Doctor as CarouselDoctor } from '../components/DoctorCarousel';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 /* ═══════════════════════════════════════════════════════
    VEDACLUE DASHBOARD — Enterprise Grade
@@ -190,6 +191,11 @@ export default function DashboardPage() {
   const [showReferences, setShowReferences] = useState(false);
   const [insightsData, setInsightsData] = useState<any>(null);
   const [showAllPatterns, setShowAllPatterns] = useState(false);
+
+  // Push notification prompt
+  const { permission, isSubscribed, loading: pushLoading, subscribe: pushSubscribe } = usePushNotifications();
+  const [pushDismissed, setPushDismissed] = useState(() => localStorage.getItem('sb_push_dismissed') === '1');
+  const showPushPrompt = !pushDismissed && !isSubscribed && permission !== 'denied';
 
   const theme = phaseThemes[phase] || phaseThemes.follicular;
   // Use individual luteal phase from API (Lenton 1984), fallback to old estimate
@@ -916,6 +922,39 @@ export default function DashboardPage() {
             </button>
           ))}
         </div>
+
+        {/* ─── Push Notification Prompt (double opt-in) ─── */}
+        {showPushPrompt && (
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-3xl p-4 border border-indigo-100 shadow-sm">
+            <div className="flex items-start gap-3">
+              <span className="text-3xl">🔔</span>
+              <div className="flex-1">
+                <p className="text-sm font-extrabold text-gray-800">Stay on track with reminders</p>
+                <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                  Get period predictions, hydration nudges, mood check-ins, and wellness tips — right when you need them.
+                </p>
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={async () => {
+                      const ok = await pushSubscribe();
+                      if (ok) toast.success('Notifications enabled! 🎉');
+                    }}
+                    disabled={pushLoading}
+                    className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl active:scale-95 transition-transform disabled:opacity-50"
+                  >
+                    {pushLoading ? 'Enabling…' : 'Enable Notifications'}
+                  </button>
+                  <button
+                    onClick={() => { setPushDismissed(true); localStorage.setItem('sb_push_dismissed', '1'); }}
+                    className="text-xs text-gray-400 font-semibold px-3 py-2.5"
+                  >
+                    Not now
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ─── Top Doctors Carousel ─── */}
         <DoctorCarousel
