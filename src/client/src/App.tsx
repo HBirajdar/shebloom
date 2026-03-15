@@ -51,6 +51,7 @@ const FeaturesPage = lazy(() => import('./pages/FeaturesPage'));
 const BlogLandingPage = lazy(() => import('./pages/BlogLandingPage'));
 const PcosPage = lazy(() => import('./pages/PcosPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
+const DataPrivacyPage = lazy(() => import('./pages/DataPrivacyPage'));
 
 // Global page view tracker
 function PageTracker() {
@@ -177,6 +178,7 @@ export default function App() {
           <Route path="/shipping-policy" element={<ShippingPolicyPage />} />
           <Route path="/about-us" element={<AboutPage />} />
           <Route path="/refund-policy" element={<RefundPolicyPage />} />
+          <Route path="/data-privacy" element={<ProtectedRoute><DataPrivacyPage /></ProtectedRoute>} />
           <Route path="/help" element={<HelpCenterPage />} />
           <Route path="/features" element={<FeaturesPage />} />
           <Route path="/blog" element={<BlogLandingPage />} />
