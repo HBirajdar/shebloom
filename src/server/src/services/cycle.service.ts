@@ -676,11 +676,34 @@ export class CycleService {
     });
     if (existingCycle) throw new Error('A period is already logged for this date');
 
+    const startDate = new Date(data.startDate);
+    const endDate = data.endDate ? new Date(data.endDate) : undefined;
+
+    // Auto-compute periodLength from start/end dates
+    let periodLength: number | undefined;
+    if (endDate) {
+      periodLength = Math.floor((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
+      if (periodLength < 1 || periodLength > 15) periodLength = undefined;
+    }
+
+    // Auto-compute cycleLength from previous cycle
+    let cycleLength: number | undefined;
+    const prevCycle = await prisma.cycle.findFirst({
+      where: { userId, startDate: { lt: startDate } },
+      orderBy: { startDate: 'desc' },
+    });
+    if (prevCycle) {
+      const diff = Math.floor((startDate.getTime() - prevCycle.startDate.getTime()) / 86400000);
+      if (diff >= 18 && diff <= 50) cycleLength = diff;
+    }
+
     const cycle = await prisma.cycle.create({
       data: {
         userId,
-        startDate: new Date(data.startDate),
-        endDate: data.endDate ? new Date(data.endDate) : undefined,
+        startDate,
+        endDate,
+        cycleLength,
+        periodLength,
         notes: data.notes,
         flow: data.flow,
         painLevel: data.painLevel != null ? Number(data.painLevel) : undefined,
@@ -753,7 +776,9 @@ export class CycleService {
       take: 24, // Use up to 24 cycles for better statistics
     });
 
-    if (!allCycles.length || !profile) return { message: 'Not enough data for prediction' };
+    if (!allCycles.length) return { message: 'Not enough data for prediction' };
+    // Use profile if available, otherwise default values
+    const safeProfile = profile || { cycleLength: 28, periodLength: 5, dateOfBirth: null };
 
     // Reverse for most-recent-first access
     const cycles = [...allCycles].reverse();
@@ -769,7 +794,7 @@ export class CycleService {
 
     // ── Step 2: Weighted moving average (Bull 2019) ──────────────
     // Recent cycles weighted exponentially higher
-    let avgCycleLength = profile.cycleLength || 28;
+    let avgCycleLength = safeProfile.cycleLength || 28;
     let cycleSD = 0;
     if (cycleLengths.length >= 2) {
       const recentLengths = cycleLengths.slice(-12); // Last 12 valid lengths
@@ -793,14 +818,24 @@ export class CycleService {
 
     // ── Step 4: Compute current cycle position ───────────────────
     const lastStart = cycles[0].startDate;
-    const periodLength = profile.periodLength || 5;
+
+    // Auto-calculate periodLength from logged cycles with endDates, fallback to profile
+    const loggedPeriodLengths = allCycles
+      .filter(c => c.endDate)
+      .map(c => Math.floor((c.endDate!.getTime() - c.startDate.getTime()) / 86400000) + 1)
+      .filter(l => l >= 1 && l <= 15);
+    const periodLength = loggedPeriodLengths.length >= 1
+      ? Math.round(loggedPeriodLengths.reduce((a, b) => a + b, 0) / loggedPeriodLengths.length)
+      : (safeProfile.periodLength || 5);
+
     // Normalize to date-only (midnight UTC) so cycleDay increments at midnight, not at the exact time the period was logged
     const todayMidnight = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()));
     const startMidnight = new Date(Date.UTC(lastStart.getUTCFullYear(), lastStart.getUTCMonth(), lastStart.getUTCDate()));
     const cycleDay = Math.floor((todayMidnight.getTime() - startMidnight.getTime()) / 86400000) + 1;
 
     // Ovulation day = cycle length - individual luteal phase (NOT the mythical -14)
-    const ovulationDay = Math.max(1, Math.min(avgCycleLength - 1, avgCycleLength - lutealPhase));
+    // Clamped to valid range: at least day 1, at most avgCycleLength
+    const ovulationDay = Math.max(1, avgCycleLength - lutealPhase);
     const ovulationDate = new Date(lastStart.getTime() + ovulationDay * 86400000);
     const nextPeriod = new Date(lastStart.getTime() + avgCycleLength * 86400000);
 
@@ -817,9 +852,11 @@ export class CycleService {
     const ovulationWindowLate = new Date(ovulationDate.getTime() + cycleSD * 86400000);
 
     // ── Step 7: Current phase determination ──────────────────────
+    // follicularEnd is at least periodLength+1 so the phase is never empty
+    const follicularEnd = Math.max(periodLength + 1, ovulationDay - 3);
     let phase = 'luteal';
     if (cycleDay <= periodLength) phase = 'menstrual';
-    else if (cycleDay <= ovulationDay - 3) phase = 'follicular';
+    else if (cycleDay <= follicularEnd) phase = 'follicular';
     else if (cycleDay <= ovulationDay + 2) phase = 'ovulation';
 
     // ── Step 8: Fetch biomarkers for today ───────────────────────
