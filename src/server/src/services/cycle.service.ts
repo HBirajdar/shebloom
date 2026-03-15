@@ -665,8 +665,18 @@ export class CycleService {
       orderBy: { startDate: 'desc' },
       take: limit,
     });
-    await cacheSet(cacheKey, cycles, 600);
-    return cycles;
+    // Sanitize: cap endDate to startDate + periodLength (or 10 days max)
+    // Guards against bad data imported before the endDate cap fix
+    const sanitized = cycles.map(c => {
+      if (c.endDate && c.startDate) {
+        const maxDays = Math.min(c.periodLength || 5, 10);
+        const maxEnd = new Date(c.startDate.getTime() + maxDays * 86400000);
+        if (c.endDate > maxEnd) return { ...c, endDate: maxEnd };
+      }
+      return c;
+    });
+    await cacheSet(cacheKey, sanitized, 600);
+    return sanitized;
   }
 
   async logPeriod(userId: string, data: { startDate: string; endDate?: string; notes?: string; flow?: string; painLevel?: number; mood?: string[]; symptoms?: string[] }) {

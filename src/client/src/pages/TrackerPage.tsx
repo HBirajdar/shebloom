@@ -298,19 +298,20 @@ export default function TrackerPage() {
       if (!markers[key].includes(type)) markers[key].push(type)
     }
 
-    // Mark logged period days (capped at 15 days — no period lasts longer medically)
+    // Mark logged period days — use periodLength (or 5) as the max span
+    // endDate from DB can be unreliable (imported before cap fix), so always sanity-check
     cycles.forEach(cycle => {
       if (!cycle.startDate) return
       const start = startOfDay(new Date(cycle.startDate))
-      const end = cycle.endDate
-        ? startOfDay(new Date(cycle.endDate))
-        : addDays(start, (cycle.periodLength || 5) - 1)
+      const maxDays = Math.min(cycle.periodLength || 5, 10) // never more than 10 days
+      const endFromData = cycle.endDate ? startOfDay(new Date(cycle.endDate)) : null
+      const endFromLength = addDays(start, maxDays - 1)
+      // Use endDate only if it's reasonable (within maxDays), otherwise fall back to periodLength
+      const end = endFromData && endFromData <= endFromLength ? endFromData : endFromLength
       let d = new Date(start)
-      let count = 0
-      while (d <= end && count < 15) {
+      while (d <= end) {
         markDay(new Date(d), 'period')
         d = addDays(d, 1)
-        count++
       }
     })
 
@@ -369,21 +370,20 @@ export default function TrackerPage() {
     return markers
   }, [cycles, prediction, today, showFertility])
 
-  // Symptom days from cycles
+  // Symptom days from cycles (same sanity-check as calendarMarkers)
   const symptomDays = useMemo(() => {
     const days = new Set<string>()
     cycles.forEach(c => {
       if (c.symptoms && c.symptoms.length > 0 && c.startDate) {
         const start = startOfDay(new Date(c.startDate))
-        const end = c.endDate
-          ? startOfDay(new Date(c.endDate))
-          : addDays(start, (c.periodLength || 5) - 1)
+        const maxDays = Math.min(c.periodLength || 5, 10)
+        const endFromData = c.endDate ? startOfDay(new Date(c.endDate)) : null
+        const endFromLength = addDays(start, maxDays - 1)
+        const end = endFromData && endFromData <= endFromLength ? endFromData : endFromLength
         let d = new Date(start)
-        let count = 0
-        while (d <= end && count < 15) {
+        while (d <= end) {
           days.add(d.toISOString().slice(0, 10))
           d = addDays(d, 1)
-          count++
         }
       }
     })
