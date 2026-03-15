@@ -863,12 +863,6 @@ export default function ProfilePage() {
               {([
                 { code: 'ENGLISH', label: 'English', native: 'English' },
                 { code: 'HINDI', label: 'Hindi', native: 'हिन्दी' },
-                { code: 'TAMIL', label: 'Tamil', native: 'தமிழ்' },
-                { code: 'KANNADA', label: 'Kannada', native: 'ಕನ್ನಡ' },
-                { code: 'TELUGU', label: 'Telugu', native: 'తెలుగు' },
-                { code: 'MARATHI', label: 'Marathi', native: 'मराठी' },
-                { code: 'BENGALI', label: 'Bengali', native: 'বাংলা' },
-                { code: 'GUJARATI', label: 'Gujarati', native: 'ગુજરાતી' },
               ] as const).map(lang => (
                 <button
                   key={lang.code}
