@@ -96,6 +96,109 @@ export default function TrackerPage() {
   const [showMentalHealth, setShowMentalHealth] = useState(false)
   const [showPredictionInfo, setShowPredictionInfo] = useState(false)
 
+  // Import past periods state
+  const [showImportSheet, setShowImportSheet] = useState(false)
+  const [importPeriods, setImportPeriods] = useState<{ startDate: string; endDate: string; errors: { startDate?: string; endDate?: string } }[]>([{ startDate: '', endDate: '', errors: {} }])
+  const [importSaving, setImportSaving] = useState(false)
+  const [importDismissed, setImportDismissed] = useState(() => localStorage.getItem('sb_import_dismissed') === '1')
+
+  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), [])
+  const twelveMonthsAgoStr = useMemo(() => new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10), [])
+
+  const updateImportPeriod = (idx: number, field: 'startDate' | 'endDate', value: string) => {
+    setImportPeriods(prev => prev.map((p, i) => i === idx ? { ...p, [field]: value, errors: { ...p.errors, [field]: undefined } } : p))
+  }
+  const removeImportPeriod = (idx: number) => {
+    setImportPeriods(prev => prev.length === 1 ? [{ startDate: '', endDate: '', errors: {} }] : prev.filter((_, i) => i !== idx))
+  }
+  const addImportPeriod = () => {
+    if (importPeriods.length < 3) setImportPeriods(prev => [...prev, { startDate: '', endDate: '', errors: {} }])
+  }
+
+  const validateImportPeriods = (): boolean => {
+    const filled = importPeriods.filter(p => p.startDate)
+    if (filled.length === 0) { toast.error('Add at least one period'); return false }
+
+    let valid = true
+    const updated = importPeriods.map(p => {
+      const errors: { startDate?: string; endDate?: string } = {}
+      if (!p.startDate && !p.endDate) return { ...p, errors }
+      if (!p.startDate) { errors.startDate = 'Start date is required'; valid = false }
+      else {
+        if (p.startDate > todayStr) { errors.startDate = 'Cannot be in the future'; valid = false }
+        if (p.startDate < twelveMonthsAgoStr) { errors.startDate = 'Must be within last 12 months'; valid = false }
+      }
+      if (p.endDate) {
+        if (p.endDate > todayStr) { errors.endDate = 'Cannot be in the future'; valid = false }
+        if (p.startDate && p.endDate <= p.startDate) { errors.endDate = 'Must be after start date'; valid = false }
+      }
+      return { ...p, errors }
+    })
+
+    // Overlap check
+    const filledEntries = updated.filter(p => p.startDate)
+    for (let i = 0; i < filledEntries.length; i++) {
+      const aS = new Date(filledEntries[i].startDate).getTime()
+      const aE = filledEntries[i].endDate ? new Date(filledEntries[i].endDate).getTime() : aS + 5 * 86400000
+      for (let j = i + 1; j < filledEntries.length; j++) {
+        const bS = new Date(filledEntries[j].startDate).getTime()
+        const bE = filledEntries[j].endDate ? new Date(filledEntries[j].endDate).getTime() : bS + 5 * 86400000
+        if (aS <= bE && bS <= aE) {
+          filledEntries[i].errors.startDate = 'Overlaps with another period'
+          filledEntries[j].errors.startDate = 'Overlaps with another period'
+          valid = false
+        }
+      }
+    }
+
+    // Duplicate start dates
+    const starts = filledEntries.map(p => p.startDate)
+    starts.forEach((d, i) => {
+      if (starts.indexOf(d) !== i) {
+        filledEntries.find(p => p.startDate === d)!.errors.startDate = 'Duplicate start date'
+        valid = false
+      }
+    })
+
+    setPastPeriods(updated)
+    return valid
+  }
+
+  // Alias for validation (uses same state)
+  const setPastPeriods = setImportPeriods
+
+  const saveImportPeriods = async () => {
+    if (!validateImportPeriods()) return
+    setImportSaving(true)
+    const filled = importPeriods.filter(p => p.startDate)
+    const sorted = [...filled].sort((a, b) => a.startDate.localeCompare(b.startDate))
+    let saved = 0
+    for (const p of sorted) {
+      try {
+        await cycleAPI.log({
+          startDate: new Date(p.startDate).toISOString(),
+          endDate: p.endDate ? new Date(p.endDate).toISOString() : new Date(new Date(p.startDate).getTime() + 4 * 86400000).toISOString(),
+          flow: 'medium',
+        })
+        saved++
+      } catch {}
+    }
+    if (saved > 0) {
+      toast.success(`${saved} period${saved > 1 ? 's' : ''} imported!`)
+      await refreshCycleData()
+    } else {
+      toast.error('Could not save — periods may already exist')
+    }
+    setImportSaving(false)
+    setShowImportSheet(false)
+    setImportPeriods([{ startDate: '', endDate: '', errors: {} }])
+  }
+
+  const dismissImportBanner = () => {
+    setImportDismissed(true)
+    localStorage.setItem('sb_import_dismissed', '1')
+  }
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
@@ -1130,6 +1233,30 @@ export default function TrackerPage() {
               </div>
             </div>
 
+            {/* Import Past Periods Prompt — shown once when < 2 cycles */}
+            {!importDismissed && cycles.length < 2 && !loading && (
+              <div className="mt-3 px-4">
+                <div className="bg-gradient-to-r from-rose-50 to-purple-50 rounded-2xl p-4 border border-rose-100 shadow-sm relative">
+                  <button onClick={dismissImportBanner} className="absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-white/80 flex items-center justify-center text-gray-400 hover:text-gray-600 text-xs">✕</button>
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">🌸</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-extrabold text-gray-800">Get instant predictions</p>
+                      <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                        Add your last 2–3 periods so we can predict your cycle right away — no waiting!
+                      </p>
+                      <button
+                        onClick={() => setShowImportSheet(true)}
+                        className="mt-2.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs font-bold px-4 py-2 rounded-xl active:scale-95 transition-transform shadow-sm"
+                      >
+                        + Import Past Periods
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Past Period History */}
             <div className="mt-3 px-4">
               <h3 className="text-sm font-bold text-gray-700 mb-2">Period History</h3>
@@ -1547,6 +1674,25 @@ export default function TrackerPage() {
                     <p className="text-sm text-gray-700 leading-snug">{tip}</p>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Import Past Periods — always accessible in Insights */}
+            <div className="rounded-2xl p-4 border border-gray-100 bg-white shadow-sm">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">📥</span>
+                <div className="flex-1">
+                  <p className="text-sm font-extrabold text-gray-800">Import Past Periods</p>
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                    Add previous period dates to improve prediction accuracy. The more data, the better your forecasts.
+                  </p>
+                  <button
+                    onClick={() => setShowImportSheet(true)}
+                    className="mt-2.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs font-bold px-4 py-2 rounded-xl active:scale-95 transition-transform shadow-sm"
+                  >
+                    + Add Past Periods
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -2438,6 +2584,80 @@ export default function TrackerPage() {
               <button onClick={saveFertilityLog} disabled={fertSaving}
                 className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-black text-base py-4 rounded-2xl shadow-lg shadow-purple-200 active:scale-95 transition-transform disabled:opacity-60 mb-2">
                 {fertSaving ? 'Saving...' : '🧬 Save Fertility Log'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Past Periods Sheet */}
+      {showImportSheet && (
+        <div className="fixed inset-0 z-[60] flex flex-col">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-md" onClick={() => !importSaving && setShowImportSheet(false)} />
+          <div className="relative flex flex-col bg-white shadow-2xl z-10 w-full h-full">
+            <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+              <div className="w-10 h-1.5 bg-gray-300 rounded-full" />
+            </div>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 flex-shrink-0">
+              <div>
+                <h2 className="text-xl font-black text-gray-900">Import Past Periods</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Add up to 3 recent periods for better predictions</p>
+              </div>
+              <button onClick={() => !importSaving && setShowImportSheet(false)} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors">✕</button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 pb-32">
+              <div className="bg-purple-50 rounded-xl p-3 mb-1">
+                <p className="text-xs text-purple-700 font-semibold">💡 Even approximate dates help! More periods = more accurate predictions.</p>
+              </div>
+
+              {importPeriods.map((pp, idx) => (
+                <div key={idx} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 relative">
+                  {(importPeriods.length > 1 || pp.startDate || pp.endDate) && (
+                    <button onClick={() => removeImportPeriod(idx)}
+                      className="absolute top-3 right-3 w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-400 transition active:scale-90 text-xs font-bold">
+                      ✕
+                    </button>
+                  )}
+                  <p className="text-xs font-bold text-gray-500 mb-3">Period {idx + 1}</p>
+                  <div className="mb-3">
+                    <label className="text-xs font-semibold text-gray-700 block mb-1">Start Date *</label>
+                    <input
+                      type="date"
+                      value={pp.startDate}
+                      max={todayStr}
+                      min={twelveMonthsAgoStr}
+                      onChange={e => updateImportPeriod(idx, 'startDate', e.target.value)}
+                      className={'w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition ' + (pp.errors.startDate ? 'border-red-400 focus:border-red-500' : 'border-gray-200 focus:border-rose-400')}
+                    />
+                    {pp.errors.startDate && <p className="text-[10px] text-red-500 mt-1 font-medium">{pp.errors.startDate}</p>}
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-700 block mb-1">End Date <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input
+                      type="date"
+                      value={pp.endDate}
+                      max={todayStr}
+                      min={pp.startDate || twelveMonthsAgoStr}
+                      onChange={e => updateImportPeriod(idx, 'endDate', e.target.value)}
+                      className={'w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition ' + (pp.errors.endDate ? 'border-red-400 focus:border-red-500' : 'border-gray-200 focus:border-rose-400')}
+                    />
+                    {pp.errors.endDate && <p className="text-[10px] text-red-500 mt-1 font-medium">{pp.errors.endDate}</p>}
+                  </div>
+                </div>
+              ))}
+
+              {importPeriods.length < 3 && (
+                <button onClick={addImportPeriod}
+                  className="w-full py-2.5 rounded-2xl border-2 border-dashed border-gray-200 text-sm font-semibold text-gray-400 hover:border-rose-300 hover:text-rose-400 transition active:scale-95">
+                  + Add another period
+                </button>
+              )}
+            </div>
+            {/* Save Button — fixed at bottom */}
+            <div className="absolute bottom-0 left-0 right-0 p-5 bg-white border-t border-gray-100">
+              <button onClick={saveImportPeriods} disabled={importSaving}
+                className="w-full bg-gradient-to-r from-rose-500 to-pink-500 text-white font-black text-base py-4 rounded-2xl shadow-lg shadow-rose-200 active:scale-95 transition-transform disabled:opacity-60">
+                {importSaving ? 'Saving...' : '🌸 Import Periods'}
               </button>
             </div>
           </div>
