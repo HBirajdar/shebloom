@@ -25,6 +25,14 @@ r.get('/predict', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try { successResponse(s, await svc.getPredictions(q.user!.id)); } catch (e) { n(e); }
 });
 
+r.put('/:id', async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try { successResponse(s, await svc.updatePeriod(q.user!.id, q.params.id, q.body), 'Period updated'); } catch (e) { n(e); }
+});
+
+r.delete('/:id', async (q: AuthRequest, s: Response, n: NextFunction) => {
+  try { successResponse(s, await svc.deletePeriod(q.user!.id, q.params.id), 'Period deleted'); } catch (e) { n(e); }
+});
+
 r.post('/symptoms', async (q: AuthRequest, s: Response, n: NextFunction) => {
   try { successResponse(s, await svc.logSymptoms(q.user!.id, q.body), 'Symptoms logged', 201); } catch (e) { n(e); }
 });

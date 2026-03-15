@@ -143,6 +143,8 @@ export const userAPI = {
 export const cycleAPI = {
   list: () => api.get('/cycles'),
   log: (d: any) => api.post('/cycles/log', d),
+  update: (id: string, d: any) => api.put('/cycles/' + id, d),
+  delete: (id: string) => api.delete('/cycles/' + id),
   predict: () => api.get('/cycles/predict'),
   logSymptoms: (d: any) => api.post('/cycles/symptoms', d),
   // Advanced fertility tracking

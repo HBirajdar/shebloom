@@ -695,6 +695,49 @@ export class CycleService {
     return cycle;
   }
 
+  async updatePeriod(userId: string, cycleId: string, data: { startDate?: string; endDate?: string | null; flow?: string; painLevel?: number; mood?: string[]; symptoms?: string[]; notes?: string }) {
+    const existing = await prisma.cycle.findFirst({ where: { id: cycleId, userId } });
+    if (!existing) throw new Error('Period entry not found');
+
+    // If startDate is changing, check for duplicates on the new date
+    if (data.startDate && new Date(data.startDate).getTime() !== existing.startDate.getTime()) {
+      const dup = await prisma.cycle.findFirst({
+        where: { userId, startDate: new Date(data.startDate), id: { not: cycleId } },
+      });
+      if (dup) throw new Error('A period is already logged for this date');
+    }
+
+    const updated = await prisma.cycle.update({
+      where: { id: cycleId },
+      data: {
+        ...(data.startDate !== undefined && { startDate: new Date(data.startDate) }),
+        ...(data.endDate !== undefined && { endDate: data.endDate ? new Date(data.endDate) : null }),
+        ...(data.flow !== undefined && { flow: data.flow }),
+        ...(data.painLevel !== undefined && { painLevel: Number(data.painLevel) }),
+        ...(data.mood !== undefined && { mood: data.mood }),
+        ...(data.symptoms !== undefined && { symptoms: data.symptoms }),
+        ...(data.notes !== undefined && { notes: data.notes }),
+      },
+    });
+    await cacheDel(`cycles:${userId}`);
+    await cacheDel(`predictions:${userId}`);
+    await cacheDel(`fertility:${userId}`);
+    await cacheDel('insights:' + userId);
+    return updated;
+  }
+
+  async deletePeriod(userId: string, cycleId: string) {
+    const existing = await prisma.cycle.findFirst({ where: { id: cycleId, userId } });
+    if (!existing) throw new Error('Period entry not found');
+
+    await prisma.cycle.delete({ where: { id: cycleId } });
+    await cacheDel(`cycles:${userId}`);
+    await cacheDel(`predictions:${userId}`);
+    await cacheDel(`fertility:${userId}`);
+    await cacheDel('insights:' + userId);
+    return { deleted: true };
+  }
+
   // ════════════════════════════════════════════════════════════════
   // ADVANCED PREDICTION ENGINE
   // ════════════════════════════════════════════════════════════════
