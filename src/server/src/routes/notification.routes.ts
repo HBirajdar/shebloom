@@ -33,7 +33,7 @@ r.post('/subscribe', async (req: AuthRequest, res: Response) => {
       data: { fcmToken: JSON.stringify(subscription) },
     });
     successResponse(res, null, 'Push subscription saved');
-  } catch (e: any) { errorResponse(res, e.message, 500); }
+  } catch (e: any) { errorResponse(res, 'Failed to save subscription', 500); }
 });
 
 // POST /notifications/unsubscribe — remove push subscription
@@ -44,7 +44,7 @@ r.post('/unsubscribe', async (req: AuthRequest, res: Response) => {
       data: { fcmToken: null },
     });
     successResponse(res, null, 'Push subscription removed');
-  } catch (e: any) { errorResponse(res, e.message, 500); }
+  } catch (e: any) { errorResponse(res, 'Failed to remove subscription', 500); }
 });
 
 // ─── GET /preferences ────────────────────────────────
@@ -55,7 +55,7 @@ r.get('/preferences', async (req: AuthRequest, res: Response) => {
       prefs = await prisma.notificationPreference.create({ data: { userId: req.user!.id } });
     }
     successResponse(res, prefs);
-  } catch (e: any) { errorResponse(res, e.message, 500); }
+  } catch (e: any) { errorResponse(res, 'Failed to load preferences', 500); }
 });
 
 // ─── PUT /preferences ────────────────────────────────
@@ -93,7 +93,7 @@ r.put('/preferences', async (req: AuthRequest, res: Response) => {
       create: { userId: req.user!.id, ...data },
     });
     successResponse(res, prefs, 'Preferences updated');
-  } catch (e: any) { errorResponse(res, e.message, 500); }
+  } catch (e: any) { errorResponse(res, 'Failed to update preferences', 500); }
 });
 
 // ─── Smart notification generator ───────────────────

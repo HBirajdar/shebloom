@@ -8,7 +8,6 @@ import app from './app';
 import { logger } from './config/logger';
 import prisma, { connectDatabase } from './config/database';
 import { connectRedis } from './config/redis';
-import { execSync } from 'child_process';
 import cron from 'node-cron';
 
 const PORT = process.env.PORT || process.env.APP_PORT || 8000;
@@ -55,20 +54,8 @@ async function ensureChiefDoctor() {
   }
 }
 
-async function runMigrations() {
-  // Schema push is handled by the start command (npm start / nixpacks cmd)
-  // Only regenerate Prisma Client here so runtime JS matches current schema
-  try {
-    execSync('npx prisma generate', {
-      timeout: 30000,
-      stdio: 'pipe',
-      env: process.env as any,
-    });
-    logger.info('Prisma client regenerated');
-  } catch (err: any) {
-    logger.warn('Prisma generate warning: ' + (err.message || '').slice(0, 200));
-  }
-}
+// Prisma generate is now handled at build time (package.json build script)
+// Removed runtime execSync('npx prisma generate') to cut 5-15s from cold starts
 
 async function bootstrap() {
   // 1. Start HTTP server immediately so Railway health checks pass
@@ -82,7 +69,6 @@ async function bootstrap() {
   try {
     await connectDatabase();
     logger.info('Database connected');
-    await runMigrations();
     await ensureChiefDoctor();
   } catch (error: any) {
     logger.error('Database connection failed: ' + error.message);
@@ -263,6 +249,32 @@ async function bootstrap() {
       const profileMap = Object.fromEntries(allProfiles.map(p => [p.userId, p]));
       const waterMap = Object.fromEntries(allWaterLogs.map(w => [w.userId, w]));
 
+      // Batch-load recent notifications to avoid N+1 queries inside the loop
+      const recentNotifications = await prisma.notification.findMany({
+        where: {
+          userId: { in: userIds },
+          type: { in: ['water_reminder', 'mood_reminder', 'period_prediction', 'ovulation_push'] },
+          createdAt: { gte: new Date(now.getTime() - 24 * 3600000) },
+        },
+        select: { userId: true, type: true, createdAt: true },
+      });
+      // Build a map: userId -> { type -> latest createdAt }
+      const recentMap = new Map<string, Map<string, Date>>();
+      for (const n of recentNotifications) {
+        if (!recentMap.has(n.userId)) recentMap.set(n.userId, new Map());
+        const userMap = recentMap.get(n.userId)!;
+        const existing = userMap.get(n.type);
+        if (!existing || n.createdAt > existing) userMap.set(n.type, n.createdAt);
+      }
+
+      const hasRecent = (uid: string, type: string, withinMs: number): boolean => {
+        const userMap = recentMap.get(uid);
+        if (!userMap) return false;
+        const latest = userMap.get(type);
+        if (!latest) return false;
+        return now.getTime() - latest.getTime() < withinMs;
+      };
+
       const { sendPushNotification: pushNotif } = await import('./services/push.service');
       let sent = 0;
 
@@ -282,30 +294,20 @@ async function bootstrap() {
 
         // ─── Water reminder ─────────────────────────
         if (waterEnabled && currentHour >= waterStart && currentHour <= waterEnd) {
-          // Only send if current hour aligns with interval
           if ((currentHour - waterStart) % Math.round(waterInterval) === 0) {
             const waterLog = waterMap[uid];
             const glasses = waterLog?.glasses ?? 0;
             const target = waterLog?.targetGlasses ?? 8;
-            if (glasses < target) {
-              // Check no water reminder sent in last interval
-              const recent = await prisma.notification.findFirst({
-                where: { userId: uid, type: 'water_reminder', createdAt: { gte: new Date(now.getTime() - waterInterval * 3600000) } },
-              });
-              if (!recent) {
-                await pushNotif(uid, 'Hydration Reminder 💧', `You've had ${glasses} of ${target} glasses today. Time for a sip!`, 'water_reminder', { url: '/wellness' });
-                sent++;
-              }
+            if (glasses < target && !hasRecent(uid, 'water_reminder', waterInterval * 3600000)) {
+              await pushNotif(uid, 'Hydration Reminder 💧', `You've had ${glasses} of ${target} glasses today. Time for a sip!`, 'water_reminder', { url: '/wellness' });
+              sent++;
             }
           }
         }
 
         // ─── Mood check-in ──────────────────────────
         if (moodEnabled && currentHour === moodHour) {
-          const recent = await prisma.notification.findFirst({
-            where: { userId: uid, type: 'mood_reminder', createdAt: { gte: new Date(now.getTime() - 20 * 3600000) } },
-          });
-          if (!recent) {
+          if (!hasRecent(uid, 'mood_reminder', 20 * 3600000)) {
             await pushNotif(uid, 'Mood Check-in 😊', 'How are you feeling right now? Tap to log your mood.', 'mood_reminder', { url: '/wellness' });
             sent++;
           }
@@ -320,10 +322,7 @@ async function bootstrap() {
           const daysUntil = Math.floor((nextPeriod.getTime() - now.getTime()) / 86400000);
 
           if (daysUntil === periodDays && currentHour === 9) {
-            const recent = await prisma.notification.findFirst({
-              where: { userId: uid, type: 'period_prediction', createdAt: { gte: new Date(now.getTime() - 86400000) } },
-            });
-            if (!recent) {
+            if (!hasRecent(uid, 'period_prediction', 86400000)) {
               await pushNotif(uid, 'Period Coming Soon 🩸', `Your period is expected in ${periodDays} day${periodDays > 1 ? 's' : ''}. Stay prepared!`, 'period_prediction', { url: '/tracker' });
               sent++;
             }
@@ -335,10 +334,7 @@ async function bootstrap() {
             const cycleDay = (daysSince % cycleLength) + 1;
             const ovulationDay = cycleLength - 14;
             if (cycleDay === ovulationDay && currentHour === 9) {
-              const recent = await prisma.notification.findFirst({
-                where: { userId: uid, type: 'ovulation_push', createdAt: { gte: new Date(now.getTime() - 86400000) } },
-              });
-              if (!recent) {
+              if (!hasRecent(uid, 'ovulation_push', 86400000)) {
                 await pushNotif(uid, 'Ovulation Day ✨', "Today is your predicted ovulation day — your peak fertility window!", 'ovulation_push', { url: '/tracker' });
                 sent++;
               }

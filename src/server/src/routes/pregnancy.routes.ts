@@ -89,9 +89,17 @@ r.post('/', async (q: AuthRequest, s: Response, n: NextFunction) => {
       errorResponse(s, 'Provide dueDate or lastPeriodDate', 400);
       return;
     }
+    // Validate date strings
+    if (dueDate && isNaN(new Date(dueDate).getTime())) { errorResponse(s, 'Invalid dueDate', 400); return; }
+    if (lastPeriodDate && isNaN(new Date(lastPeriodDate).getTime())) { errorResponse(s, 'Invalid lastPeriodDate', 400); return; }
     const finalDueDate = dueDate
       ? new Date(dueDate)
       : new Date(new Date(lastPeriodDate!).getTime() + 280 * 86400000);
+    // Sanity check: due date should be within reasonable range (not more than 10 months from now, not more than 9 months ago)
+    const now = Date.now();
+    if (finalDueDate.getTime() > now + 310 * 86400000 || finalDueDate.getTime() < now - 280 * 86400000) {
+      errorResponse(s, 'Due date is out of valid range', 400); return;
+    }
 
     await prisma.pregnancy.updateMany({ where: { userId: q.user!.id, isActive: true }, data: { isActive: false } });
     const pregnancy = await prisma.pregnancy.create({

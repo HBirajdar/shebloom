@@ -85,7 +85,8 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "https://checkout.razorpay.com"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       imgSrc: ["'self'", 'data:', 'https:'],
       frameSrc: ["'self'", "https://api.razorpay.com", "https://checkout.razorpay.com"],
       connectSrc: ["'self'", "https://api.razorpay.com", "https://lumberjack.razorpay.com"],
@@ -304,11 +305,13 @@ ${urls}
   }
 });
 
-// ─── API Documentation ──────────────────────────────
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'VedaClue API Documentation',
-}));
+// ─── API Documentation (non-production only) ────────
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'VedaClue API Documentation',
+  }));
+}
 
 // ─── API Routes (v1) ────────────────────────────────
 app.use('/api/v1/auth', authRoutes);

@@ -524,53 +524,54 @@ r.post('/cod', async (q: AuthRequest, s: Response, n: NextFunction) => {
     const totalAmount = Math.max(0, afterDiscount + deliveryCharge + platformFee + codCharge);
     const orderNumber = `VC-${Date.now()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 
-    const order = await prisma.order.create({
-      data: {
-        orderNumber,
-        userId: uid,
-        subtotal,
-        discount: couponDiscount,
-        couponCode: couponResult.couponCode || null,
-        couponDiscount,
-        platformFee,
-        deliveryCharge,
-        totalAmount,
-        paymentMethod: 'COD',
-        paymentStatus: 'PENDING_COD',
-        orderStatus: 'CONFIRMED',
-        deliveryAddress: deliveryAddress as any,
-        notes: notes || null,
-        items: { create: orderItems },
-      },
-      include: { items: true, user: { select: { email: true, fullName: true } } },
-    });
-
-    // Atomically decrement stock + record coupon in a single transaction
-    try {
-      await prisma.$transaction(async (tx) => {
-        for (const item of orderItems) {
-          const stockResult = await tx.product.updateMany({
-            where: { id: item.productId, stock: { gte: item.quantity } },
-            data: { stock: { decrement: item.quantity } },
-          });
-          if (stockResult.count === 0) {
-            throw new Error(`Insufficient stock for product ${item.productId}`);
-          }
-        }
-        if (couponResult.couponCode) {
-          const coupon = await tx.coupon.findUnique({ where: { code: couponResult.couponCode! } });
-          if (coupon) {
-            await tx.couponRedemption.create({
-              data: { couponId: coupon.id, userId: uid, orderId: order.id, discount: couponDiscount },
-            });
-            await tx.coupon.update({ where: { id: coupon.id }, data: { currentUses: { increment: 1 } } });
-          }
-        }
+    // Atomically create order + decrement stock + record coupon in a single transaction
+    const order = await prisma.$transaction(async (tx) => {
+      // 1. Create the order
+      const newOrder = await tx.order.create({
+        data: {
+          orderNumber,
+          userId: uid,
+          subtotal,
+          discount: couponDiscount,
+          couponCode: couponResult.couponCode || null,
+          couponDiscount,
+          platformFee,
+          deliveryCharge,
+          totalAmount,
+          paymentMethod: 'COD',
+          paymentStatus: 'PENDING_COD',
+          orderStatus: 'CONFIRMED',
+          deliveryAddress: deliveryAddress as any,
+          notes: notes || null,
+          items: { create: orderItems },
+        },
+        include: { items: true, user: { select: { email: true, fullName: true } } },
       });
-    } catch (e: any) {
-      logger.error('[CRITICAL] COD stock/coupon transaction failed for order', order.id, ':', e.message);
-      await prisma.order.update({ where: { id: order.id }, data: { orderStatus: 'FAILED' } }).catch(() => {});
-    }
+
+      // 2. Decrement stock (rolls back entire transaction if insufficient)
+      for (const item of orderItems) {
+        const stockResult = await tx.product.updateMany({
+          where: { id: item.productId, stock: { gte: item.quantity } },
+          data: { stock: { decrement: item.quantity } },
+        });
+        if (stockResult.count === 0) {
+          throw new Error(`Insufficient stock for product ${item.productId}`);
+        }
+      }
+
+      // 3. Record coupon redemption
+      if (couponResult.couponCode) {
+        const coupon = await tx.coupon.findUnique({ where: { code: couponResult.couponCode! } });
+        if (coupon) {
+          await tx.couponRedemption.create({
+            data: { couponId: coupon.id, userId: uid, orderId: newOrder.id, discount: couponDiscount },
+          });
+          await tx.coupon.update({ where: { id: coupon.id }, data: { currentUses: { increment: 1 } } });
+        }
+      }
+
+      return newOrder;
+    });
 
     // Audit log: COD order placed
     auditLog({

@@ -38,8 +38,8 @@ function normalizePhone(raw: string): string {
   return digits;
 }
 
-// Phone numbers that should always have ADMIN role
-const ADMIN_PHONES = ['9405424185'];
+// Phone numbers that should always have ADMIN role (configured via env var)
+const ADMIN_PHONES = (process.env.ADMIN_PHONES || '').split(',').map(p => p.trim()).filter(Boolean);
 
 export class AuthService {
   private generateTokens(userId: string, role: string) {
@@ -65,6 +65,11 @@ export class AuthService {
   }
 
   async loginWithEmail(email: string, password: string) {
+    // Per-email rate limit: max 10 failed login attempts per 15 minutes
+    const loginKey = `login_rate:${email.toLowerCase()}`;
+    const loginAttempts = await cacheIncr(loginKey, 900);
+    if (loginAttempts > 10) throw new AppError('Too many login attempts. Please try again after 15 minutes.', 429);
+
     const user = await prisma.user.findUnique({ where: { email }, select: { id: true, fullName: true, email: true, passwordHash: true, role: true, isActive: true, authProvider: true } });
     if (!user || !user.passwordHash) throw new AppError('Invalid credentials', 401);
     if (!user.isActive) throw new AppError('Account deactivated', 403);
@@ -105,7 +110,11 @@ export class AuthService {
         logger.error(`Twilio send failed for ${normalized}: ${err.message}`);
       }
     }
-    logger.info(`[NO-SMS] OTP for +91${normalized}: ${otp}`);
+    if (process.env.NODE_ENV !== 'production') {
+      logger.info(`[NO-SMS] OTP for +91${normalized}: ${otp}`);
+    } else {
+      logger.info(`[NO-SMS] OTP delivery failed for +91${normalized} (Twilio not configured)`);
+    }
     return { smsSent: false };
   }
 

@@ -42,7 +42,12 @@ r.delete('/:id', async (q: AuthRequest, s: Response, n: NextFunction) => {
 });
 
 r.post('/symptoms', async (q: AuthRequest, s: Response, n: NextFunction) => {
-  try { successResponse(s, await svc.logSymptoms(q.user!.id, q.body), 'Symptoms logged', 201); } catch (e) { n(e); }
+  try {
+    const { symptoms, logDate } = q.body;
+    if (!symptoms || !Array.isArray(symptoms) || symptoms.length === 0) { errorResponse(s, 'symptoms must be a non-empty array', 400); return; }
+    if (!logDate || isNaN(new Date(logDate).getTime())) { errorResponse(s, 'Valid logDate is required', 400); return; }
+    successResponse(s, await svc.logSymptoms(q.user!.id, q.body), 'Symptoms logged', 201);
+  } catch (e) { n(e); }
 });
 
 // ─── BBT (Basal Body Temperature) [PREMIUM] ─────────

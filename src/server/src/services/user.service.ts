@@ -38,7 +38,16 @@ export class UserService {
     return result;
   }
   async exportData(userId: string) {
-    return prisma.user.findUnique({ where: { id: userId }, include: { profile: true, cycles: true, moodLogs: true } });
+    const [user, appointments, notifications, prescriptions, waterLogs, communityPosts, doshaAssessments] = await Promise.all([
+      prisma.user.findUnique({ where: { id: userId }, include: { profile: true, cycles: true, moodLogs: true } }),
+      prisma.appointment.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } }),
+      prisma.notification.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 100 }),
+      prisma.prescription.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } }),
+      prisma.waterLog.findMany({ where: { userId }, orderBy: { logDate: 'desc' }, take: 365 }),
+      prisma.communityPost.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } }),
+      prisma.doshaAssessment.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } }),
+    ]);
+    return { ...user, appointments, notifications, prescriptions, waterLogs, communityPosts, doshaAssessments };
   }
   async deleteAccount(userId: string) { await prisma.user.delete({ where: { id: userId } }); }
 }

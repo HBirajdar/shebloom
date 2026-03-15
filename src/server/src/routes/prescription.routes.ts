@@ -97,7 +97,13 @@ r.get('/appointment/:appointmentId', async (req: AuthRequest, res: Response, nex
       },
     });
     if (!p) { errorResponse(res, 'No prescription for this appointment', 404); return; }
-    if (p.userId !== req.user!.id && p.doctorId !== req.user!.id && req.user!.role !== 'ADMIN') {
+    // Check ownership: patient, doctor (via doctor profile), or admin
+    let isDoctor = false;
+    if (req.user!.role === 'DOCTOR') {
+      const doc = await prisma.doctor.findUnique({ where: { userId: req.user!.id }, select: { id: true } });
+      isDoctor = doc != null && doc.id === p.doctorId;
+    }
+    if (p.userId !== req.user!.id && !isDoctor && req.user!.role !== 'ADMIN') {
       errorResponse(res, 'Unauthorized', 403); return;
     }
     successResponse(res, p);
